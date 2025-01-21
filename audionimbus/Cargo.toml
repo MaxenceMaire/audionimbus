@@ -5,3 +5,4 @@ edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 
 [dependencies]
+audionimbus-sys = { version = "4.6.0", path = "../audionimbus-sys" }

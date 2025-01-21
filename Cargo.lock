@@ -14,6 +14,9 @@ dependencies = [
 [[package]]
 name = "audionimbus"
 version = "0.1.0"
+dependencies = [
+ "audionimbus-sys",
+]
 
 [[package]]
 name = "audionimbus-sys"
