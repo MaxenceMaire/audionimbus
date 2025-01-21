@@ -4,6 +4,7 @@ use crate::version::STEAMAUDIO_VERSION;
 /// A context object, which controls low-level operations of Steam Audio.
 ///
 /// Typically, a context is specified once during the execution of the client program, before calling any other API functions.
+#[derive(Debug)]
 pub struct Context(pub audionimbus_sys::IPLContext);
 
 impl Context {
@@ -51,6 +52,7 @@ impl Drop for Context {
 }
 
 /// Settings used to create a [`Context`].
+#[derive(Debug)]
 pub struct ContextSettings {
     // TODO: add other fields from IPLContextSettings.
     /// The API version.

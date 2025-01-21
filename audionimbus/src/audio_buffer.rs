@@ -3,6 +3,7 @@ use crate::ffi_wrapper::FFIWrapper;
 /// An audio buffer.
 ///
 /// All audio buffers passed to Steam Audio must be deinterleaved.
+#[derive(Debug)]
 pub struct AudioBuffer {
     num_channels: usize,
     num_samples: usize,

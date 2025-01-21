@@ -6,6 +6,7 @@ use crate::error::{to_option_error, SteamAudioError};
 ///
 /// HRTFs describe how sound from different directions is perceived by a each of a listener’s ears, and are a crucial component of spatial audio.
 /// Steam Audio includes a built-in HRTF, while also allowing developers and users to import their own custom HRTFs.
+#[derive(Debug)]
 pub struct Hrtf(pub audionimbus_sys::IPLHRTF);
 
 impl Hrtf {
@@ -55,6 +56,7 @@ impl Drop for Hrtf {
 }
 
 /// Settings used to create an [`Hrtf`].
+#[derive(Debug)]
 pub struct HrtfSettings {
     /// Volume correction factor to apply to the loaded HRTF data.
     ///
@@ -85,6 +87,7 @@ impl From<&HrtfSettings> for audionimbus_sys::IPLHRTFSettings {
 }
 
 /// HRTF volume normalization setting.
+#[derive(Debug)]
 pub enum VolumeNormalization {
     /// No normalization.
     None,
@@ -98,7 +101,7 @@ pub enum VolumeNormalization {
 /// Techniques for interpolating HRTF data.
 ///
 /// This is used when rendering a point source whose position relative to the listener is not contained in the measured HRTF data.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum HrtfInterpolation {
     /// Nearest-neighbor filtering, i.e., no interpolation.
     ///

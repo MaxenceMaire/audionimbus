@@ -1,4 +1,5 @@
 /// A generic wrapper that ties the lifetime of an FFI type (`T`) to the lifetime of a struct (`Owner`).
+#[derive(Debug)]
 pub struct FFIWrapper<'a, T, Owner> {
     pub ffi_object: T,
     _marker: std::marker::PhantomData<&'a Owner>,

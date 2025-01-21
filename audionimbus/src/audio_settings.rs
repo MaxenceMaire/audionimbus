@@ -1,4 +1,5 @@
 /// Global settings for audio signal processing.
+#[derive(Debug)]
 pub struct AudioSettings {
     /// Sampling rate, in Hz.
     pub sampling_rate: u32,

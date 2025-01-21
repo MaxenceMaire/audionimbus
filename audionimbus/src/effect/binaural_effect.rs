@@ -10,6 +10,7 @@ use crate::hrtf::{Hrtf, HrtfInterpolation};
 /// Spatializes a point source using an HRTF, based on the 3D position of the source relative to the listener.
 ///
 /// The source audio can be 1- or 2-channel; in either case all input channels are spatialized from the same position.
+#[derive(Debug)]
 pub struct BinauralEffect(pub audionimbus_sys::IPLBinauralEffect);
 
 impl BinauralEffect {
@@ -76,6 +77,7 @@ impl Drop for BinauralEffect {
 }
 
 /// Settings used to create a binaural effect.
+#[derive(Debug)]
 pub struct BinauralEffectSettings {
     /// The HRTF to use.
     pub hrtf: Hrtf,
@@ -88,6 +90,7 @@ impl From<&BinauralEffectSettings> for audionimbus_sys::IPLBinauralEffectSetting
 }
 
 /// Parameters for applying an Ambisonics binaural effect to an audio buffer.
+#[derive(Debug)]
 pub struct BinauralEffectParams {
     /// Unit vector pointing from the listener towards the source.
     pub direction: Vector3,
