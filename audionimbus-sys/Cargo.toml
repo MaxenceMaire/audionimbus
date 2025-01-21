@@ -6,3 +6,6 @@ authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 
 [build-dependencies]
 bindgen = "0.71.1"
+
+[features]
+static = []
