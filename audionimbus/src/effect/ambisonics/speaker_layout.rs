@@ -1,4 +1,4 @@
-use crate::geometry::Vector3;
+use crate::geometry::Direction;
 
 /// Describes a standard or custom speaker layout.
 #[derive(Debug)]
@@ -21,6 +21,6 @@ pub enum SpeakerLayout {
     /// User-defined speaker layout.
     Custom {
         /// Unit-length direction for each speaker.
-        speaker_directions: Vec<Vector3>,
+        speaker_directions: Vec<Direction>,
     },
 }

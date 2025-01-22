@@ -5,7 +5,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::geometry::CoordinateSystem3;
+use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 
 /// Applies a rotation to an Ambisonics audio buffer, then decodes it using panning or binaural rendering.
@@ -111,7 +111,7 @@ pub struct AmbisonicsDecodeEffectParams {
     hrtf: Hrtf,
 
     /// The orientation of the listener.
-    orientation: CoordinateSystem3,
+    orientation: CoordinateSystem,
 
     /// Whether to use binaural rendering or panning.
     binaural: bool,

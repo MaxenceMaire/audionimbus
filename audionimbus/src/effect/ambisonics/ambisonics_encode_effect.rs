@@ -5,7 +5,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::geometry::Vector3;
+use crate::geometry::Direction;
 use crate::hrtf::Hrtf;
 
 /// Encodes a point source into Ambisonics.
@@ -107,7 +107,7 @@ pub struct AmbisonicsEncodeEffectParams {
     ///
     /// Need not be normalized; Steam Audio will automatically normalize this vector.
     /// If a zero-length vector is passed, the output will be order 0 (omnidirectional).
-    pub direction: Vector3,
+    pub direction: Direction,
 
     /// Ambisonic order of the output buffer.
     ///

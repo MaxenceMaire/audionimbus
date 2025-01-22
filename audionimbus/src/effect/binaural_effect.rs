@@ -4,7 +4,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::geometry::Vector3;
+use crate::geometry::Direction;
 use crate::hrtf::{Hrtf, HrtfInterpolation};
 
 /// Spatializes a point source using an HRTF, based on the 3D position of the source relative to the listener.
@@ -93,7 +93,7 @@ impl From<&BinauralEffectSettings> for audionimbus_sys::IPLBinauralEffectSetting
 #[derive(Debug)]
 pub struct BinauralEffectParams {
     /// Unit vector pointing from the listener towards the source.
-    pub direction: Vector3,
+    pub direction: Direction,
 
     /// The interpolation technique to use.
     pub interpolation: HrtfInterpolation,
