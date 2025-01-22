@@ -32,6 +32,20 @@ impl Scene {
     }
 }
 
+impl std::ops::Deref for Scene {
+    type Target = audionimbus_sys::IPLScene;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Scene {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// Settings used to create a scene.
 ///
 /// Each scene variant corresponds to a different ray tracing implementation.

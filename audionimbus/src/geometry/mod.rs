@@ -10,6 +10,9 @@ pub use direction::Direction;
 mod coordinate_system;
 pub use coordinate_system::CoordinateSystem;
 
+mod matrix;
+pub use matrix::Matrix;
+
 mod triangle;
 pub use triangle::Triangle;
 
@@ -18,3 +21,9 @@ pub use material::Material;
 
 mod scene;
 pub use scene::Scene;
+
+mod static_mesh;
+pub use static_mesh::StaticMesh;
+
+mod instanced_mesh;
+pub use instanced_mesh::InstancedMesh;
