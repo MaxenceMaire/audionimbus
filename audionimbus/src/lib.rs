@@ -24,3 +24,9 @@ pub use version::{
     STEAMAUDIO_VERSION, STEAMAUDIO_VERSION_MAJOR, STEAMAUDIO_VERSION_MINOR,
     STEAMAUDIO_VERSION_PATCH,
 };
+
+mod scene;
+pub use scene::SceneSettings;
+
+mod open_cl_device;
+pub use open_cl_device::{OpenClDevice, OpenClDeviceList, OpenClDeviceSettings, OpenClDeviceType};

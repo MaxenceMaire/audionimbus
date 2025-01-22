@@ -1,4 +1,4 @@
-/// An N-band equalizer, with band values between 0.0 and 1.0.
+/// An N-band equalizer, with band coefficients between 0.0 and 1.0.
 #[derive(Debug)]
 pub struct Equalizer<const N: usize>([f32; N]);
 
