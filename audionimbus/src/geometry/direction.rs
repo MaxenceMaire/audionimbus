@@ -1,4 +1,4 @@
 use super::Vector3;
 
-/// A direction is 3D space.
+/// A direction in 3D space.
 pub type Direction = Vector3;

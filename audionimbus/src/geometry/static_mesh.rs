@@ -6,17 +6,17 @@ use crate::error::{to_option_error, SteamAudioError};
 /// The unchanging portions of a scene should typically be collected into a single static mesh object.
 /// In addition to the geometry, a static mesh also contains acoustic material information for each triangle.
 #[derive(Debug)]
-pub struct StaticMesh(pub audionimbus_sys::IPLStaticMesh);
+pub struct StaticMesh(audionimbus_sys::IPLStaticMesh);
 
 impl StaticMesh {
     pub fn try_new(
-        scene: Scene,
+        scene: &Scene,
         static_mesh_settings: &StaticMeshSettings,
     ) -> Result<Self, SteamAudioError> {
         let static_mesh = unsafe {
             let static_mesh: *mut audionimbus_sys::IPLStaticMesh = std::ptr::null_mut();
             let status = audionimbus_sys::iplStaticMeshCreate(
-                *scene,
+                scene.as_raw_ptr(),
                 &mut audionimbus_sys::IPLStaticMeshSettings::from(static_mesh_settings),
                 static_mesh,
             );
@@ -29,6 +29,10 @@ impl StaticMesh {
         };
 
         Ok(Self(static_mesh))
+    }
+
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
+        self.0
     }
 }
 

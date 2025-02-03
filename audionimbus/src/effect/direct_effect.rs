@@ -11,14 +11,14 @@ pub struct DirectEffect(pub audionimbus_sys::IPLDirectEffect);
 
 impl DirectEffect {
     pub fn try_new(
-        context: Context,
+        context: &Context,
         audio_settings: &AudioSettings,
         direct_effect_settings: &DirectEffectSettings,
     ) -> Result<Self, SteamAudioError> {
         let direct_effect = unsafe {
             let direct_effect: *mut audionimbus_sys::IPLDirectEffect = std::ptr::null_mut();
             let status = audionimbus_sys::iplDirectEffectCreate(
-                *context,
+                context.as_raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLDirectEffectSettings::from(direct_effect_settings),
                 direct_effect,

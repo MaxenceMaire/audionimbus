@@ -15,14 +15,14 @@ pub struct BinauralEffect(pub audionimbus_sys::IPLBinauralEffect);
 
 impl BinauralEffect {
     pub fn try_new(
-        context: Context,
+        context: &Context,
         audio_settings: &AudioSettings,
         binaural_effect_settings: &BinauralEffectSettings,
     ) -> Result<Self, SteamAudioError> {
         let binaural_effect = unsafe {
             let binaural_effect: *mut audionimbus_sys::IPLBinauralEffect = std::ptr::null_mut();
             let status = audionimbus_sys::iplBinauralEffectCreate(
-                *context,
+                context.as_raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLBinauralEffectSettings::from(binaural_effect_settings),
                 binaural_effect,

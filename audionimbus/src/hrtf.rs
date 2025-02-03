@@ -11,14 +11,14 @@ pub struct Hrtf(pub audionimbus_sys::IPLHRTF);
 
 impl Hrtf {
     pub fn try_new(
-        context: Context,
+        context: &Context,
         audio_settings: &AudioSettings,
         hrtf_settings: &HrtfSettings,
     ) -> Result<Self, SteamAudioError> {
         let hrtf = unsafe {
             let hrtf: *mut audionimbus_sys::IPLHRTF = std::ptr::null_mut();
             let status = audionimbus_sys::iplHRTFCreate(
-                *context,
+                context.as_raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLHRTFSettings::from(hrtf_settings),
                 hrtf,

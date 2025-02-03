@@ -1,4 +1,4 @@
 use super::Vector3;
 
-/// A point is 3D space.
+/// A point in 3D space.
 pub type Point = Vector3;

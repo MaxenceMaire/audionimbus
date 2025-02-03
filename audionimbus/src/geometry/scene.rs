@@ -1,3 +1,4 @@
+use super::{InstancedMesh, Matrix, StaticMesh};
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::open_cl_device::OpenClDevice;
@@ -6,17 +7,17 @@ use crate::open_cl_device::OpenClDevice;
 ///
 /// The scene object itself doesn’t contain any geometry, but is a container for [`StaticMesh`] and [`InstancedMesh`] objects, which do contain geometry.
 #[derive(Debug)]
-pub struct Scene(pub audionimbus_sys::IPLScene);
+pub struct Scene(audionimbus_sys::IPLScene);
 
 impl Scene {
     pub fn try_new(
-        context: Context,
+        context: &Context,
         scene_settings: &SceneSettings<()>,
     ) -> Result<Self, SteamAudioError> {
         let scene = unsafe {
             let scene: *mut audionimbus_sys::IPLScene = std::ptr::null_mut();
             let status = audionimbus_sys::iplSceneCreate(
-                *context,
+                context.as_raw_ptr(),
                 &mut audionimbus_sys::IPLSceneSettings::from(scene_settings),
                 scene,
             );
@@ -30,19 +31,82 @@ impl Scene {
 
         Ok(Self(scene))
     }
-}
 
-impl std::ops::Deref for Scene {
-    type Target = audionimbus_sys::IPLScene;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    /// Adds a static mesh to a scene.
+    ///
+    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    pub fn add_static_mesh(&self, static_mesh: &StaticMesh) {
+        unsafe {
+            audionimbus_sys::iplStaticMeshAdd(static_mesh.as_raw_ptr(), self.as_raw_ptr());
+        }
     }
-}
 
-impl std::ops::DerefMut for Scene {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    /// Removes a static mesh from a scene.
+    ///
+    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    pub fn remove_static_mesh(&self, static_mesh: &StaticMesh) {
+        unsafe {
+            audionimbus_sys::iplStaticMeshRemove(static_mesh.as_raw_ptr(), self.as_raw_ptr());
+        }
+    }
+
+    /// Adds an instanced mesh to a scene.
+    ///
+    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    pub fn add_instanced_mesh(&self, instanced_mesh: &InstancedMesh) {
+        unsafe {
+            audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.as_raw_ptr(), self.as_raw_ptr());
+        }
+    }
+
+    /// Removes an instanced mesh from a scene.
+    ///
+    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    pub fn remove_instanced_mesh(&self, instanced_mesh: &InstancedMesh) {
+        unsafe {
+            audionimbus_sys::iplInstancedMeshRemove(instanced_mesh.as_raw_ptr(), self.as_raw_ptr());
+        }
+    }
+
+    /// Updates the local-to-world transform of an instanced mesh within its parent scene.
+    ///
+    /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
+    ///
+    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    pub fn update_instanced_mesh_transform(
+        &self,
+        instanced_mesh: &InstancedMesh,
+        transform: &Matrix<f32, 4, 4>,
+    ) {
+        unsafe {
+            audionimbus_sys::iplInstancedMeshUpdateTransform(
+                instanced_mesh.as_raw_ptr(),
+                self.as_raw_ptr(),
+                transform.into(),
+            );
+        }
+    }
+
+    /// Commits any changes to the scene.
+    ///
+    /// This function should be called after any calls to the following functions, for the changes to take effect:
+    /// - [`Self::add_static_mesh`]
+    /// - [`Self::remove_static_mesh`]
+    /// - [`Self::add_instanced_mesh`]
+    /// - [`Self::remove_instanced_mesh`]
+    /// - [`Self::update_instanced_mesh_transform`]
+    ///
+    /// For best performance, call this function once after all changes have been made for a given frame.
+    ///
+    /// This function cannot be called concurrently with any simulation functions.
+    pub fn commit(&self) {
+        unsafe {
+            audionimbus_sys::iplSceneCommit(self.as_raw_ptr());
+        }
+    }
+
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLScene {
+        self.0
     }
 }
 
@@ -115,13 +179,13 @@ impl From<&SceneSettings<()>> for audionimbus_sys::IPLSceneSettings {
 pub struct EmbreeDevice(pub audionimbus_sys::IPLEmbreeDevice);
 
 impl EmbreeDevice {
-    pub fn new(context: Context) -> Result<Self, SteamAudioError> {
+    pub fn new(context: &Context) -> Result<Self, SteamAudioError> {
         let embree_device = unsafe {
             let embree_device: *mut audionimbus_sys::IPLEmbreeDevice = std::ptr::null_mut();
             let embree_device_settings: *mut audionimbus_sys::IPLEmbreeDeviceSettings =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplEmbreeDeviceCreate(
-                *context,
+                context.as_raw_ptr(),
                 embree_device_settings,
                 embree_device,
             );

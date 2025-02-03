@@ -17,7 +17,7 @@ pub struct AmbisonicsEncodeEffect(pub audionimbus_sys::IPLAmbisonicsEncodeEffect
 
 impl AmbisonicsEncodeEffect {
     pub fn try_new(
-        context: Context,
+        context: &Context,
         audio_settings: &AudioSettings,
         ambisonics_encode_effect_settings: &AmbisonicsEncodeEffectSettings,
     ) -> Result<Self, SteamAudioError> {
@@ -25,7 +25,7 @@ impl AmbisonicsEncodeEffect {
             let ambisonics_encode_effect: *mut audionimbus_sys::IPLAmbisonicsEncodeEffect =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplAmbisonicsEncodeEffectCreate(
-                *context,
+                context.as_raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLAmbisonicsEncodeEffectSettings::from(
                     ambisonics_encode_effect_settings,

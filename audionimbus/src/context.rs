@@ -5,7 +5,7 @@ use crate::version::STEAMAUDIO_VERSION;
 ///
 /// Typically, a context is specified once during the execution of the client program, before calling any other API functions.
 #[derive(Debug)]
-pub struct Context(pub audionimbus_sys::IPLContext);
+pub struct Context(audionimbus_sys::IPLContext);
 
 impl Context {
     pub fn try_new(settings: &ContextSettings) -> Result<Self, SteamAudioError> {
@@ -26,22 +26,8 @@ impl Context {
         Ok(Self(context))
     }
 
-    pub fn as_raw_mut(&mut self) -> *mut audionimbus_sys::IPLContext {
-        &mut self.0
-    }
-}
-
-impl std::ops::Deref for Context {
-    type Target = audionimbus_sys::IPLContext;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for Context {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLContext {
+        self.0
     }
 }
 

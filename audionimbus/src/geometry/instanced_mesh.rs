@@ -8,17 +8,17 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Adding an instanced mesh to a scene places the sub-scene into the scene with the transform applied.
 /// For example, the sub-scene may be a prefab door, and the transform can be used to place it in a doorway and animate it as it opens or closes.
 #[derive(Debug)]
-pub struct InstancedMesh(pub audionimbus_sys::IPLInstancedMesh);
+pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
 
 impl InstancedMesh {
     pub fn try_new(
-        scene: Scene,
+        scene: &Scene,
         instanced_mesh_settings: &InstancedMeshSettings,
     ) -> Result<Self, SteamAudioError> {
         let instanced_mesh = unsafe {
             let instanced_mesh: *mut audionimbus_sys::IPLInstancedMesh = std::ptr::null_mut();
             let status = audionimbus_sys::iplInstancedMeshCreate(
-                *scene,
+                scene.as_raw_ptr(),
                 &mut audionimbus_sys::IPLInstancedMeshSettings::from(instanced_mesh_settings),
                 instanced_mesh,
             );
@@ -32,19 +32,9 @@ impl InstancedMesh {
 
         Ok(Self(instanced_mesh))
     }
-}
 
-impl std::ops::Deref for InstancedMesh {
-    type Target = audionimbus_sys::IPLInstancedMesh;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for InstancedMesh {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLInstancedMesh {
+        self.0
     }
 }
 

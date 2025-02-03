@@ -6,14 +6,14 @@ pub struct OpenClDevice(pub audionimbus_sys::IPLOpenCLDevice);
 
 impl OpenClDevice {
     pub fn new(
-        context: Context,
+        context: &Context,
         device_list: OpenClDeviceList,
         index: i32,
     ) -> Result<Self, SteamAudioError> {
         let open_cl_device = unsafe {
             let open_cl_device: *mut audionimbus_sys::IPLOpenCLDevice = std::ptr::null_mut();
             let status = audionimbus_sys::iplOpenCLDeviceCreate(
-                *context,
+                context.as_raw_ptr(),
                 *device_list,
                 index,
                 open_cl_device,
@@ -54,14 +54,14 @@ pub struct OpenClDeviceList(pub audionimbus_sys::IPLOpenCLDeviceList);
 
 impl OpenClDeviceList {
     pub fn new(
-        context: Context,
+        context: &Context,
         open_cl_device_settings: &OpenClDeviceSettings,
     ) -> Result<Self, SteamAudioError> {
         let open_cl_device_list = unsafe {
             let open_cl_device_list: *mut audionimbus_sys::IPLOpenCLDeviceList =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplOpenCLDeviceListCreate(
-                *context,
+                context.as_raw_ptr(),
                 &mut audionimbus_sys::IPLOpenCLDeviceSettings::from(open_cl_device_settings),
                 open_cl_device_list,
             );
