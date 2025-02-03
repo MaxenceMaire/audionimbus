@@ -27,3 +27,6 @@ pub use version::{
 
 mod open_cl_device;
 pub use open_cl_device::{OpenClDevice, OpenClDeviceList, OpenClDeviceSettings, OpenClDeviceType};
+
+mod serialized_object;
+pub use serialized_object::SerializedObject;
