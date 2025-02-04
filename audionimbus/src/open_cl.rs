@@ -1,6 +1,9 @@
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 
+/// Application-wide state for OpenCL.
+///
+/// An OpenCL device must be created before using any of Steam Audio’s Radeon Rays or TrueAudio Next functionality.
 #[derive(Debug)]
 pub struct OpenClDevice(pub audionimbus_sys::IPLOpenCLDevice);
 
@@ -28,19 +31,9 @@ impl OpenClDevice {
 
         Ok(Self(open_cl_device))
     }
-}
 
-impl std::ops::Deref for OpenClDevice {
-    type Target = audionimbus_sys::IPLOpenCLDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for OpenClDevice {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
+        self.0
     }
 }
 

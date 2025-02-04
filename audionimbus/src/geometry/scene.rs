@@ -1,7 +1,8 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
 use crate::context::Context;
+use crate::embree::EmbreeDevice;
 use crate::error::{to_option_error, SteamAudioError};
-use crate::open_cl_device::OpenClDevice;
+use crate::radeon_rays::RadeonRaysDevice;
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///
@@ -175,95 +176,29 @@ impl From<&SceneSettings<()>> for audionimbus_sys::IPLSceneSettings {
     }
 }
 
+/// The types of scenes that can be created. Each scene type corresponds to a different ray tracing implementation.
 #[derive(Debug)]
-pub struct EmbreeDevice(pub audionimbus_sys::IPLEmbreeDevice);
+pub enum SceneType {
+    /// Steam Audio’s built-in ray tracer.
+    /// Supports multi-threading.
+    /// Runs on all platforms that Steam Audio supports.
+    Default,
 
-impl EmbreeDevice {
-    pub fn new(context: &Context) -> Result<Self, SteamAudioError> {
-        let embree_device = unsafe {
-            let embree_device: *mut audionimbus_sys::IPLEmbreeDevice = std::ptr::null_mut();
-            let embree_device_settings: *mut audionimbus_sys::IPLEmbreeDeviceSettings =
-                std::ptr::null_mut();
-            let status = audionimbus_sys::iplEmbreeDeviceCreate(
-                context.as_raw_ptr(),
-                embree_device_settings,
-                embree_device,
-            );
+    /// The Intel Embree ray tracer.
+    /// Supports multi-threading.
+    /// This is a highly optimized implementation, and is likely to be faster than the default ray tracer.
+    /// However, Embree requires Windows, Linux, or macOS, and a 32-bit x86 or 64-bit x86_64 CPU.
+    Embree,
 
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
+    /// The AMD Radeon Rays ray tracer.
+    /// This is an OpenCL implementation, and can use either the CPU or any GPU that supports OpenCL 1.2 or later.
+    /// If using the GPU, it is likely to be significantly faster than the default ray tracer.
+    /// However, with heavy real-time simulation workloads, it may impact your application’s frame rate.
+    /// On supported AMD GPUs, you can use the Resource Reservation feature to mitigate this issue.
+    RadeonRays,
 
-            *embree_device
-        };
-
-        Ok(Self(embree_device))
-    }
-}
-
-impl std::ops::Deref for EmbreeDevice {
-    type Target = audionimbus_sys::IPLEmbreeDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for EmbreeDevice {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Drop for EmbreeDevice {
-    fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplEmbreeDeviceRelease(&mut self.0) }
-    }
-}
-
-#[derive(Debug)]
-pub struct RadeonRaysDevice(pub audionimbus_sys::IPLRadeonRaysDevice);
-
-impl RadeonRaysDevice {
-    pub fn new(open_cl_device: OpenClDevice) -> Result<Self, SteamAudioError> {
-        let radeon_rays_device = unsafe {
-            let radeon_rays_device: *mut audionimbus_sys::IPLRadeonRaysDevice =
-                std::ptr::null_mut();
-            let radeon_rays_device_settings: *mut audionimbus_sys::IPLEmbreeDeviceSettings =
-                std::ptr::null_mut();
-            let status = audionimbus_sys::iplRadeonRaysDeviceCreate(
-                *open_cl_device,
-                radeon_rays_device_settings,
-                radeon_rays_device,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *radeon_rays_device
-        };
-
-        Ok(Self(radeon_rays_device))
-    }
-}
-
-impl std::ops::Deref for RadeonRaysDevice {
-    type Target = audionimbus_sys::IPLRadeonRaysDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for RadeonRaysDevice {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Drop for RadeonRaysDevice {
-    fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplRadeonRaysDeviceRelease(&mut self.0) }
-    }
+    /// Allows you to specify callbacks to your own ray tracer.
+    /// Useful if your application already uses a high-performance ray tracer.
+    /// This option uses the least amount of memory at run-time, since it does not have to build any ray tracing data structures of its own.
+    Custom,
 }

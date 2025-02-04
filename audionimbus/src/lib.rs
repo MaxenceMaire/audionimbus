@@ -25,8 +25,17 @@ pub use version::{
     STEAMAUDIO_VERSION_PATCH,
 };
 
-mod open_cl_device;
-pub use open_cl_device::{OpenClDevice, OpenClDeviceList, OpenClDeviceSettings, OpenClDeviceType};
+mod open_cl;
+pub use open_cl::{OpenClDevice, OpenClDeviceList, OpenClDeviceSettings, OpenClDeviceType};
+
+mod radeon_rays;
+pub use radeon_rays::RadeonRaysDevice;
+
+mod embree;
+pub use embree::EmbreeDevice;
 
 mod serialized_object;
 pub use serialized_object::SerializedObject;
+
+mod simulator;
+pub use simulator::{ReflectionEffect, SimulationFlags, SimulationSettings, Simulator};
