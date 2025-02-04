@@ -38,4 +38,9 @@ mod serialized_object;
 pub use serialized_object::SerializedObject;
 
 mod simulator;
-pub use simulator::{ReflectionEffect, SimulationFlags, SimulationSettings, Simulator};
+pub use simulator::{
+    AirAbsorptionModel, BakedDataIdentifier, BakedDataVariation, DirectSimulationFlags,
+    Directivity, DistanceAttenuationModel, Occlusion, PathingVisualizationCallback, ProbeBatch,
+    ReflectionEffect, SimulationFlags, SimulationInputs, SimulationOutputs, SimulationSettings,
+    SimulationSharedInputs, Simulator, Source, SourceSettings,
+};
