@@ -6,6 +6,7 @@ use crate::geometry::Scene;
 use crate::geometry::SceneType;
 use crate::open_cl::OpenClDevice;
 use crate::radeon_rays::RadeonRaysDevice;
+use crate::ProbeBatch;
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
 ///
@@ -670,36 +671,6 @@ pub enum BakedDataVariation {
     /// Baked data is calculated for each pair of probes.
     /// For example, this is used for calculating paths between every pair of probes in a batch.
     Dynamic,
-}
-
-#[derive(Debug)]
-pub struct ProbeBatch(audionimbus_sys::IPLProbeBatch);
-
-impl ProbeBatch {
-    pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        let probe_batch = unsafe {
-            let probe_batch: *mut audionimbus_sys::IPLProbeBatch = std::ptr::null_mut();
-            let status = audionimbus_sys::iplProbeBatchCreate(context.as_raw_ptr(), probe_batch);
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *probe_batch
-        };
-
-        Ok(Self(probe_batch))
-    }
-
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
-        self.0
-    }
-}
-
-impl Drop for ProbeBatch {
-    fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplProbeBatchRelease(&mut self.0) }
-    }
 }
 
 /// Simulation parameters that are not specific to any source.

@@ -43,7 +43,10 @@ pub use serialized_object::SerializedObject;
 mod simulator;
 pub use simulator::{
     AirAbsorptionModel, BakedDataIdentifier, BakedDataVariation, DirectSimulationFlags,
-    Directivity, DistanceAttenuationModel, Occlusion, PathingVisualizationCallback, ProbeBatch,
+    Directivity, DistanceAttenuationModel, Occlusion, PathingVisualizationCallback,
     ReflectionEffect, SimulationFlags, SimulationInputs, SimulationOutputs, SimulationSettings,
     SimulationSharedInputs, Simulator, Source, SourceSettings,
 };
+
+mod probe;
+pub use probe::{ProbeArray, ProbeBatch, ProbeGenerationParams};

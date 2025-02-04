@@ -1,4 +1,4 @@
-use super::{Material, Point, Scene, SceneSettings, Triangle};
+use super::{Material, Point, Scene, Triangle};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::serialized_object::SerializedObject;
 
