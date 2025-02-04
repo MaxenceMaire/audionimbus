@@ -50,7 +50,7 @@ impl AmbisonicsDecodeEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectApply(
-                **self,
+                self.as_raw_ptr(),
                 &mut *ambisonics_decode_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -58,19 +58,9 @@ impl AmbisonicsDecodeEffect {
         }
         .into()
     }
-}
 
-impl std::ops::Deref for AmbisonicsDecodeEffect {
-    type Target = audionimbus_sys::IPLAmbisonicsDecodeEffect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for AmbisonicsDecodeEffect {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
+        self.0
     }
 }
 

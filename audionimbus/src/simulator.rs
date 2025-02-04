@@ -1,5 +1,5 @@
 use crate::context::Context;
-use crate::effect::DirectEffectParams;
+use crate::effect::{DirectEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry;
 use crate::geometry::Scene;
@@ -117,6 +117,15 @@ impl Simulator {
     pub fn run_direct(&self) {
         unsafe {
             audionimbus_sys::iplSimulatorRunDirect(self.as_raw_ptr());
+        }
+    }
+
+    /// Runs a reflections simulation for all sources added to the simulator.
+    ///
+    /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
+    pub fn run_reflections(&self) {
+        unsafe {
+            audionimbus_sys::iplSimulatorRunReflections(self.as_raw_ptr());
         }
     }
 
@@ -758,7 +767,7 @@ pub struct SimulationOutputs {
     direct: DirectEffectParams,
 
     /// Reflection simulation results.
-    reflections: (), // TODO: ReflectionEffectParams,
+    reflections: ReflectionEffectParams,
 
     /// Pathing simulation results.
     pathing: (), // TODO: PathEffectParams,

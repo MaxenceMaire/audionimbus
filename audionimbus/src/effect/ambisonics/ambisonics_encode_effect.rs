@@ -51,13 +51,17 @@ impl AmbisonicsEncodeEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplAmbisonicsEncodeEffectApply(
-                **self,
+                self.as_raw_ptr(),
                 &mut *ambisonics_encode_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
             )
         }
         .into()
+    }
+
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsEncodeEffect {
+        self.0
     }
 }
 

@@ -34,6 +34,7 @@ impl DirectEffect {
         Ok(Self(direct_effect))
     }
 
+    // TODO: rustdoc comment
     pub fn apply(
         &self,
         direct_effect_params: &DirectEffectParams,
@@ -42,7 +43,7 @@ impl DirectEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplDirectEffectApply(
-                **self,
+                self.as_raw_ptr(),
                 &mut *direct_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -50,19 +51,9 @@ impl DirectEffect {
         }
         .into()
     }
-}
 
-impl std::ops::Deref for DirectEffect {
-    type Target = audionimbus_sys::IPLDirectEffect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for DirectEffect {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
+        self.0
     }
 }
 

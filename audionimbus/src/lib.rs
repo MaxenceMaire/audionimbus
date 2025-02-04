@@ -34,6 +34,9 @@ pub use radeon_rays::RadeonRaysDevice;
 mod embree;
 pub use embree::EmbreeDevice;
 
+mod true_audio_next;
+pub use true_audio_next::TrueAudioNextDevice;
+
 mod serialized_object;
 pub use serialized_object::SerializedObject;
 

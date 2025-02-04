@@ -38,6 +38,7 @@ impl BinauralEffect {
         Ok(Self(binaural_effect))
     }
 
+    // TODO: rustdoc comment
     pub fn apply(
         &self,
         binaural_effect_params: &BinauralEffectParams,
@@ -46,7 +47,7 @@ impl BinauralEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplBinauralEffectApply(
-                **self,
+                self.as_raw_ptr(),
                 &mut *binaural_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -54,19 +55,9 @@ impl BinauralEffect {
         }
         .into()
     }
-}
 
-impl std::ops::Deref for BinauralEffect {
-    type Target = audionimbus_sys::IPLBinauralEffect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for BinauralEffect {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
+        self.0
     }
 }
 
