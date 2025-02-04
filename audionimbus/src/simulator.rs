@@ -1,5 +1,5 @@
 use crate::context::Context;
-use crate::effect::{DirectEffectParams, ReflectionEffectParams};
+use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry;
 use crate::geometry::Scene;
@@ -130,9 +130,13 @@ impl Simulator {
         }
     }
 
-    // TODO: implement.
-    pub fn run_pathing() {
-        todo!()
+    /// Runs a pathing simulation for all sources added to the simulator.
+    ///
+    /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
+    pub fn run_pathing(&self) {
+        unsafe {
+            audionimbus_sys::iplSimulatorRunPathing(self.as_raw_ptr());
+        }
     }
 
     pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
@@ -146,13 +150,13 @@ impl Drop for Simulator {
     }
 }
 
+/// Settings used to create a simulator.
 #[derive(Debug)]
 pub struct SimulationSettings {
     /// The types of simulation that this simulator will be used for.
     pub flags: SimulationFlags,
 
-    // TODO: fix rustdoc comment.
-    /// The type of scene that will be used for simulations via \c iplSimulatorSetScene.
+    /// The type of scene that will be used for simulations via [`Simulator::set_scene`].
     /// The scene type cannot change during the lifetime of a simulator object.
     pub scene_type: SceneType,
 
@@ -264,7 +268,9 @@ pub enum ReflectionEffect {
     TrueAudioNext,
 }
 
-// TODO: description
+/// A sound source, for the purposes of simulation.
+///
+/// This object is used to specify various parameters for direct and indirect sound propagation simulation, and to retrieve the simulation results.
 #[derive(Debug)]
 pub struct Source(audionimbus_sys::IPLSource);
 
@@ -741,7 +747,7 @@ pub struct SimulationOutputs {
     reflections: ReflectionEffectParams,
 
     /// Pathing simulation results.
-    pathing: (), // TODO: PathEffectParams,
+    pathing: PathEffectParams,
 }
 
 impl From<audionimbus_sys::IPLSimulationOutputs> for SimulationOutputs {

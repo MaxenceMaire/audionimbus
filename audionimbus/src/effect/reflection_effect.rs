@@ -8,12 +8,15 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Scene, SceneType};
 use crate::open_cl::OpenClDevice;
 use crate::probe::ProbeBatch;
+use crate::progress_callback::ProgressCallbackInformation;
 use crate::radeon_rays::RadeonRaysDevice;
 use crate::simulator::BakedDataIdentifier;
 use crate::simulator::BakedDataVariation;
 use crate::true_audio_next::TrueAudioNextDevice;
 
-// TODO: description
+/// Applies the result of physics-based reflections simulation to an audio buffer.
+///
+/// The result is encoded in Ambisonics, and can be decoded using an Ambisonics decode effect.
 #[derive(Debug)]
 pub struct ReflectionEffect(audionimbus_sys::IPLReflectionEffect);
 
@@ -42,12 +45,11 @@ impl ReflectionEffect {
         Ok(Self(reflection_effect))
     }
 
-    // TODO: fix link references in comment
     /// Applies a reflection effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
     ///
-    /// Cannot be used with TrueAudioNext.
+    /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
     pub fn apply(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
@@ -363,18 +365,4 @@ bitflags::bitflags! {
         /// Bake parametric reverb for [`ReflectionEffectSettings::Parametric`] or [`ReflectionEffectSettings::Hybrid`].
         const BAKE_PARAMETRIC = 1 << 1;
     }
-}
-
-/// Callback for updating the application on the progress of a function.
-///
-/// You can use this to provide the user with visual feedback, like a progress bar.
-pub struct ProgressCallbackInformation {
-    /// # Arguments
-    ///
-    /// - `progress`: fraction of the function work that has been completed, between 0.0 and 1.0.
-    /// - `user_data`: pointer to arbitrary user-specified data provided when calling the function that will call this callback.
-    callback: unsafe extern "C" fn(progress: f32, user_data: *mut std::ffi::c_void),
-
-    /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-    user_data: *mut std::ffi::c_void,
 }

@@ -50,3 +50,6 @@ pub use simulator::{
 
 mod probe;
 pub use probe::{ProbeArray, ProbeBatch, ProbeGenerationParams};
+
+mod progress_callback;
+pub use progress_callback::ProgressCallbackInformation;

@@ -19,6 +19,11 @@ pub use audio_effect_state::AudioEffectState;
 
 mod reflection_effect;
 pub use reflection_effect::{
-    bake_reflections, ProgressCallbackInformation, ReflectionEffect, ReflectionEffectParams,
-    ReflectionEffectSettings, ReflectionsBakeFlags, ReflectionsBakeParams,
+    bake_reflections, ReflectionEffect, ReflectionEffectParams, ReflectionEffectSettings,
+    ReflectionsBakeFlags, ReflectionsBakeParams,
+};
+
+mod path_effect;
+pub use path_effect::{
+    bake_path, PathBakeParams, PathEffect, PathEffectParams, PathEffectSettings, Spatialization,
 };
