@@ -6,6 +6,7 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 
+/// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 #[derive(Debug)]
 pub struct DirectEffect(pub audionimbus_sys::IPLDirectEffect);
 
@@ -34,7 +35,9 @@ impl DirectEffect {
         Ok(Self(direct_effect))
     }
 
-    // TODO: rustdoc comment
+    /// Applies a direct effect to an audio buffer.
+    ///
+    /// This effect CAN be applied in-place.
     pub fn apply(
         &self,
         direct_effect_params: &DirectEffectParams,

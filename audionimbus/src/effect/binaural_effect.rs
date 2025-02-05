@@ -38,7 +38,9 @@ impl BinauralEffect {
         Ok(Self(binaural_effect))
     }
 
-    // TODO: rustdoc comment
+    /// Applies a binaural effect to an audio buffer.
+    ///
+    /// This effect CANNOT be applied in-place.
     pub fn apply(
         &self,
         binaural_effect_params: &BinauralEffectParams,

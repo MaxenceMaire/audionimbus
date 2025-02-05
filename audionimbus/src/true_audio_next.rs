@@ -1,11 +1,12 @@
-use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::open_cl::OpenClDevice;
 
 #[derive(Debug)]
 pub struct TrueAudioNextDevice(pub audionimbus_sys::IPLTrueAudioNextDevice);
 
-// TODO: description
+/// Application-wide state for the TrueAudio Next convolution engine.
+///
+/// A TrueAudio Next device must be created before using any of Steam Audio’s TrueAudio Next convolution functionality.
 impl TrueAudioNextDevice {
     pub fn new(
         open_cl_device: &OpenClDevice,
