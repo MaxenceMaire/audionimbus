@@ -5,7 +5,7 @@ mod audio_settings;
 pub use audio_settings::AudioSettings;
 
 mod context;
-pub use context::Context;
+pub use context::{Context, ContextFlags, ContextSettings, SimdLevel};
 
 pub mod effect;
 
