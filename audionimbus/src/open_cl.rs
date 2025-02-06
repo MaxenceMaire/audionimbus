@@ -16,7 +16,7 @@ impl OpenClDevice {
         let open_cl_device = unsafe {
             let open_cl_device: *mut audionimbus_sys::IPLOpenCLDevice = std::ptr::null_mut();
             let status = audionimbus_sys::iplOpenCLDeviceCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 *device_list,
                 index,
                 open_cl_device,
@@ -32,7 +32,7 @@ impl OpenClDevice {
         Ok(Self(open_cl_device))
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
         self.0
     }
 }
@@ -54,7 +54,7 @@ impl OpenClDeviceList {
             let open_cl_device_list: *mut audionimbus_sys::IPLOpenCLDeviceList =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplOpenCLDeviceListCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLOpenCLDeviceSettings::from(open_cl_device_settings),
                 open_cl_device_list,
             );

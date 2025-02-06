@@ -24,7 +24,7 @@ impl AmbisonicsDecodeEffect {
             let ambisonics_decode_effect: *mut audionimbus_sys::IPLAmbisonicsDecodeEffect =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplAmbisonicsDecodeEffectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLAmbisonicsDecodeEffectSettings::from(
                     ambisonics_decode_effect_settings,
@@ -50,7 +50,7 @@ impl AmbisonicsDecodeEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *ambisonics_decode_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -59,7 +59,7 @@ impl AmbisonicsDecodeEffect {
         .into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
         self.0
     }
 }
@@ -113,7 +113,7 @@ impl AmbisonicsDecodeEffectParams {
     ) -> FFIWrapper<'_, audionimbus_sys::IPLAmbisonicsDecodeEffectParams, Self> {
         let ambisonics_decode_effect_params = audionimbus_sys::IPLAmbisonicsDecodeEffectParams {
             order: self.order,
-            hrtf: *self.hrtf,
+            hrtf: self.hrtf.raw_ptr(),
             orientation: self.orientation.into(),
             binaural: if self.binaural {
                 audionimbus_sys::IPLbool::IPL_TRUE

@@ -15,7 +15,7 @@ impl RadeonRaysDevice {
             let radeon_rays_device_settings: *mut audionimbus_sys::IPLEmbreeDeviceSettings =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplRadeonRaysDeviceCreate(
-                open_cl_device.as_raw_ptr(),
+                open_cl_device.raw_ptr(),
                 radeon_rays_device_settings,
                 radeon_rays_device,
             );
@@ -30,7 +30,7 @@ impl RadeonRaysDevice {
         Ok(Self(radeon_rays_device))
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLRadeonRaysDevice {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLRadeonRaysDevice {
         self.0
     }
 }

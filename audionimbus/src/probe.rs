@@ -14,7 +14,7 @@ impl ProbeArray {
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let probe_array = unsafe {
             let probe_array: *mut audionimbus_sys::IPLProbeArray = std::ptr::null_mut();
-            let status = audionimbus_sys::iplProbeArrayCreate(context.as_raw_ptr(), probe_array);
+            let status = audionimbus_sys::iplProbeArrayCreate(context.raw_ptr(), probe_array);
 
             if let Some(error) = to_option_error(status) {
                 return Err(error);
@@ -30,14 +30,14 @@ impl ProbeArray {
     pub fn generate_probes(&self, scene: &Scene, probe_params: &ProbeGenerationParams) {
         unsafe {
             audionimbus_sys::iplProbeArrayGenerateProbes(
-                self.as_raw_ptr(),
-                scene.as_raw_ptr(),
+                self.raw_ptr(),
+                scene.raw_ptr(),
                 &mut *probe_params.as_ffi(),
             );
         }
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
         self.0
     }
 }
@@ -92,7 +92,7 @@ impl ProbeBatch {
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let probe_batch = unsafe {
             let probe_batch: *mut audionimbus_sys::IPLProbeBatch = std::ptr::null_mut();
-            let status = audionimbus_sys::iplProbeBatchCreate(context.as_raw_ptr(), probe_batch);
+            let status = audionimbus_sys::iplProbeBatchCreate(context.raw_ptr(), probe_batch);
 
             if let Some(error) = to_option_error(status) {
                 return Err(error);
@@ -109,7 +109,7 @@ impl ProbeBatch {
     pub fn add_probe(&self, probe: &Sphere) {
         unsafe {
             audionimbus_sys::iplProbeBatchAddProbe(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 audionimbus_sys::IPLSphere::from(probe),
             );
         }
@@ -119,24 +119,21 @@ impl ProbeBatch {
     /// The new probes will be added, in order, at the end of the batch.
     pub fn add_probe_array(&self, probe_array: &ProbeArray) {
         unsafe {
-            audionimbus_sys::iplProbeBatchAddProbeArray(
-                self.as_raw_ptr(),
-                probe_array.as_raw_ptr(),
-            );
+            audionimbus_sys::iplProbeBatchAddProbeArray(self.raw_ptr(), probe_array.raw_ptr());
         }
     }
 
     /// Commits all changes made to a probe batch since this function was last called (or since the probe batch was first created, if this function was never called).
     /// This function must be called after adding, removing, or updating any probes in the batch, for the changes to take effect.
     pub fn commit(&self) {
-        unsafe { audionimbus_sys::iplProbeBatchCommit(self.as_raw_ptr()) }
+        unsafe { audionimbus_sys::iplProbeBatchCommit(self.raw_ptr()) }
     }
 
     /// Saves a probe batch to a serialized object.
     /// Typically, the serialized object will then be saved to disk.
     pub fn save(&self, serialized_object: &mut SerializedObject) {
         unsafe {
-            audionimbus_sys::iplProbeBatchSave(self.as_raw_ptr(), serialized_object.as_raw_ptr());
+            audionimbus_sys::iplProbeBatchSave(self.raw_ptr(), serialized_object.raw_ptr());
         }
     }
 
@@ -149,8 +146,8 @@ impl ProbeBatch {
         let probe_batch = unsafe {
             let probe_batch: *mut audionimbus_sys::IPLProbeBatch = std::ptr::null_mut();
             let status = audionimbus_sys::iplProbeBatchLoad(
-                context.as_raw_ptr(),
-                serialized_object.as_raw_ptr(),
+                context.raw_ptr(),
+                serialized_object.raw_ptr(),
                 probe_batch,
             );
 
@@ -164,7 +161,7 @@ impl ProbeBatch {
         Ok(Self(probe_batch))
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
         self.0
     }
 }

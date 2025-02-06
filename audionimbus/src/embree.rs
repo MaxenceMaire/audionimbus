@@ -14,7 +14,7 @@ impl EmbreeDevice {
             let embree_device_settings: *mut audionimbus_sys::IPLEmbreeDeviceSettings =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplEmbreeDeviceCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 embree_device_settings,
                 embree_device,
             );

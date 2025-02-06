@@ -9,13 +9,12 @@ pub struct Context(audionimbus_sys::IPLContext);
 
 impl Context {
     pub fn try_new(settings: &ContextSettings) -> Result<Self, SteamAudioError> {
-        let context = Self(std::ptr::null_mut());
-        let mut context_ptr = context.as_raw_ptr();
+        let mut context = Self(std::ptr::null_mut());
 
         let status = unsafe {
             audionimbus_sys::iplContextCreate(
                 &mut audionimbus_sys::IPLContextSettings::from(settings),
-                &mut context_ptr,
+                context.raw_ptr_mut(),
             )
         };
 
@@ -26,8 +25,12 @@ impl Context {
         Ok(context)
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLContext {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLContext {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLContext {
+        &mut self.0
     }
 }
 

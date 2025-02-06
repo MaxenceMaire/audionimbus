@@ -23,7 +23,7 @@ impl Simulator {
         let simulator = unsafe {
             let simulator: *mut audionimbus_sys::IPLSimulator = std::ptr::null_mut();
             let status = audionimbus_sys::iplSimulatorCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLSimulationSettings::from(simulation_settings),
                 simulator,
             );
@@ -44,7 +44,7 @@ impl Simulator {
     ///
     /// This function cannot be called while any simulation is running.
     pub fn set_scene(&self, scene: &Scene) {
-        unsafe { audionimbus_sys::iplSimulatorSetScene(self.as_raw_ptr(), scene.as_raw_ptr()) }
+        unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
     }
 
     /// Adds a probe batch for use in subsequent simulations.
@@ -70,14 +70,14 @@ impl Simulator {
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
     pub fn add_source(&self, source: &Source) {
         unsafe {
-            audionimbus_sys::iplSourceAdd(source.as_raw_ptr(), self.as_raw_ptr());
+            audionimbus_sys::iplSourceAdd(source.raw_ptr(), self.raw_ptr());
         }
     }
 
     /// Removes a source from the set of sources processed by a simulator in subsequent simulations.
     pub fn remove_source(&self, source: &Source) {
         unsafe {
-            audionimbus_sys::iplSourceRemove(source.as_raw_ptr(), self.as_raw_ptr());
+            audionimbus_sys::iplSourceRemove(source.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -87,7 +87,7 @@ impl Simulator {
     ///
     /// This function cannot be called while any simulation is running.
     pub fn commit(&self) {
-        unsafe { audionimbus_sys::iplSimulatorCommit(self.as_raw_ptr()) }
+        unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
     }
 
     /// Specifies simulation parameters that are not associated with any particular source.
@@ -103,7 +103,7 @@ impl Simulator {
     ) {
         unsafe {
             audionimbus_sys::iplSimulatorSetSharedInputs(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 //flags,
                 todo!(), // TODO:
                 &mut audionimbus_sys::IPLSimulationSharedInputs::from(shared_inputs),
@@ -117,7 +117,7 @@ impl Simulator {
     /// This function should not be called from the audio processing thread if occlusion and/or transmission are enabled.
     pub fn run_direct(&self) {
         unsafe {
-            audionimbus_sys::iplSimulatorRunDirect(self.as_raw_ptr());
+            audionimbus_sys::iplSimulatorRunDirect(self.raw_ptr());
         }
     }
 
@@ -126,7 +126,7 @@ impl Simulator {
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
     pub fn run_reflections(&self) {
         unsafe {
-            audionimbus_sys::iplSimulatorRunReflections(self.as_raw_ptr());
+            audionimbus_sys::iplSimulatorRunReflections(self.raw_ptr());
         }
     }
 
@@ -135,11 +135,11 @@ impl Simulator {
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
     pub fn run_pathing(&self) {
         unsafe {
-            audionimbus_sys::iplSimulatorRunPathing(self.as_raw_ptr());
+            audionimbus_sys::iplSimulatorRunPathing(self.raw_ptr());
         }
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
         self.0
     }
 }
@@ -282,7 +282,7 @@ impl Source {
         let source = unsafe {
             let source: *mut audionimbus_sys::IPLSource = std::ptr::null_mut();
             let status = audionimbus_sys::iplSourceCreate(
-                simulator.as_raw_ptr(),
+                simulator.raw_ptr(),
                 &mut audionimbus_sys::IPLSourceSettings::from(source_settings),
                 source,
             );
@@ -306,7 +306,7 @@ impl Source {
     pub fn set_inputs(&self, simulation_flags: SimulationFlags, inputs: &SimulationInputs) {
         unsafe {
             audionimbus_sys::iplSourceSetInputs(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 todo!(),
                 //simulation_flags, // TODO:
                 &mut inputs.into(),
@@ -324,7 +324,7 @@ impl Source {
             let simulation_outputs: *mut audionimbus_sys::IPLSimulationOutputs =
                 std::ptr::null_mut();
             audionimbus_sys::iplSourceGetOutputs(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 //simulation_flags,
                 todo!(), // TODO:
                 simulation_outputs,
@@ -336,7 +336,7 @@ impl Source {
         simulation_outputs.into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLSource {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSource {
         self.0
     }
 }

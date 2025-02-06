@@ -29,7 +29,7 @@ impl ReflectionEffect {
         let reflection_effect = unsafe {
             let reflection_effect: *mut audionimbus_sys::IPLReflectionEffect = std::ptr::null_mut();
             let status = audionimbus_sys::iplReflectionEffectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLReflectionEffectSettings::from(reflection_effect_settings),
                 reflection_effect,
@@ -58,7 +58,7 @@ impl ReflectionEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *reflection_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -83,7 +83,7 @@ impl ReflectionEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *reflection_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 std::ptr::null_mut(),
@@ -93,7 +93,7 @@ impl ReflectionEffect {
         .into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
         self.0
     }
 }
@@ -276,7 +276,7 @@ pub fn bake_reflections(
 
     unsafe {
         audionimbus_sys::iplReflectionsBakerBake(
-            context.as_raw_ptr(),
+            context.raw_ptr(),
             &mut audionimbus_sys::IPLReflectionsBakeParams::from(reflections_bake_params),
             callback,
             user_data,

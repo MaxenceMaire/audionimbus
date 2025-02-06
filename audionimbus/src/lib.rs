@@ -17,7 +17,7 @@ mod ffi_wrapper;
 pub mod geometry;
 
 mod hrtf;
-pub use hrtf::{Hrtf, HrtfInterpolation, HrtfSettings, VolumeNormalization};
+pub use hrtf::{Hrtf, HrtfInterpolation, HrtfSettings, Sofa, VolumeNormalization};
 
 mod version;
 pub use version::{

@@ -36,7 +36,7 @@ impl SerializedObject {
         let serialized_object = unsafe {
             let serialized_object: *mut audionimbus_sys::IPLSerializedObject = std::ptr::null_mut();
             let status = audionimbus_sys::iplSerializedObjectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut serialized_object_settings,
                 serialized_object,
             );
@@ -51,12 +51,12 @@ impl SerializedObject {
         Ok(Self(serialized_object))
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
         self.0
     }
 
     pub fn to_vec(&self) -> Vec<u8> {
-        let raw_ptr = self.as_raw_ptr();
+        let raw_ptr = self.raw_ptr();
 
         let data_ptr = unsafe { audionimbus_sys::iplSerializedObjectGetData(raw_ptr) };
 

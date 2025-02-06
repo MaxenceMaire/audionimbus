@@ -17,7 +17,7 @@ impl StaticMesh {
         let static_mesh = unsafe {
             let static_mesh: *mut audionimbus_sys::IPLStaticMesh = std::ptr::null_mut();
             let status = audionimbus_sys::iplStaticMeshCreate(
-                scene.as_raw_ptr(),
+                scene.raw_ptr(),
                 &mut audionimbus_sys::IPLStaticMeshSettings::from(static_mesh_settings),
                 static_mesh,
             );
@@ -32,7 +32,7 @@ impl StaticMesh {
         Ok(Self(static_mesh))
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
         self.0
     }
 
@@ -43,7 +43,7 @@ impl StaticMesh {
     /// This function can only be called on a static mesh that is part of a scene created with [`SceneSettings::Default`].
     pub fn save(&self, serialized_object: &mut SerializedObject) {
         unsafe {
-            audionimbus_sys::iplStaticMeshSave(self.as_raw_ptr(), serialized_object.as_raw_ptr());
+            audionimbus_sys::iplStaticMeshSave(self.raw_ptr(), serialized_object.raw_ptr());
         }
     }
 
@@ -97,8 +97,8 @@ impl StaticMesh {
             let static_mesh: *mut audionimbus_sys::IPLStaticMesh = std::ptr::null_mut();
 
             let status = audionimbus_sys::iplStaticMeshLoad(
-                scene.as_raw_ptr(),
-                serialized_object.as_raw_ptr(),
+                scene.raw_ptr(),
+                serialized_object.raw_ptr(),
                 progress_callback,
                 progress_callback_user_data,
                 static_mesh,

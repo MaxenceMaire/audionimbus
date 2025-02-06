@@ -7,7 +7,7 @@ use crate::error::{to_option_error, SteamAudioError};
 /// HRTFs describe how sound from different directions is perceived by a each of a listener’s ears, and are a crucial component of spatial audio.
 /// Steam Audio includes a built-in HRTF, while also allowing developers and users to import their own custom HRTFs.
 #[derive(Debug)]
-pub struct Hrtf(pub audionimbus_sys::IPLHRTF);
+pub struct Hrtf(audionimbus_sys::IPLHRTF);
 
 impl Hrtf {
     pub fn try_new(
@@ -15,36 +15,29 @@ impl Hrtf {
         audio_settings: &AudioSettings,
         hrtf_settings: &HrtfSettings,
     ) -> Result<Self, SteamAudioError> {
-        let hrtf = unsafe {
-            let hrtf: *mut audionimbus_sys::IPLHRTF = std::ptr::null_mut();
-            let status = audionimbus_sys::iplHRTFCreate(
-                context.as_raw_ptr(),
+        let mut hrtf = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplHRTFCreate(
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLHRTFSettings::from(hrtf_settings),
-                hrtf,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *hrtf
+                hrtf.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(hrtf))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(hrtf)
     }
-}
 
-impl std::ops::Deref for Hrtf {
-    type Target = audionimbus_sys::IPLHRTF;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLHRTF {
+        self.0
     }
-}
 
-impl std::ops::DerefMut for Hrtf {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLHRTF {
         &mut self.0
     }
 }
@@ -63,8 +56,8 @@ pub struct HrtfSettings {
     /// A value of 1.0 means the HRTF data will be used without any change.
     pub volume: f32,
 
-    /// An optional buffer containing SOFA file data from which to load HRTF data.
-    pub sofa_data: Option<Vec<u8>>,
+    /// Optional SOFA information to be used to load HRTF data.
+    pub sofa_information: Option<Sofa>,
 
     /// Volume normalization setting.
     pub volume_normalization: VolumeNormalization,
@@ -74,7 +67,7 @@ impl Default for HrtfSettings {
     fn default() -> Self {
         Self {
             volume: 1.0,
-            sofa_data: None,
+            sofa_information: None,
             volume_normalization: VolumeNormalization::None,
         }
     }
@@ -82,12 +75,61 @@ impl Default for HrtfSettings {
 
 impl From<&HrtfSettings> for audionimbus_sys::IPLHRTFSettings {
     fn from(settings: &HrtfSettings) -> Self {
-        todo!()
+        let (type_, sofa_filename, sofa_data, sofa_data_size): (
+            audionimbus_sys::IPLHRTFType,
+            *const std::os::raw::c_char,
+            *const u8,
+            std::os::raw::c_int,
+        ) = if let Some(information) = &settings.sofa_information {
+            match information {
+                Sofa::Filename(filename) => {
+                    let c_string = std::ffi::CString::new(filename.clone()).unwrap();
+                    (
+                        audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
+                        c_string.as_ptr() as *const std::os::raw::c_char,
+                        std::ptr::null(),
+                        0,
+                    )
+                }
+                Sofa::Buffer(buffer) => (
+                    audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
+                    std::ptr::null(),
+                    buffer.as_ptr(),
+                    buffer.len() as i32,
+                ),
+            }
+        } else {
+            (
+                audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_DEFAULT,
+                std::ptr::null(),
+                std::ptr::null(),
+                0,
+            )
+        };
+
+        Self {
+            type_,
+            sofaFileName: sofa_filename,
+            sofaData: sofa_data,
+            sofaDataSize: sofa_data_size,
+            volume: settings.volume,
+            normType: settings.volume_normalization.into(),
+        }
     }
 }
 
-/// HRTF volume normalization setting.
+/// Whether to load SOFA data from a filename or a buffer.
 #[derive(Debug)]
+pub enum Sofa {
+    /// SOFA file from which to load HRTF data.
+    Filename(String),
+
+    /// Buffer containing SOFA file data from which to load HRTF data.
+    Buffer(Vec<u8>),
+}
+
+/// HRTF volume normalization setting.
+#[derive(Debug, Copy, Clone)]
 pub enum VolumeNormalization {
     /// No normalization.
     None,
@@ -96,6 +138,17 @@ pub enum VolumeNormalization {
     ///
     /// Normalize HRTF volume to ensure similar volume from all directions based on root-mean-square value of each HRTF.
     RootMeanSquared,
+}
+
+impl From<VolumeNormalization> for audionimbus_sys::IPLHRTFNormType {
+    fn from(volume_normalization: VolumeNormalization) -> Self {
+        match volume_normalization {
+            VolumeNormalization::None => audionimbus_sys::IPLHRTFNormType::IPL_HRTFNORMTYPE_NONE,
+            VolumeNormalization::RootMeanSquared => {
+                audionimbus_sys::IPLHRTFNormType::IPL_HRTFNORMTYPE_RMS
+            }
+        }
+    }
 }
 
 /// Techniques for interpolating HRTF data.

@@ -18,7 +18,7 @@ impl InstancedMesh {
         let instanced_mesh = unsafe {
             let instanced_mesh: *mut audionimbus_sys::IPLInstancedMesh = std::ptr::null_mut();
             let status = audionimbus_sys::iplInstancedMeshCreate(
-                scene.as_raw_ptr(),
+                scene.raw_ptr(),
                 &mut audionimbus_sys::IPLInstancedMeshSettings::from(instanced_mesh_settings),
                 instanced_mesh,
             );
@@ -33,7 +33,7 @@ impl InstancedMesh {
         Ok(Self(instanced_mesh))
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLInstancedMesh {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLInstancedMesh {
         self.0
     }
 }

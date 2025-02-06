@@ -16,7 +16,7 @@ impl TrueAudioNextDevice {
             let true_audio_next_device: *mut audionimbus_sys::IPLTrueAudioNextDevice =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplTrueAudioNextDeviceCreate(
-                open_cl_device.as_raw_ptr(),
+                open_cl_device.raw_ptr(),
                 &mut audionimbus_sys::IPLTrueAudioNextDeviceSettings::from(settings),
                 true_audio_next_device,
             );

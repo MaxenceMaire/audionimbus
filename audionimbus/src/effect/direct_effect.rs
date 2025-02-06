@@ -19,7 +19,7 @@ impl DirectEffect {
         let direct_effect = unsafe {
             let direct_effect: *mut audionimbus_sys::IPLDirectEffect = std::ptr::null_mut();
             let status = audionimbus_sys::iplDirectEffectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLDirectEffectSettings::from(direct_effect_settings),
                 direct_effect,
@@ -46,7 +46,7 @@ impl DirectEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplDirectEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *direct_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -55,7 +55,7 @@ impl DirectEffect {
         .into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
         self.0
     }
 }

@@ -18,7 +18,7 @@ impl Scene {
         let scene = unsafe {
             let scene: *mut audionimbus_sys::IPLScene = std::ptr::null_mut();
             let status = audionimbus_sys::iplSceneCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLSceneSettings::from(scene_settings),
                 scene,
             );
@@ -38,7 +38,7 @@ impl Scene {
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
     pub fn add_static_mesh(&self, static_mesh: &StaticMesh) {
         unsafe {
-            audionimbus_sys::iplStaticMeshAdd(static_mesh.as_raw_ptr(), self.as_raw_ptr());
+            audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -47,7 +47,7 @@ impl Scene {
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
     pub fn remove_static_mesh(&self, static_mesh: &StaticMesh) {
         unsafe {
-            audionimbus_sys::iplStaticMeshRemove(static_mesh.as_raw_ptr(), self.as_raw_ptr());
+            audionimbus_sys::iplStaticMeshRemove(static_mesh.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -56,7 +56,7 @@ impl Scene {
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
     pub fn add_instanced_mesh(&self, instanced_mesh: &InstancedMesh) {
         unsafe {
-            audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.as_raw_ptr(), self.as_raw_ptr());
+            audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -65,7 +65,7 @@ impl Scene {
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
     pub fn remove_instanced_mesh(&self, instanced_mesh: &InstancedMesh) {
         unsafe {
-            audionimbus_sys::iplInstancedMeshRemove(instanced_mesh.as_raw_ptr(), self.as_raw_ptr());
+            audionimbus_sys::iplInstancedMeshRemove(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -81,8 +81,8 @@ impl Scene {
     ) {
         unsafe {
             audionimbus_sys::iplInstancedMeshUpdateTransform(
-                instanced_mesh.as_raw_ptr(),
-                self.as_raw_ptr(),
+                instanced_mesh.raw_ptr(),
+                self.raw_ptr(),
                 transform.into(),
             );
         }
@@ -102,11 +102,11 @@ impl Scene {
     /// This function cannot be called concurrently with any simulation functions.
     pub fn commit(&self) {
         unsafe {
-            audionimbus_sys::iplSceneCommit(self.as_raw_ptr());
+            audionimbus_sys::iplSceneCommit(self.raw_ptr());
         }
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLScene {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLScene {
         self.0
     }
 }

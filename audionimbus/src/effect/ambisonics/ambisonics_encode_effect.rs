@@ -25,7 +25,7 @@ impl AmbisonicsEncodeEffect {
             let ambisonics_encode_effect: *mut audionimbus_sys::IPLAmbisonicsEncodeEffect =
                 std::ptr::null_mut();
             let status = audionimbus_sys::iplAmbisonicsEncodeEffectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLAmbisonicsEncodeEffectSettings::from(
                     ambisonics_encode_effect_settings,
@@ -51,7 +51,7 @@ impl AmbisonicsEncodeEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplAmbisonicsEncodeEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *ambisonics_encode_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -60,7 +60,7 @@ impl AmbisonicsEncodeEffect {
         .into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsEncodeEffect {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsEncodeEffect {
         self.0
     }
 }

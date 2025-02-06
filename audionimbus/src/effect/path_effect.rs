@@ -26,7 +26,7 @@ impl PathEffect {
         let path_effect = unsafe {
             let path_effect: *mut audionimbus_sys::IPLPathEffect = std::ptr::null_mut();
             let status = audionimbus_sys::iplPathEffectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLPathEffectSettings::from(path_effect_settings),
                 path_effect,
@@ -53,7 +53,7 @@ impl PathEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplPathEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *path_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -62,7 +62,7 @@ impl PathEffect {
         .into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
         self.0
     }
 }
@@ -154,7 +154,7 @@ pub fn bake_path(
 
     unsafe {
         audionimbus_sys::iplPathBakerBake(
-            context.as_raw_ptr(),
+            context.raw_ptr(),
             &mut audionimbus_sys::IPLPathBakeParams::from(path_bake_params),
             callback,
             user_data,

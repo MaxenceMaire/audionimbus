@@ -22,7 +22,7 @@ impl BinauralEffect {
         let binaural_effect = unsafe {
             let binaural_effect: *mut audionimbus_sys::IPLBinauralEffect = std::ptr::null_mut();
             let status = audionimbus_sys::iplBinauralEffectCreate(
-                context.as_raw_ptr(),
+                context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLBinauralEffectSettings::from(binaural_effect_settings),
                 binaural_effect,
@@ -49,7 +49,7 @@ impl BinauralEffect {
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplBinauralEffectApply(
-                self.as_raw_ptr(),
+                self.raw_ptr(),
                 &mut *binaural_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 &mut *output_buffer.as_ffi(),
@@ -58,7 +58,7 @@ impl BinauralEffect {
         .into()
     }
 
-    pub fn as_raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
         self.0
     }
 }
@@ -117,7 +117,7 @@ impl BinauralEffectParams {
             direction: self.direction.into(),
             interpolation: self.interpolation.into(),
             spatialBlend: self.spatial_blend,
-            hrtf: *self.hrtf,
+            hrtf: self.hrtf.raw_ptr(),
             peakDelays: peak_delays_ptr,
         };
 
