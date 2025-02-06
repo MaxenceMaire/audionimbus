@@ -20,34 +20,42 @@ impl AmbisonicsDecodeEffect {
         audio_settings: &AudioSettings,
         ambisonics_decode_effect_settings: &AmbisonicsDecodeEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let ambisonics_decode_effect = unsafe {
-            let ambisonics_decode_effect: *mut audionimbus_sys::IPLAmbisonicsDecodeEffect =
-                std::ptr::null_mut();
-            let status = audionimbus_sys::iplAmbisonicsDecodeEffectCreate(
+        let mut ambisonics_decode_effect = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplAmbisonicsDecodeEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLAmbisonicsDecodeEffectSettings::from(
                     ambisonics_decode_effect_settings,
                 ),
-                ambisonics_decode_effect,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *ambisonics_decode_effect
+                ambisonics_decode_effect.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(ambisonics_decode_effect))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(ambisonics_decode_effect)
     }
 
+    /// Applies an Ambisonics decode effect to an audio buffer.
+    ///
+    /// This effect CANNOT be applied in-place.
     pub fn apply(
         &self,
         ambisonics_decode_effect_params: &AmbisonicsDecodeEffectParams,
         input_buffer: &mut AudioBuffer,
         output_buffer: &mut AudioBuffer,
     ) -> AudioEffectState {
+        let required_num_channels = (ambisonics_decode_effect_params.order + 1).pow(2);
+        assert_eq!(
+            input_buffer.num_channels, required_num_channels,
+            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            ambisonics_decode_effect_params.order, required_num_channels
+        );
+
         unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectApply(
                 self.raw_ptr(),
@@ -62,6 +70,10 @@ impl AmbisonicsDecodeEffect {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
         self.0
     }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsDecodeEffect {
+        &mut self.0
+    }
 }
 
 impl Drop for AmbisonicsDecodeEffect {
@@ -72,47 +84,53 @@ impl Drop for AmbisonicsDecodeEffect {
 
 /// Settings used to create an Ambisonics decode effect.
 #[derive(Debug)]
-pub struct AmbisonicsDecodeEffectSettings {
+pub struct AmbisonicsDecodeEffectSettings<'a> {
     /// The speaker layout that will be used by output audio buffers.
     pub speaker_layout: SpeakerLayout,
 
     /// The HRTF to use.
-    pub hrtf: Hrtf,
+    pub hrtf: &'a Hrtf,
 
     /// The maximum Ambisonics order that will be used by input audio buffers.
-    pub max_order: i32,
+    pub max_order: usize,
 }
 
-impl From<&AmbisonicsDecodeEffectSettings> for audionimbus_sys::IPLAmbisonicsDecodeEffectSettings {
+impl From<&AmbisonicsDecodeEffectSettings<'_>>
+    for audionimbus_sys::IPLAmbisonicsDecodeEffectSettings
+{
     fn from(settings: &AmbisonicsDecodeEffectSettings) -> Self {
-        todo!()
+        Self {
+            speakerLayout: audionimbus_sys::IPLSpeakerLayout::from(&settings.speaker_layout),
+            hrtf: settings.hrtf.raw_ptr(),
+            maxOrder: settings.max_order as i32,
+        }
     }
 }
 
 /// Parameters for applying an Ambisonics decode effect to an audio buffer.
 #[derive(Debug)]
-pub struct AmbisonicsDecodeEffectParams {
+pub struct AmbisonicsDecodeEffectParams<'a> {
     /// Ambisonic order of the input buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will process fewer input channels, reducing CPU usage.
-    order: i32,
+    pub order: usize,
 
     /// The HRTF to use.
-    hrtf: Hrtf,
+    pub hrtf: &'a Hrtf,
 
     /// The orientation of the listener.
-    orientation: CoordinateSystem,
+    pub orientation: CoordinateSystem,
 
     /// Whether to use binaural rendering or panning.
-    binaural: bool,
+    pub binaural: bool,
 }
 
-impl AmbisonicsDecodeEffectParams {
+impl AmbisonicsDecodeEffectParams<'_> {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLAmbisonicsDecodeEffectParams, Self> {
         let ambisonics_decode_effect_params = audionimbus_sys::IPLAmbisonicsDecodeEffectParams {
-            order: self.order,
+            order: self.order as i32,
             hrtf: self.hrtf.raw_ptr(),
             orientation: self.orientation.into(),
             binaural: if self.binaural {

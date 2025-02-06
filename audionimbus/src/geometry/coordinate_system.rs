@@ -1,4 +1,4 @@
-use super::Vector3;
+use super::{Point, Vector3};
 
 /// A 3D coordinate system, expressed relative to a canonical coordinate system.
 #[derive(Copy, Clone, Debug)]
@@ -13,7 +13,18 @@ pub struct CoordinateSystem {
     pub ahead: Vector3,
 
     /// The origin, relative to the canonical coordinate system.
-    pub origin: Vector3,
+    pub origin: Point,
+}
+
+impl Default for CoordinateSystem {
+    fn default() -> Self {
+        Self {
+            right: Vector3::new(1.0, 0.0, 0.0),
+            up: Vector3::new(0.0, 1.0, 0.0),
+            ahead: Vector3::new(0.0, 0.0, 1.0),
+            origin: Vector3::new(0.0, 0.0, 0.0),
+        }
+    }
 }
 
 impl From<CoordinateSystem> for audionimbus_sys::IPLCoordinateSpace3 {

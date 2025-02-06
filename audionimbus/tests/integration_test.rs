@@ -15,6 +15,7 @@ fn test_load_hrtf_default() {
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let audio_settings = audionimbus::AudioSettings::default();
+
     let hrtf_settings = audionimbus::HrtfSettings::default();
 
     let hrtf_result = audionimbus::Hrtf::try_new(&context, &audio_settings, &hrtf_settings);
@@ -46,6 +47,7 @@ fn test_binaural_effect() {
         frame_size: input_buffer.data.len(),
         ..Default::default()
     };
+
     let hrtf_settings = audionimbus::HrtfSettings::default();
 
     let hrtf = audionimbus::Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
@@ -96,4 +98,97 @@ fn raw_to_deinterleaved(
     }
 
     channels
+}
+
+#[test]
+fn test_ambisonics_encode_effect() {
+    let mut input_buffer =
+        audionimbus::AudioBuffer::from(raw_to_deinterleaved(AUDIO_BUFFER_SIZE_WAVE_440HZ_1S, 1));
+
+    let mut output_buffer =
+        audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
+
+    let context_settings = audionimbus::ContextSettings::default();
+
+    let context_result = audionimbus::Context::try_new(&context_settings);
+    let context = context_result.unwrap();
+
+    let audio_settings = audionimbus::AudioSettings {
+        frame_size: input_buffer.data.len(),
+        ..Default::default()
+    };
+
+    let ambisonics_encode_effect_settings =
+        audionimbus::effect::AmbisonicsEncodeEffectSettings { max_order: 0 };
+
+    let ambisonics_encode_effect = audionimbus::effect::AmbisonicsEncodeEffect::try_new(
+        &context,
+        &audio_settings,
+        &ambisonics_encode_effect_settings,
+    )
+    .unwrap();
+
+    let ambisonics_encode_effect_params = audionimbus::effect::AmbisonicsEncodeEffectParams {
+        direction: audionimbus::geometry::Direction::new(1.0, 1.0, 1.0),
+        order: 0,
+    };
+
+    ambisonics_encode_effect.apply(
+        &ambisonics_encode_effect_params,
+        &mut input_buffer,
+        &mut output_buffer,
+    );
+
+    let _ = output_buffer.interleave(&context);
+}
+
+#[test]
+fn test_ambisonics_decode_effect() {
+    let mut input_buffer =
+        audionimbus::AudioBuffer::from(raw_to_deinterleaved(AUDIO_BUFFER_SIZE_WAVE_440HZ_1S, 1));
+
+    let mut output_buffer =
+        audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
+
+    let context_settings = audionimbus::ContextSettings::default();
+
+    let context_result = audionimbus::Context::try_new(&context_settings);
+    let context = context_result.unwrap();
+
+    let audio_settings = audionimbus::AudioSettings {
+        frame_size: input_buffer.data.len(),
+        ..Default::default()
+    };
+
+    let hrtf_settings = audionimbus::HrtfSettings::default();
+
+    let hrtf = audionimbus::Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
+
+    let ambisonics_decode_effect_settings = audionimbus::effect::AmbisonicsDecodeEffectSettings {
+        speaker_layout: audionimbus::SpeakerLayout::Mono,
+        hrtf: &hrtf,
+        max_order: 0,
+    };
+
+    let ambisonics_decode_effect = audionimbus::effect::AmbisonicsDecodeEffect::try_new(
+        &context,
+        &audio_settings,
+        &ambisonics_decode_effect_settings,
+    )
+    .unwrap();
+
+    let ambisonics_decode_effect_params = audionimbus::effect::AmbisonicsDecodeEffectParams {
+        order: 0,
+        hrtf: &hrtf,
+        orientation: audionimbus::geometry::CoordinateSystem::default(),
+        binaural: true,
+    };
+
+    ambisonics_decode_effect.apply(
+        &ambisonics_decode_effect_params,
+        &mut input_buffer,
+        &mut output_buffer,
+    );
+
+    let _ = output_buffer.interleave(&context);
 }

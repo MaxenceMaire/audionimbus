@@ -8,6 +8,7 @@ mod context;
 pub use context::{Context, ContextFlags, ContextSettings, SimdLevel};
 
 pub mod effect;
+pub use effect::*;
 
 mod error;
 pub use error::SteamAudioError;
@@ -15,6 +16,7 @@ pub use error::SteamAudioError;
 mod ffi_wrapper;
 
 pub mod geometry;
+pub use geometry::*;
 
 mod hrtf;
 pub use hrtf::{Hrtf, HrtfInterpolation, HrtfSettings, Sofa, VolumeNormalization};

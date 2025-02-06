@@ -21,34 +21,42 @@ impl AmbisonicsEncodeEffect {
         audio_settings: &AudioSettings,
         ambisonics_encode_effect_settings: &AmbisonicsEncodeEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let ambisonics_encode_effect = unsafe {
-            let ambisonics_encode_effect: *mut audionimbus_sys::IPLAmbisonicsEncodeEffect =
-                std::ptr::null_mut();
-            let status = audionimbus_sys::iplAmbisonicsEncodeEffectCreate(
+        let mut ambisonics_encode_effect = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplAmbisonicsEncodeEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLAmbisonicsEncodeEffectSettings::from(
                     ambisonics_encode_effect_settings,
                 ),
-                ambisonics_encode_effect,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *ambisonics_encode_effect
+                ambisonics_encode_effect.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(ambisonics_encode_effect))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(ambisonics_encode_effect)
     }
 
+    /// Applies an Ambisonics encode effect to an audio buffer.
+    ///
+    /// This effect CANNOT be applied in-place.
     pub fn apply(
         &self,
         ambisonics_encode_effect_params: &AmbisonicsEncodeEffectParams,
         input_buffer: &mut AudioBuffer,
         output_buffer: &mut AudioBuffer,
     ) -> AudioEffectState {
+        let required_num_channels = (ambisonics_encode_effect_params.order + 1).pow(2);
+        assert_eq!(
+            input_buffer.num_channels, required_num_channels,
+            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            ambisonics_encode_effect_params.order, required_num_channels
+        );
+
         unsafe {
             audionimbus_sys::iplAmbisonicsEncodeEffectApply(
                 self.raw_ptr(),
@@ -63,18 +71,8 @@ impl AmbisonicsEncodeEffect {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsEncodeEffect {
         self.0
     }
-}
 
-impl std::ops::Deref for AmbisonicsEncodeEffect {
-    type Target = audionimbus_sys::IPLAmbisonicsEncodeEffect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for AmbisonicsEncodeEffect {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsEncodeEffect {
         &mut self.0
     }
 }
@@ -88,19 +86,16 @@ impl Drop for AmbisonicsEncodeEffect {
 /// Settings used to create an Ambisonics decode effect.
 #[derive(Debug)]
 pub struct AmbisonicsEncodeEffectSettings {
-    /// The speaker layout that will be used by output audio buffers.
-    pub speaker_layout: SpeakerLayout,
-
-    /// The HRTF to use.
-    pub hrtf: Hrtf,
-
     /// The maximum Ambisonics order that will be used by input audio buffers.
-    pub max_order: i32,
+    /// Maximum Ambisonics order to encode audio buffers to.
+    pub max_order: usize,
 }
 
 impl From<&AmbisonicsEncodeEffectSettings> for audionimbus_sys::IPLAmbisonicsEncodeEffectSettings {
     fn from(settings: &AmbisonicsEncodeEffectSettings) -> Self {
-        todo!()
+        Self {
+            maxOrder: settings.max_order as i32,
+        }
     }
 }
 
@@ -116,7 +111,7 @@ pub struct AmbisonicsEncodeEffectParams {
     /// Ambisonic order of the output buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will generate fewer output channels, reducing CPU usage.
-    pub order: i32,
+    pub order: usize,
 }
 
 impl AmbisonicsEncodeEffectParams {
@@ -125,7 +120,7 @@ impl AmbisonicsEncodeEffectParams {
     ) -> FFIWrapper<'_, audionimbus_sys::IPLAmbisonicsEncodeEffectParams, Self> {
         let ambisonics_encode_effect_params = audionimbus_sys::IPLAmbisonicsEncodeEffectParams {
             direction: self.direction.into(),
-            order: self.order,
+            order: self.order as i32,
         };
 
         FFIWrapper::new(ambisonics_encode_effect_params)
