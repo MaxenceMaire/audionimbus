@@ -89,7 +89,7 @@ impl From<&BinauralEffectSettings<'_>> for audionimbus_sys::IPLBinauralEffectSet
 
 /// Parameters for applying an Ambisonics binaural effect to an audio buffer.
 #[derive(Debug)]
-pub struct BinauralEffectParams {
+pub struct BinauralEffectParams<'a> {
     /// Unit vector pointing from the listener towards the source.
     pub direction: Direction,
 
@@ -103,14 +103,14 @@ pub struct BinauralEffectParams {
     pub spatial_blend: f32,
 
     /// The HRTF to use.
-    pub hrtf: Hrtf,
+    pub hrtf: &'a Hrtf,
 
     /// Optional left- and right-ear peak delays for the HRTF used to spatialize the input audio.
     /// Can be None, in which case peak delays will not be written.
     pub peak_delays: Option<[f32; 2]>,
 }
 
-impl BinauralEffectParams {
+impl BinauralEffectParams<'_> {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLBinauralEffectParams, Self> {
         let peak_delays_ptr = self
             .peak_delays

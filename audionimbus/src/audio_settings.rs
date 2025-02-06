@@ -2,11 +2,11 @@
 #[derive(Debug)]
 pub struct AudioSettings {
     /// Sampling rate, in Hz.
-    pub sampling_rate: i32,
+    pub sampling_rate: usize,
 
     /// Frame size, in samples.
     /// Independent of number of channels.
-    pub frame_size: i32,
+    pub frame_size: usize,
 }
 
 impl Default for AudioSettings {
@@ -21,8 +21,8 @@ impl Default for AudioSettings {
 impl From<&AudioSettings> for audionimbus_sys::IPLAudioSettings {
     fn from(settings: &AudioSettings) -> Self {
         Self {
-            samplingRate: settings.sampling_rate,
-            frameSize: settings.frame_size,
+            samplingRate: settings.sampling_rate as i32,
+            frameSize: settings.frame_size as i32,
         }
     }
 }

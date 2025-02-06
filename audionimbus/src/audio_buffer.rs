@@ -1,3 +1,4 @@
+use crate::context::Context;
 use crate::ffi_wrapper::FFIWrapper;
 
 /// An audio buffer.
@@ -5,10 +6,17 @@ use crate::ffi_wrapper::FFIWrapper;
 /// All audio buffers passed to Steam Audio must be deinterleaved.
 #[derive(Debug)]
 pub struct AudioBuffer {
-    num_channels: usize,
-    num_samples: usize,
-    data: Vec<f32>,
-    channel_ptrs: Vec<*mut f32>,
+    /// Number of channels.
+    pub num_channels: usize,
+
+    /// Number of samples per channel.
+    pub num_samples: usize,
+
+    /// Sample data.
+    pub data: Vec<f32>,
+
+    /// Pointers to sample data for each channel.
+    pub channel_ptrs: Vec<*mut f32>,
 }
 
 impl AudioBuffer {
@@ -27,6 +35,45 @@ impl AudioBuffer {
             data,
             channel_ptrs,
         }
+    }
+
+    /// Interleaves samples from the audio buffer.
+    pub fn interleave(&mut self, context: &Context) -> Vec<f32> {
+        let mut interleaved_data = vec![0.0; self.num_channels * self.num_samples];
+        self.interleave_mut(context, &mut interleaved_data);
+        interleaved_data
+    }
+
+    /// Mutates the `dst` buffer with interleaved data from the audio buffer.
+    pub fn interleave_mut(&mut self, context: &Context, dst: &mut [Sample]) {
+        let mut audio_buffer_ffi = self.as_ffi();
+
+        unsafe {
+            audionimbus_sys::iplAudioBufferInterleave(
+                context.raw_ptr(),
+                &mut *audio_buffer_ffi,
+                dst.as_mut_ptr(),
+            );
+        }
+    }
+
+    /// Deinterleaves the `src` data into `Self`.
+    pub fn deinterleave(&mut self, context: &Context, src: &mut [Sample]) {
+        assert_eq!(
+            src.len(),
+            self.num_channels * self.num_samples,
+            "input data size must match the required interleaved size"
+        );
+
+        let mut audio_buffer_ffi = self.as_ffi();
+
+        unsafe {
+            audionimbus_sys::iplAudioBufferDeinterleave(
+                context.raw_ptr(),
+                src.as_mut_ptr(),
+                &mut *audio_buffer_ffi,
+            )
+        };
     }
 
     pub(crate) fn as_ffi(&mut self) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Self> {
