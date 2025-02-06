@@ -11,7 +11,7 @@ use crate::hrtf::{Hrtf, HrtfInterpolation};
 ///
 /// The source audio can be 1- or 2-channel; in either case all input channels are spatialized from the same position.
 #[derive(Debug)]
-pub struct BinauralEffect(pub audionimbus_sys::IPLBinauralEffect);
+pub struct BinauralEffect(audionimbus_sys::IPLBinauralEffect);
 
 impl BinauralEffect {
     pub fn try_new(
@@ -19,23 +19,22 @@ impl BinauralEffect {
         audio_settings: &AudioSettings,
         binaural_effect_settings: &BinauralEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let binaural_effect = unsafe {
-            let binaural_effect: *mut audionimbus_sys::IPLBinauralEffect = std::ptr::null_mut();
-            let status = audionimbus_sys::iplBinauralEffectCreate(
+        let mut binaural_effect = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplBinauralEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLBinauralEffectSettings::from(binaural_effect_settings),
-                binaural_effect,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *binaural_effect
+                binaural_effect.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(binaural_effect))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(binaural_effect)
     }
 
     /// Applies a binaural effect to an audio buffer.
@@ -61,6 +60,10 @@ impl BinauralEffect {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
         self.0
     }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLBinauralEffect {
+        &mut self.0
+    }
 }
 
 impl Drop for BinauralEffect {
@@ -71,14 +74,16 @@ impl Drop for BinauralEffect {
 
 /// Settings used to create a binaural effect.
 #[derive(Debug)]
-pub struct BinauralEffectSettings {
+pub struct BinauralEffectSettings<'a> {
     /// The HRTF to use.
-    pub hrtf: Hrtf,
+    pub hrtf: &'a Hrtf,
 }
 
-impl From<&BinauralEffectSettings> for audionimbus_sys::IPLBinauralEffectSettings {
+impl From<&BinauralEffectSettings<'_>> for audionimbus_sys::IPLBinauralEffectSettings {
     fn from(settings: &BinauralEffectSettings) -> Self {
-        todo!()
+        Self {
+            hrtf: settings.hrtf.raw_ptr(),
+        }
     }
 }
 
