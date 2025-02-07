@@ -6,7 +6,6 @@
 /// This means that when looking at the triangle such that the normal is pointing towards you, the vertices are specified in counter-clockwise order.
 ///
 /// Each triangle must be specified using three vertices; triangle strip or fan representations are not supported.
-#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct Triangle {
     /// Indices of the three vertices of this triangle.

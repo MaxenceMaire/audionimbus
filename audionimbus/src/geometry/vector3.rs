@@ -2,7 +2,6 @@
 ///
 /// Steam Audio uses a right-handed coordinate system, with the positive x-axis pointing right, the positive y-axis pointing up, and the negative z-axis pointing ahead.
 /// Position and direction data obtained from a game engine or audio engine must be properly transformed before being passed to any Steam Audio API function.
-#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct Vector3 {
     /// The x-coordinate.

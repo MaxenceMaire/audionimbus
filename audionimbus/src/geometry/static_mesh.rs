@@ -13,10 +13,44 @@ impl StaticMesh {
     pub fn try_new(scene: &Scene, settings: &StaticMeshSettings) -> Result<Self, SteamAudioError> {
         let mut static_mesh = Self(std::ptr::null_mut());
 
+        let mut vertices: Vec<audionimbus_sys::IPLVector3> = settings
+            .vertices
+            .iter()
+            .map(|v| audionimbus_sys::IPLVector3::from(*v))
+            .collect();
+
+        let mut triangles: Vec<audionimbus_sys::IPLTriangle> = settings
+            .triangles
+            .iter()
+            .map(|t| audionimbus_sys::IPLTriangle::from(*t))
+            .collect();
+
+        let mut material_indices: Vec<i32> = settings
+            .material_indices
+            .iter()
+            .map(|&i| i as i32)
+            .collect();
+
+        let mut materials: Vec<audionimbus_sys::IPLMaterial> = settings
+            .materials
+            .iter()
+            .map(|m| audionimbus_sys::IPLMaterial::from(*m))
+            .collect();
+
+        let mut static_mesh_settings_ffi = audionimbus_sys::IPLStaticMeshSettings {
+            numVertices: settings.num_vertices as i32,
+            numTriangles: settings.num_triangles as i32,
+            numMaterials: settings.num_materials as i32,
+            vertices: vertices.as_mut_ptr(),
+            triangles: triangles.as_mut_ptr(),
+            materialIndices: material_indices.as_mut_ptr(),
+            materials: materials.as_mut_ptr(),
+        };
+
         let status = unsafe {
             audionimbus_sys::iplStaticMeshCreate(
                 scene.raw_ptr(),
-                &mut audionimbus_sys::IPLStaticMeshSettings::from(settings),
+                &mut static_mesh_settings_ffi,
                 static_mesh.raw_ptr_mut(),
             )
         };
@@ -142,25 +176,4 @@ pub struct StaticMeshSettings {
 
     /// Array of materials.
     pub materials: Vec<Material>,
-}
-
-impl From<&StaticMeshSettings> for audionimbus_sys::IPLStaticMeshSettings {
-    fn from(settings: &StaticMeshSettings) -> Self {
-        Self {
-            numVertices: settings.num_vertices as i32,
-            numTriangles: settings.num_triangles as i32,
-            numMaterials: settings.num_materials as i32,
-
-            // NOTE: [`audionimbus::Vector3`] and [`audionimbus_sys::IPLVector3`] use the same representation.
-            vertices: settings.vertices.as_ptr() as *mut audionimbus_sys::IPLVector3,
-
-            // NOTE: [`audionimbus::Triangle`] and [`audionimbus_sys::IPLTriangle`] use the same representation.
-            triangles: settings.triangles.as_ptr() as *mut audionimbus_sys::IPLTriangle,
-
-            materialIndices: settings.material_indices.as_ptr() as *mut i32,
-
-            // NOTE: [`audionimbus::Material`] and [`audionimbus_sys::IPLMaterial`] use the same representation.
-            materials: settings.materials.as_ptr() as *mut audionimbus_sys::IPLMaterial,
-        }
-    }
 }
