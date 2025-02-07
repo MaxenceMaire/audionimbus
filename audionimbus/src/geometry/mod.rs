@@ -26,7 +26,7 @@ mod static_mesh;
 pub use static_mesh::{StaticMesh, StaticMeshSettings};
 
 mod instanced_mesh;
-pub use instanced_mesh::InstancedMesh;
+pub use instanced_mesh::{InstancedMesh, InstancedMeshSettings};
 
 mod sphere;
 pub use sphere::Sphere;

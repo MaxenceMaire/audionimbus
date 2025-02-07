@@ -336,3 +336,76 @@ fn test_static_mesh() {
 
     scene.commit();
 }
+
+#[test]
+fn test_instanced_mesh() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    let scene_settings = audionimbus::SceneSettings::default();
+    let main_scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+    let sub_scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+
+    // Four vertices of a unit square in the x-y plane.
+    let vertices = vec![
+        audionimbus::geometry::Point::new(0.0, 0.0, 0.0),
+        audionimbus::geometry::Point::new(1.0, 0.0, 0.0),
+        audionimbus::geometry::Point::new(1.0, 1.0, 0.0),
+        audionimbus::geometry::Point::new(0.0, 1.0, 0.0),
+    ];
+
+    let triangles = vec![
+        audionimbus::geometry::Triangle::new(0, 1, 2),
+        audionimbus::geometry::Triangle::new(0, 2, 2),
+    ];
+
+    let materials = vec![audionimbus::geometry::Material {
+        absorption: [0.1, 0.1, 0.1],
+        scattering: 0.5,
+        transmission: [0.2, 0.2, 0.2],
+    }];
+
+    // Both triangles use the same material.
+    let material_indices = vec![0, 0];
+
+    let static_mesh_settings = audionimbus::geometry::StaticMeshSettings {
+        num_vertices: vertices.len(),
+        num_triangles: triangles.len(),
+        num_materials: materials.len(),
+        vertices,
+        triangles,
+        material_indices,
+        materials,
+    };
+
+    let static_mesh = audionimbus::StaticMesh::try_new(&sub_scene, &static_mesh_settings).unwrap();
+    sub_scene.add_static_mesh(&static_mesh);
+    sub_scene.commit();
+
+    let transform = audionimbus::Matrix::new([
+        [1.0, 0.0, 0.0, 5.0], // Move 5 meters along the X axis.
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]);
+
+    let instanced_mesh_settings = audionimbus::geometry::InstancedMeshSettings {
+        sub_scene: &sub_scene,
+        transform: &transform,
+    };
+
+    let mut instanced_mesh =
+        audionimbus::InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
+    main_scene.add_instanced_mesh(&instanced_mesh);
+    main_scene.commit();
+
+    let new_transform = audionimbus::Matrix::new([
+        [1.0, 0.0, 0.0, 10.0], // Move 10 meters along the X axis.
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]);
+
+    instanced_mesh.update_transform(&main_scene, &new_transform);
+    main_scene.commit();
+}

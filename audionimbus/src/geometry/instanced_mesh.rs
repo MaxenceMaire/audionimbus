@@ -13,28 +13,51 @@ pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
 impl InstancedMesh {
     pub fn try_new(
         scene: &Scene,
-        instanced_mesh_settings: &InstancedMeshSettings,
+        settings: &InstancedMeshSettings,
     ) -> Result<Self, SteamAudioError> {
-        let instanced_mesh = unsafe {
-            let instanced_mesh: *mut audionimbus_sys::IPLInstancedMesh = std::ptr::null_mut();
-            let status = audionimbus_sys::iplInstancedMeshCreate(
-                scene.raw_ptr(),
-                &mut audionimbus_sys::IPLInstancedMeshSettings::from(instanced_mesh_settings),
-                instanced_mesh,
-            );
+        let mut instanced_mesh = Self(std::ptr::null_mut());
 
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *instanced_mesh
+        let mut instanced_mesh_settings_ffi = audionimbus_sys::IPLInstancedMeshSettings {
+            subScene: settings.sub_scene.raw_ptr(),
+            transform: settings.transform.into(),
         };
 
-        Ok(Self(instanced_mesh))
+        let status = unsafe {
+            audionimbus_sys::iplInstancedMeshCreate(
+                scene.raw_ptr(),
+                &mut instanced_mesh_settings_ffi,
+                instanced_mesh.raw_ptr_mut(),
+            )
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(instanced_mesh)
+    }
+
+    /// Updates the local-to-world transform of the instanced mesh within its parent scene.
+    ///
+    /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
+    ///
+    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
+    pub fn update_transform(&mut self, scene: &Scene, new_transform: &Matrix<f32, 4, 4>) {
+        unsafe {
+            audionimbus_sys::iplInstancedMeshUpdateTransform(
+                self.raw_ptr(),
+                scene.raw_ptr(),
+                new_transform.into(),
+            );
+        }
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLInstancedMesh {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLInstancedMesh {
+        &mut self.0
     }
 }
 
@@ -46,16 +69,10 @@ impl Drop for InstancedMesh {
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug)]
-pub struct InstancedMeshSettings {
+pub struct InstancedMeshSettings<'a> {
     /// Handle to the scene to be instantiated.
-    sub_scene: Scene,
+    pub sub_scene: &'a Scene,
 
     /// Local-to-world transform that places the instance within the parent scene.
-    transform: Matrix<f32, 4, 4>,
-}
-
-impl From<&InstancedMeshSettings> for audionimbus_sys::IPLInstancedMeshSettings {
-    fn from(settings: &InstancedMeshSettings) -> Self {
-        todo!()
-    }
+    pub transform: &'a Matrix<f32, 4, 4>,
 }
