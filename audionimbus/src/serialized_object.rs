@@ -33,26 +33,29 @@ impl SerializedObject {
         context: &Context,
         mut serialized_object_settings: audionimbus_sys::IPLSerializedObjectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let serialized_object = unsafe {
-            let serialized_object: *mut audionimbus_sys::IPLSerializedObject = std::ptr::null_mut();
-            let status = audionimbus_sys::iplSerializedObjectCreate(
+        let mut serialized_object = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplSerializedObjectCreate(
                 context.raw_ptr(),
                 &mut serialized_object_settings,
-                serialized_object,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *serialized_object
+                serialized_object.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(serialized_object))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(serialized_object)
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSerializedObject {
+        &mut self.0
     }
 
     pub fn to_vec(&self) -> Vec<u8> {

@@ -409,3 +409,53 @@ fn test_instanced_mesh() {
     instanced_mesh.update_transform(&main_scene, &new_transform);
     main_scene.commit();
 }
+
+#[test]
+fn test_scene_serialization() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    let scene_settings = audionimbus::SceneSettings::default();
+    let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+
+    // Four vertices of a unit square in the x-y plane.
+    let vertices = vec![
+        audionimbus::geometry::Point::new(0.0, 0.0, 0.0),
+        audionimbus::geometry::Point::new(1.0, 0.0, 0.0),
+        audionimbus::geometry::Point::new(1.0, 1.0, 0.0),
+        audionimbus::geometry::Point::new(0.0, 1.0, 0.0),
+    ];
+
+    let triangles = vec![
+        audionimbus::geometry::Triangle::new(0, 1, 2),
+        audionimbus::geometry::Triangle::new(0, 2, 2),
+    ];
+
+    let materials = vec![audionimbus::geometry::Material {
+        absorption: [0.1, 0.1, 0.1],
+        scattering: 0.5,
+        transmission: [0.2, 0.2, 0.2],
+    }];
+
+    // Both triangles use the same material.
+    let material_indices = vec![0, 0];
+
+    let static_mesh_settings = audionimbus::geometry::StaticMeshSettings {
+        num_vertices: vertices.len(),
+        num_triangles: triangles.len(),
+        num_materials: materials.len(),
+        vertices,
+        triangles,
+        material_indices,
+        materials,
+    };
+
+    let static_mesh = audionimbus::StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();
+
+    let mut serialized_object = audionimbus::SerializedObject::try_new(&context).unwrap();
+
+    static_mesh.save(&mut serialized_object);
+
+    let loaded_static_mesh_result = audionimbus::StaticMesh::load(&scene, &mut serialized_object);
+    assert!(loaded_static_mesh_result.is_ok());
+}
