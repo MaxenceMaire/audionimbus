@@ -13,7 +13,7 @@ pub struct Scene(audionimbus_sys::IPLScene);
 impl Scene {
     pub fn try_new(
         context: &Context,
-        scene_settings: &SceneSettings<()>,
+        scene_settings: &SceneSettings,
     ) -> Result<Self, SteamAudioError> {
         let scene = unsafe {
             let scene: *mut audionimbus_sys::IPLScene = std::ptr::null_mut();
@@ -115,7 +115,7 @@ impl Scene {
 ///
 /// Each scene variant corresponds to a different ray tracing implementation.
 #[derive(Debug)]
-pub enum SceneSettings<T> {
+pub enum SceneSettings {
     /// Steam Audio’s built-in ray tracer.
     ///
     /// Supports multi-threading. Runs on all platforms that Steam Audio supports.
@@ -148,30 +148,64 @@ pub enum SceneSettings<T> {
     /// This option uses the least amount of memory at run-time, since it does not have to build any ray tracing data structures of its own.
     Custom {
         /// Callback for finding the closest hit along a ray.
-        closest_hit_callback: Option<()>, // TODO: should take a function.
+        closest_hit_callback: Option<
+            unsafe extern "C" fn(
+                ray: *const audionimbus_sys::IPLRay,
+                min_distance: f32,
+                max_distance: f32,
+                hit: *mut audionimbus_sys::IPLHit,
+                user_data: *mut std::ffi::c_void,
+            ),
+        >,
 
         /// Callback for finding whether a ray hits anything.
-        any_hit_callback: Option<()>, // TODO: should take a function.
+        any_hit_callback: Option<
+            unsafe extern "C" fn(
+                ray: *const audionimbus_sys::IPLRay,
+                min_distance: f32,
+                max_distance: f32,
+                occluded: *mut u8,
+                user_data: *mut std::ffi::c_void,
+            ),
+        >,
 
         /// Callback for finding the closest hit along a batch of rays.
-        batched_closest_hit_callback: Option<()>, // TODO: should take a function.
+        batched_closest_hit_callback: Option<
+            unsafe extern "C" fn(
+                num_rays: i32,
+                rays: *const audionimbus_sys::IPLRay,
+                min_distances: *const f32,
+                max_distances: *const f32,
+                hits: *mut audionimbus_sys::IPLHit,
+                user_data: *mut std::ffi::c_void,
+            ),
+        >,
 
         /// Callback for finding whether a batch of rays hits anything.
-        batched_any_hit_callback: Option<()>, // TODO: should take a function.
+        batched_any_hit_callback: Option<
+            unsafe extern "C" fn(
+                num_rays: i32,
+                rays: *const audionimbus_sys::IPLRay,
+                min_distances: *const f32,
+                max_distances: *const f32,
+                occluded: *mut u8,
+                user_data: *mut std::ffi::c_void,
+            ),
+        >,
 
         /// Arbitrary user-provided data for use by ray tracing callbacks.
-        user_data: T, // TODO: specify generic.
+        user_data: *mut std::ffi::c_void,
     },
 }
 
-impl<T> Default for SceneSettings<T> {
+impl Default for SceneSettings {
     fn default() -> Self {
         Self::Default
     }
 }
 
-impl From<&SceneSettings<()>> for audionimbus_sys::IPLSceneSettings {
-    fn from(settings: &SceneSettings<()>) -> Self {
+impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {
+    fn from(settings: &SceneSettings) -> Self {
         todo!()
     }
 }
