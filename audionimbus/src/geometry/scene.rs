@@ -11,26 +11,22 @@ use crate::radeon_rays::RadeonRaysDevice;
 pub struct Scene(audionimbus_sys::IPLScene);
 
 impl Scene {
-    pub fn try_new(
-        context: &Context,
-        scene_settings: &SceneSettings,
-    ) -> Result<Self, SteamAudioError> {
-        let scene = unsafe {
-            let scene: *mut audionimbus_sys::IPLScene = std::ptr::null_mut();
-            let status = audionimbus_sys::iplSceneCreate(
+    pub fn try_new(context: &Context, settings: &SceneSettings) -> Result<Self, SteamAudioError> {
+        let mut scene = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplSceneCreate(
                 context.raw_ptr(),
-                &mut audionimbus_sys::IPLSceneSettings::from(scene_settings),
-                scene,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *scene
+                &mut audionimbus_sys::IPLSceneSettings::from(settings),
+                scene.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(scene))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(scene)
     }
 
     /// Adds a static mesh to a scene.
@@ -109,6 +105,10 @@ impl Scene {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLScene {
         self.0
     }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLScene {
+        &mut self.0
+    }
 }
 
 /// Settings used to create a scene.
@@ -148,50 +148,42 @@ pub enum SceneSettings {
     /// This option uses the least amount of memory at run-time, since it does not have to build any ray tracing data structures of its own.
     Custom {
         /// Callback for finding the closest hit along a ray.
-        closest_hit_callback: Option<
-            unsafe extern "C" fn(
-                ray: *const audionimbus_sys::IPLRay,
-                min_distance: f32,
-                max_distance: f32,
-                hit: *mut audionimbus_sys::IPLHit,
-                user_data: *mut std::ffi::c_void,
-            ),
-        >,
+        closest_hit_callback: unsafe extern "C" fn(
+            ray: *const audionimbus_sys::IPLRay,
+            min_distance: f32,
+            max_distance: f32,
+            hit: *mut audionimbus_sys::IPLHit,
+            user_data: *mut std::ffi::c_void,
+        ),
 
         /// Callback for finding whether a ray hits anything.
-        any_hit_callback: Option<
-            unsafe extern "C" fn(
-                ray: *const audionimbus_sys::IPLRay,
-                min_distance: f32,
-                max_distance: f32,
-                occluded: *mut u8,
-                user_data: *mut std::ffi::c_void,
-            ),
-        >,
+        any_hit_callback: unsafe extern "C" fn(
+            ray: *const audionimbus_sys::IPLRay,
+            min_distance: f32,
+            max_distance: f32,
+            occluded: *mut u8,
+            user_data: *mut std::ffi::c_void,
+        ),
 
         /// Callback for finding the closest hit along a batch of rays.
-        batched_closest_hit_callback: Option<
-            unsafe extern "C" fn(
-                num_rays: i32,
-                rays: *const audionimbus_sys::IPLRay,
-                min_distances: *const f32,
-                max_distances: *const f32,
-                hits: *mut audionimbus_sys::IPLHit,
-                user_data: *mut std::ffi::c_void,
-            ),
-        >,
+        batched_closest_hit_callback: unsafe extern "C" fn(
+            num_rays: i32,
+            rays: *const audionimbus_sys::IPLRay,
+            min_distances: *const f32,
+            max_distances: *const f32,
+            hits: *mut audionimbus_sys::IPLHit,
+            user_data: *mut std::ffi::c_void,
+        ),
 
         /// Callback for finding whether a batch of rays hits anything.
-        batched_any_hit_callback: Option<
-            unsafe extern "C" fn(
-                num_rays: i32,
-                rays: *const audionimbus_sys::IPLRay,
-                min_distances: *const f32,
-                max_distances: *const f32,
-                occluded: *mut u8,
-                user_data: *mut std::ffi::c_void,
-            ),
-        >,
+        batched_any_hit_callback: unsafe extern "C" fn(
+            num_rays: i32,
+            rays: *const audionimbus_sys::IPLRay,
+            min_distances: *const f32,
+            max_distances: *const f32,
+            occluded: *mut u8,
+            user_data: *mut std::ffi::c_void,
+        ),
 
         /// Arbitrary user-provided data for use by ray tracing callbacks.
         user_data: *mut std::ffi::c_void,
@@ -205,8 +197,75 @@ impl Default for SceneSettings {
 }
 
 impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {
-    fn from(settings: &SceneSettings) -> Self {
-        todo!()
+    fn from(scene_settings: &SceneSettings) -> Self {
+        let (
+            type_,
+            closest_hit_callback,
+            any_hit_callback,
+            batched_closest_hit_callback,
+            batched_any_hit_callback,
+            user_data,
+            embree_device,
+            radeon_rays_device,
+        ) = match scene_settings {
+            SceneSettings::Default => (
+                audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
+                None,
+                None,
+                None,
+                None,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            ),
+            SceneSettings::Embree { device } => (
+                audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE,
+                None,
+                None,
+                None,
+                None,
+                std::ptr::null_mut(),
+                device.raw_ptr(),
+                std::ptr::null_mut(),
+            ),
+            SceneSettings::RadeonRays { device } => (
+                audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS,
+                None,
+                None,
+                None,
+                None,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                device.raw_ptr(),
+            ),
+            SceneSettings::Custom {
+                closest_hit_callback,
+                any_hit_callback,
+                batched_closest_hit_callback,
+                batched_any_hit_callback,
+                user_data,
+            } => (
+                audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM,
+                Some(*closest_hit_callback),
+                Some(*any_hit_callback),
+                Some(*batched_closest_hit_callback),
+                Some(*batched_any_hit_callback),
+                *user_data,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            ),
+        };
+
+        Self {
+            type_,
+            closestHitCallback: closest_hit_callback,
+            anyHitCallback: any_hit_callback,
+            batchedClosestHitCallback: batched_closest_hit_callback,
+            batchedAnyHitCallback: batched_any_hit_callback,
+            userData: user_data,
+            embreeDevice: embree_device,
+            radeonRaysDevice: radeon_rays_device,
+        }
     }
 }
 

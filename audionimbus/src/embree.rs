@@ -5,7 +5,7 @@ use crate::error::{to_option_error, SteamAudioError};
 ///
 /// An Embree device must be created before using any of Steam Audio’s Embree ray tracing functionality.
 #[derive(Debug)]
-pub struct EmbreeDevice(pub audionimbus_sys::IPLEmbreeDevice);
+pub struct EmbreeDevice(audionimbus_sys::IPLEmbreeDevice);
 
 impl EmbreeDevice {
     pub fn new(context: &Context) -> Result<Self, SteamAudioError> {
@@ -27,6 +27,10 @@ impl EmbreeDevice {
         };
 
         Ok(Self(embree_device))
+    }
+
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLEmbreeDevice {
+        self.0
     }
 }
 

@@ -11,7 +11,6 @@ fn test_initialization() {
 #[test]
 fn test_load_hrtf_default() {
     let context_settings = audionimbus::ContextSettings::default();
-
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let audio_settings = audionimbus::AudioSettings::default();
@@ -39,9 +38,7 @@ fn test_binaural_effect() {
         audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
 
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let audio_settings = audionimbus::AudioSettings {
         frame_size: input_buffer.data.len(),
@@ -109,9 +106,7 @@ fn test_ambisonics_encode_effect() {
         audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
 
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let audio_settings = audionimbus::AudioSettings {
         frame_size: input_buffer.data.len(),
@@ -151,9 +146,7 @@ fn test_ambisonics_decode_effect() {
         audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
 
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let audio_settings = audionimbus::AudioSettings {
         frame_size: input_buffer.data.len(),
@@ -202,9 +195,7 @@ fn test_direct_effect() {
         audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
 
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let audio_settings = audionimbus::AudioSettings {
         frame_size: input_buffer.data.len(),
@@ -238,9 +229,7 @@ fn test_direct_effect() {
 #[test]
 fn test_distance_attenuation() {
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let source = audionimbus::Point::new(1.0, 1.0, 1.0);
     let listener = audionimbus::Point::new(0.0, 0.0, 0.0);
@@ -260,9 +249,7 @@ fn test_distance_attenuation() {
 #[test]
 fn test_air_absorption() {
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let source = audionimbus::Point::new(1.0, 1.0, 1.0);
     let listener = audionimbus::Point::new(0.0, 0.0, 0.0);
@@ -278,9 +265,7 @@ fn test_air_absorption() {
 #[test]
 fn test_directivity_attenuation() {
     let context_settings = audionimbus::ContextSettings::default();
-
-    let context_result = audionimbus::Context::try_new(&context_settings);
-    let context = context_result.unwrap();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let source = audionimbus::CoordinateSystem::default();
     let listener = audionimbus::Point::new(0.0, 0.0, 0.0);
@@ -291,4 +276,16 @@ fn test_directivity_attenuation() {
         audionimbus::calculate_directivity_attenuation(&context, &source, &listener, &directivity);
 
     assert_eq!(directivity_attenuation, 0.70710677);
+}
+
+#[test]
+fn test_scene() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    let scene_settings = audionimbus::SceneSettings::default();
+
+    let scene_result = audionimbus::Scene::try_new(&context, &scene_settings);
+
+    assert!(scene_result.is_ok());
 }

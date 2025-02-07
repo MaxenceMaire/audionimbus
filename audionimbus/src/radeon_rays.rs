@@ -5,7 +5,7 @@ use crate::open_cl::OpenClDevice;
 ///
 /// A Radeon Rays device must be created before using any of Steam Audio’s Radeon Rays ray tracing functionality.
 #[derive(Debug)]
-pub struct RadeonRaysDevice(pub audionimbus_sys::IPLRadeonRaysDevice);
+pub struct RadeonRaysDevice(audionimbus_sys::IPLRadeonRaysDevice);
 
 impl RadeonRaysDevice {
     pub fn new(open_cl_device: OpenClDevice) -> Result<Self, SteamAudioError> {
