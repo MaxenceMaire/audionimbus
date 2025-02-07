@@ -98,14 +98,13 @@ impl Simulator {
     /// - `shared_inputs`: the shared input parameters to set.
     pub fn set_shared_inputs(
         &self,
-        flags: SimulationFlags,
+        simulation_flags: SimulationFlags,
         shared_inputs: &SimulationSharedInputs,
     ) {
         unsafe {
             audionimbus_sys::iplSimulatorSetSharedInputs(
                 self.raw_ptr(),
-                //flags,
-                todo!(), // TODO:
+                simulation_flags.into(),
                 &mut audionimbus_sys::IPLSimulationSharedInputs::from(shared_inputs),
             );
         }
@@ -239,6 +238,12 @@ bitflags::bitflags! {
     }
 }
 
+impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
+    fn from(simulation_flags: SimulationFlags) -> Self {
+        Self(simulation_flags.bits())
+    }
+}
+
 /// Type of reflection effect algorithm to use.
 #[derive(Debug)]
 pub enum ReflectionEffect {
@@ -307,8 +312,7 @@ impl Source {
         unsafe {
             audionimbus_sys::iplSourceSetInputs(
                 self.raw_ptr(),
-                todo!(),
-                //simulation_flags, // TODO:
+                simulation_flags.into(),
                 &mut inputs.into(),
             );
         }
@@ -325,8 +329,7 @@ impl Source {
                 std::ptr::null_mut();
             audionimbus_sys::iplSourceGetOutputs(
                 self.raw_ptr(),
-                //simulation_flags,
-                todo!(), // TODO:
+                simulation_flags.into(),
                 simulation_outputs,
             );
 
@@ -455,6 +458,12 @@ bitflags::bitflags! {
         /// Enable transmission simulation.
         /// Requires occlusion to also be enabled.
         const TRANSMISSION = 1 << 4;
+    }
+}
+
+impl From<DirectSimulationFlags> for audionimbus_sys::IPLDirectSimulationFlags {
+    fn from(direct_simulation_flags: DirectSimulationFlags) -> Self {
+        Self(direct_simulation_flags.bits())
     }
 }
 
