@@ -16,23 +16,22 @@ impl DirectEffect {
         audio_settings: &AudioSettings,
         direct_effect_settings: &DirectEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let direct_effect = unsafe {
-            let direct_effect: *mut audionimbus_sys::IPLDirectEffect = std::ptr::null_mut();
-            let status = audionimbus_sys::iplDirectEffectCreate(
+        let mut direct_effect = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplDirectEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLDirectEffectSettings::from(direct_effect_settings),
-                direct_effect,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *direct_effect
+                direct_effect.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(direct_effect))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(direct_effect)
     }
 
     /// Applies a direct effect to an audio buffer.
@@ -58,6 +57,10 @@ impl DirectEffect {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
         self.0
     }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLDirectEffect {
+        &mut self.0
+    }
 }
 
 impl Drop for DirectEffect {
@@ -70,32 +73,34 @@ impl Drop for DirectEffect {
 #[derive(Debug)]
 pub struct DirectEffectSettings {
     /// Number of channels that will be used by input and output buffers.
-    pub num_channels: i32,
+    pub num_channels: usize,
 }
 
 impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {
     fn from(settings: &DirectEffectSettings) -> Self {
-        todo!()
+        Self {
+            numChannels: settings.num_channels as i32,
+        }
     }
 }
 
 /// Parameters for applying a direct effect to an audio buffer.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct DirectEffectParams {
     /// Optional distance attenuation, with a value between 0.0 and 1.0.
-    distance_attenuation: Option<f32>,
+    pub distance_attenuation: Option<f32>,
 
     /// Optional air absorption.
-    air_absorption: Option<Equalizer<3>>,
+    pub air_absorption: Option<Equalizer<3>>,
 
     /// Optional directivity term, with a value between 0.0 and 1.0.
-    directivity: Option<f32>,
+    pub directivity: Option<f32>,
 
     /// Optional occlusion factor, with a value between 0.0 and 1.0.
-    occlusion: Option<f32>,
+    pub occlusion: Option<f32>,
 
     /// Optional transmission.
-    transmission: Option<Transmission>,
+    pub transmission: Option<Transmission>,
 }
 
 impl DirectEffectParams {

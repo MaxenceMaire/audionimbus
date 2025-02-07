@@ -192,3 +192,45 @@ fn test_ambisonics_decode_effect() {
 
     let _ = output_buffer.interleave(&context);
 }
+
+#[test]
+fn test_direct_effect() {
+    let mut input_buffer =
+        audionimbus::AudioBuffer::from(raw_to_deinterleaved(AUDIO_BUFFER_SIZE_WAVE_440HZ_1S, 1));
+
+    let mut output_buffer =
+        audionimbus::AudioBuffer::with_num_channels_and_num_samples(2, input_buffer.num_samples);
+
+    let context_settings = audionimbus::ContextSettings::default();
+
+    let context_result = audionimbus::Context::try_new(&context_settings);
+    let context = context_result.unwrap();
+
+    let audio_settings = audionimbus::AudioSettings {
+        frame_size: input_buffer.data.len(),
+        ..Default::default()
+    };
+
+    let direct_effect_settings = audionimbus::effect::DirectEffectSettings { num_channels: 1 };
+
+    let direct_effect = audionimbus::effect::DirectEffect::try_new(
+        &context,
+        &audio_settings,
+        &direct_effect_settings,
+    )
+    .unwrap();
+
+    let direct_effect_params = audionimbus::effect::DirectEffectParams {
+        distance_attenuation: Some(0.6),
+        air_absorption: Some(audionimbus::Equalizer([0.9, 0.7, 0.5])),
+        directivity: Some(0.7),
+        occlusion: Some(0.4),
+        transmission: Some(audionimbus::Transmission::FrequencyIndependent(
+            audionimbus::Equalizer([0.3, 0.2, 0.1]),
+        )),
+    };
+
+    direct_effect.apply(&direct_effect_params, &mut input_buffer, &mut output_buffer);
+
+    let _ = output_buffer.interleave(&context);
+}
