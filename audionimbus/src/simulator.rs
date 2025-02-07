@@ -1,3 +1,4 @@
+use crate::air_absorption::AirAbsorptionModel;
 use crate::context::Context;
 use crate::distance_attenuation::DistanceAttenuationModel;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
@@ -465,53 +466,6 @@ bitflags::bitflags! {
 impl From<DirectSimulationFlags> for audionimbus_sys::IPLDirectSimulationFlags {
     fn from(direct_simulation_flags: DirectSimulationFlags) -> Self {
         Self(direct_simulation_flags.bits())
-    }
-}
-
-/// An air absorption model that can be used for modeling frequency-dependent attenuation of sound over distance.
-#[derive(Debug)]
-pub enum AirAbsorptionModel {
-    /// The default air absorption model.
-    /// This is an exponential falloff, with decay rates derived from physical properties of air.
-    Default,
-
-    /// An exponential falloff.
-    /// You can configure the decay rates for each frequency band.
-    Exponential {
-        /// The exponential falloff coefficients to use.
-        coefficients: [f32; 3],
-    },
-
-    /// An arbitrary air absorption model, defined by a callback function.
-    Callback {
-        /// Callback for calculating how much air absorption should be applied to a sound based on its distance from the listener.
-        ///
-        /// # Arguments
-        ///
-        /// - `distance`: the distance (in meters) between the source and the listener.
-        /// - `band`: index of the frequency band for which to calculate air absorption. 0.0 = low frequencies, 1.0 = middle frequencies, 2.0 = high frequencies.
-        /// - `user_data`: pointer to the arbitrary data specified.
-        ///
-        /// # Returns
-        ///
-        /// The air absorption to apply, between 0.0 and 1.0.
-        /// 0.0 = sound in the frequency band `band` is not audible, 1.0 = sound in the frequency band `band` is not attenuated.
-        callback:
-            unsafe extern "C" fn(distance: f32, band: i32, user_data: *mut std::ffi::c_void) -> f32,
-
-        /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-        user_data: *mut std::ffi::c_void,
-
-        /// Set to `true` to indicate that the air absorption model defined by the callback function has changed since the last time simulation was run.
-        /// For example, the callback may be evaluating a set of curves defined in a GUI.
-        /// If the user is editing the curves in real-time, set this to `true` whenever the curves change, so Steam Audio can update simulation results to match.
-        dirty: bool,
-    },
-}
-
-impl From<&AirAbsorptionModel> for audionimbus_sys::IPLAirAbsorptionModel {
-    fn from(air_absorption_model: &AirAbsorptionModel) -> Self {
-        todo!()
     }
 }
 

@@ -44,14 +44,17 @@ pub use serialized_object::SerializedObject;
 
 mod simulator;
 pub use simulator::{
-    AirAbsorptionModel, BakedDataIdentifier, BakedDataVariation, DirectSimulationFlags,
-    Directivity, Occlusion, PathingVisualizationCallback, ReflectionEffect, SimulationFlags,
-    SimulationInputs, SimulationOutputs, SimulationSettings, SimulationSharedInputs, Simulator,
-    Source, SourceSettings,
+    BakedDataIdentifier, BakedDataVariation, DirectSimulationFlags, Directivity, Occlusion,
+    PathingVisualizationCallback, ReflectionEffect, SimulationFlags, SimulationInputs,
+    SimulationOutputs, SimulationSettings, SimulationSharedInputs, Simulator, Source,
+    SourceSettings,
 };
 
 mod distance_attenuation;
 pub use distance_attenuation::{calculate_distance_attenuation, DistanceAttenuationModel};
+
+mod air_absorption;
+pub use air_absorption::{calculate_air_absorption, AirAbsorptionModel};
 
 mod probe;
 pub use probe::{ProbeArray, ProbeBatch, ProbeGenerationParams};

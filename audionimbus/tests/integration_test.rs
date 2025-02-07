@@ -256,3 +256,21 @@ fn test_distance_attenuation() {
 
     assert_eq!(distance_attenuation, 0.57735026);
 }
+
+#[test]
+fn test_air_absorption() {
+    let context_settings = audionimbus::ContextSettings::default();
+
+    let context_result = audionimbus::Context::try_new(&context_settings);
+    let context = context_result.unwrap();
+
+    let source = audionimbus::Point::new(1.0, 1.0, 1.0);
+    let listener = audionimbus::Point::new(0.0, 0.0, 0.0);
+
+    let air_absorption_model = audionimbus::AirAbsorptionModel::default();
+
+    let air_absorption =
+        audionimbus::calculate_air_absorption(&context, &source, &listener, &air_absorption_model);
+
+    assert_eq!(air_absorption, [0.99965364, 0.9970598, 0.96896833]);
+}
