@@ -1,12 +1,13 @@
 use crate::context::Context;
+use crate::distance_attenuation::DistanceAttenuationModel;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry;
 use crate::geometry::Scene;
 use crate::geometry::SceneType;
 use crate::open_cl::OpenClDevice;
+use crate::probe::ProbeBatch;
 use crate::radeon_rays::RadeonRaysDevice;
-use crate::ProbeBatch;
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
 ///
@@ -464,52 +465,6 @@ bitflags::bitflags! {
 impl From<DirectSimulationFlags> for audionimbus_sys::IPLDirectSimulationFlags {
     fn from(direct_simulation_flags: DirectSimulationFlags) -> Self {
         Self(direct_simulation_flags.bits())
-    }
-}
-
-/// A distance attenuation model that can be used for modeling attenuation of sound over distance.
-/// Can be used with both direct and indirect sound propagation.
-#[derive(Debug)]
-pub enum DistanceAttenuationModel {
-    /// The default distance attenuation model.
-    /// This is an inverse distance falloff, with all sounds within 1 meter of the listener rendered without distance attenuation.
-    Default,
-
-    /// An inverse distance falloff.
-    /// You can configure the minimum distance, within which distance attenuation is not applied.
-    InverseDistance {
-        /// No distance attenuation is applied to any sound whose distance from the listener is less than this value.
-        min_distance: f32,
-    },
-
-    /// An arbitrary distance falloff function, defined by a callback function.
-    Callback {
-        /// Callback for calculating how much attenuation should be applied to a sound based on its distance from the listener.
-        ///
-        /// # Arguments
-        ///
-        /// - `distance`: the distance (in meters) between the source and the listener.
-        /// - `user_data`: pointer to the arbitrary data specified.
-        ///
-        /// # Returns
-        ///
-        /// The distance attenuation to apply, between 0.0 and 1.0.
-        /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it were emitted from the listener’s position.
-        callback: unsafe extern "C" fn(distance: f32, user_data: *mut std::ffi::c_void) -> f32,
-
-        /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-        user_data: *mut std::ffi::c_void,
-
-        /// Set to `true` to indicate that the distance attenuation model defined by the callback function has changed since the last time simulation was run.
-        /// For example, the callback may be evaluating a curve defined in a GUI.
-        /// If the user is editing the curve in real-time, set this to `true` whenever the curve changes, so Steam Audio can update simulation results to match.
-        dirty: bool,
-    },
-}
-
-impl From<&DistanceAttenuationModel> for audionimbus_sys::IPLDistanceAttenuationModel {
-    fn from(distance_attenuation_model: &DistanceAttenuationModel) -> Self {
-        todo!()
     }
 }
 

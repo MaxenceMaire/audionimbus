@@ -234,3 +234,25 @@ fn test_direct_effect() {
 
     let _ = output_buffer.interleave(&context);
 }
+
+#[test]
+fn test_distance_attenuation() {
+    let context_settings = audionimbus::ContextSettings::default();
+
+    let context_result = audionimbus::Context::try_new(&context_settings);
+    let context = context_result.unwrap();
+
+    let source = audionimbus::Point::new(1.0, 1.0, 1.0);
+    let listener = audionimbus::Point::new(0.0, 0.0, 0.0);
+
+    let distance_attenuation_model = audionimbus::DistanceAttenuationModel::default();
+
+    let distance_attenuation = audionimbus::calculate_distance_attenuation(
+        &context,
+        &source,
+        &listener,
+        &distance_attenuation_model,
+    );
+
+    assert_eq!(distance_attenuation, 0.57735026);
+}
