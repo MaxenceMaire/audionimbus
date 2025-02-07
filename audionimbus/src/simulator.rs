@@ -1,5 +1,6 @@
 use crate::air_absorption::AirAbsorptionModel;
 use crate::context::Context;
+use crate::directivity::Directivity;
 use crate::distance_attenuation::DistanceAttenuationModel;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
@@ -466,52 +467,6 @@ bitflags::bitflags! {
 impl From<DirectSimulationFlags> for audionimbus_sys::IPLDirectSimulationFlags {
     fn from(direct_simulation_flags: DirectSimulationFlags) -> Self {
         Self(direct_simulation_flags.bits())
-    }
-}
-
-/// A directivity pattern that can be used to model changes in sound intensity as a function of the source’s orientation.
-/// Can be used with both direct and indirect sound propagation.
-#[derive(Debug)]
-pub enum Directivity {
-    /// The default directivity model is a weighted dipole.
-    /// This is a linear blend between an omnidirectional source (which emits sound with equal intensity in all directions), and a dipole oriented along the z-axis in the source’s coordinate system (which focuses sound along the +z and -z axes).
-    Default {
-        /// How much of the dipole to blend into the directivity pattern.
-        /// 0.0 = pure omnidirectional, 1.0 = pure dipole.
-        /// 0.5 results in a cardioid directivity pattern.
-        dipole_weight: f32,
-
-        /// How “sharp” the dipole is.
-        /// Higher values result in sound being focused within a narrower range of directions.
-        dipole_power: f32,
-    },
-
-    /// A callback function to implement any other arbitrary directivity pattern.
-    Callback {
-        /// Callback for calculating how much to attenuate a sound based on its directivity pattern and orientation in world space.
-        ///
-        /// # Arguments
-        ///
-        /// - `direction`: unit vector (in world space) pointing forwards from the source. This is the direction that the source is “pointing towards”.
-        /// - `user_data`: pointer to the arbitrary data specified.
-        ///
-        /// # Returns
-        ///
-        /// The directivity value to apply, between 0.0 and 1.0.
-        /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
-        callback: unsafe extern "C" fn(
-            direction: audionimbus_sys::IPLVector3,
-            user_data: *mut std::ffi::c_void,
-        ) -> f32,
-
-        /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-        user_data: *mut std::ffi::c_void,
-    },
-}
-
-impl From<&Directivity> for audionimbus_sys::IPLDirectivity {
-    fn from(directivity: &Directivity) -> Self {
-        todo!()
     }
 }
 
