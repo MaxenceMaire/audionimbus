@@ -23,7 +23,7 @@ mod scene;
 pub use scene::{Scene, SceneSettings, SceneType};
 
 mod static_mesh;
-pub use static_mesh::StaticMesh;
+pub use static_mesh::{StaticMesh, StaticMeshSettings};
 
 mod instanced_mesh;
 pub use instanced_mesh::InstancedMesh;

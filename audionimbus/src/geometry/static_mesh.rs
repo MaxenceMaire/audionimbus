@@ -10,30 +10,30 @@ use crate::serialized_object::SerializedObject;
 pub struct StaticMesh(audionimbus_sys::IPLStaticMesh);
 
 impl StaticMesh {
-    pub fn try_new(
-        scene: &Scene,
-        static_mesh_settings: &StaticMeshSettings,
-    ) -> Result<Self, SteamAudioError> {
-        let static_mesh = unsafe {
-            let static_mesh: *mut audionimbus_sys::IPLStaticMesh = std::ptr::null_mut();
-            let status = audionimbus_sys::iplStaticMeshCreate(
+    pub fn try_new(scene: &Scene, settings: &StaticMeshSettings) -> Result<Self, SteamAudioError> {
+        let mut static_mesh = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplStaticMeshCreate(
                 scene.raw_ptr(),
-                &mut audionimbus_sys::IPLStaticMeshSettings::from(static_mesh_settings),
-                static_mesh,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *static_mesh
+                &mut audionimbus_sys::IPLStaticMeshSettings::from(settings),
+                static_mesh.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(static_mesh))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(static_mesh)
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLStaticMesh {
+        &mut self.0
     }
 
     /// Saves a static mesh to a serialized object.
@@ -93,39 +93,23 @@ impl StaticMesh {
                 (None, std::ptr::null_mut())
             };
 
-        let static_mesh = unsafe {
-            let static_mesh: *mut audionimbus_sys::IPLStaticMesh = std::ptr::null_mut();
+        let mut static_mesh = Self(std::ptr::null_mut());
 
-            let status = audionimbus_sys::iplStaticMeshLoad(
+        let status = unsafe {
+            audionimbus_sys::iplStaticMeshLoad(
                 scene.raw_ptr(),
                 serialized_object.raw_ptr(),
                 progress_callback,
                 progress_callback_user_data,
-                static_mesh,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *static_mesh
+                static_mesh.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(static_mesh))
-    }
-}
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
 
-impl std::ops::Deref for StaticMesh {
-    type Target = audionimbus_sys::IPLStaticMesh;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for StaticMesh {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        Ok(static_mesh)
     }
 }
 
@@ -139,13 +123,13 @@ impl Drop for StaticMesh {
 #[derive(Default, Debug)]
 pub struct StaticMeshSettings {
     /// Number of vertices.
-    pub num_vertices: i32,
+    pub num_vertices: usize,
 
     /// Number of triangles.
-    pub num_triangles: i32,
+    pub num_triangles: usize,
 
     /// Number of materials.
-    pub num_materials: i32,
+    pub num_materials: usize,
 
     /// Array containing vertices.
     pub vertices: Vec<Point>,
@@ -154,7 +138,7 @@ pub struct StaticMeshSettings {
     pub triangles: Vec<Triangle>,
 
     /// Array containing, for each triangle, the index of the associated material.
-    pub material_indices: Vec<i32>,
+    pub material_indices: Vec<usize>,
 
     /// Array of materials.
     pub materials: Vec<Material>,
@@ -162,6 +146,21 @@ pub struct StaticMeshSettings {
 
 impl From<&StaticMeshSettings> for audionimbus_sys::IPLStaticMeshSettings {
     fn from(settings: &StaticMeshSettings) -> Self {
-        todo!()
+        Self {
+            numVertices: settings.num_vertices as i32,
+            numTriangles: settings.num_triangles as i32,
+            numMaterials: settings.num_materials as i32,
+
+            // NOTE: [`audionimbus::Vector3`] and [`audionimbus_sys::IPLVector3`] use the same representation.
+            vertices: settings.vertices.as_ptr() as *mut audionimbus_sys::IPLVector3,
+
+            // NOTE: [`audionimbus::Triangle`] and [`audionimbus_sys::IPLTriangle`] use the same representation.
+            triangles: settings.triangles.as_ptr() as *mut audionimbus_sys::IPLTriangle,
+
+            materialIndices: settings.material_indices.as_ptr() as *mut i32,
+
+            // NOTE: [`audionimbus::Material`] and [`audionimbus_sys::IPLMaterial`] use the same representation.
+            materials: settings.materials.as_ptr() as *mut audionimbus_sys::IPLMaterial,
+        }
     }
 }
