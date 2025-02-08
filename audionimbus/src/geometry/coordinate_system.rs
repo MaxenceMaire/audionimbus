@@ -37,3 +37,14 @@ impl From<CoordinateSystem> for audionimbus_sys::IPLCoordinateSpace3 {
         }
     }
 }
+
+impl From<audionimbus_sys::IPLCoordinateSpace3> for CoordinateSystem {
+    fn from(coordinate_system: audionimbus_sys::IPLCoordinateSpace3) -> Self {
+        Self {
+            right: coordinate_system.right.into(),
+            up: coordinate_system.up.into(),
+            ahead: coordinate_system.ahead.into(),
+            origin: coordinate_system.origin.into(),
+        }
+    }
+}

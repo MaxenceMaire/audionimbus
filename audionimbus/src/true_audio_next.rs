@@ -2,7 +2,7 @@ use crate::error::{to_option_error, SteamAudioError};
 use crate::open_cl::OpenClDevice;
 
 #[derive(Debug)]
-pub struct TrueAudioNextDevice(pub audionimbus_sys::IPLTrueAudioNextDevice);
+pub struct TrueAudioNextDevice(pub(crate) audionimbus_sys::IPLTrueAudioNextDevice);
 
 /// Application-wide state for the TrueAudio Next convolution engine.
 ///
@@ -12,23 +12,33 @@ impl TrueAudioNextDevice {
         open_cl_device: &OpenClDevice,
         settings: &TrueAudioNextDeviceSettings,
     ) -> Result<Self, SteamAudioError> {
-        let true_audio_next_device = unsafe {
-            let true_audio_next_device: *mut audionimbus_sys::IPLTrueAudioNextDevice =
-                std::ptr::null_mut();
-            let status = audionimbus_sys::iplTrueAudioNextDeviceCreate(
+        let mut true_audio_next_device = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplTrueAudioNextDeviceCreate(
                 open_cl_device.raw_ptr(),
                 &mut audionimbus_sys::IPLTrueAudioNextDeviceSettings::from(settings),
-                true_audio_next_device,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *true_audio_next_device
+                true_audio_next_device.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(true_audio_next_device))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(true_audio_next_device)
+    }
+
+    pub fn null() -> Self {
+        Self(std::ptr::null_mut())
+    }
+
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLTrueAudioNextDevice {
+        self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLTrueAudioNextDevice {
+        &mut self.0
     }
 }
 

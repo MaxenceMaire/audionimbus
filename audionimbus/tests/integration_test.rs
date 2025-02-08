@@ -66,7 +66,7 @@ fn test_binaural_effect() {
         peak_delays: None,
     };
 
-    binaural_effect.apply(
+    let _ = binaural_effect.apply(
         &binaural_effect_params,
         &mut input_buffer,
         &mut output_buffer,
@@ -128,7 +128,7 @@ fn test_ambisonics_encode_effect() {
         order: 0,
     };
 
-    ambisonics_encode_effect.apply(
+    let _ = ambisonics_encode_effect.apply(
         &ambisonics_encode_effect_params,
         &mut input_buffer,
         &mut output_buffer,
@@ -177,7 +177,7 @@ fn test_ambisonics_decode_effect() {
         binaural: true,
     };
 
-    ambisonics_decode_effect.apply(
+    let _ = ambisonics_decode_effect.apply(
         &ambisonics_decode_effect_params,
         &mut input_buffer,
         &mut output_buffer,
@@ -221,7 +221,7 @@ fn test_direct_effect() {
         )),
     };
 
-    direct_effect.apply(&direct_effect_params, &mut input_buffer, &mut output_buffer);
+    let _ = direct_effect.apply(&direct_effect_params, &mut input_buffer, &mut output_buffer);
 
     let _ = output_buffer.interleave(&context);
 }
@@ -458,4 +458,123 @@ fn test_scene_serialization() {
 
     let loaded_static_mesh_result = audionimbus::StaticMesh::load(&scene, &mut serialized_object);
     assert!(loaded_static_mesh_result.is_ok());
+}
+
+#[test]
+fn test_simulation() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    let audio_settings = audionimbus::AudioSettings::default();
+
+    let simulation_settings = audionimbus::SimulationSettings {
+        flags: audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
+        scene_type: audionimbus::SceneType::Default,
+        reflection_type: audionimbus::ReflectionEffectType::Convolution,
+        max_num_occlusion_samples: 4,
+        max_num_rays: 4096,
+        num_diffuse_samples: 32,
+        max_duration: 2.0,
+        max_order: 1,
+        max_num_sources: 8,
+        num_threads: 2,
+        ray_batch_size: usize::default(),
+        num_visibility_samples: 4,
+        sampling_rate: audio_settings.sampling_rate,
+        frame_size: audio_settings.frame_size,
+        open_cl_device: audionimbus::OpenClDevice::null(),
+        radeon_rays_device: audionimbus::RadeonRaysDevice::null(),
+        true_audio_next_device: audionimbus::TrueAudioNextDevice::null(),
+    };
+    let mut simulator = audionimbus::Simulator::try_new(&context, &simulation_settings).unwrap();
+
+    let scene_settings = audionimbus::SceneSettings::default();
+    let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+    simulator.set_scene(&scene);
+
+    let source_settings = audionimbus::SourceSettings {
+        flags: audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
+    };
+    let mut source = audionimbus::Source::try_new(&simulator, &source_settings).unwrap();
+
+    let simulation_inputs = audionimbus::SimulationInputs {
+        flags: audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
+        direct_flags: audionimbus::DirectSimulationFlags::OCCLUSION
+            | audionimbus::DirectSimulationFlags::TRANSMISSION,
+        source: audionimbus::CoordinateSystem {
+            right: audionimbus::Vector3::new(1.0, 0.0, 0.0),
+            up: audionimbus::Vector3::new(0.0, 1.0, 0.0),
+            ahead: audionimbus::Vector3::new(0.0, 0.0, 1.0),
+            origin: audionimbus::Vector3::new(1.0, 0.0, 0.0),
+        },
+        distance_attenuation_model: audionimbus::DistanceAttenuationModel::default(),
+        air_absorption_model: audionimbus::AirAbsorptionModel::default(),
+        directivity: audionimbus::Directivity::default(),
+        occlusion: audionimbus::Occlusion::Raycast,
+        reverb_scale: [1.0, 1.0, 1.0],
+        hybrid_reverb_transition_time: f32::default(),
+        hybrid_reverb_overlap_percent: f32::default(),
+        baked_data_identifier: None,
+        pathing_probes: audionimbus::ProbeBatch::try_new(&context).unwrap(),
+        visibility_radius: 10.0,
+        visibility_threshold: 0.0,
+        visibility_range: 0.0,
+        pathing_order: usize::default(),
+        enable_validation: true,
+        find_alternate_paths: true,
+        num_transmission_rays: 1,
+    };
+    source.set_inputs(audionimbus::SimulationFlags::DIRECT, &simulation_inputs);
+
+    simulator.add_source(&source);
+
+    let simulation_shared_inputs = audionimbus::SimulationSharedInputs {
+        listener: audionimbus::CoordinateSystem::default(),
+        num_rays: 4096,
+        num_bounces: 16,
+        duration: 2.0,
+        order: 1,
+        irradiance_min_distance: 1.0,
+        pathing_visualization_callback: None,
+    };
+    simulator.set_shared_inputs(
+        audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
+        &simulation_shared_inputs,
+    );
+
+    simulator.commit();
+
+    simulator.run_direct();
+    simulator.run_reflections();
+    let simulation_outputs = source.get_outputs(
+        audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
+    );
+
+    let reflection_effect_settings = audionimbus::ReflectionEffectSettings::Convolution {
+        impulse_response_size: 88200, // 2.0f (IR duration) * 44100 (sampling rate)
+        num_channels: 4,              // 1st order Ambisonics
+    };
+    let reflection_effect = audionimbus::ReflectionEffect::try_new(
+        &context,
+        &audio_settings,
+        &reflection_effect_settings,
+    )
+    .unwrap();
+
+    // Must be mono.
+    let mut input_buffer =
+        audionimbus::AudioBuffer::from(raw_to_deinterleaved(AUDIO_BUFFER_SIZE_WAVE_440HZ_1S, 1));
+
+    // Must have 4 channels (1st order Ambisonics) for this example.
+    let mut output_buffer =
+        audionimbus::AudioBuffer::with_num_channels_and_num_samples(4, input_buffer.num_samples);
+
+    let mut reflection_effect_params = simulation_outputs.reflections();
+    reflection_effect_params.num_channels = 4; // use all channels of the IR
+    reflection_effect_params.impulse_response_size = 88200; // use the full duration of the IR
+    let _ = reflection_effect.apply(
+        &reflection_effect_params,
+        &mut input_buffer,
+        &mut output_buffer,
+    );
 }

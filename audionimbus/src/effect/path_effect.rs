@@ -23,23 +23,22 @@ impl PathEffect {
         audio_settings: &AudioSettings,
         path_effect_settings: &PathEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let path_effect = unsafe {
-            let path_effect: *mut audionimbus_sys::IPLPathEffect = std::ptr::null_mut();
-            let status = audionimbus_sys::iplPathEffectCreate(
+        let mut path_effect = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplPathEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLPathEffectSettings::from(path_effect_settings),
-                path_effect,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *path_effect
+                path_effect.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(path_effect))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(path_effect)
     }
 
     /// Applies a path effect to an audio buffer.
@@ -65,6 +64,10 @@ impl PathEffect {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
         self.0
     }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPathEffect {
+        &mut self.0
+    }
 }
 
 impl Drop for PathEffect {
@@ -75,31 +78,54 @@ impl Drop for PathEffect {
 
 /// Settings used to create a path effect.
 #[derive(Debug)]
-pub struct PathEffectSettings {
+pub struct PathEffectSettings<'a> {
     /// The maximum Ambisonics order that will be used by output audio buffers.
-    pub max_order: i32,
+    pub max_order: usize,
 
     /// If `Some`, then this effect will render spatialized audio into the output buffer.
     ///
     /// If `None`, this effect will render un-spatialized (and un-rotated) Ambisonic audio.
     /// Setting this to `None` is mainly useful only if you plan to mix multiple Ambisonic buffers and/or apply additional processing to the Ambisonic audio before spatialization.
     /// If you plan to immediately spatialize the output of the path effect, setting this value to `Some` can result in significant performance improvements.
-    pub spatialization: Option<Spatialization>,
+    pub spatialization: Option<Spatialization<'a>>,
 }
 
-impl From<&PathEffectSettings> for audionimbus_sys::IPLPathEffectSettings {
+impl From<&PathEffectSettings<'_>> for audionimbus_sys::IPLPathEffectSettings {
     fn from(settings: &PathEffectSettings) -> Self {
-        todo!()
+        let (spatialize, speaker_layout, hrtf) = if let Some(Spatialization {
+            speaker_layout,
+            hrtf,
+        }) = &settings.spatialization
+        {
+            (
+                audionimbus_sys::IPLbool::IPL_TRUE,
+                speaker_layout.clone(),
+                hrtf.raw_ptr(),
+            )
+        } else {
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                SpeakerLayout::Mono,
+                std::ptr::null_mut(),
+            )
+        };
+
+        Self {
+            maxOrder: settings.max_order as i32,
+            spatialize,
+            speakerLayout: (&speaker_layout).into(),
+            hrtf,
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct Spatialization {
+pub struct Spatialization<'a> {
     /// The speaker layout to use when spatializing.
     pub speaker_layout: SpeakerLayout,
 
     /// The HRTF to use when spatializing.
-    pub hrtf: Hrtf,
+    pub hrtf: &'a Hrtf,
 }
 
 /// Parameters for applying a path effect to an audio buffer.
@@ -114,7 +140,7 @@ pub struct PathEffectParams {
 
     /// Ambisonic order of the output buffer.
     /// May be less than the maximum order specified when creating the effect, in which case higher-order [`Self::sh_coeffs`] will be ignored, and CPU usage will be reduced.
-    pub order: i32,
+    pub order: usize,
 
     /// If `true`, spatialize using HRTF-based binaural rendering.
     /// Only used if [`PathEffectSettings::spatialize`] was set to `true`.
@@ -122,16 +148,46 @@ pub struct PathEffectParams {
 
     /// The HRTF to use when spatializing.
     /// Only used if [`PathEffectSettings::spatialize`] was set to `true` and [`Self::binaural`] is set to `true`.
-    pub hrtf: Hrtf,
+    pub hrtf: audionimbus_sys::IPLHRTF,
 
     /// The position and orientation of the listener.
     /// Only used if [`PathEffectSettings::spatialize`] was set to `true` and [`Self::binaural`] is set to `true`.
     pub listener: CoordinateSystem,
 }
 
+impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
+    fn from(params: audionimbus_sys::IPLPathEffectParams) -> Self {
+        Self {
+            eq_coeffs: params.eqCoeffs,
+            sh_coeffs: params.shCoeffs,
+            order: params.order as usize,
+            binaural: if params.binaural == audionimbus_sys::IPLbool::IPL_TRUE {
+                true
+            } else {
+                false
+            },
+            hrtf: params.hrtf,
+            listener: params.listener.into(),
+        }
+    }
+}
+
 impl PathEffectParams {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLPathEffectParams, Self> {
-        todo!()
+        let path_effect_params = audionimbus_sys::IPLPathEffectParams {
+            eqCoeffs: self.eq_coeffs,
+            shCoeffs: self.sh_coeffs,
+            order: self.order as i32,
+            binaural: if self.binaural {
+                audionimbus_sys::IPLbool::IPL_TRUE
+            } else {
+                audionimbus_sys::IPLbool::IPL_FALSE
+            },
+            hrtf: self.hrtf,
+            listener: self.listener.into(),
+        };
+
+        FFIWrapper::new(path_effect_params)
     }
 }
 

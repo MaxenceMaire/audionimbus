@@ -270,7 +270,7 @@ impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {
 }
 
 /// The types of scenes that can be created. Each scene type corresponds to a different ray tracing implementation.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum SceneType {
     /// Steam Audio’s built-in ray tracer.
     /// Supports multi-threading.
@@ -294,4 +294,15 @@ pub enum SceneType {
     /// Useful if your application already uses a high-performance ray tracer.
     /// This option uses the least amount of memory at run-time, since it does not have to build any ray tracing data structures of its own.
     Custom,
+}
+
+impl From<SceneType> for audionimbus_sys::IPLSceneType {
+    fn from(scene_type: SceneType) -> Self {
+        match scene_type {
+            SceneType::Default => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
+            SceneType::Embree => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE,
+            SceneType::RadeonRays => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS,
+            SceneType::Custom => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM,
+        }
+    }
 }

@@ -45,9 +45,8 @@ pub use serialized_object::SerializedObject;
 mod simulator;
 pub use simulator::{
     BakedDataIdentifier, BakedDataVariation, DirectSimulationFlags, Occlusion,
-    PathingVisualizationCallback, ReflectionEffect, SimulationFlags, SimulationInputs,
-    SimulationOutputs, SimulationSettings, SimulationSharedInputs, Simulator, Source,
-    SourceSettings,
+    PathingVisualizationCallback, SimulationFlags, SimulationInputs, SimulationOutputs,
+    SimulationSettings, SimulationSharedInputs, Simulator, Source, SourceSettings,
 };
 
 mod distance_attenuation;

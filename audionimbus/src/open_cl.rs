@@ -5,35 +5,42 @@ use crate::error::{to_option_error, SteamAudioError};
 ///
 /// An OpenCL device must be created before using any of Steam Audio’s Radeon Rays or TrueAudio Next functionality.
 #[derive(Debug)]
-pub struct OpenClDevice(pub audionimbus_sys::IPLOpenCLDevice);
+pub struct OpenClDevice(audionimbus_sys::IPLOpenCLDevice);
 
 impl OpenClDevice {
     pub fn new(
         context: &Context,
-        device_list: OpenClDeviceList,
-        index: i32,
+        device_list: &OpenClDeviceList,
+        index: usize,
     ) -> Result<Self, SteamAudioError> {
-        let open_cl_device = unsafe {
-            let open_cl_device: *mut audionimbus_sys::IPLOpenCLDevice = std::ptr::null_mut();
-            let status = audionimbus_sys::iplOpenCLDeviceCreate(
+        let mut open_cl_device = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplOpenCLDeviceCreate(
                 context.raw_ptr(),
-                *device_list,
-                index,
-                open_cl_device,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *open_cl_device
+                **device_list,
+                index as i32,
+                open_cl_device.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(open_cl_device))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(open_cl_device)
+    }
+
+    pub fn null() -> Self {
+        Self(std::ptr::null_mut())
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDevice {
+        &mut self.0
     }
 }
 

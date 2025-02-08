@@ -26,23 +26,22 @@ impl ReflectionEffect {
         audio_settings: &AudioSettings,
         reflection_effect_settings: &ReflectionEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let reflection_effect = unsafe {
-            let reflection_effect: *mut audionimbus_sys::IPLReflectionEffect = std::ptr::null_mut();
-            let status = audionimbus_sys::iplReflectionEffectCreate(
+        let mut reflection_effect = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplReflectionEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLReflectionEffectSettings::from(reflection_effect_settings),
-                reflection_effect,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *reflection_effect
+                reflection_effect.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(reflection_effect))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(reflection_effect)
     }
 
     /// Applies a reflection effect to an audio buffer.
@@ -96,6 +95,10 @@ impl ReflectionEffect {
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
         self.0
     }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionEffect {
+        &mut self.0
+    }
 }
 
 impl Drop for ReflectionEffect {
@@ -105,7 +108,7 @@ impl Drop for ReflectionEffect {
 }
 
 /// Settings used to create a reflection effect.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum ReflectionEffectSettings {
     /// Multi-channel convolution reverb.
     /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
@@ -113,10 +116,10 @@ pub enum ReflectionEffectSettings {
     /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
     Convolution {
         /// Number of samples per channel in the IR.
-        impulse_reponse_size: i32,
+        impulse_response_size: usize,
 
         /// Number of channels in the IR.
-        num_channels: i32,
+        num_channels: usize,
     },
 
     /// Parametric (or artificial) reverb, using feedback delay networks.
@@ -126,10 +129,10 @@ pub enum ReflectionEffectSettings {
     /// A reflection mixer cannot be used with this algorithm.
     Parametric {
         /// Number of samples per channel in the IR.
-        impulse_reponse_size: i32,
+        impulse_response_size: usize,
 
         /// Number of channels in the IR.
-        num_channels: i32,
+        num_channels: usize,
     },
 
     /// A hybrid of convolution and parametric reverb.
@@ -139,10 +142,10 @@ pub enum ReflectionEffectSettings {
     /// An reflection mixer cannot be used with this algorithm.
     Hybrid {
         /// Number of samples per channel in the IR.
-        impulse_reponse_size: i32,
+        impulse_response_size: usize,
 
         /// Number of channels in the IR.
-        num_channels: i32,
+        num_channels: usize,
     },
 
     /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
@@ -150,110 +153,248 @@ pub enum ReflectionEffectSettings {
     /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
     TrueAudioNext {
         /// Number of samples per channel in the IR.
-        impulse_reponse_size: i32,
+        impulse_response_size: usize,
 
         /// Number of channels in the IR.
-        num_channels: i32,
+        num_channels: usize,
     },
 }
 
 impl From<&ReflectionEffectSettings> for audionimbus_sys::IPLReflectionEffectSettings {
     fn from(settings: &ReflectionEffectSettings) -> Self {
-        todo!()
+        let (type_, impulse_response_size, num_channels) = match settings {
+            ReflectionEffectSettings::Convolution {
+                impulse_response_size,
+                num_channels,
+            } => (
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
+                impulse_response_size,
+                num_channels,
+            ),
+            ReflectionEffectSettings::Parametric {
+                impulse_response_size,
+                num_channels,
+            } => (
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC,
+                impulse_response_size,
+                num_channels,
+            ),
+            ReflectionEffectSettings::Hybrid {
+                impulse_response_size,
+                num_channels,
+            } => (
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID,
+                impulse_response_size,
+                num_channels,
+            ),
+            ReflectionEffectSettings::TrueAudioNext {
+                impulse_response_size,
+                num_channels,
+            } => (
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN,
+                impulse_response_size,
+                num_channels,
+            ),
+        };
+
+        Self {
+            type_,
+            irSize: *impulse_response_size as i32,
+            numChannels: *num_channels as i32,
+        }
     }
 }
 
 /// Parameters for applying a reflection effect to an audio buffer.
 #[derive(Debug)]
-pub enum ReflectionEffectParams {
+pub struct ReflectionEffectParams {
+    /// Type of reflection effect algorithm to use.
+    pub reflection_effect_type: ReflectionEffectType,
+
+    /// The impulse response.
+    pub impulse_response: audionimbus_sys::IPLReflectionEffectIR,
+
+    /// 3-band reverb decay times (RT60).
+    pub reverb_times: [f32; 3],
+
+    /// 3-band EQ coefficients applied to the parametric part to ensure smooth transition.
+    pub equalizer: Equalizer<3>,
+
+    /// Samples after which parametric part starts.
+    pub delay: usize,
+
+    /// Number of IR channels to process.
+    /// May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
+    pub num_channels: usize,
+
+    /// Number of IR samples per channel to process.
+    /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
+    pub impulse_response_size: usize,
+
+    /// The TrueAudio Next device to use for convolution processing.
+    pub true_audio_next_device: TrueAudioNextDevice,
+
+    /// The TrueAudio Next slot index to use for convolution processing.
+    /// The slot identifies the IR to use.
+    pub true_audio_next_slot: usize,
+}
+
+impl ReflectionEffectParams {
     /// Multi-channel convolution reverb.
     /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
     /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
     /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
-    Convolution {
-        /// The impulse response.
-        impulse_response: (), // TODO:
-
-        /// Number of IR channels to process.
-        /// May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
-        num_channels: i32,
-
-        /// Number of IR samples per channel to process.
-        /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-        ir_size: i32,
-    },
+    ///
+    /// # Arguments
+    ///
+    /// - `impulse_response`: the impulse response.
+    /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
+    /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
+    pub fn convolution(
+        impulse_response: audionimbus_sys::IPLReflectionEffectIR,
+        num_channels: usize,
+        impulse_response_size: usize,
+    ) -> Self {
+        Self {
+            reflection_effect_type: ReflectionEffectType::Convolution,
+            impulse_response,
+            reverb_times: <[f32; 3]>::default(),
+            equalizer: Equalizer::default(),
+            delay: usize::default(),
+            num_channels,
+            impulse_response_size,
+            true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
+            true_audio_next_slot: usize::default(),
+        }
+    }
 
     /// Parametric (or artificial) reverb, using feedback delay networks.
     /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
     /// This is then used to drive an approximate model of reverberation in an indoor space.
     /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
     /// A reflection mixer cannot be used with this algorithm.
-    Parametric {
-        /// 3-band reverb decay times (RT60).
+    ///
+    /// # Arguments
+    ///
+    /// - `reverb_times`: 3-band reverb decay times (RT60).
+    /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
+    /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
+    pub fn parametric(
         reverb_times: [f32; 3],
-
-        /// Number of IR channels to process.
-        /// May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
-        num_channels: i32,
-
-        /// Number of IR samples per channel to process.
-        /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-        ir_size: i32,
-    },
+        num_channels: usize,
+        impulse_response_size: usize,
+    ) -> Self {
+        Self {
+            reflection_effect_type: ReflectionEffectType::Parametric,
+            impulse_response: std::ptr::null_mut(),
+            reverb_times,
+            equalizer: Equalizer::default(),
+            delay: usize::default(),
+            num_channels,
+            impulse_response_size,
+            true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
+            true_audio_next_slot: usize::default(),
+        }
+    }
 
     /// A hybrid of convolution and parametric reverb.
     /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
     /// The point in the IR where this transition occurs can be controlled.
     /// This algorithm allows a trade-off between rendering quality and CPU usage.
     /// A reflection mixer cannot be used with this algorithm.
-    Hybrid {
-        /// The impulse response.
-        impulse_response: (), // TODO:
-
-        /// 3-band reverb decay times (RT60).
+    ///
+    /// # Arguments
+    ///
+    /// - `impulse_response`: the impulse response.
+    /// - `reverb_times`: 3-band reverb decay times (RT60).
+    /// - `equalizer`: 3-band EQ coefficients applied to the parametric part to ensure smooth transition.
+    /// - `delay`: samples after which parametric part starts.
+    /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
+    /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
+    pub fn hybrid(
+        impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         reverb_times: [f32; 3],
-
-        /// 3-band EQ coefficients applied to the parametric part to ensure smooth transition.
         equalizer: Equalizer<3>,
-
-        /// Samples after which parametric part starts.
-        delay: i32,
-
-        /// Number of IR channels to process.
-        /// May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
-        num_channels: i32,
-
-        /// Number of IR samples per channel to process.
-        /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-        ir_size: i32,
-    },
+        delay: usize,
+        num_channels: usize,
+        impulse_response_size: usize,
+    ) -> Self {
+        Self {
+            reflection_effect_type: ReflectionEffectType::Hybrid,
+            impulse_response,
+            reverb_times,
+            equalizer,
+            delay,
+            num_channels,
+            impulse_response_size,
+            true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
+            true_audio_next_slot: usize::default(),
+        }
+    }
 
     /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
     /// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
     /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
-    TrueAudioNext {
-        /// Number of IR channels to process.
-        /// May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
-        num_channels: i32,
-
-        /// Number of IR samples per channel to process.
-        /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-        ir_size: i32,
-
-        /// The TrueAudio Next device to use for convolution processing.
+    ///
+    /// # Arguments
+    ///
+    /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
+    /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
+    /// - `device`: the TrueAudio Next device to use for convolution processing.
+    /// - `slot`: the TrueAudio Next slot index to use for convolution processing. The slot identifies the IR to use.
+    pub fn true_audio_next(
+        num_channels: usize,
+        impulse_response_size: usize,
         device: TrueAudioNextDevice,
+        slot: usize,
+    ) -> Self {
+        Self {
+            reflection_effect_type: ReflectionEffectType::TrueAudioNext,
+            impulse_response: std::ptr::null_mut(),
+            reverb_times: <[f32; 3]>::default(),
+            equalizer: Equalizer::default(),
+            delay: usize::default(),
+            num_channels,
+            impulse_response_size,
+            true_audio_next_device: device,
+            true_audio_next_slot: slot,
+        }
+    }
+}
 
-        /// The TrueAudio Next slot index to use for convolution processing.
-        /// The slot identifies the IR to use.
-        slot: i32,
-    },
+impl From<audionimbus_sys::IPLReflectionEffectParams> for ReflectionEffectParams {
+    fn from(params: audionimbus_sys::IPLReflectionEffectParams) -> Self {
+        Self {
+            reflection_effect_type: params.type_.into(),
+            impulse_response: params.ir,
+            reverb_times: params.reverbTimes,
+            equalizer: Equalizer(params.eq),
+            delay: params.delay as usize,
+            num_channels: params.numChannels as usize,
+            impulse_response_size: params.irSize as usize,
+            true_audio_next_device: TrueAudioNextDevice(params.tanDevice),
+            true_audio_next_slot: params.tanSlot as usize,
+        }
+    }
 }
 
 impl ReflectionEffectParams {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLReflectionEffectParams, Self> {
-        todo!()
+        let reflection_effect_params = audionimbus_sys::IPLReflectionEffectParams {
+            type_: self.reflection_effect_type.into(),
+            ir: self.impulse_response,
+            reverbTimes: self.reverb_times,
+            eq: *self.equalizer,
+            delay: self.delay as i32,
+            numChannels: self.num_channels as i32,
+            irSize: self.impulse_response_size as i32,
+            tanDevice: self.true_audio_next_device.raw_ptr(),
+            tanSlot: self.true_audio_next_slot as i32,
+        };
+
+        FFIWrapper::new(reflection_effect_params)
     }
 }
 
@@ -364,5 +505,72 @@ bitflags::bitflags! {
 
         /// Bake parametric reverb for [`ReflectionEffectSettings::Parametric`] or [`ReflectionEffectSettings::Hybrid`].
         const BAKE_PARAMETRIC = 1 << 1;
+    }
+}
+
+/// Type of reflection effect algorithm to use.
+#[derive(Copy, Clone, Debug)]
+pub enum ReflectionEffectType {
+    /// Multi-channel convolution reverb.
+    /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
+    /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
+    /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
+    Convolution,
+
+    /// Parametric (or artificial) reverb, using feedback delay networks.
+    /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
+    /// This is then used to drive an approximate model of reverberation in an indoor space.
+    /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
+    /// A reflection mixer cannot be used with this algorithm.
+    Parametric,
+
+    /// A hybrid of convolution and parametric reverb.
+    /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
+    /// The point in the IR where this transition occurs can be controlled.
+    /// This algorithm allows a trade-off between rendering quality and CPU usage.
+    /// An reflection mixer cannot be used with this algorithm.
+    Hybrid,
+
+    /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
+    /// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
+    /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
+    TrueAudioNext,
+}
+
+impl From<ReflectionEffectType> for audionimbus_sys::IPLReflectionEffectType {
+    fn from(reflection_effect_type: ReflectionEffectType) -> Self {
+        match reflection_effect_type {
+            ReflectionEffectType::Convolution => {
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION
+            }
+            ReflectionEffectType::Parametric => {
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC
+            }
+            ReflectionEffectType::Hybrid => {
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID
+            }
+            ReflectionEffectType::TrueAudioNext => {
+                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN
+            }
+        }
+    }
+}
+
+impl From<audionimbus_sys::IPLReflectionEffectType> for ReflectionEffectType {
+    fn from(reflection_effect_type: audionimbus_sys::IPLReflectionEffectType) -> Self {
+        match reflection_effect_type {
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION => {
+                ReflectionEffectType::Convolution
+            }
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC => {
+                ReflectionEffectType::Parametric
+            }
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID => {
+                ReflectionEffectType::Hybrid
+            }
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN => {
+                ReflectionEffectType::TrueAudioNext
+            }
+        }
     }
 }

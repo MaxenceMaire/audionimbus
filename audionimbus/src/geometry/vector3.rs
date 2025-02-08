@@ -20,6 +20,16 @@ impl Vector3 {
     }
 }
 
+impl Default for Vector3 {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        }
+    }
+}
+
 impl From<[f32; 3]> for Vector3 {
     fn from(vector: [f32; 3]) -> Self {
         Self {
@@ -32,6 +42,16 @@ impl From<[f32; 3]> for Vector3 {
 
 impl From<Vector3> for audionimbus_sys::IPLVector3 {
     fn from(vector: Vector3) -> Self {
+        Self {
+            x: vector.x,
+            y: vector.y,
+            z: vector.z,
+        }
+    }
+}
+
+impl From<audionimbus_sys::IPLVector3> for Vector3 {
+    fn from(vector: audionimbus_sys::IPLVector3) -> Self {
         Self {
             x: vector.x,
             y: vector.y,

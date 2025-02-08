@@ -103,6 +103,70 @@ pub struct DirectEffectParams {
     pub transmission: Option<Transmission>,
 }
 
+impl From<audionimbus_sys::IPLDirectEffectParams> for DirectEffectParams {
+    fn from(params: audionimbus_sys::IPLDirectEffectParams) -> Self {
+        let distance_attenuation = if params.flags
+            & audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION
+            == audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION
+        {
+            Some(params.distanceAttenuation)
+        } else {
+            None
+        };
+
+        let air_absorption = if params.flags
+            & audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYAIRABSORPTION
+            == audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYAIRABSORPTION
+        {
+            Some(Equalizer(params.airAbsorption))
+        } else {
+            None
+        };
+
+        let directivity = if params.flags
+            & audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYDIRECTIVITY
+            == audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYDIRECTIVITY
+        {
+            Some(params.directivity)
+        } else {
+            None
+        };
+
+        let occlusion = if params.flags
+            & audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYOCCLUSION
+            == audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYOCCLUSION
+        {
+            Some(params.occlusion)
+        } else {
+            None
+        };
+
+        let transmission = if params.flags
+            & audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYTRANSMISSION
+            == audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYTRANSMISSION
+        {
+            Some(match params.transmissionType {
+                audionimbus_sys::IPLTransmissionType::IPL_TRANSMISSIONTYPE_FREQINDEPENDENT => {
+                    Transmission::FrequencyIndependent(Equalizer(params.transmission))
+                }
+                audionimbus_sys::IPLTransmissionType::IPL_TRANSMISSIONTYPE_FREQDEPENDENT => {
+                    Transmission::FrequencyDependent(Equalizer(params.transmission))
+                }
+            })
+        } else {
+            None
+        };
+
+        Self {
+            distance_attenuation,
+            air_absorption,
+            directivity,
+            occlusion,
+            transmission,
+        }
+    }
+}
+
 impl DirectEffectParams {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLDirectEffectParams, Self> {
         let mut flags = audionimbus_sys::IPLDirectEffectFlags(u32::default());

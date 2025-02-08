@@ -20,7 +20,7 @@ pub use audio_effect_state::AudioEffectState;
 mod reflection_effect;
 pub use reflection_effect::{
     bake_reflections, ReflectionEffect, ReflectionEffectParams, ReflectionEffectSettings,
-    ReflectionsBakeFlags, ReflectionsBakeParams,
+    ReflectionEffectType, ReflectionsBakeFlags, ReflectionsBakeParams,
 };
 
 mod path_effect;

@@ -1,6 +1,5 @@
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
-use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
 
@@ -12,18 +11,17 @@ pub struct ProbeArray(audionimbus_sys::IPLProbeArray);
 
 impl ProbeArray {
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        let probe_array = unsafe {
-            let probe_array: *mut audionimbus_sys::IPLProbeArray = std::ptr::null_mut();
-            let status = audionimbus_sys::iplProbeArrayCreate(context.raw_ptr(), probe_array);
+        let mut probe_array = Self(std::ptr::null_mut());
 
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *probe_array
+        let status = unsafe {
+            audionimbus_sys::iplProbeArrayCreate(context.raw_ptr(), probe_array.raw_ptr_mut())
         };
 
-        Ok(Self(probe_array))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(probe_array)
     }
 
     /// Generates probes and adds them to the probe array.
@@ -32,13 +30,17 @@ impl ProbeArray {
             audionimbus_sys::iplProbeArrayGenerateProbes(
                 self.raw_ptr(),
                 scene.raw_ptr(),
-                &mut *probe_params.as_ffi(),
+                &mut audionimbus_sys::IPLProbeGenerationParams::from(*probe_params),
             );
         }
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeArray {
+        &mut self.0
     }
 }
 
@@ -49,7 +51,7 @@ impl Drop for ProbeArray {
 }
 
 /// Settings used to generate probes.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum ProbeGenerationParams {
     /// Generates a single probe at the center of the specified box.
     Centroid {
@@ -75,9 +77,33 @@ pub enum ProbeGenerationParams {
     },
 }
 
-impl ProbeGenerationParams {
-    pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLProbeGenerationParams, Self> {
-        todo!()
+impl From<ProbeGenerationParams> for audionimbus_sys::IPLProbeGenerationParams {
+    fn from(probe_generation_params: ProbeGenerationParams) -> Self {
+        let (type_, spacing, height, transform) = match probe_generation_params {
+            ProbeGenerationParams::Centroid { transform } => (
+                audionimbus_sys::IPLProbeGenerationType::IPL_PROBEGENERATIONTYPE_CENTROID,
+                f32::default(),
+                f32::default(),
+                transform,
+            ),
+            ProbeGenerationParams::UniformFloor {
+                spacing,
+                height,
+                transform,
+            } => (
+                audionimbus_sys::IPLProbeGenerationType::IPL_PROBEGENERATIONTYPE_UNIFORMFLOOR,
+                spacing,
+                height,
+                transform,
+            ),
+        };
+
+        Self {
+            type_,
+            spacing,
+            height,
+            transform: transform.into(),
+        }
     }
 }
 
@@ -90,18 +116,17 @@ pub struct ProbeBatch(audionimbus_sys::IPLProbeBatch);
 
 impl ProbeBatch {
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        let probe_batch = unsafe {
-            let probe_batch: *mut audionimbus_sys::IPLProbeBatch = std::ptr::null_mut();
-            let status = audionimbus_sys::iplProbeBatchCreate(context.raw_ptr(), probe_batch);
+        let mut probe_batch = Self(std::ptr::null_mut());
 
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *probe_batch
+        let status = unsafe {
+            audionimbus_sys::iplProbeBatchCreate(context.raw_ptr(), probe_batch.raw_ptr_mut())
         };
 
-        Ok(Self(probe_batch))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(probe_batch)
     }
 
     /// Adds a probe to a batch.
@@ -110,7 +135,7 @@ impl ProbeBatch {
         unsafe {
             audionimbus_sys::iplProbeBatchAddProbe(
                 self.raw_ptr(),
-                audionimbus_sys::IPLSphere::from(probe),
+                audionimbus_sys::IPLSphere::from(*probe),
             );
         }
     }
@@ -143,26 +168,29 @@ impl ProbeBatch {
         context: &Context,
         serialized_object: &mut SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        let probe_batch = unsafe {
-            let probe_batch: *mut audionimbus_sys::IPLProbeBatch = std::ptr::null_mut();
-            let status = audionimbus_sys::iplProbeBatchLoad(
+        let mut probe_batch = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplProbeBatchLoad(
                 context.raw_ptr(),
                 serialized_object.raw_ptr(),
-                probe_batch,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *probe_batch
+                probe_batch.raw_ptr_mut(),
+            )
         };
 
-        Ok(Self(probe_batch))
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(probe_batch)
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
         self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeBatch {
+        &mut self.0
     }
 }
 
