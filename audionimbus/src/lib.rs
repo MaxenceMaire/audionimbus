@@ -23,7 +23,7 @@ pub use hrtf::{Hrtf, HrtfInterpolation, HrtfSettings, Sofa, VolumeNormalization}
 
 mod version;
 pub use version::{
-    STEAMAUDIO_VERSION, STEAMAUDIO_VERSION_MAJOR, STEAMAUDIO_VERSION_MINOR,
+    SteamAudioVersion, STEAMAUDIO_VERSION, STEAMAUDIO_VERSION_MAJOR, STEAMAUDIO_VERSION_MINOR,
     STEAMAUDIO_VERSION_PATCH,
 };
 
