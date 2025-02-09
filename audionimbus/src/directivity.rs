@@ -72,7 +72,7 @@ impl From<&Directivity> for audionimbus_sys::IPLDirectivity {
 }
 
 /// Calculates the attenuation of a source due to its directivity pattern and orientation relative to a listener.
-pub fn calculate_directivity_attenuation(
+pub fn directivity_attenuation(
     context: &Context,
     source: &geometry::CoordinateSystem,
     listener: &geometry::Point,

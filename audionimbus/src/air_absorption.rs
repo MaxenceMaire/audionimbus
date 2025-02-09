@@ -93,7 +93,7 @@ impl From<&AirAbsorptionModel> for audionimbus_sys::IPLAirAbsorptionModel {
 }
 
 /// Calculates the air absorption coefficients between a source and a listener.
-pub fn calculate_air_absorption(
+pub fn air_absorption(
     context: &Context,
     source: &geometry::Point,
     listener: &geometry::Point,

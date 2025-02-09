@@ -236,7 +236,7 @@ fn test_distance_attenuation() {
 
     let distance_attenuation_model = audionimbus::DistanceAttenuationModel::default();
 
-    let distance_attenuation = audionimbus::calculate_distance_attenuation(
+    let distance_attenuation = audionimbus::distance_attenuation(
         &context,
         &source,
         &listener,
@@ -257,7 +257,7 @@ fn test_air_absorption() {
     let air_absorption_model = audionimbus::AirAbsorptionModel::default();
 
     let air_absorption =
-        audionimbus::calculate_air_absorption(&context, &source, &listener, &air_absorption_model);
+        audionimbus::air_absorption(&context, &source, &listener, &air_absorption_model);
 
     assert_eq!(air_absorption, [0.99965364, 0.9970598, 0.96896833]);
 }
@@ -273,7 +273,7 @@ fn test_directivity_attenuation() {
     let directivity = audionimbus::Directivity::default();
 
     let directivity_attenuation =
-        audionimbus::calculate_directivity_attenuation(&context, &source, &listener, &directivity);
+        audionimbus::directivity_attenuation(&context, &source, &listener, &directivity);
 
     assert_eq!(directivity_attenuation, 0.70710677);
 }

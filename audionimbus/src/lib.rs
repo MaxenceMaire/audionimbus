@@ -50,13 +50,13 @@ pub use simulator::{
 };
 
 mod distance_attenuation;
-pub use distance_attenuation::{calculate_distance_attenuation, DistanceAttenuationModel};
+pub use distance_attenuation::{distance_attenuation, DistanceAttenuationModel};
 
 mod air_absorption;
-pub use air_absorption::{calculate_air_absorption, AirAbsorptionModel};
+pub use air_absorption::{air_absorption, AirAbsorptionModel};
 
 mod directivity;
-pub use directivity::{calculate_directivity_attenuation, Directivity};
+pub use directivity::{directivity_attenuation, Directivity};
 
 mod probe;
 pub use probe::{ProbeArray, ProbeBatch, ProbeGenerationParams};
