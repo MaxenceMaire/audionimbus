@@ -25,7 +25,7 @@ impl ProbeArray {
     }
 
     /// Generates probes and adds them to the probe array.
-    pub fn generate_probes(&self, scene: &Scene, probe_params: &ProbeGenerationParams) {
+    pub fn generate_probes(&mut self, scene: &Scene, probe_params: &ProbeGenerationParams) {
         unsafe {
             audionimbus_sys::iplProbeArrayGenerateProbes(
                 self.raw_ptr(),
@@ -131,7 +131,7 @@ impl ProbeBatch {
 
     /// Adds a probe to a batch.
     /// The new probe will be added as the last probe in the batch.
-    pub fn add_probe(&self, probe: &Sphere) {
+    pub fn add_probe(&mut self, probe: &Sphere) {
         unsafe {
             audionimbus_sys::iplProbeBatchAddProbe(
                 self.raw_ptr(),
@@ -142,7 +142,7 @@ impl ProbeBatch {
 
     /// Adds every probe in an array to a batch.
     /// The new probes will be added, in order, at the end of the batch.
-    pub fn add_probe_array(&self, probe_array: &ProbeArray) {
+    pub fn add_probe_array(&mut self, probe_array: &ProbeArray) {
         unsafe {
             audionimbus_sys::iplProbeBatchAddProbeArray(self.raw_ptr(), probe_array.raw_ptr());
         }

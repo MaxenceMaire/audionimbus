@@ -230,6 +230,7 @@ impl DirectEffectParams {
     }
 }
 
+/// Transmission parameters.
 #[derive(Debug)]
 pub enum Transmission {
     /// Frequency-independent transmission.

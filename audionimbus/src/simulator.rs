@@ -59,8 +59,10 @@ impl Simulator {
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
     /// This function cannot be called while any simulation is running.
-    pub fn add_probe_batch(&mut self) {
-        todo!()
+    pub fn add_probe_batch(&mut self, probe: &ProbeBatch) {
+        unsafe {
+            audionimbus_sys::iplSimulatorAddProbeBatch(self.raw_ptr(), probe.raw_ptr());
+        }
     }
 
     /// Removes a probe batch from use in subsequent simulations.
@@ -69,8 +71,10 @@ impl Simulator {
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
     /// This function cannot be called while any simulation is running.
-    pub fn remove_probe_batch(&mut self) {
-        todo!()
+    pub fn remove_probe_batch(&mut self, probe: &ProbeBatch) {
+        unsafe {
+            audionimbus_sys::iplSimulatorRemoveProbeBatch(self.raw_ptr(), probe.raw_ptr());
+        }
     }
 
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
@@ -689,9 +693,12 @@ impl From<&SimulationSharedInputs> for audionimbus_sys::IPLSimulationSharedInput
     }
 }
 
+/// Callback information for visualizing valid path segments during the call to [`Simulator::run_pathing`].
+///
+/// You can use this to provide the user with visual feedback, like drawing each segment of a path.
 #[derive(Debug)]
 pub struct PathingVisualizationCallback {
-    /// Callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
+    /// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
     ///
     /// You can use this to provide the user with visual feedback, like drawing each segment of a path.
     ///

@@ -13,10 +13,10 @@ pub struct AudioBuffer {
     pub num_samples: usize,
 
     /// Sample data.
-    pub data: Vec<f32>,
+    pub data: Vec<Sample>,
 
     /// Pointers to sample data for each channel.
-    pub channel_ptrs: Vec<*mut f32>,
+    pub channel_ptrs: Vec<*mut Sample>,
 }
 
 impl AudioBuffer {
@@ -108,6 +108,11 @@ impl From<DeinterleavedChannelSamples> for AudioBuffer {
     }
 }
 
+/// An audio sample.
 pub type Sample = f32;
+
+/// An audio channel.
 pub type Channel = Vec<Sample>;
+
+/// Deinterleaved sample data, i.e. sample data organized by channel.
 pub type DeinterleavedChannelSamples = Vec<Channel>;

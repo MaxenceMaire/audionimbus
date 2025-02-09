@@ -50,6 +50,9 @@ impl Drop for OpenClDevice {
     }
 }
 
+/// Provides a list of OpenCL devices available on the user’s system.
+///
+/// Use this to enumerate the available OpenCL devices, inspect their capabilities, and select the most suitable one for your application’s needs.
 pub struct OpenClDeviceList(pub audionimbus_sys::IPLOpenCLDeviceList);
 
 impl OpenClDeviceList {

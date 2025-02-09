@@ -119,6 +119,7 @@ impl From<&PathEffectSettings<'_>> for audionimbus_sys::IPLPathEffectSettings {
     }
 }
 
+/// Spatialization settings.
 #[derive(Debug)]
 pub struct Spatialization<'a> {
     /// The speaker layout to use when spatializing.

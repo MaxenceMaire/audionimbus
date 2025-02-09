@@ -427,12 +427,12 @@ pub fn bake_reflections(
 
 /// Parameters used to control how reflections data is baked.
 #[derive(Debug)]
-pub struct ReflectionsBakeParams {
+pub struct ReflectionsBakeParams<'a> {
     /// The scene in which the probes exist.
-    pub scene: Scene,
+    pub scene: &'a Scene,
 
     /// A probe batch containing the probes at which reflections data should be baked.
-    pub probe_batch: ProbeBatch,
+    pub probe_batch: &'a ProbeBatch,
 
     /// The type of scene being used.
     pub scene_type: SceneType,
@@ -440,22 +440,22 @@ pub struct ReflectionsBakeParams {
     /// An identifier for the data layer that should be baked.
     /// The identifier determines what data is simulated and stored at each probe.
     /// If the probe batch already contains data with this identifier, it will be overwritten.
-    pub identifier: BakedDataIdentifier,
+    pub identifier: &'a BakedDataIdentifier,
 
     /// The types of data to save for each probe.
     pub bake_flags: ReflectionsBakeFlags,
 
     /// The number of rays to trace from each listener position when baking.
     /// Increasing this number results in improved accuracy, at the cost of increased bake times.
-    pub num_rays: i32,
+    pub num_rays: usize,
 
     /// The number of directions to consider when generating diffusely-reflected rays when baking.
     /// Increasing this number results in slightly improved accuracy of diffuse reflections.
-    pub num_diffuse_samples: i32,
+    pub num_diffuse_samples: usize,
 
     /// The number of times each ray is reflected off of solid geometry.
     /// Increasing this number results in longer reverb tails and improved accuracy, at the cost of increased bake times.
-    pub num_bounces: i32,
+    pub num_bounces: usize,
 
     /// The length (in seconds) of the impulse responses to simulate.
     /// Increasing this number allows the baked data to represent longer reverb tails (and hence larger spaces), at the cost of increased memory usage while baking.
@@ -469,42 +469,66 @@ pub struct ReflectionsBakeParams {
     pub saved_duration: f32,
 
     /// Ambisonic order of the baked IRs.
-    pub order: i32,
+    pub order: usize,
 
     /// Number of threads to use for baking.
-    pub num_threads: i32,
+    pub num_threads: usize,
 
     /// If using custom ray tracer callbacks, this the number of rays that will be passed to the callbacks every time rays need to be traced.
-    pub ray_batch_size: i32,
+    pub ray_batch_size: usize,
 
     /// When calculating how much sound energy reaches a surface directly from a source, any source that is closer than [`Self::irradiance_min_distance`] to the surface is assumed to be at a distance of [`Self::irradiance_min_distance`], for the purposes of energy calculations.
     pub irradiance_min_distance: f32,
 
     /// If using Radeon Rays or if [`Self::identifier`] uses [`BakedDataVariation::StaticListener`], this is the number of probes for which data is baked simultaneously.
-    pub bake_batch_size: i32,
+    pub bake_batch_size: usize,
 
     /// The OpenCL device, if using Radeon Rays.
-    pub open_cl_device: OpenClDevice,
+    pub open_cl_device: &'a OpenClDevice,
 
     /// The Radeon Rays device, if using Radeon Rays.
-    pub radeon_rays_device: RadeonRaysDevice,
+    pub radeon_rays_device: &'a RadeonRaysDevice,
 }
 
-impl From<&ReflectionsBakeParams> for audionimbus_sys::IPLReflectionsBakeParams {
+impl From<&ReflectionsBakeParams<'_>> for audionimbus_sys::IPLReflectionsBakeParams {
     fn from(params: &ReflectionsBakeParams) -> Self {
-        todo!()
+        Self {
+            scene: params.scene.raw_ptr(),
+            probeBatch: params.probe_batch.raw_ptr(),
+            sceneType: params.scene_type.into(),
+            identifier: (*params.identifier).into(),
+            bakeFlags: params.bake_flags.into(),
+            numRays: params.num_rays as i32,
+            numDiffuseSamples: params.num_diffuse_samples as i32,
+            numBounces: params.num_bounces as i32,
+            simulatedDuration: params.simulated_duration,
+            savedDuration: params.saved_duration,
+            order: params.order as i32,
+            numThreads: params.num_threads as i32,
+            rayBatchSize: params.ray_batch_size as i32,
+            irradianceMinDistance: params.irradiance_min_distance,
+            bakeBatchSize: params.bake_batch_size as i32,
+            openCLDevice: params.open_cl_device.raw_ptr(),
+            radeonRaysDevice: params.radeon_rays_device.raw_ptr(),
+        }
     }
 }
 
 bitflags::bitflags! {
     /// Flags for specifying what types of reflections data to bake.
-    #[derive(Debug)]
+    #[derive(Copy, Clone, Debug)]
     pub struct ReflectionsBakeFlags: u32 {
         /// Bake impulse responses for [`ReflectionEffectSettings::Convolution`], [`ReflectionEffectSettings::Hybrid`], or [`ReflectionEffectSettings::TrueAudioNext`].
         const BAKE_CONVOLUTION = 1 << 0;
 
         /// Bake parametric reverb for [`ReflectionEffectSettings::Parametric`] or [`ReflectionEffectSettings::Hybrid`].
         const BAKE_PARAMETRIC = 1 << 1;
+    }
+}
+
+impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
+    fn from(reflections_bake_flags: ReflectionsBakeFlags) -> Self {
+        Self(reflections_bake_flags.bits())
     }
 }
 
