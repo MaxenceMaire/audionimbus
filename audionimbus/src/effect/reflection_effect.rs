@@ -11,6 +11,7 @@ use crate::probe::ProbeBatch;
 use crate::progress_callback::ProgressCallbackInformation;
 use crate::radeon_rays::RadeonRaysDevice;
 use crate::simulator::BakedDataIdentifier;
+#[cfg(doc)]
 use crate::simulator::BakedDataVariation;
 use crate::true_audio_next::TrueAudioNextDevice;
 

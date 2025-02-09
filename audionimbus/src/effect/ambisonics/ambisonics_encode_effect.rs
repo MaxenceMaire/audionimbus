@@ -1,12 +1,10 @@
 use super::super::AudioEffectState;
-use super::SpeakerLayout;
 use crate::audio_buffer::AudioBuffer;
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
-use crate::hrtf::Hrtf;
 
 /// Encodes a point source into Ambisonics.
 ///

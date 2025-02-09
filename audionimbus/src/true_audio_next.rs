@@ -52,20 +52,25 @@ impl Drop for TrueAudioNextDevice {
 #[derive(Debug)]
 pub struct TrueAudioNextDeviceSettings {
     /// The number of samples in an audio frame.
-    pub frame_size: i32,
+    pub frame_size: usize,
 
     /// The number of samples in the impulse responses that will be used for convolution.
-    pub ir_size: i32,
+    pub impulse_response_size: usize,
 
     /// The Ambisonic order of the impulse responses that will be used for convolution.
-    pub order: i32,
+    pub order: usize,
 
     /// The maximum number of sources that will use TrueAudio Next for convolution.
-    pub max_sources: i32,
+    pub max_sources: usize,
 }
 
 impl From<&TrueAudioNextDeviceSettings> for audionimbus_sys::IPLTrueAudioNextDeviceSettings {
     fn from(settings: &TrueAudioNextDeviceSettings) -> Self {
-        todo!()
+        Self {
+            frameSize: settings.frame_size as i32,
+            irSize: settings.impulse_response_size as i32,
+            order: settings.order as i32,
+            maxSources: settings.max_sources as i32,
+        }
     }
 }

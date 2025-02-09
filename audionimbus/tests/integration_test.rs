@@ -724,7 +724,7 @@ fn test_pathing() {
         radeon_rays_device: audionimbus::RadeonRaysDevice::null(),
         true_audio_next_device: audionimbus::TrueAudioNextDevice::null(),
     };
-    let mut simulator = audionimbus::Simulator::try_new(&context, &simulation_settings).unwrap();
+    let simulator = audionimbus::Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let scene_settings = audionimbus::SceneSettings::default();
     let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
