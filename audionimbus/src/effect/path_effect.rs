@@ -221,21 +221,21 @@ pub fn bake_path(
 
 /// Parameters used to control how pathing data is baked.
 #[derive(Debug)]
-pub struct PathBakeParams {
+pub struct PathBakeParams<'a> {
     /// The scene in which the probes exist.
-    pub scene: Scene,
+    pub scene: &'a Scene,
 
     /// A probe batch containing the probes for which pathing data should be baked.
-    pub probe_batch: ProbeBatch,
+    pub probe_batch: &'a ProbeBatch,
 
     /// An identifier for the data layer that should be baked.
     /// The identifier determines what data is simulated and stored at each probe.
     /// If the probe batch already contains data with this identifier, it will be overwritten.
-    pub identifier: BakedDataIdentifier,
+    pub identifier: &'a BakedDataIdentifier,
 
     /// Number of point samples to use around each probe when testing whether one probe can see another.
     /// To determine if two probes are mutually visible, numSamples * numSamples rays are traced, from each point sample of the first probe, to every other point sample of the second probe.
-    pub num_samples: i32,
+    pub num_samples: usize,
 
     /// When testing for mutual visibility between a pair of probes, each probe is treated as a sphere of this radius (in meters), and point samples are generated within this sphere.
     pub radius: f32,
@@ -252,11 +252,21 @@ pub struct PathBakeParams {
     pub path_range: f32,
 
     /// Number of threads to use for baking.
-    pub num_threads: i32,
+    pub num_threads: usize,
 }
 
-impl From<&PathBakeParams> for audionimbus_sys::IPLPathBakeParams {
+impl From<&PathBakeParams<'_>> for audionimbus_sys::IPLPathBakeParams {
     fn from(params: &PathBakeParams) -> Self {
-        todo!()
+        Self {
+            scene: params.scene.raw_ptr(),
+            probeBatch: params.probe_batch.raw_ptr(),
+            identifier: (*params.identifier).into(),
+            numSamples: params.num_samples as i32,
+            radius: params.radius,
+            threshold: params.threshold,
+            visRange: params.visibility_range,
+            pathRange: params.path_range,
+            numThreads: params.num_threads as i32,
+        }
     }
 }

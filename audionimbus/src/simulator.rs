@@ -468,7 +468,9 @@ impl From<&SimulationInputs> for audionimbus_sys::IPLSimulationInputs {
             } else {
                 (
                     audionimbus_sys::IPLbool::IPL_FALSE,
-                    BakedDataIdentifier::Pathing,
+                    BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::Reverb,
+                    },
                 )
             };
 
@@ -574,29 +576,40 @@ pub enum BakedDataIdentifier {
 
     /// Pathing.
     /// The probe batch stores data about the shortest paths between any pair of probes in the batch.
-    Pathing,
+    Pathing {
+        /// The way in which source and listener positions depend on probe position.
+        variation: BakedDataVariation,
+    },
 }
 
 impl From<BakedDataIdentifier> for audionimbus_sys::IPLBakedDataIdentifier {
     fn from(baked_data_identifier: BakedDataIdentifier) -> Self {
-        let (type_, variation, endpoint_influence) = match baked_data_identifier {
-            BakedDataIdentifier::Reflections { variation } => {
-                let (variation, endpoint_influence) = match variation {
-                    BakedDataVariation::Reverb => (audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_REVERB, geometry::Sphere::default().into()),
-                    BakedDataVariation::StaticSource { endpoint_influence } => (audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_STATICSOURCE, endpoint_influence.into()),
-                    BakedDataVariation::StaticListener { endpoint_influence } => (audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_STATICLISTENER, endpoint_influence.into()),
-                    BakedDataVariation::Dynamic => (audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_DYNAMIC, geometry::Sphere::default().into()),
-                };
-
-                (
-                    audionimbus_sys::IPLBakedDataType::IPL_BAKEDDATATYPE_REFLECTIONS,
-                    variation,
-                    endpoint_influence,
-                )
-            }
-            BakedDataIdentifier::Pathing => (
+        let (type_, variation) = match baked_data_identifier {
+            BakedDataIdentifier::Reflections { variation } => (
+                audionimbus_sys::IPLBakedDataType::IPL_BAKEDDATATYPE_REFLECTIONS,
+                variation,
+            ),
+            BakedDataIdentifier::Pathing { variation } => (
                 audionimbus_sys::IPLBakedDataType::IPL_BAKEDDATATYPE_PATHING,
+                variation,
+            ),
+        };
+
+        let (variation, endpoint_influence) = match variation {
+            BakedDataVariation::Reverb => (
                 audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_REVERB,
+                geometry::Sphere::default().into(),
+            ),
+            BakedDataVariation::StaticSource { endpoint_influence } => (
+                audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_STATICSOURCE,
+                endpoint_influence.into(),
+            ),
+            BakedDataVariation::StaticListener { endpoint_influence } => (
+                audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_STATICLISTENER,
+                endpoint_influence.into(),
+            ),
+            BakedDataVariation::Dynamic => (
+                audionimbus_sys::IPLBakedDataVariation::IPL_BAKEDDATAVARIATION_DYNAMIC,
                 geometry::Sphere::default().into(),
             ),
         };

@@ -697,3 +697,115 @@ pub fn test_baking() {
     simulator.add_probe_batch(&probe_batch);
     simulator.commit();
 }
+
+#[test]
+fn test_pathing() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    let audio_settings = audionimbus::AudioSettings::default();
+
+    let simulation_settings = audionimbus::SimulationSettings {
+        flags: audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
+        scene_type: audionimbus::SceneType::Default,
+        reflection_type: audionimbus::ReflectionEffectType::Convolution,
+        max_num_occlusion_samples: 4,
+        max_num_rays: 4096,
+        num_diffuse_samples: 32,
+        max_duration: 2.0,
+        max_order: 1,
+        max_num_sources: 8,
+        num_threads: 2,
+        ray_batch_size: usize::default(),
+        num_visibility_samples: 4,
+        sampling_rate: audio_settings.sampling_rate,
+        frame_size: audio_settings.frame_size,
+        open_cl_device: audionimbus::OpenClDevice::null(),
+        radeon_rays_device: audionimbus::RadeonRaysDevice::null(),
+        true_audio_next_device: audionimbus::TrueAudioNextDevice::null(),
+    };
+    let mut simulator = audionimbus::Simulator::try_new(&context, &simulation_settings).unwrap();
+
+    let scene_settings = audionimbus::SceneSettings::default();
+    let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+
+    let identifier = audionimbus::BakedDataIdentifier::Pathing {
+        variation: audionimbus::BakedDataVariation::Dynamic,
+    };
+
+    let probe_array = audionimbus::ProbeArray::try_new(&context).unwrap();
+
+    let mut probe_batch = audionimbus::ProbeBatch::try_new(&context).unwrap();
+    probe_batch.add_probe_array(&probe_array);
+
+    let path_bake_params = audionimbus::PathBakeParams {
+        scene: &scene,
+        probe_batch: &probe_batch,
+        identifier: &identifier,
+        num_samples: 1, // Trace a single ray to test if one probe can see another probe.
+        visibility_range: 50.0, // Don't check visibility between probes that are > 50m apart.
+        path_range: 100.0, // Don't store paths between probes that are > 100m apart.
+        num_threads: 8,
+        radius: f32::default(),
+        threshold: f32::default(),
+    };
+    audionimbus::bake_path(&context, &path_bake_params, None);
+
+    let source_settings = audionimbus::SourceSettings {
+        flags: audionimbus::SimulationFlags::PATHING,
+    };
+    let mut source = audionimbus::Source::try_new(&simulator, &source_settings).unwrap();
+
+    let simulation_inputs = audionimbus::SimulationInputs {
+        flags: audionimbus::SimulationFlags::PATHING,
+        direct_flags: audionimbus::DirectSimulationFlags::empty(),
+        source: audionimbus::CoordinateSystem {
+            right: audionimbus::Vector3::new(1.0, 0.0, 0.0),
+            up: audionimbus::Vector3::new(0.0, 1.0, 0.0),
+            ahead: audionimbus::Vector3::new(0.0, 0.0, 1.0),
+            origin: audionimbus::Vector3::new(1.0, 0.0, 0.0),
+        },
+        distance_attenuation_model: audionimbus::DistanceAttenuationModel::default(),
+        air_absorption_model: audionimbus::AirAbsorptionModel::default(),
+        directivity: audionimbus::Directivity::default(),
+        occlusion: audionimbus::Occlusion::Raycast,
+        reverb_scale: [1.0, 1.0, 1.0],
+        hybrid_reverb_transition_time: f32::default(),
+        hybrid_reverb_overlap_percent: f32::default(),
+        baked_data_identifier: Some(identifier),
+        pathing_probes: audionimbus::ProbeBatch::try_new(&context).unwrap(),
+        visibility_radius: 10.0,
+        visibility_threshold: 0.0,
+        visibility_range: 0.0,
+        pathing_order: 1,
+        enable_validation: true,
+        find_alternate_paths: true,
+        num_transmission_rays: 1,
+    };
+    source.set_inputs(audionimbus::SimulationFlags::PATHING, &simulation_inputs);
+
+    simulator.run_pathing();
+
+    let path_effect_settings = audionimbus::PathEffectSettings {
+        max_order: 1, // Render up to 1st order Ambisonic sound fields.
+        spatialization: None,
+    };
+    let path_effect =
+        audionimbus::PathEffect::try_new(&context, &audio_settings, &path_effect_settings).unwrap();
+
+    // Must be mono.
+    let mut input_buffer =
+        audionimbus::AudioBuffer::from(raw_to_deinterleaved(AUDIO_BUFFER_SINE_WAVE_440HZ_1S, 1));
+
+    // Must have 4 channels (1st order Ambisonics) in this example.
+    let mut output_buffer =
+        audionimbus::AudioBuffer::with_num_channels_and_num_samples(4, input_buffer.num_samples);
+
+    let simulation_outputs = source.get_outputs(audionimbus::SimulationFlags::PATHING);
+    let mut path_effect_params = simulation_outputs.pathing();
+    path_effect_params.order = 1; // Render all 4 channels.
+
+    let _ = path_effect.apply(&path_effect_params, &mut input_buffer, &mut output_buffer);
+
+    let _ = output_buffer.interleave(&context);
+}
