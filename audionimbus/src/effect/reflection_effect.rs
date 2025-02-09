@@ -11,9 +11,10 @@ use crate::probe::ProbeBatch;
 use crate::progress_callback::ProgressCallbackInformation;
 use crate::radeon_rays::RadeonRaysDevice;
 use crate::simulator::BakedDataIdentifier;
+use crate::true_audio_next::TrueAudioNextDevice;
+
 #[cfg(doc)]
 use crate::simulator::BakedDataVariation;
-use crate::true_audio_next::TrueAudioNextDevice;
 
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
@@ -68,7 +69,6 @@ impl ReflectionEffect {
         .into()
     }
 
-    // TODO:
     /// Applies a reflection effect to an audio buffer.
     ///
     /// The output of this effect will be mixed into the given mixer.
@@ -79,7 +79,7 @@ impl ReflectionEffect {
         &self,
         reflection_effect_params: &ReflectionEffectParams,
         input_buffer: &mut AudioBuffer,
-        mixer: (), // TODO:
+        mixer: &ReflectionMixer,
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
@@ -87,7 +87,7 @@ impl ReflectionEffect {
                 &mut *reflection_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
                 std::ptr::null_mut(),
-                std::ptr::null_mut(), // TODO: mixer
+                mixer.raw_ptr(),
             )
         }
         .into()
@@ -597,5 +597,50 @@ impl From<audionimbus_sys::IPLReflectionEffectType> for ReflectionEffectType {
                 ReflectionEffectType::TrueAudioNext
             }
         }
+    }
+}
+
+/// Mixes the outputs of multiple reflection effects, and generates a single sound field containing all the reflected sound reaching the listener.
+///
+/// Using this is optional. Depending on the reflection effect algorithm used, a reflection mixer may provide a reduction in CPU usage.
+#[derive(Debug)]
+pub struct ReflectionMixer(audionimbus_sys::IPLReflectionMixer);
+
+impl ReflectionMixer {
+    pub fn try_new(
+        context: &Context,
+        audio_settings: &AudioSettings,
+        reflection_effect_settings: &ReflectionEffectSettings,
+    ) -> Result<Self, SteamAudioError> {
+        let mut reflection_mixer = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplReflectionMixerCreate(
+                context.raw_ptr(),
+                &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
+                &mut audionimbus_sys::IPLReflectionEffectSettings::from(reflection_effect_settings),
+                reflection_mixer.raw_ptr_mut(),
+            )
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(reflection_mixer)
+    }
+
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionMixer {
+        self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionMixer {
+        &mut self.0
+    }
+}
+
+impl Drop for ReflectionMixer {
+    fn drop(&mut self) {
+        unsafe { audionimbus_sys::iplReflectionMixerRelease(&mut self.0) }
     }
 }
