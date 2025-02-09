@@ -2,14 +2,14 @@ use super::audio_effect_state::AudioEffectState;
 use super::SpeakerLayout;
 use crate::audio_buffer::AudioBuffer;
 use crate::audio_settings::AudioSettings;
+use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{CoordinateSystem, Scene};
 use crate::hrtf::Hrtf;
 use crate::probe::ProbeBatch;
-use crate::progress_callback::ProgressCallbackInformation;
-use crate::simulator::BakedDataIdentifier;
+use crate::simulation::BakedDataIdentifier;
 
 /// Applies the result of simulating sound paths from the source to the listener.
 ///
@@ -194,7 +194,7 @@ impl PathEffectParams {
 pub fn bake_path(
     context: &Context,
     path_bake_params: &PathBakeParams,
-    progress_callback: Option<ProgressCallbackInformation>,
+    progress_callback: Option<CallbackInformation<ProgressCallback>>,
 ) {
     let (callback, user_data) = if let Some(callback_information) = progress_callback {
         (

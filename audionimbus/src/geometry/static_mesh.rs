@@ -1,4 +1,5 @@
 use super::{Material, Point, Scene, Triangle};
+use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::serialized_object::SerializedObject;
 
@@ -100,13 +101,12 @@ impl StaticMesh {
     pub fn load_with_progress_callback(
         scene: &Scene,
         serialized_object: &SerializedObject,
-        progress_callback: unsafe extern "C" fn(_: f32, _: *mut std::ffi::c_void),
-        progress_callback_user_data: *mut std::ffi::c_void,
+        progress_callback_information: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(
             scene,
             serialized_object,
-            Some((progress_callback, progress_callback_user_data)),
+            Some(progress_callback_information),
         )
     }
 
@@ -116,19 +116,17 @@ impl StaticMesh {
     fn load_with_optional_progress_callback(
         scene: &Scene,
         serialized_object: &SerializedObject,
-        progress_callback_information: Option<(
-            unsafe extern "C" fn(_: f32, _: *mut std::ffi::c_void),
-            *mut std::ffi::c_void,
-        )>,
+        progress_callback_information: Option<CallbackInformation<ProgressCallback>>,
     ) -> Result<Self, SteamAudioError> {
-        let (progress_callback, progress_callback_user_data) =
-            if let Some((progress_callback, progress_callback_user_data)) =
-                progress_callback_information
-            {
-                (Some(progress_callback), progress_callback_user_data)
-            } else {
-                (None, std::ptr::null_mut())
-            };
+        let (progress_callback, progress_callback_user_data) = if let Some(CallbackInformation {
+            callback,
+            user_data,
+        }) = progress_callback_information
+        {
+            (Some(callback), user_data)
+        } else {
+            (None, std::ptr::null_mut())
+        };
 
         let mut static_mesh = Self(std::ptr::null_mut());
 

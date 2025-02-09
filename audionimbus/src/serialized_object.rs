@@ -1,7 +1,12 @@
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 
-/// A serialized representation of an API object, like an IPLScene or IPLProbeBatch.
+#[cfg(doc)]
+use crate::geometry::Scene;
+#[cfg(doc)]
+use crate::probe::ProbeBatch;
+
+/// A serialized representation of an API object, like a [`Scene`] or [`ProbeBatch`].
 ///
 /// Create an empty serialized object if you want to serialize an existing object to a byte array, or create a serialized object that wraps an existing byte array if you want to deserialize it.
 #[derive(Debug)]

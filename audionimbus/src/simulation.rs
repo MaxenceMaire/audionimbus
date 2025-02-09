@@ -1,4 +1,5 @@
 use crate::air_absorption::AirAbsorptionModel;
+use crate::callback::CallbackInformation;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -676,7 +677,7 @@ pub struct SimulationSharedInputs {
     pub irradiance_min_distance: f32,
 
     /// Optional callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
-    pub pathing_visualization_callback: Option<PathingVisualizationCallback>,
+    pub pathing_visualization_callback: Option<CallbackInformation<PathingVisualizationCallback>>,
 }
 
 impl From<&SimulationSharedInputs> for audionimbus_sys::IPLSimulationSharedInputs {
@@ -706,31 +707,22 @@ impl From<&SimulationSharedInputs> for audionimbus_sys::IPLSimulationSharedInput
     }
 }
 
-/// Callback information for visualizing valid path segments during the call to [`Simulator::run_pathing`].
+/// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
 ///
 /// You can use this to provide the user with visual feedback, like drawing each segment of a path.
-#[derive(Debug)]
-pub struct PathingVisualizationCallback {
-    /// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
-    ///
-    /// You can use this to provide the user with visual feedback, like drawing each segment of a path.
-    ///
-    /// # Arguments
-    ///
-    /// - `from`: position of starting probe.
-    /// - `to`: position of ending probe.
-    /// - `occluded`: occlusion status of ray segment between `from` to `to`.
-    /// - `user_data`: pointer to arbitrary user-specified data provided when calling the function that will call this callback.
-    pub callback: unsafe extern "C" fn(
-        from: audionimbus_sys::IPLVector3,
-        to: audionimbus_sys::IPLVector3,
-        occluded: audionimbus_sys::IPLbool,
-        userData: *mut std::ffi::c_void,
-    ),
-
-    /// Pointer to arbitrary user-specified data provided when calling the callback.
-    pub user_data: *mut std::ffi::c_void,
-}
+///
+/// # Arguments
+///
+/// - `from`: position of starting probe.
+/// - `to`: position of ending probe.
+/// - `occluded`: occlusion status of ray segment between `from` to `to`.
+/// - `user_data`: pointer to arbitrary user-specified data provided when calling the function that will call this callback.
+pub type PathingVisualizationCallback = unsafe extern "C" fn(
+    from: audionimbus_sys::IPLVector3,
+    to: audionimbus_sys::IPLVector3,
+    occluded: audionimbus_sys::IPLbool,
+    userData: *mut std::ffi::c_void,
+);
 
 /// Simulation results for a source.
 #[derive(Debug)]

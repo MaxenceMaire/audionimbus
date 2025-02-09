@@ -2,6 +2,7 @@ use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
 use crate::audio_buffer::AudioBuffer;
 use crate::audio_settings::AudioSettings;
+use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -10,11 +11,10 @@ use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Scene, SceneType};
 use crate::probe::ProbeBatch;
-use crate::progress_callback::ProgressCallbackInformation;
-use crate::simulator::BakedDataIdentifier;
+use crate::simulation::BakedDataIdentifier;
 
 #[cfg(doc)]
-use crate::simulator::BakedDataVariation;
+use crate::simulation::BakedDataVariation;
 
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
@@ -405,7 +405,7 @@ impl ReflectionEffectParams {
 pub fn bake_reflections(
     context: &Context,
     reflections_bake_params: &ReflectionsBakeParams,
-    progress_callback: Option<ProgressCallbackInformation>,
+    progress_callback: Option<CallbackInformation<ProgressCallback>>,
 ) {
     let (callback, user_data) = if let Some(callback_information) = progress_callback {
         (
