@@ -2,6 +2,9 @@ use super::{Material, Point, Scene, Triangle};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::serialized_object::SerializedObject;
 
+#[cfg(doc)]
+use crate::SceneSettings;
+
 /// A triangle mesh that doesn’t move or deform in any way.
 ///
 /// The unchanging portions of a scene should typically be collected into a single static mesh object.

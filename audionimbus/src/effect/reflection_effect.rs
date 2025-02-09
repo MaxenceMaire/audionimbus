@@ -334,7 +334,7 @@ impl ReflectionEffectParams {
     }
 
     /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-    /// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
+    /// This algorithm is similar to [`ReflectionEffectType::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
     /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
     ///
     /// # Arguments
@@ -628,6 +628,22 @@ impl ReflectionMixer {
         }
 
         Ok(reflection_mixer)
+    }
+
+    /// Retrieves the contents of the reflection mixer and places it into the audio buffer.
+    pub fn apply(
+        &self,
+        reflection_effect_params: &ReflectionEffectParams,
+        output_buffer: &mut AudioBuffer,
+    ) -> AudioEffectState {
+        let audio_effect_state = unsafe {
+            audionimbus_sys::iplReflectionMixerApply(
+                self.raw_ptr(),
+                &mut *reflection_effect_params.as_ffi(),
+                &mut *output_buffer.as_ffi(),
+            )
+        };
+        audio_effect_state.into()
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionMixer {

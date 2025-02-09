@@ -222,13 +222,13 @@ pub struct SimulationSettings {
     pub frame_size: usize,
 
     /// The OpenCL device being used.
-    /// Only necessary if [`Self::scene_type`] is [`SceneType::RadeonRays`], or [`Self::reflection_type`] is [`ReflectionEffect::TrueAudioNext`].
+    /// Only necessary if [`Self::scene_type`] is [`SceneType::RadeonRays`], or [`Self::reflection_type`] is [`ReflectionEffectType::TrueAudioNext`].
     pub open_cl_device: OpenClDevice,
 
     /// The Radeon Rays device being used. Only necessary if [`Self::scene_type`] is [`SceneType::RadeonRays`].
     pub radeon_rays_device: RadeonRaysDevice,
 
-    /// The TrueAudio Next device being used. Only necessary if [`Self::reflection_type`] is [`ReflectionEffect::TrueAudioNext`].
+    /// The TrueAudio Next device being used. Only necessary if [`Self::reflection_type`] is [`ReflectionEffectType::TrueAudioNext`].
     pub true_audio_next_device: TrueAudioNextDevice,
 }
 
