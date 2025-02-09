@@ -3,15 +3,15 @@ use super::equalizer::Equalizer;
 use crate::audio_buffer::AudioBuffer;
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
+use crate::device::open_cl::OpenClDevice;
+use crate::device::radeon_rays::RadeonRaysDevice;
+use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Scene, SceneType};
-use crate::open_cl::OpenClDevice;
 use crate::probe::ProbeBatch;
 use crate::progress_callback::ProgressCallbackInformation;
-use crate::radeon_rays::RadeonRaysDevice;
 use crate::simulator::BakedDataIdentifier;
-use crate::true_audio_next::TrueAudioNextDevice;
 
 #[cfg(doc)]
 use crate::simulator::BakedDataVariation;

@@ -27,17 +27,8 @@ pub use version::{
     STEAMAUDIO_VERSION_PATCH,
 };
 
-mod open_cl;
-pub use open_cl::{OpenClDevice, OpenClDeviceList, OpenClDeviceSettings, OpenClDeviceType};
-
-mod radeon_rays;
-pub use radeon_rays::RadeonRaysDevice;
-
-mod embree;
-pub use embree::EmbreeDevice;
-
-mod true_audio_next;
-pub use true_audio_next::TrueAudioNextDevice;
+pub mod device;
+pub use device::*;
 
 mod serialized_object;
 pub use serialized_object::SerializedObject;

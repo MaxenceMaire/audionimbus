@@ -1,8 +1,8 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
 use crate::context::Context;
-use crate::embree::EmbreeDevice;
+use crate::device::embree::EmbreeDevice;
+use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
-use crate::radeon_rays::RadeonRaysDevice;
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///

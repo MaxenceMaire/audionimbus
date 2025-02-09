@@ -1,5 +1,8 @@
 use crate::air_absorption::AirAbsorptionModel;
 use crate::context::Context;
+use crate::device::open_cl::OpenClDevice;
+use crate::device::radeon_rays::RadeonRaysDevice;
+use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::directivity::Directivity;
 use crate::distance_attenuation::DistanceAttenuationModel;
 use crate::effect::{
@@ -10,10 +13,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry;
 use crate::geometry::Scene;
 use crate::geometry::SceneType;
-use crate::open_cl::OpenClDevice;
 use crate::probe::ProbeBatch;
-use crate::radeon_rays::RadeonRaysDevice;
-use crate::true_audio_next::TrueAudioNextDevice;
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
 ///
