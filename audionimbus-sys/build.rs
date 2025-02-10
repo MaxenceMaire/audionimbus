@@ -1,8 +1,7 @@
 fn main() {
     println!("cargo::rerun-if-changed=steam-audio");
 
-    let link_kind = std::env::var("CARGO_FEATURE_STATIC").map_or("dylib", |_| "static");
-    println!("cargo:rustc-link-lib={}=phonon", link_kind);
+    println!("cargo:rustc-link-lib=phonon");
 
     let out_dir_path = std::env::var("OUT_DIR").unwrap();
     let out_dir = std::path::Path::new(&out_dir_path);
