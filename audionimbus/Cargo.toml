@@ -3,6 +3,11 @@ name = "audionimbus"
 version = "0.1.0"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
+license = "MIT OR Apache-2.0"
+keywords = ["gamedev", "game", "audio", "engine", "steam"]
+categories = ["game-development", "game-engines", "multimedia::audio", "simulation", "api-bindings"]
+repository = "https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus-sys"
+readme = "README.md"
 
 [dependencies]
 audionimbus-sys = { version = "4.6.0", path = "../audionimbus-sys" }

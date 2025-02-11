@@ -3,6 +3,11 @@ name = "audionimbus-sys"
 version = "4.6.0"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
+license = "MIT OR Apache-2.0"
+keywords = ["gamedev", "game", "audio", "engine", "steam"]
+categories = ["game-development", "game-engines", "multimedia::audio", "simulation", "external-ffi-bindings"]
+repository = "https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus"
+readme = "README.md"
 
 [build-dependencies]
 bindgen = "0.71.1"
