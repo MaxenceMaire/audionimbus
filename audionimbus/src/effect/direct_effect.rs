@@ -1,6 +1,6 @@
 use super::audio_effect_state::AudioEffectState;
 use super::Equalizer;
-use crate::audio_buffer::AudioBuffer;
+use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
@@ -40,8 +40,8 @@ impl DirectEffect {
     pub fn apply(
         &self,
         direct_effect_params: &DirectEffectParams,
-        input_buffer: &mut AudioBuffer,
-        output_buffer: &mut AudioBuffer,
+        input_buffer: &AudioBuffer<&'_ [Sample]>,
+        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplDirectEffectApply(

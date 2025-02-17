@@ -1,6 +1,6 @@
 use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
-use crate::audio_buffer::AudioBuffer;
+use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
@@ -54,8 +54,8 @@ impl ReflectionEffect {
     pub fn apply(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &mut AudioBuffer,
-        output_buffer: &mut AudioBuffer,
+        input_buffer: &AudioBuffer<&'_ [Sample]>,
+        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
@@ -78,7 +78,7 @@ impl ReflectionEffect {
     pub fn apply_into_mixer(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &mut AudioBuffer,
+        input_buffer: &AudioBuffer<&'_ [Sample]>,
         mixer: &ReflectionMixer,
     ) -> AudioEffectState {
         unsafe {
@@ -634,7 +634,7 @@ impl ReflectionMixer {
     pub fn apply(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        output_buffer: &mut AudioBuffer,
+        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
     ) -> AudioEffectState {
         let audio_effect_state = unsafe {
             audionimbus_sys::iplReflectionMixerApply(

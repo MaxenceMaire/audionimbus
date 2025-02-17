@@ -1,6 +1,6 @@
 use super::audio_effect_state::AudioEffectState;
 use super::SpeakerLayout;
-use crate::audio_buffer::AudioBuffer;
+use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
@@ -47,8 +47,8 @@ impl PathEffect {
     pub fn apply(
         &self,
         path_effect_params: &PathEffectParams,
-        input_buffer: &mut AudioBuffer,
-        output_buffer: &mut AudioBuffer,
+        input_buffer: &AudioBuffer<&'_ [Sample]>,
+        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
     ) -> AudioEffectState {
         unsafe {
             audionimbus_sys::iplPathEffectApply(
