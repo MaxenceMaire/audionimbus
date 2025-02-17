@@ -42,12 +42,16 @@ impl AmbisonicsEncodeEffect {
     /// Applies an Ambisonics encode effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply(
+    pub fn apply<I, O>(
         &self,
         ambisonics_encode_effect_params: &AmbisonicsEncodeEffectParams,
-        input_buffer: &AudioBuffer<&'_ [Sample]>,
-        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
-    ) -> AudioEffectState {
+        input_buffer: &AudioBuffer<I>,
+        output_buffer: &AudioBuffer<O>,
+    ) -> AudioEffectState
+    where
+        I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
         let required_num_channels = (ambisonics_encode_effect_params.order + 1).pow(2);
         assert_eq!(
             input_buffer.num_channels(),

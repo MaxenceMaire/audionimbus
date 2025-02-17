@@ -37,12 +37,16 @@ impl DirectEffect {
     /// Applies a direct effect to an audio buffer.
     ///
     /// This effect CAN be applied in-place.
-    pub fn apply(
+    pub fn apply<I, O>(
         &self,
         direct_effect_params: &DirectEffectParams,
-        input_buffer: &AudioBuffer<&'_ [Sample]>,
-        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
-    ) -> AudioEffectState {
+        input_buffer: &AudioBuffer<I>,
+        output_buffer: &AudioBuffer<O>,
+    ) -> AudioEffectState
+    where
+        I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
         unsafe {
             audionimbus_sys::iplDirectEffectApply(
                 self.raw_ptr(),

@@ -44,12 +44,16 @@ impl PathEffect {
     /// Applies a path effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply(
+    pub fn apply<I, O>(
         &self,
         path_effect_params: &PathEffectParams,
-        input_buffer: &AudioBuffer<&'_ [Sample]>,
-        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
-    ) -> AudioEffectState {
+        input_buffer: &AudioBuffer<I>,
+        output_buffer: &AudioBuffer<O>,
+    ) -> AudioEffectState
+    where
+        I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
         unsafe {
             audionimbus_sys::iplPathEffectApply(
                 self.raw_ptr(),

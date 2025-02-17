@@ -51,12 +51,16 @@ impl ReflectionEffect {
     /// This effect CANNOT be applied in-place.
     ///
     /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
-    pub fn apply(
+    pub fn apply<I, O>(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &AudioBuffer<&'_ [Sample]>,
-        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
-    ) -> AudioEffectState {
+        input_buffer: &AudioBuffer<I>,
+        output_buffer: &AudioBuffer<O>,
+    ) -> AudioEffectState
+    where
+        I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
@@ -75,12 +79,15 @@ impl ReflectionEffect {
     ///
     /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
     /// This can have a performance benefit if using convolution.
-    pub fn apply_into_mixer(
+    pub fn apply_into_mixer<I>(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &AudioBuffer<&'_ [Sample]>,
+        input_buffer: &AudioBuffer<I>,
         mixer: &ReflectionMixer,
-    ) -> AudioEffectState {
+    ) -> AudioEffectState
+    where
+        I: AsRef<[Sample]>,
+    {
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
@@ -631,11 +638,14 @@ impl ReflectionMixer {
     }
 
     /// Retrieves the contents of the reflection mixer and places it into the audio buffer.
-    pub fn apply(
+    pub fn apply<O>(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        output_buffer: &AudioBuffer<&'_ mut [Sample]>,
-    ) -> AudioEffectState {
+        output_buffer: &AudioBuffer<O>,
+    ) -> AudioEffectState
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
         let audio_effect_state = unsafe {
             audionimbus_sys::iplReflectionMixerApply(
                 self.raw_ptr(),

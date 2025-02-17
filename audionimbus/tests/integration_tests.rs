@@ -34,20 +34,18 @@ fn test_binaural_effect() {
     let duration_secs = 1.0;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let input_buffer =
-        audionimbus::AudioBuffer::<&[audionimbus::Sample]>::try_with_data(&sine_wave).unwrap();
+    let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
     let frame_size = sine_wave.len();
 
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
-    let output_buffer =
-        audionimbus::AudioBuffer::<&mut [audionimbus::Sample]>::try_with_data_and_settings(
-            &mut output_container,
-            &audionimbus::AudioBufferSettings {
-                num_channels: Some(2),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut output_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(2),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let context_settings = audionimbus::ContextSettings::default();
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
@@ -91,20 +89,18 @@ fn test_ambisonics_encode_effect() {
     let duration_secs = 1.0;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let input_buffer =
-        audionimbus::AudioBuffer::<&[audionimbus::Sample]>::try_with_data(&sine_wave).unwrap();
+    let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
     let frame_size = sine_wave.len();
 
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
-    let output_buffer =
-        audionimbus::AudioBuffer::<&mut [audionimbus::Sample]>::try_with_data_and_settings(
-            &mut output_container,
-            &audionimbus::AudioBufferSettings {
-                num_channels: Some(2),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut output_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(2),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let context_settings = audionimbus::ContextSettings::default();
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
@@ -146,20 +142,18 @@ fn test_ambisonics_decode_effect() {
     let duration_secs = 1.0;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let input_buffer =
-        audionimbus::AudioBuffer::<&[audionimbus::Sample]>::try_with_data(&sine_wave).unwrap();
+    let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
     let frame_size = sine_wave.len();
 
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
-    let output_buffer =
-        audionimbus::AudioBuffer::<&mut [audionimbus::Sample]>::try_with_data_and_settings(
-            &mut output_container,
-            &audionimbus::AudioBufferSettings {
-                num_channels: Some(2),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut output_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(2),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let context_settings = audionimbus::ContextSettings::default();
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
@@ -210,20 +204,18 @@ fn test_direct_effect() {
     let duration_secs = 1.0;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let input_buffer =
-        audionimbus::AudioBuffer::<&[audionimbus::Sample]>::try_with_data(&sine_wave).unwrap();
+    let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
     let frame_size = sine_wave.len();
 
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
-    let output_buffer =
-        audionimbus::AudioBuffer::<&mut [audionimbus::Sample]>::try_with_data_and_settings(
-            &mut output_container,
-            &audionimbus::AudioBufferSettings {
-                num_channels: Some(2),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut output_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(2),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let context_settings = audionimbus::ContextSettings::default();
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
@@ -599,20 +591,18 @@ fn test_simulation() {
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     // Must be mono.
-    let input_buffer =
-        audionimbus::AudioBuffer::<&[audionimbus::Sample]>::try_with_data(&sine_wave).unwrap();
+    let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
 
     // Must have 4 channels (1st order Ambisonics) for this example.
     let mut output_container = vec![0.0; 4 * input_buffer.num_samples()];
-    let output_buffer =
-        audionimbus::AudioBuffer::<&mut [audionimbus::Sample]>::try_with_data_and_settings(
-            &mut output_container,
-            &audionimbus::AudioBufferSettings {
-                num_channels: Some(4),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut output_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(4),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let mut reflection_effect_params = simulation_outputs.reflections();
     reflection_effect_params.num_channels = 4; // use all channels of the IR
@@ -840,20 +830,18 @@ fn test_pathing() {
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     // Must be mono.
-    let input_buffer =
-        audionimbus::AudioBuffer::<&[audionimbus::Sample]>::try_with_data(&sine_wave).unwrap();
+    let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
 
     // Must have 4 channels (1st order Ambisonics) for this example.
     let mut output_container = vec![0.0; 4 * input_buffer.num_samples()];
-    let output_buffer =
-        audionimbus::AudioBuffer::<&mut [audionimbus::Sample]>::try_with_data_and_settings(
-            &mut output_container,
-            &audionimbus::AudioBufferSettings {
-                num_channels: Some(4),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut output_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(4),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let simulation_outputs = source.get_outputs(audionimbus::SimulationFlags::PATHING);
     let mut path_effect_params = simulation_outputs.pathing();

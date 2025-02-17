@@ -17,7 +17,7 @@ pub struct AudioBuffer<T> {
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T> AudioBuffer<T> {
+impl<T: AsRef<[Sample]>> AudioBuffer<T> {
     /// Constructs a new `AudioBuffer` from raw pointers to mutable channel samples and the number
     /// of samples.
     ///
@@ -116,18 +116,31 @@ impl<T> AudioBuffer<T> {
         };
     }
 
+    /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
+    pub fn try_with_data(data: T) -> Result<Self, AudioBufferError> {
+        Self::try_with_data_and_settings(data, &AudioBufferSettings::default())
+    }
+
+    /// Constructs an `AudioBuffer` over `data` given the provided [`AudioBufferSettings`].
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
+    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
+    pub fn try_with_data_and_settings(
+        data: T,
+        settings: &AudioBufferSettings,
+    ) -> Result<Self, AudioBufferError> {
+        try_new_audio_buffer_with_data_and_settings(data.as_ref(), settings)
+    }
+
     /// Returns an iterator over channels.
-    ///
-    /// # Safety
-    ///
-    /// This function is unsafe because it directly accesses raw pointers.
-    /// Behavior is undefined if any of the channel pointers is null or invalid.
-    ///
-    /// For a safe alternative, see [`Self::channels`].
-    pub unsafe fn unchecked_channels(&self) -> impl Iterator<Item = &[Sample]> {
-        self.channel_ptrs
-            .iter()
-            .map(|&ptr| std::slice::from_raw_parts(ptr, self.num_samples))
+    pub fn channels(&self) -> impl Iterator<Item = &[Sample]> {
+        self.channel_ptrs.iter().map(|&ptr|
+                // SAFETY: pointers are guaranteed to be valid by the lifetime.
+                unsafe { std::slice::from_raw_parts(ptr, self.num_samples) })
     }
 
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Self> {
@@ -138,64 +151,6 @@ impl<T> AudioBuffer<T> {
         };
 
         FFIWrapper::new(audio_buffer)
-    }
-}
-
-impl<'a> AudioBuffer<&'a [Sample]> {
-    /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
-    pub fn try_with_data(data: &'a [Sample]) -> Result<Self, AudioBufferError> {
-        Self::try_with_data_and_settings(data, &AudioBufferSettings::default())
-    }
-
-    /// Constructs an `AudioBuffer` over `data` given the provided [`AudioBufferSettings`].
-    ///
-    /// # Errors
-    ///
-    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
-    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    pub fn try_with_data_and_settings(
-        data: &'a [Sample],
-        settings: &AudioBufferSettings,
-    ) -> Result<Self, AudioBufferError> {
-        try_new_audio_buffer_with_data_and_settings(data, settings)
-    }
-
-    /// Returns an iterator over channels.
-    pub fn channels(&'a self) -> impl Iterator<Item = &'a [Sample]> {
-        self.channel_ptrs.iter().map(|&ptr|
-                // SAFETY: pointers are guaranteed to be valid by the lifetime.
-                unsafe { std::slice::from_raw_parts(ptr, self.num_samples) })
-    }
-}
-
-impl<'a> AudioBuffer<&'a mut [Sample]> {
-    /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
-    pub fn try_with_data(data: &'a mut [Sample]) -> Result<Self, AudioBufferError> {
-        Self::try_with_data_and_settings(data, &AudioBufferSettings::default())
-    }
-
-    /// Constructs an `AudioBuffer` over `data` given the provided [`AudioBufferSettings`].
-    ///
-    /// # Errors
-    ///
-    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
-    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    pub fn try_with_data_and_settings(
-        data: &'a mut [Sample],
-        settings: &AudioBufferSettings,
-    ) -> Result<Self, AudioBufferError> {
-        try_new_audio_buffer_with_data_and_settings(data, settings)
-    }
-
-    /// Returns an iterator over channels.
-    pub fn channels(&'a self) -> impl Iterator<Item = &'a mut [Sample]> {
-        self.channel_ptrs.iter().map(|&ptr|
-                // SAFETY: pointers are guaranteed to be valid by the lifetime.
-                unsafe { std::slice::from_raw_parts_mut(ptr, self.num_samples) })
     }
 }
 
