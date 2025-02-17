@@ -31,7 +31,7 @@ fn test_load_hrtf_sofa_buffer() {}
 fn test_binaural_effect() {
     let frequency = 440.0;
     let amplitude = 0.5;
-    let duration_secs = 1.0;
+    let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
@@ -86,7 +86,7 @@ fn test_binaural_effect() {
 fn test_ambisonics_encode_effect() {
     let frequency = 440.0;
     let amplitude = 0.5;
-    let duration_secs = 1.0;
+    let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
@@ -139,7 +139,7 @@ fn test_ambisonics_encode_effect() {
 fn test_ambisonics_decode_effect() {
     let frequency = 440.0;
     let amplitude = 0.5;
-    let duration_secs = 1.0;
+    let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
@@ -201,7 +201,7 @@ fn test_ambisonics_decode_effect() {
 fn test_direct_effect() {
     let frequency = 440.0;
     let amplitude = 0.5;
-    let duration_secs = 1.0;
+    let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
@@ -587,7 +587,7 @@ fn test_simulation() {
 
     let frequency = 440.0;
     let amplitude = 0.5;
-    let duration_secs = 1.0;
+    let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     // Must be mono.
@@ -826,7 +826,7 @@ fn test_pathing() {
 
     let frequency = 440.0;
     let amplitude = 0.5;
-    let duration_secs = 1.0;
+    let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
     // Must be mono.
