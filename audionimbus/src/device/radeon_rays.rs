@@ -42,8 +42,20 @@ impl RadeonRaysDevice {
     }
 }
 
+impl Clone for RadeonRaysDevice {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplRadeonRaysDeviceRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for RadeonRaysDevice {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplRadeonRaysDeviceRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for RadeonRaysDevice {}
+unsafe impl Sync for RadeonRaysDevice {}

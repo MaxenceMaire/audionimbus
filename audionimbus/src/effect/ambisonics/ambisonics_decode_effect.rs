@@ -82,11 +82,23 @@ impl AmbisonicsDecodeEffect {
     }
 }
 
+impl Clone for AmbisonicsDecodeEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplAmbisonicsDecodeEffectRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for AmbisonicsDecodeEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for AmbisonicsDecodeEffect {}
+unsafe impl Sync for AmbisonicsDecodeEffect {}
 
 /// Settings used to create an Ambisonics decode effect.
 #[derive(Debug)]

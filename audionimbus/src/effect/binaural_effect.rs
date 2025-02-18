@@ -70,11 +70,23 @@ impl BinauralEffect {
     }
 }
 
+impl Clone for BinauralEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplBinauralEffectRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for BinauralEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplBinauralEffectRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for BinauralEffect {}
+unsafe impl Sync for BinauralEffect {}
 
 /// Settings used to create a binaural effect.
 #[derive(Debug)]

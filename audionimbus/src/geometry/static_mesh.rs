@@ -148,11 +148,23 @@ impl StaticMesh {
     }
 }
 
+impl Clone for StaticMesh {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplStaticMeshRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for StaticMesh {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplStaticMeshRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for StaticMesh {}
+unsafe impl Sync for StaticMesh {}
 
 /// Settings used to create a static mesh.
 #[derive(Default, Debug)]

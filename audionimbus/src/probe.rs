@@ -44,11 +44,23 @@ impl ProbeArray {
     }
 }
 
+impl Clone for ProbeArray {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplProbeArrayRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for ProbeArray {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplProbeArrayRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for ProbeArray {}
+unsafe impl Sync for ProbeArray {}
 
 /// Settings used to generate probes.
 #[derive(Copy, Clone, Debug)]
@@ -194,8 +206,20 @@ impl ProbeBatch {
     }
 }
 
+impl Clone for ProbeBatch {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplProbeBatchRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for ProbeBatch {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplProbeBatchRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for ProbeBatch {}
+unsafe impl Sync for ProbeBatch {}

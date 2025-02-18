@@ -109,11 +109,23 @@ impl ReflectionEffect {
     }
 }
 
+impl Clone for ReflectionEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplReflectionEffectRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for ReflectionEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReflectionEffectRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for ReflectionEffect {}
+unsafe impl Sync for ReflectionEffect {}
 
 /// Settings used to create a reflection effect.
 #[derive(Copy, Clone, Debug)]
@@ -665,8 +677,20 @@ impl ReflectionMixer {
     }
 }
 
+impl Clone for ReflectionMixer {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplReflectionMixerRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for ReflectionMixer {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReflectionMixerRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for ReflectionMixer {}
+unsafe impl Sync for ReflectionMixer {}

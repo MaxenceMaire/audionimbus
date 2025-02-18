@@ -10,7 +10,7 @@ use crate::probe::ProbeBatch;
 ///
 /// Create an empty serialized object if you want to serialize an existing object to a byte array, or create a serialized object that wraps an existing byte array if you want to deserialize it.
 #[derive(Debug)]
-pub struct SerializedObject(audionimbus_sys::IPLSerializedObject);
+pub struct SerializedObject(pub(crate) audionimbus_sys::IPLSerializedObject);
 
 impl SerializedObject {
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
@@ -76,8 +76,20 @@ impl SerializedObject {
     }
 }
 
+impl Clone for SerializedObject {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplSerializedObjectRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for SerializedObject {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSerializedObjectRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for SerializedObject {}
+unsafe impl Sync for SerializedObject {}

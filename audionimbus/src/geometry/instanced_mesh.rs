@@ -61,11 +61,23 @@ impl InstancedMesh {
     }
 }
 
+impl Clone for InstancedMesh {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplInstancedMeshRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for InstancedMesh {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplInstancedMeshRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for InstancedMesh {}
+unsafe impl Sync for InstancedMesh {}
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug)]

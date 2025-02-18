@@ -158,11 +158,23 @@ impl Simulator {
     }
 }
 
+impl Clone for Simulator {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplSimulatorRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for Simulator {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSimulatorRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for Simulator {}
+unsafe impl Sync for Simulator {}
 
 /// Settings used to create a simulator.
 #[derive(Debug)]
@@ -353,11 +365,23 @@ impl Source {
     }
 }
 
+impl Clone for Source {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplSourceRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for Source {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSourceRelease(&mut self.0) }
     }
 }
+
+unsafe impl Send for Source {}
+unsafe impl Sync for Source {}
 
 /// Settings used to create a source.
 #[derive(Debug)]
