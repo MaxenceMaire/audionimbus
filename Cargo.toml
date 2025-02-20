@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["audionimbus", "audionimbus-sys"]
+members = [
+  "audionimbus",
+  "audionimbus/demo",
+  "audionimbus-sys"
+]

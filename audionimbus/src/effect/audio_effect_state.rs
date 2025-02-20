@@ -1,5 +1,5 @@
 /// States that an audio effect can be left in after processing a frame of audio.
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum AudioEffectState {
     /// One or more samples of tail remain in the effect’s internal buffers.
     TailRemaining,
