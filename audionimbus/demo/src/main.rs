@@ -49,7 +49,7 @@ fn main() {
     let delta_time = frame_size as f32 / sample_rate as f32; // Duration of a frame, in seconds.
     let speed = 5.0; // Speed of the sound source, in m/s.
     let distance_traveled = speed * delta_time; // Distance traveled over a frame.
-    let radius = 2.0; // Radius of the sound source's circular path, in meters.
+    let radius = 1.0; // Radius of the sound source's circular path, in meters.
     let mut angle = 0.0; // Direction angle of the sound source.
 
     let stream = device

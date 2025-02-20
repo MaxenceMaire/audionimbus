@@ -1,8 +1,8 @@
 # audionimbus
 
 This repository consists of two Rust crates:
-- [`audionimbus`](audionimbus): a safe wrapper around the Steam Audio C library, providing a Rust-friendly API.
-- [`audionimbus-sys`](audionimbus-sys): raw bindings to the Steam Audio C library, offering low-level access to its features.
+- [`audionimbus`](audionimbus): a safe wrapper around the Steam Audio C API, providing a Rust-friendly API.
+- [`audionimbus-sys`](audionimbus-sys): raw bindings to the Steam Audio C API, offering low-level access to its features.
 
 ## License
 
