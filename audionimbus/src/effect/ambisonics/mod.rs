@@ -15,3 +15,8 @@ mod ambisonics_panning_effect;
 pub use ambisonics_panning_effect::{
     AmbisonicsPanningEffect, AmbisonicsPanningEffectParams, AmbisonicsPanningEffectSettings,
 };
+
+mod ambisonics_binaural_effect;
+pub use ambisonics_binaural_effect::{
+    AmbisonicsBinauralEffect, AmbisonicsBinauralEffectParams, AmbisonicsBinauralEffectSettings,
+};
