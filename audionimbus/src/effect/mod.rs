@@ -27,3 +27,6 @@ mod path_effect;
 pub use path_effect::{
     bake_path, PathBakeParams, PathEffect, PathEffectParams, PathEffectSettings, Spatialization,
 };
+
+mod panning_effect;
+pub use panning_effect::{PanningEffect, PanningEffectParams, PanningEffectSettings};
