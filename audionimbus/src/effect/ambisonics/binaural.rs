@@ -103,7 +103,7 @@ impl Drop for AmbisonicsBinauralEffect {
 unsafe impl Send for AmbisonicsBinauralEffect {}
 unsafe impl Sync for AmbisonicsBinauralEffect {}
 
-/// Settings used to create an Ambisonics binaural effect.
+/// Settings used to create an ambisonics binaural effect.
 #[derive(Debug)]
 pub struct AmbisonicsBinauralEffectSettings<'a> {
     /// The HRTF to use.

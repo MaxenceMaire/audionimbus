@@ -100,7 +100,7 @@ unsafe impl Sync for PathEffect {}
 /// Settings used to create a path effect.
 #[derive(Debug)]
 pub struct PathEffectSettings<'a> {
-    /// The maximum Ambisonics order that will be used by output audio buffers.
+    /// The maximum ambisonics order that will be used by output audio buffers.
     pub max_order: usize,
 
     /// If `Some`, then this effect will render spatialized audio into the output buffer.

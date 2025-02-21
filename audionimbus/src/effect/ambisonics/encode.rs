@@ -6,10 +6,10 @@ use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
 
-/// Encodes a point source into Ambisonics.
+/// Encodes a point source into ambisonics.
 ///
 /// Given a point source with some direction relative to the listener, this effect generates an Ambisonic audio buffer that approximates a point source in the given direction.
-/// This allows multiple point sources and ambiences to mixed to a single Ambisonics buffer before being spatialized.
+/// This allows multiple point sources and ambiences to mixed to a single ambisonics buffer before being spatialized.
 #[derive(Debug)]
 pub struct AmbisonicsEncodeEffect(pub audionimbus_sys::IPLAmbisonicsEncodeEffect);
 
@@ -39,7 +39,7 @@ impl AmbisonicsEncodeEffect {
         Ok(ambisonics_encode_effect)
     }
 
-    /// Applies an Ambisonics encode effect to an audio buffer.
+    /// Applies an ambisonics encode effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
     pub fn apply<I, O>(
@@ -104,11 +104,11 @@ impl Drop for AmbisonicsEncodeEffect {
 unsafe impl Send for AmbisonicsEncodeEffect {}
 unsafe impl Sync for AmbisonicsEncodeEffect {}
 
-/// Settings used to create an Ambisonics decode effect.
+/// Settings used to create an ambisonics decode effect.
 #[derive(Debug)]
 pub struct AmbisonicsEncodeEffectSettings {
-    /// The maximum Ambisonics order that will be used by input audio buffers.
-    /// Maximum Ambisonics order to encode audio buffers to.
+    /// The maximum ambisonics order that will be used by input audio buffers.
+    /// Maximum ambisonics order to encode audio buffers to.
     pub max_order: usize,
 }
 
@@ -120,7 +120,7 @@ impl From<&AmbisonicsEncodeEffectSettings> for audionimbus_sys::IPLAmbisonicsEnc
     }
 }
 
-/// Parameters for applying an Ambisonics encode effect to an audio buffer.
+/// Parameters for applying an ambisonics encode effect to an audio buffer.
 #[derive(Debug)]
 pub struct AmbisonicsEncodeEffectParams {
     /// Vector pointing from the listener towards the source.

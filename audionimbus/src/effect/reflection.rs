@@ -18,7 +18,7 @@ use crate::simulation::BakedDataVariation;
 
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
-/// The result is encoded in Ambisonics, and can be decoded using an Ambisonics decode effect.
+/// The result is encoded in ambisonics, and can be decoded using an ambisonics decode effect.
 #[derive(Debug)]
 pub struct ReflectionEffect(audionimbus_sys::IPLReflectionEffect);
 

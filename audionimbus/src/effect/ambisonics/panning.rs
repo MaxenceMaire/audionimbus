@@ -38,7 +38,7 @@ impl AmbisonicsPanningEffect {
         Ok(ambisonics_panning_effect)
     }
 
-    /// Applies an Ambisonics panning effect to an audio buffer.
+    /// Applies an ambisonics panning effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
     pub fn apply<I, O>(
@@ -71,7 +71,7 @@ impl AmbisonicsPanningEffect {
         .into()
     }
 
-    /// Resets the internal processing state of an Ambisonics panning effect.
+    /// Resets the internal processing state of an ambisonics panning effect.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsPanningEffectReset(self.raw_ptr()) };
     }
@@ -103,13 +103,13 @@ impl Drop for AmbisonicsPanningEffect {
 unsafe impl Send for AmbisonicsPanningEffect {}
 unsafe impl Sync for AmbisonicsPanningEffect {}
 
-/// Settings used to create an Ambisonics panning effect.
+/// Settings used to create an ambisonics panning effect.
 #[derive(Debug)]
 pub struct AmbisonicsPanningEffectSettings {
     /// The speaker layout that will be used by output audio buffers.
     pub speaker_layout: SpeakerLayout,
 
-    /// The maximum Ambisonics order that will be used by input audio buffers.
+    /// The maximum ambisonics order that will be used by input audio buffers.
     pub max_order: usize,
 }
 
@@ -124,7 +124,7 @@ impl From<&AmbisonicsPanningEffectSettings>
     }
 }
 
-/// Parameters for applying an Ambisonics panning effect to an audio buffer.
+/// Parameters for applying an ambisonics panning effect to an audio buffer.
 #[derive(Debug)]
 pub struct AmbisonicsPanningEffectParams {
     /// Ambisonic order of the input buffer.

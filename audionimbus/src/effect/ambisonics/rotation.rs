@@ -72,7 +72,7 @@ impl AmbisonicsRotationEffect {
         .into()
     }
 
-    /// Resets the internal processing state of an Ambisonics rotation effect.
+    /// Resets the internal processing state of an ambisonics rotation effect.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsRotationEffectReset(self.raw_ptr()) };
     }
@@ -104,7 +104,7 @@ impl Drop for AmbisonicsRotationEffect {
 unsafe impl Send for AmbisonicsRotationEffect {}
 unsafe impl Sync for AmbisonicsRotationEffect {}
 
-/// Settings used to create an Ambisonics rotation effect.
+/// Settings used to create an ambisonics rotation effect.
 #[derive(Debug)]
 pub struct AmbisonicsRotationEffectSettings {
     /// The maximum ambisonics order that will be used by input audio buffers.

@@ -108,7 +108,7 @@ impl From<&BinauralEffectSettings<'_>> for audionimbus_sys::IPLBinauralEffectSet
     }
 }
 
-/// Parameters for applying an Ambisonics binaural effect to an audio buffer.
+/// Parameters for applying an ambisonics binaural effect to an audio buffer.
 #[derive(Debug)]
 pub struct BinauralEffectParams<'a> {
     /// Unit vector pointing from the listener towards the source.

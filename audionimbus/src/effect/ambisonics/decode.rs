@@ -8,9 +8,9 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 
-/// Applies a rotation to an Ambisonics audio buffer, then decodes it using panning or binaural rendering.
+/// Applies a rotation to an ambisonics audio buffer, then decodes it using panning or binaural rendering.
 ///
-/// This is essentially an Ambisonics rotate effect followed by either an Ambisonics panning effect or an Ambisonics binaural effect.
+/// This is essentially an ambisonics rotate effect followed by either an ambisonics panning effect or an ambisonics binaural effect.
 #[derive(Debug)]
 pub struct AmbisonicsDecodeEffect(pub audionimbus_sys::IPLAmbisonicsDecodeEffect);
 
@@ -40,7 +40,7 @@ impl AmbisonicsDecodeEffect {
         Ok(ambisonics_decode_effect)
     }
 
-    /// Applies an Ambisonics decode effect to an audio buffer.
+    /// Applies an ambisonics decode effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
     pub fn apply<I, O>(
@@ -105,7 +105,7 @@ impl Drop for AmbisonicsDecodeEffect {
 unsafe impl Send for AmbisonicsDecodeEffect {}
 unsafe impl Sync for AmbisonicsDecodeEffect {}
 
-/// Settings used to create an Ambisonics decode effect.
+/// Settings used to create an ambisonics decode effect.
 #[derive(Debug)]
 pub struct AmbisonicsDecodeEffectSettings<'a> {
     /// The speaker layout that will be used by output audio buffers.
@@ -114,7 +114,7 @@ pub struct AmbisonicsDecodeEffectSettings<'a> {
     /// The HRTF to use.
     pub hrtf: &'a Hrtf,
 
-    /// The maximum Ambisonics order that will be used by input audio buffers.
+    /// The maximum ambisonics order that will be used by input audio buffers.
     pub max_order: usize,
 }
 
@@ -130,7 +130,7 @@ impl From<&AmbisonicsDecodeEffectSettings<'_>>
     }
 }
 
-/// Parameters for applying an Ambisonics decode effect to an audio buffer.
+/// Parameters for applying an ambisonics decode effect to an audio buffer.
 #[derive(Debug)]
 pub struct AmbisonicsDecodeEffectParams<'a> {
     /// Ambisonic order of the input buffer.
