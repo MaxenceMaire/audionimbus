@@ -1,27 +1,17 @@
-mod ambisonics_encode_effect;
-pub use ambisonics_encode_effect::{
-    AmbisonicsEncodeEffect, AmbisonicsEncodeEffectParams, AmbisonicsEncodeEffectSettings,
-};
+pub mod encode;
+pub use encode::*;
 
-mod ambisonics_decode_effect;
-pub use ambisonics_decode_effect::{
-    AmbisonicsDecodeEffect, AmbisonicsDecodeEffectParams, AmbisonicsDecodeEffectSettings,
-};
+pub mod decode;
+pub use decode::*;
+
+pub mod panning;
+pub use panning::*;
+
+pub mod binaural;
+pub use binaural::*;
+
+pub mod rotation;
+pub use rotation::*;
 
 mod speaker_layout;
 pub use speaker_layout::SpeakerLayout;
-
-mod ambisonics_panning_effect;
-pub use ambisonics_panning_effect::{
-    AmbisonicsPanningEffect, AmbisonicsPanningEffectParams, AmbisonicsPanningEffectSettings,
-};
-
-mod ambisonics_binaural_effect;
-pub use ambisonics_binaural_effect::{
-    AmbisonicsBinauralEffect, AmbisonicsBinauralEffectParams, AmbisonicsBinauralEffectSettings,
-};
-
-mod ambisonics_rotation_effect;
-pub use ambisonics_rotation_effect::{
-    AmbisonicsRotationEffect, AmbisonicsRotationEffectParams, AmbisonicsRotationEffectSettings,
-};
