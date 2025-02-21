@@ -20,3 +20,8 @@ mod ambisonics_binaural_effect;
 pub use ambisonics_binaural_effect::{
     AmbisonicsBinauralEffect, AmbisonicsBinauralEffectParams, AmbisonicsBinauralEffectSettings,
 };
+
+mod ambisonics_rotation_effect;
+pub use ambisonics_rotation_effect::{
+    AmbisonicsRotationEffect, AmbisonicsRotationEffectParams, AmbisonicsRotationEffectSettings,
+};
