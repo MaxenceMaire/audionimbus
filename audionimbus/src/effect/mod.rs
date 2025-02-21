@@ -5,11 +5,7 @@ mod binaural_effect;
 pub use binaural_effect::{BinauralEffect, BinauralEffectParams, BinauralEffectSettings};
 
 mod ambisonics;
-pub use ambisonics::{
-    AmbisonicsDecodeEffect, AmbisonicsDecodeEffectParams, AmbisonicsDecodeEffectSettings,
-    AmbisonicsEncodeEffect, AmbisonicsEncodeEffectParams, AmbisonicsEncodeEffectSettings,
-    SpeakerLayout,
-};
+pub use ambisonics::*;
 
 mod direct_effect;
 pub use direct_effect::{DirectEffect, DirectEffectParams, DirectEffectSettings, Transmission};

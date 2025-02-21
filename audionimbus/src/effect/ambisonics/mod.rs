@@ -10,3 +10,8 @@ pub use ambisonics_decode_effect::{
 
 mod speaker_layout;
 pub use speaker_layout::SpeakerLayout;
+
+mod ambisonics_panning_effect;
+pub use ambisonics_panning_effect::{
+    AmbisonicsPanningEffect, AmbisonicsPanningEffectParams, AmbisonicsPanningEffectSettings,
+};
