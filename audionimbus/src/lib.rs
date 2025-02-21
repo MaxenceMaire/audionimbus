@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 pub mod audio_buffer;
 pub use audio_buffer::*;
 
