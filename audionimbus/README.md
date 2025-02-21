@@ -115,9 +115,9 @@ let _effect_state =
 // required, use the `AudioBuffer::interleave` method to convert the format.
 ```
 
-To implement real-time audio processing and playback in your game, check out the [demo crate](demo) for a more comprehensive example.
+To implement real-time audio processing and playback in your game, check out the [demo crate](./demo) for a more comprehensive example.
 
-For additional examples, you can explore the [tests](tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
+For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
 
 ## Documentation
 
