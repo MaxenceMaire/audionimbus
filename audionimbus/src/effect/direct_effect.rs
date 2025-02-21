@@ -58,6 +58,11 @@ impl DirectEffect {
         .into()
     }
 
+    /// Resets the internal processing state of a direct effect.
+    pub fn reset(&mut self) {
+        unsafe { audionimbus_sys::iplDirectEffectReset(self.raw_ptr()) };
+    }
+
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
         self.0
     }

@@ -61,6 +61,11 @@ impl BinauralEffect {
         .into()
     }
 
+    /// Resets the internal processing state of a binaural effect.
+    pub fn reset(&mut self) {
+        unsafe { audionimbus_sys::iplBinauralEffectReset(self.raw_ptr()) };
+    }
+
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
         self.0
     }

@@ -65,6 +65,11 @@ impl PathEffect {
         .into()
     }
 
+    /// Resets the internal processing state of a path effect.
+    pub fn reset(&mut self) {
+        unsafe { audionimbus_sys::iplPathEffectReset(self.raw_ptr()) };
+    }
+
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
         self.0
     }

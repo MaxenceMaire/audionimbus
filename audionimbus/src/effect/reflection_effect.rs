@@ -100,6 +100,11 @@ impl ReflectionEffect {
         .into()
     }
 
+    /// Resets the internal processing state of a reflection effect.
+    pub fn reset(&mut self) {
+        unsafe { audionimbus_sys::iplReflectionEffectReset(self.raw_ptr()) };
+    }
+
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
         self.0
     }
@@ -666,6 +671,11 @@ impl ReflectionMixer {
             )
         };
         audio_effect_state.into()
+    }
+
+    /// Resets the internal processing state of a reflection mixer.
+    pub fn reset(&mut self) {
+        unsafe { audionimbus_sys::iplReflectionMixerReset(self.raw_ptr()) };
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionMixer {

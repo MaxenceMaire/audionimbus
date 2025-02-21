@@ -73,6 +73,11 @@ impl AmbisonicsDecodeEffect {
         .into()
     }
 
+    /// Resets the internal processing state of an ambisonics decode effect.
+    pub fn reset(&mut self) {
+        unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectReset(self.raw_ptr()) };
+    }
+
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
         self.0
     }
