@@ -30,3 +30,8 @@ pub use path_effect::{
 
 mod panning_effect;
 pub use panning_effect::{PanningEffect, PanningEffectParams, PanningEffectSettings};
+
+mod virtual_surround_effect;
+pub use virtual_surround_effect::{
+    VirtualSurroundEffect, VirtualSurroundEffectParams, VirtualSurroundEffectSettings,
+};
