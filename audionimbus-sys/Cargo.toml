@@ -1,5 +1,6 @@
 [package]
 name = "audionimbus-sys"
+description = "Rust bindings for Steam Audio."
 version = "4.6.0"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]

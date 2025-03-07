@@ -1,10 +1,11 @@
 # audionimbus
 
-A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/) that provides spatial audio capabilities with realistic occlusion, reflection, reverb, and HRTF effects, accounting for physical attributes and scene geometry.
+A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/) that provides spatial audio capabilities with realistic occlusion, reverb, and HRTF effects, accounting for physical attributes and scene geometry.
 
 ## Overview
 
 `audionimbus` simplifies the integration of Steam Audio into Rust projects by offering a safe, idiomiatic API.
+
 It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindings to the Steam Audio C API.
 
 ## Version compatibility
