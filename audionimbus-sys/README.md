@@ -37,7 +37,7 @@ Ensure the library is placed in a location listed in the [dynamic library search
 
 Finally, add `audionimbus-sys` to your `Cargo.toml`:
 
-```
+```toml
 [dependencies]
 audionimbus-sys = "4.6.0"
 ```

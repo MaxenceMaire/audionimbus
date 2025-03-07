@@ -40,7 +40,7 @@ Ensure the library is placed in a location listed in the [dynamic library search
 
 Finally, add `audionimbus` to your `Cargo.toml`:
 
-```
+```toml
 [dependencies]
 audionimbus = "0.1.0"
 ```
