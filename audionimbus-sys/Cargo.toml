@@ -7,7 +7,7 @@ authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 license = "MIT OR Apache-2.0"
 keywords = ["gamedev", "game", "audio", "engine", "steam"]
 categories = ["game-development", "game-engines", "multimedia::audio", "simulation", "external-ffi-bindings"]
-repository = "https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus"
+repository = "https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus-sys"
 readme = "README.md"
 
 [build-dependencies]
