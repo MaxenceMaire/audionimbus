@@ -9,6 +9,10 @@ keywords = ["gamedev", "game", "audio", "engine", "steam"]
 categories = ["game-development", "game-engines", "multimedia::audio", "simulation", "external-ffi-bindings"]
 repository = "https://github.com/MaxenceMaire/audionimbus"
 readme = "README.md"
+exclude = [
+  "steam-audio/**",
+  "!steam-audio/core/src/core/**"
+]
 
 [build-dependencies]
 bindgen = "0.71.1"
