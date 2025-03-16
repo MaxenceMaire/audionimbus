@@ -8,7 +8,7 @@ use crate::ffi_wrapper::FFIWrapper;
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 #[derive(Debug)]
-pub struct DirectEffect(pub audionimbus_sys::IPLDirectEffect);
+pub struct DirectEffect(audionimbus_sys::IPLDirectEffect);
 
 impl DirectEffect {
     pub fn try_new(

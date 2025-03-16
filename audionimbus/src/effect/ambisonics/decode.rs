@@ -12,7 +12,7 @@ use crate::hrtf::Hrtf;
 ///
 /// This is essentially an ambisonics rotate effect followed by either an ambisonics panning effect or an ambisonics binaural effect.
 #[derive(Debug)]
-pub struct AmbisonicsDecodeEffect(pub audionimbus_sys::IPLAmbisonicsDecodeEffect);
+pub struct AmbisonicsDecodeEffect(audionimbus_sys::IPLAmbisonicsDecodeEffect);
 
 impl AmbisonicsDecodeEffect {
     pub fn try_new(
@@ -57,7 +57,7 @@ impl AmbisonicsDecodeEffect {
         assert_eq!(
             input_buffer.num_channels(),
             required_num_channels,
-            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            "ambisonic order N = {} requires (N + 1)^2 = {} input channels",
             ambisonics_decode_effect_params.order,
             required_num_channels
         );

@@ -11,7 +11,7 @@ use crate::geometry::CoordinateSystem;
 /// The input buffer is assumed to describe a sound field in "world space".
 /// The output buffer is then the same sound field, but expressed relative to the listener’s orientation.
 #[derive(Debug)]
-pub struct AmbisonicsRotationEffect(pub audionimbus_sys::IPLAmbisonicsRotationEffect);
+pub struct AmbisonicsRotationEffect(audionimbus_sys::IPLAmbisonicsRotationEffect);
 
 impl AmbisonicsRotationEffect {
     pub fn try_new(
@@ -56,7 +56,14 @@ impl AmbisonicsRotationEffect {
         assert_eq!(
             input_buffer.num_channels(),
             required_num_channels,
-            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            "ambisonic order N = {} requires (N + 1)^2 = {} input channels",
+            ambisonics_rotation_effect_params.order,
+            required_num_channels
+        );
+        assert_eq!(
+            output_buffer.num_channels(),
+            required_num_channels,
+            "ambisonic order N = {} requires (N + 1)^2 = {} output channels",
             ambisonics_rotation_effect_params.order,
             required_num_channels
         );

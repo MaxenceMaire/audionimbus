@@ -11,7 +11,7 @@ use crate::geometry::Direction;
 /// Given a point source with some direction relative to the listener, this effect generates an Ambisonic audio buffer that approximates a point source in the given direction.
 /// This allows multiple point sources and ambiences to mixed to a single ambisonics buffer before being spatialized.
 #[derive(Debug)]
-pub struct AmbisonicsEncodeEffect(pub audionimbus_sys::IPLAmbisonicsEncodeEffect);
+pub struct AmbisonicsEncodeEffect(audionimbus_sys::IPLAmbisonicsEncodeEffect);
 
 impl AmbisonicsEncodeEffect {
     pub fn try_new(
@@ -54,9 +54,9 @@ impl AmbisonicsEncodeEffect {
     {
         let required_num_channels = (ambisonics_encode_effect_params.order + 1).pow(2);
         assert_eq!(
-            input_buffer.num_channels(),
+            output_buffer.num_channels(),
             required_num_channels,
-            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            "ambisonic order N = {} requires (N + 1)^2 = {} output channels",
             ambisonics_encode_effect_params.order,
             required_num_channels
         );

@@ -10,7 +10,7 @@ use crate::ffi_wrapper::FFIWrapper;
 ///
 /// This involves calculating signals to emit from each speaker so as to approximate the Ambisonic sound field.
 #[derive(Debug)]
-pub struct AmbisonicsPanningEffect(pub audionimbus_sys::IPLAmbisonicsPanningEffect);
+pub struct AmbisonicsPanningEffect(audionimbus_sys::IPLAmbisonicsPanningEffect);
 
 impl AmbisonicsPanningEffect {
     pub fn try_new(
@@ -55,7 +55,7 @@ impl AmbisonicsPanningEffect {
         assert_eq!(
             input_buffer.num_channels(),
             required_num_channels,
-            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            "ambisonic order N = {} requires (N + 1)^2 = {} input channels",
             ambisonics_panning_effect_params.order,
             required_num_channels
         );

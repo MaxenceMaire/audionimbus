@@ -10,7 +10,7 @@ use crate::hrtf::Hrtf;
 ///
 /// This results in more immersive spatialization of the ambisonic audio as compared to using an ambisonics binaural effect, at the cost of slightly increased CPU usage.
 #[derive(Debug)]
-pub struct AmbisonicsBinauralEffect(pub audionimbus_sys::IPLAmbisonicsBinauralEffect);
+pub struct AmbisonicsBinauralEffect(audionimbus_sys::IPLAmbisonicsBinauralEffect);
 
 impl AmbisonicsBinauralEffect {
     pub fn try_new(
@@ -55,9 +55,15 @@ impl AmbisonicsBinauralEffect {
         assert_eq!(
             input_buffer.num_channels(),
             required_num_channels,
-            "ambisonic order N = {} requires (N + 1)^2 = {} channels",
+            "ambisonic order N = {} requires (N + 1)^2 = {} input channels",
             ambisonics_binaural_effect_params.order,
             required_num_channels
+        );
+
+        assert_eq!(
+            output_buffer.num_channels(),
+            2,
+            "output audio buffer must have 2 channels",
         );
 
         unsafe {
