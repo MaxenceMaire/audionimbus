@@ -111,6 +111,24 @@ impl Scene {
     }
 }
 
+impl Clone for Scene {
+    fn clone(&self) -> Self {
+        unsafe {
+            audionimbus_sys::iplSceneRetain(self.0);
+        }
+        Self(self.0)
+    }
+}
+
+impl Drop for Scene {
+    fn drop(&mut self) {
+        unsafe { audionimbus_sys::iplSceneRelease(&mut self.0) }
+    }
+}
+
+unsafe impl Send for Scene {}
+unsafe impl Sync for Scene {}
+
 /// Settings used to create a scene.
 ///
 /// Each scene variant corresponds to a different ray tracing implementation.

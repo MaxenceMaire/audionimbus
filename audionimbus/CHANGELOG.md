@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Implement `Send` trait for `Scene`.
+
 ## [0.2.0] - 2025-03-17
 
 ### Changed
