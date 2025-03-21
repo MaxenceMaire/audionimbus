@@ -92,11 +92,11 @@ fn test_ambisonics_encode_effect() {
     let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
     let frame_size = sine_wave.len();
 
-    let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
+    let mut output_container = vec![0.0; input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &audionimbus::AudioBufferSettings {
-            num_channels: Some(2),
+            num_channels: Some(1),
             ..Default::default()
         },
     )
@@ -521,34 +521,39 @@ fn test_simulation() {
     };
     let mut source = audionimbus::Source::try_new(&simulator, &source_settings).unwrap();
 
+    let pathing_probes = audionimbus::ProbeBatch::try_new(&context).unwrap();
     let simulation_inputs = audionimbus::SimulationInputs {
-        flags: audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
-        direct_flags: audionimbus::DirectSimulationFlags::OCCLUSION
-            | audionimbus::DirectSimulationFlags::TRANSMISSION,
         source: audionimbus::CoordinateSystem {
             right: audionimbus::Vector3::new(1.0, 0.0, 0.0),
             up: audionimbus::Vector3::new(0.0, 1.0, 0.0),
             ahead: audionimbus::Vector3::new(0.0, 0.0, 1.0),
-            origin: audionimbus::Vector3::new(1.0, 0.0, 0.0),
+            origin: audionimbus::Vector3::new(0.0, 0.0, 0.0),
         },
-        distance_attenuation_model: audionimbus::DistanceAttenuationModel::default(),
-        air_absorption_model: audionimbus::AirAbsorptionModel::default(),
-        directivity: audionimbus::Directivity::default(),
-        occlusion: audionimbus::Occlusion::Raycast,
-        reverb_scale: [1.0, 1.0, 1.0],
-        hybrid_reverb_transition_time: f32::default(),
-        hybrid_reverb_overlap_percent: f32::default(),
-        baked_data_identifier: None,
-        pathing_probes: audionimbus::ProbeBatch::try_new(&context).unwrap(),
-        visibility_radius: 10.0,
-        visibility_threshold: 0.0,
-        visibility_range: 0.0,
-        pathing_order: usize::default(),
-        enable_validation: true,
-        find_alternate_paths: true,
-        num_transmission_rays: 1,
+        direct_simulation: Some(audionimbus::DirectSimulationParameters {
+            distance_attenuation: Some(audionimbus::DistanceAttenuationModel::default()),
+            air_absorption: Some(audionimbus::AirAbsorptionModel::default()),
+            directivity: Some(audionimbus::Directivity::default()),
+            occlusion: Some(audionimbus::Occlusion {
+                transmission: Some(audionimbus::TransmissionParameters {
+                    num_transmission_rays: 1,
+                }),
+                algorithm: audionimbus::OcclusionAlgorithm::Raycast,
+            }),
+        }),
+        reflections_simulation: Some(audionimbus::ReflectionsSimulationParameters::Convolution {
+            baked_data_identifier: None,
+        }),
+        pathing_simulation: Some(audionimbus::PathingSimulationParameters {
+            pathing_probes: &pathing_probes,
+            visibility_radius: 1.0,
+            visibility_threshold: 10.0,
+            visibility_range: 10.0,
+            pathing_order: 1,
+            enable_validation: true,
+            find_alternate_paths: true,
+        }),
     };
-    source.set_inputs(audionimbus::SimulationFlags::DIRECT, &simulation_inputs);
+    source.set_inputs(audionimbus::SimulationFlags::DIRECT, simulation_inputs);
 
     simulator.add_source(&source);
 
@@ -787,33 +792,39 @@ fn test_pathing() {
     };
     let mut source = audionimbus::Source::try_new(&simulator, &source_settings).unwrap();
 
+    let pathing_probes = audionimbus::ProbeBatch::try_new(&context).unwrap();
     let simulation_inputs = audionimbus::SimulationInputs {
-        flags: audionimbus::SimulationFlags::PATHING,
-        direct_flags: audionimbus::DirectSimulationFlags::empty(),
         source: audionimbus::CoordinateSystem {
             right: audionimbus::Vector3::new(1.0, 0.0, 0.0),
             up: audionimbus::Vector3::new(0.0, 1.0, 0.0),
             ahead: audionimbus::Vector3::new(0.0, 0.0, 1.0),
-            origin: audionimbus::Vector3::new(1.0, 0.0, 0.0),
+            origin: audionimbus::Vector3::new(0.0, 0.0, 0.0),
         },
-        distance_attenuation_model: audionimbus::DistanceAttenuationModel::default(),
-        air_absorption_model: audionimbus::AirAbsorptionModel::default(),
-        directivity: audionimbus::Directivity::default(),
-        occlusion: audionimbus::Occlusion::Raycast,
-        reverb_scale: [1.0, 1.0, 1.0],
-        hybrid_reverb_transition_time: f32::default(),
-        hybrid_reverb_overlap_percent: f32::default(),
-        baked_data_identifier: Some(identifier),
-        pathing_probes: audionimbus::ProbeBatch::try_new(&context).unwrap(),
-        visibility_radius: 10.0,
-        visibility_threshold: 0.0,
-        visibility_range: 0.0,
-        pathing_order: 1,
-        enable_validation: true,
-        find_alternate_paths: true,
-        num_transmission_rays: 1,
+        direct_simulation: Some(audionimbus::DirectSimulationParameters {
+            distance_attenuation: Some(audionimbus::DistanceAttenuationModel::default()),
+            air_absorption: Some(audionimbus::AirAbsorptionModel::default()),
+            directivity: Some(audionimbus::Directivity::default()),
+            occlusion: Some(audionimbus::Occlusion {
+                transmission: Some(audionimbus::TransmissionParameters {
+                    num_transmission_rays: 1,
+                }),
+                algorithm: audionimbus::OcclusionAlgorithm::Raycast,
+            }),
+        }),
+        reflections_simulation: Some(audionimbus::ReflectionsSimulationParameters::Convolution {
+            baked_data_identifier: None,
+        }),
+        pathing_simulation: Some(audionimbus::PathingSimulationParameters {
+            pathing_probes: &pathing_probes,
+            visibility_radius: 1.0,
+            visibility_threshold: 10.0,
+            visibility_range: 10.0,
+            pathing_order: 1,
+            enable_validation: true,
+            find_alternate_paths: true,
+        }),
     };
-    source.set_inputs(audionimbus::SimulationFlags::PATHING, &simulation_inputs);
+    source.set_inputs(audionimbus::SimulationFlags::PATHING, simulation_inputs);
 
     simulator.run_pathing();
 

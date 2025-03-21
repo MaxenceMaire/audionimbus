@@ -3,7 +3,7 @@ use crate::geometry;
 
 /// A directivity pattern that can be used to model changes in sound intensity as a function of the source’s orientation.
 /// Can be used with both direct and indirect sound propagation.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Directivity {
     /// The default directivity model is a weighted dipole.
     /// This is a linear blend between an omnidirectional source (which emits sound with equal intensity in all directions), and a dipole oriented along the z-axis in the source’s coordinate system (which focuses sound along the +z and -z axes).

@@ -3,7 +3,7 @@ use crate::geometry;
 
 /// A distance attenuation model that can be used for modeling attenuation of sound over distance.
 /// Can be used with both direct and indirect sound propagation.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum DistanceAttenuationModel {
     /// The default distance attenuation model.
     /// This is an inverse distance falloff, with all sounds within 1 meter of the listener rendered without distance attenuation.
