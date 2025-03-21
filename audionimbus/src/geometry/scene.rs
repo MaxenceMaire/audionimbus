@@ -1,6 +1,7 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
+use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
 
@@ -287,40 +288,27 @@ impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {
     }
 }
 
-/// The types of scenes that can be created. Each scene type corresponds to a different ray tracing implementation.
+/// The scene parameters.
 #[derive(Copy, Clone, Debug)]
-pub enum SceneType {
+pub enum SceneParams<'a> {
     /// Steam Audio’s built-in ray tracer.
-    /// Supports multi-threading.
-    /// Runs on all platforms that Steam Audio supports.
     Default,
 
     /// The Intel Embree ray tracer.
-    /// Supports multi-threading.
-    /// This is a highly optimized implementation, and is likely to be faster than the default ray tracer.
-    /// However, Embree requires Windows, Linux, or macOS, and a 32-bit x86 or 64-bit x86_64 CPU.
     Embree,
 
     /// The AMD Radeon Rays ray tracer.
-    /// This is an OpenCL implementation, and can use either the CPU or any GPU that supports OpenCL 1.2 or later.
-    /// If using the GPU, it is likely to be significantly faster than the default ray tracer.
-    /// However, with heavy real-time simulation workloads, it may impact your application’s frame rate.
-    /// On supported AMD GPUs, you can use the Resource Reservation feature to mitigate this issue.
-    RadeonRays,
+    RadeonRays {
+        /// The OpenCL device being used.
+        open_cl_device: &'a OpenClDevice,
 
-    /// Allows you to specify callbacks to your own ray tracer.
-    /// Useful if your application already uses a high-performance ray tracer.
-    /// This option uses the least amount of memory at run-time, since it does not have to build any ray tracing data structures of its own.
-    Custom,
-}
+        /// The Radeon Rays device being used.
+        radeon_rays_device: &'a RadeonRaysDevice,
+    },
 
-impl From<SceneType> for audionimbus_sys::IPLSceneType {
-    fn from(scene_type: SceneType) -> Self {
-        match scene_type {
-            SceneType::Default => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
-            SceneType::Embree => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE,
-            SceneType::RadeonRays => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS,
-            SceneType::Custom => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM,
-        }
-    }
+    /// Custom ray tracer.
+    Custom {
+        /// The number of rays that will be passed to the callbacks every time rays need to be traced.
+        ray_batch_size: usize,
+    },
 }

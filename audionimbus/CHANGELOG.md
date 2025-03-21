@@ -5,7 +5,7 @@
 ### Added
 
 - Implement `Send` trait for `Scene`.
-- Refactor `SimulationInputs`.
+- Refactor `SimulationInputs`, `SimulationSettings`.
 
 ## [0.2.0] - 2025-03-17
 

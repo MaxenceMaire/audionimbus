@@ -9,7 +9,7 @@ use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::geometry::{Scene, SceneType};
+use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
 
@@ -428,7 +428,7 @@ impl ReflectionEffectParams {
 /// Only one bake can be in progress at any point in time.
 pub fn bake_reflections(
     context: &Context,
-    reflections_bake_params: &ReflectionsBakeParams,
+    reflections_bake_params: ReflectionsBakeParams,
     progress_callback: Option<CallbackInformation<ProgressCallback>>,
 ) {
     let (callback, user_data) = if let Some(callback_information) = progress_callback {
@@ -451,7 +451,7 @@ pub fn bake_reflections(
 }
 
 /// Parameters used to control how reflections data is baked.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct ReflectionsBakeParams<'a> {
     /// The scene in which the probes exist.
     pub scene: &'a Scene,
@@ -459,8 +459,8 @@ pub struct ReflectionsBakeParams<'a> {
     /// A probe batch containing the probes at which reflections data should be baked.
     pub probe_batch: &'a ProbeBatch,
 
-    /// The type of scene being used.
-    pub scene_type: SceneType,
+    /// The scene parameters.
+    pub scene_params: SceneParams<'a>,
 
     /// An identifier for the data layer that should be baked.
     /// The identifier determines what data is simulated and stored at each probe.
@@ -499,28 +499,41 @@ pub struct ReflectionsBakeParams<'a> {
     /// Number of threads to use for baking.
     pub num_threads: usize,
 
-    /// If using custom ray tracer callbacks, this the number of rays that will be passed to the callbacks every time rays need to be traced.
-    pub ray_batch_size: usize,
-
     /// When calculating how much sound energy reaches a surface directly from a source, any source that is closer than [`Self::irradiance_min_distance`] to the surface is assumed to be at a distance of [`Self::irradiance_min_distance`], for the purposes of energy calculations.
     pub irradiance_min_distance: f32,
 
     /// If using Radeon Rays or if [`Self::identifier`] uses [`BakedDataVariation::StaticListener`], this is the number of probes for which data is baked simultaneously.
     pub bake_batch_size: usize,
-
-    /// The OpenCL device, if using Radeon Rays.
-    pub open_cl_device: &'a OpenClDevice,
-
-    /// The Radeon Rays device, if using Radeon Rays.
-    pub radeon_rays_device: &'a RadeonRaysDevice,
 }
 
-impl From<&ReflectionsBakeParams<'_>> for audionimbus_sys::IPLReflectionsBakeParams {
-    fn from(params: &ReflectionsBakeParams) -> Self {
+impl From<ReflectionsBakeParams<'_>> for audionimbus_sys::IPLReflectionsBakeParams {
+    fn from(params: ReflectionsBakeParams) -> Self {
+        let mut ray_batch_size = usize::default();
+        let mut open_cl_device = &OpenClDevice::null();
+        let mut radeon_rays_device = &RadeonRaysDevice::null();
+        let scene_type = match params.scene_params {
+            SceneParams::Default => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
+            SceneParams::Embree => audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE,
+            SceneParams::RadeonRays {
+                open_cl_device: ocl_device,
+                radeon_rays_device: rr_device,
+            } => {
+                open_cl_device = ocl_device;
+                radeon_rays_device = rr_device;
+                audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS
+            }
+            SceneParams::Custom {
+                ray_batch_size: rb_size,
+            } => {
+                ray_batch_size = rb_size;
+                audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM
+            }
+        };
+
         Self {
             scene: params.scene.raw_ptr(),
             probeBatch: params.probe_batch.raw_ptr(),
-            sceneType: params.scene_type.into(),
+            sceneType: scene_type,
             identifier: (*params.identifier).into(),
             bakeFlags: params.bake_flags.into(),
             numRays: params.num_rays as i32,
@@ -530,11 +543,11 @@ impl From<&ReflectionsBakeParams<'_>> for audionimbus_sys::IPLReflectionsBakePar
             savedDuration: params.saved_duration,
             order: params.order as i32,
             numThreads: params.num_threads as i32,
-            rayBatchSize: params.ray_batch_size as i32,
+            rayBatchSize: ray_batch_size as i32,
             irradianceMinDistance: params.irradiance_min_distance,
             bakeBatchSize: params.bake_batch_size as i32,
-            openCLDevice: params.open_cl_device.raw_ptr(),
-            radeonRaysDevice: params.radeon_rays_device.raw_ptr(),
+            openCLDevice: open_cl_device.raw_ptr(),
+            radeonRaysDevice: radeon_rays_device.raw_ptr(),
         }
     }
 }
