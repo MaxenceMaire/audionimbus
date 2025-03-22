@@ -7,6 +7,11 @@
 - Implement `Send` trait for `Scene`.
 - Refactor `SimulationInputs`, `SimulationSettings`.
 
+### Fixed
+
+- `SimulationOutputs` would remain zeroed.
+- `DirectEffectParams` fields would always be `None` since `IPLDirectEffectParams.flags` is not set when retrieving simulation results for a source.
+
 ## [0.2.0] - 2025-03-17
 
 ### Changed

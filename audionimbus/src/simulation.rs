@@ -574,18 +574,17 @@ impl Source {
     ///
     /// - `flags`: the types of simulation for which to retrieve results.
     pub fn get_outputs(&self, simulation_flags: SimulationFlags) -> SimulationOutputs {
-        let mut simulation_outputs =
-            Box::new(unsafe { std::mem::zeroed::<audionimbus_sys::IPLSimulationOutputs>() });
+        let simulation_outputs = SimulationOutputs::default();
 
         unsafe {
             audionimbus_sys::iplSourceGetOutputs(
                 self.raw_ptr(),
                 simulation_flags.into(),
-                simulation_outputs.as_mut(),
+                simulation_outputs.raw_ptr(),
             );
         }
 
-        SimulationOutputs(simulation_outputs)
+        simulation_outputs
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLSource {
@@ -1217,18 +1216,51 @@ pub type PathingVisualizationCallback = unsafe extern "C" fn(
 
 /// Simulation results for a source.
 #[derive(Debug)]
-pub struct SimulationOutputs(pub(crate) Box<audionimbus_sys::IPLSimulationOutputs>);
+pub struct SimulationOutputs(*mut audionimbus_sys::IPLSimulationOutputs);
 
 impl SimulationOutputs {
     pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
-        FFIWrapper::new(self.0.direct.into())
+        unsafe { FFIWrapper::new((*self.0).direct.into()) }
     }
 
     pub fn reflections(&self) -> FFIWrapper<'_, ReflectionEffectParams, Self> {
-        FFIWrapper::new(self.0.reflections.into())
+        unsafe { FFIWrapper::new((*self.0).reflections.into()) }
     }
 
     pub fn pathing(&self) -> FFIWrapper<'_, PathEffectParams, Self> {
-        FFIWrapper::new(self.0.pathing.into())
+        unsafe { FFIWrapper::new((*self.0).pathing.into()) }
+    }
+
+    pub fn raw_ptr(&self) -> *mut audionimbus_sys::IPLSimulationOutputs {
+        self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut *mut audionimbus_sys::IPLSimulationOutputs {
+        &mut self.0
+    }
+}
+
+impl Default for SimulationOutputs {
+    fn default() -> Self {
+        let ptr = unsafe {
+            let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
+            let ptr = std::alloc::alloc(layout) as *mut audionimbus_sys::IPLSimulationOutputs;
+            if ptr.is_null() {
+                panic!("failed to allocate memory for IPLSimulationOutputs");
+            }
+            std::ptr::write(ptr, std::mem::zeroed());
+            ptr
+        };
+
+        SimulationOutputs(ptr)
+    }
+}
+
+impl Drop for SimulationOutputs {
+    fn drop(&mut self) {
+        unsafe {
+            let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
+            std::alloc::dealloc(self.0 as *mut u8, layout);
+        }
     }
 }
