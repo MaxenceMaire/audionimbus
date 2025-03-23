@@ -320,7 +320,7 @@ fn test_static_mesh() {
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let scene_settings = audionimbus::SceneSettings::default();
-    let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+    let mut scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
     let vertices = vec![
@@ -367,8 +367,8 @@ fn test_instanced_mesh() {
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
     let scene_settings = audionimbus::SceneSettings::default();
-    let main_scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
-    let sub_scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+    let mut main_scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
+    let mut sub_scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
     let vertices = vec![
@@ -652,8 +652,6 @@ fn test_probe_generation() {
 pub fn test_baking() {
     let context_settings = audionimbus::ContextSettings::default();
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
-
-    let audio_settings = audionimbus::AudioSettings::default();
 
     let simulation_settings = audionimbus::SimulationSettings {
         scene_params: audionimbus::SceneParams::Default,

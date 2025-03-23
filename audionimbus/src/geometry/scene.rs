@@ -33,7 +33,7 @@ impl Scene {
     /// Adds a static mesh to a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn add_static_mesh(&self, static_mesh: &StaticMesh) {
+    pub fn add_static_mesh(&mut self, static_mesh: &StaticMesh) {
         unsafe {
             audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -42,7 +42,7 @@ impl Scene {
     /// Removes a static mesh from a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn remove_static_mesh(&self, static_mesh: &StaticMesh) {
+    pub fn remove_static_mesh(&mut self, static_mesh: &StaticMesh) {
         unsafe {
             audionimbus_sys::iplStaticMeshRemove(static_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -51,7 +51,7 @@ impl Scene {
     /// Adds an instanced mesh to a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn add_instanced_mesh(&self, instanced_mesh: &InstancedMesh) {
+    pub fn add_instanced_mesh(&mut self, instanced_mesh: &InstancedMesh) {
         unsafe {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -60,7 +60,7 @@ impl Scene {
     /// Removes an instanced mesh from a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn remove_instanced_mesh(&self, instanced_mesh: &InstancedMesh) {
+    pub fn remove_instanced_mesh(&mut self, instanced_mesh: &InstancedMesh) {
         unsafe {
             audionimbus_sys::iplInstancedMeshRemove(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -72,7 +72,7 @@ impl Scene {
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
     pub fn update_instanced_mesh_transform(
-        &self,
+        &mut self,
         instanced_mesh: &InstancedMesh,
         transform: &Matrix<f32, 4, 4>,
     ) {
@@ -97,7 +97,7 @@ impl Scene {
     /// For best performance, call this function once after all changes have been made for a given frame.
     ///
     /// This function cannot be called concurrently with any simulation functions.
-    pub fn commit(&self) {
+    pub fn commit(&mut self) {
         unsafe {
             audionimbus_sys::iplSceneCommit(self.raw_ptr());
         }
