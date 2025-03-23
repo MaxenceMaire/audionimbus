@@ -5,6 +5,10 @@
 ### Added
 
 - Implement `Send` trait for `Scene`.
+- Add assertion to enforce the number of channels in the input buffer when applying the reflection effect.
+
+### Changed
+
 - Refactor `SimulationInputs`, `SimulationSettings`.
 
 ### Fixed

@@ -61,6 +61,12 @@ impl ReflectionEffect {
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
+        assert_eq!(
+            input_buffer.num_channels(),
+            1,
+            "input buffer must have 1 channel",
+        );
+
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
@@ -88,6 +94,12 @@ impl ReflectionEffect {
     where
         I: AsRef<[Sample]>,
     {
+        assert_eq!(
+            input_buffer.num_channels(),
+            1,
+            "input buffer must have 1 channel",
+        );
+
         unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
