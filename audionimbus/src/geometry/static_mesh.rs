@@ -42,9 +42,9 @@ impl StaticMesh {
             .collect();
 
         let mut static_mesh_settings_ffi = audionimbus_sys::IPLStaticMeshSettings {
-            numVertices: settings.num_vertices as i32,
-            numTriangles: settings.num_triangles as i32,
-            numMaterials: settings.num_materials as i32,
+            numVertices: vertices.len() as i32,
+            numTriangles: triangles.len() as i32,
+            numMaterials: materials.len() as i32,
             vertices: vertices.as_mut_ptr(),
             triangles: triangles.as_mut_ptr(),
             materialIndices: material_indices.as_mut_ptr(),
@@ -168,25 +168,16 @@ unsafe impl Sync for StaticMesh {}
 
 /// Settings used to create a static mesh.
 #[derive(Default, Debug)]
-pub struct StaticMeshSettings {
-    /// Number of vertices.
-    pub num_vertices: usize,
-
-    /// Number of triangles.
-    pub num_triangles: usize,
-
-    /// Number of materials.
-    pub num_materials: usize,
-
+pub struct StaticMeshSettings<'a> {
     /// Array containing vertices.
-    pub vertices: Vec<Point>,
+    pub vertices: &'a [Point],
 
     /// Array containing (indexed) triangles.
-    pub triangles: Vec<Triangle>,
+    pub triangles: &'a [Triangle],
 
     /// Array containing, for each triangle, the index of the associated material.
-    pub material_indices: Vec<usize>,
+    pub material_indices: &'a [usize],
 
     /// Array of materials.
-    pub materials: Vec<Material>,
+    pub materials: &'a [Material],
 }

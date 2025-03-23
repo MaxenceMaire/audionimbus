@@ -345,13 +345,10 @@ fn test_static_mesh() {
     let material_indices = vec![0, 0];
 
     let static_mesh_settings = audionimbus::geometry::StaticMeshSettings {
-        num_vertices: vertices.len(),
-        num_triangles: triangles.len(),
-        num_materials: materials.len(),
-        vertices,
-        triangles,
-        material_indices,
-        materials,
+        vertices: &vertices,
+        triangles: &triangles,
+        material_indices: &material_indices,
+        materials: &materials,
     };
 
     let static_mesh = audionimbus::StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();
@@ -393,13 +390,10 @@ fn test_instanced_mesh() {
     let material_indices = vec![0, 0];
 
     let static_mesh_settings = audionimbus::geometry::StaticMeshSettings {
-        num_vertices: vertices.len(),
-        num_triangles: triangles.len(),
-        num_materials: materials.len(),
-        vertices,
-        triangles,
-        material_indices,
-        materials,
+        vertices: &vertices,
+        triangles: &triangles,
+        material_indices: &material_indices,
+        materials: &materials,
     };
 
     let static_mesh = audionimbus::StaticMesh::try_new(&sub_scene, &static_mesh_settings).unwrap();
@@ -465,13 +459,10 @@ fn test_scene_serialization() {
     let material_indices = vec![0, 0];
 
     let static_mesh_settings = audionimbus::geometry::StaticMeshSettings {
-        num_vertices: vertices.len(),
-        num_triangles: triangles.len(),
-        num_materials: materials.len(),
-        vertices,
-        triangles,
-        material_indices,
-        materials,
+        vertices: &vertices,
+        triangles: &triangles,
+        material_indices: &material_indices,
+        materials: &materials,
     };
 
     let static_mesh = audionimbus::StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();

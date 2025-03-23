@@ -11,6 +11,7 @@
 
 - Refactor `SimulationInputs`, `SimulationSettings`.
 - Change signatures of `Scene::add_static_mesh`, `Scene::remove_static_mesh`, `Scene::add_instanced_mesh`, `Scene::remove_instanced_mesh`, `Scene::update_instanced_mesh_transform`, `Scene::commit` to take `&mut self` instead of `&self`.
+- Remove fields that can be inferred from `StaticMeshSettings`, borrow slices instead of owning data.
 
 ### Fixed
 
