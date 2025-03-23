@@ -5,7 +5,7 @@
 ### Added
 
 - Implement `Send` trait for `Scene`.
-- Add assertion to enforce the number of channels in the input buffer when applying the reflection effect.
+- Add assertion to enforce the number of channels in the input buffer when applying the reflection effect or the ambisonics encode effect.
 
 ### Changed
 

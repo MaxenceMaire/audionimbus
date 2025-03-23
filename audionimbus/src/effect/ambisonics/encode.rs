@@ -52,6 +52,12 @@ impl AmbisonicsEncodeEffect {
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
+        assert_eq!(
+            input_buffer.num_channels(),
+            1,
+            "input buffer must have 1 channel",
+        );
+
         let required_num_channels = (ambisonics_encode_effect_params.order + 1).pow(2);
         assert_eq!(
             output_buffer.num_channels(),
