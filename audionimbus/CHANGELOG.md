@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Implement `mix`, `downmix` methods for `AudioBuffer`.
+
 ## [0.3.0] - 2025-03-23
 
 ### Added

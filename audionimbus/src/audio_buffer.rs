@@ -116,6 +116,53 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T> {
         };
     }
 
+    /// Mixes `other` into `self`.
+    ///
+    /// Both audio buffers must have the same number of channels and samples.
+    pub fn mix(&mut self, context: &Context, other: &AudioBuffer<T>) {
+        assert_eq!(
+            self.num_channels(),
+            other.num_channels(),
+            "both audio buffers must have the same number of channels"
+        );
+
+        assert_eq!(
+            self.num_samples(),
+            other.num_samples(),
+            "both audio buffers must have the same number of samples per channel"
+        );
+
+        unsafe {
+            audionimbus_sys::iplAudioBufferMix(
+                context.raw_ptr(),
+                &mut *self.as_ffi(),
+                &mut *other.as_ffi(),
+            );
+        }
+    }
+
+    /// Downmixes the multi-channel `self` audio buffer into a mono `output` audio buffer.
+    ///
+    /// Both audio buffers must have the same number of samples per channel.
+    ///
+    /// Downmixing is performed by summing up the source channels and dividing the result by the number of source channels.
+    /// If this is not the desired downmixing behavior, we recommend that downmixing be performed manually.
+    pub fn downmix(&mut self, context: &Context, output: &mut AudioBuffer<T>) {
+        assert_eq!(
+            self.num_samples(),
+            output.num_samples(),
+            "both audio buffers must have the same number of samples per channel"
+        );
+
+        unsafe {
+            audionimbus_sys::iplAudioBufferDownmix(
+                context.raw_ptr(),
+                &mut *self.as_ffi(),
+                &mut *output.as_ffi(),
+            );
+        }
+    }
+
     /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
     pub fn try_with_data(data: T) -> Result<Self, AudioBufferError> {
         Self::try_with_data_and_settings(data, &AudioBufferSettings::default())
