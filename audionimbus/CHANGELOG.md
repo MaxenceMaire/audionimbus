@@ -6,6 +6,10 @@
 
 - Implement `mix`, `downmix` methods for `AudioBuffer`.
 
+### Fixed
+
+- Using `i32` instead of `c_uint` in some places would fail to compile on some platforms.
+
 ## [0.3.0] - 2025-03-23
 
 ### Added
