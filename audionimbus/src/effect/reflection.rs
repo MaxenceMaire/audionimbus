@@ -113,6 +113,53 @@ impl ReflectionEffect {
         .into()
     }
 
+    /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
+    ///
+    /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
+    ///
+    /// The output audio buffer must have as many channels as the impulse response specified when creating the effect (for convolution, hybrid, and TAN) or at least 1 channel (for parametric).
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        unsafe {
+            audionimbus_sys::iplReflectionEffectGetTail(
+                self.raw_ptr(),
+                &mut *output_buffer.as_ffi(),
+                std::ptr::null_mut(),
+            )
+        }
+        .into()
+    }
+
+    /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
+    ///
+    /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
+    ///
+    /// The tail samples will be mixed into the given mixer.
+    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
+    /// This can have a performance benefit if using convolution.
+    /// If using TAN, specifying a mixer is required.
+    ///
+    ///The output audio buffer must have as many channels as the impulse response specified when creating the effect (for convolution, hybrid, and TAN) or at least 1 channel (for parametric).
+    pub fn tail_into_mixer<O>(
+        &self,
+        output_buffer: &AudioBuffer<O>,
+        mixer: &ReflectionMixer,
+    ) -> AudioEffectState
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        unsafe {
+            audionimbus_sys::iplReflectionEffectGetTail(
+                self.raw_ptr(),
+                &mut *output_buffer.as_ffi(),
+                mixer.raw_ptr(),
+            )
+        }
+        .into()
+    }
+
     /// Returns the number of tail samples remaining in a reflection effect’s internal buffers.
     ///
     /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.

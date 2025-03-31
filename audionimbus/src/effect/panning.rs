@@ -59,6 +59,21 @@ impl PanningEffect {
         .into()
     }
 
+    /// Retrieves a single frame of tail samples from a panning effect’s internal buffers.
+    ///
+    /// After the input to the panning effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
+    ///
+    /// The output audio buffer must have as many channels as needed for the speaker layout specified when creating the panning effect.
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        unsafe {
+            audionimbus_sys::iplPanningEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
+        }
+        .into()
+    }
+
     /// Returns the number of tail samples remaining in a panning effect’s internal buffers.
     ///
     /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.

@@ -77,6 +77,30 @@ impl AmbisonicsBinauralEffect {
         .into()
     }
 
+    /// Retrieves a single frame of tail samples from an Ambisonics binaural effect’s internal buffers.
+    ///
+    /// After the input to the Ambisonics binaural effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
+    ///
+    /// The output audio buffer must have 2 channels.
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        assert_eq!(
+            output_buffer.num_channels(),
+            2,
+            "input buffer must have 2 channels",
+        );
+
+        unsafe {
+            audionimbus_sys::iplAmbisonicsBinauralEffectGetTail(
+                self.raw_ptr(),
+                &mut *output_buffer.as_ffi(),
+            )
+        }
+        .into()
+    }
+
     /// Returns the number of tail samples remaining in an Ambisonics binaural effect’s internal buffers.
     ///
     /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.
