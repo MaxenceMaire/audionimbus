@@ -73,6 +73,13 @@ impl AmbisonicsDecodeEffect {
         .into()
     }
 
+    /// Returns the number of tail samples remaining in an Ambisonics decode effect’s internal buffers.
+    ///
+    /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.
+    pub fn tail_size(&self) -> usize {
+        unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectGetTailSize(self.raw_ptr()) as usize }
+    }
+
     /// Resets the internal processing state of an ambisonics decode effect.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectReset(self.raw_ptr()) };

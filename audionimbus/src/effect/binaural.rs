@@ -61,6 +61,13 @@ impl BinauralEffect {
         .into()
     }
 
+    /// Returns the number of tail samples remaining in a binaural effect’s internal buffers.
+    ///
+    /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.
+    pub fn tail_size(&self) -> usize {
+        unsafe { audionimbus_sys::iplBinauralEffectGetTailSize(self.raw_ptr()) as usize }
+    }
+
     /// Resets the internal processing state of a binaural effect.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplBinauralEffectReset(self.raw_ptr()) };

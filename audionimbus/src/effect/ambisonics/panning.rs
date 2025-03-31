@@ -71,6 +71,13 @@ impl AmbisonicsPanningEffect {
         .into()
     }
 
+    /// Returns the number of tail samples remaining in an Ambisonics panning effect’s internal buffers.
+    ///
+    /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.
+    pub fn tail_size(&self) -> usize {
+        unsafe { audionimbus_sys::iplAmbisonicsPanningEffectGetTailSize(self.raw_ptr()) as usize }
+    }
+
     /// Resets the internal processing state of an ambisonics panning effect.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsPanningEffectReset(self.raw_ptr()) };

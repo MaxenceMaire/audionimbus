@@ -59,6 +59,13 @@ impl PanningEffect {
         .into()
     }
 
+    /// Returns the number of tail samples remaining in a panning effect’s internal buffers.
+    ///
+    /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.
+    pub fn tail_size(&self) -> usize {
+        unsafe { audionimbus_sys::iplPanningEffectGetTailSize(self.raw_ptr()) as usize }
+    }
+
     /// Resets the internal processing state of a panning effect.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplPanningEffectReset(self.raw_ptr()) };

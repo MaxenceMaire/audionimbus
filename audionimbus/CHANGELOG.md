@@ -5,6 +5,7 @@
 ### Added
 
 - Implement `mix`, `downmix` methods for `AudioBuffer`.
+- Implement `tail_size` method for `PathEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsPanningEffect`, `AmbisonicsRotationEffect`, `BinauralEffect`, `DirectEffect`, `DirectEffect`, `PathEffect`, `ReflectionEffect`, `VirtualSurroundEffect`.
 
 ### Fixed
 
