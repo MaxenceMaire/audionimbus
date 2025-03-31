@@ -7,6 +7,7 @@
 - Implement `mix`, `downmix`, `convert_ambisonics`, `convert_ambisonics_into` methods for `AudioBuffer`.
 - Implement `tail`, `tail_size` methods for `PanningEffect`, `PathEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsPanningEffect`, `AmbisonicsRotationEffect`, `BinauralEffect`, `DirectEffect`, `DirectEffect`, `PathEffect`, `ReflectionEffect`, `VirtualSurroundEffect`.
 - Implement `tail_into_mixer` for `ReflectionEffect`.
+- Implement `save_obj` for `Scene`.
 
 ### Fixed
 
