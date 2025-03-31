@@ -15,3 +15,6 @@ pub use rotation::*;
 
 mod speaker_layout;
 pub use speaker_layout::SpeakerLayout;
+
+mod r#type;
+pub use r#type::AmbisonicsType;

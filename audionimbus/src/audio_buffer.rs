@@ -1,4 +1,5 @@
 use crate::context::Context;
+use crate::effect::ambisonics::AmbisonicsType;
 use crate::ffi_wrapper::FFIWrapper;
 
 /// An audio buffer descriptor.
@@ -188,6 +189,55 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T> {
         self.channel_ptrs.iter().map(|&ptr|
                 // SAFETY: pointers are guaranteed to be valid by the lifetime.
                 unsafe { std::slice::from_raw_parts(ptr, self.num_samples) })
+    }
+
+    /// Converts an Ambisonic audio buffer from one Ambisonic format to another.
+    ///
+    /// Steam Audio’s "native" Ambisonic format is [`AmbisonicsType::N3D`], so for best performance, keep all Ambisonic data in N3D format except when exchanging data with your audio engine.
+    pub fn convert_ambisonics(
+        &mut self,
+        context: &Context,
+        in_type: AmbisonicsType,
+        out_type: AmbisonicsType,
+    ) {
+        unsafe {
+            audionimbus_sys::iplAudioBufferConvertAmbisonics(
+                context.raw_ptr(),
+                in_type.into(),
+                out_type.into(),
+                &mut *self.as_ffi(),
+                &mut *self.as_ffi(),
+            )
+        }
+    }
+
+    /// Converts an Ambisonic audio buffer from one Ambisonic format to another.
+    ///
+    /// Both audio buffers must have the same number of samples.
+    ///
+    /// Steam Audio’s "native" Ambisonic format is [`AmbisonicsType::N3D`], so for best performance, keep all Ambisonic data in N3D format except when exchanging data with your audio engine.
+    pub fn convert_ambisonics_into(
+        &mut self,
+        context: &Context,
+        in_type: AmbisonicsType,
+        out_type: AmbisonicsType,
+        out: &mut AudioBuffer<T>,
+    ) {
+        assert_eq!(
+            self.num_channels() * self.num_samples(),
+            out.num_channels() * out.num_samples(),
+            "both audio buffers must have the same number of samples"
+        );
+
+        unsafe {
+            audionimbus_sys::iplAudioBufferConvertAmbisonics(
+                context.raw_ptr(),
+                in_type.into(),
+                out_type.into(),
+                &mut *self.as_ffi(),
+                &mut *out.as_ffi(),
+            )
+        }
     }
 
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Self> {
