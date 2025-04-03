@@ -22,6 +22,8 @@ AudioNimbus supports a variety of spatial audio effects, including:
 * **Sound propagation**: Models how sound is affected as it travels through its environment, including effects like distance attenuation and interaction with physical obstacles of varying materials.
 * **Reflections**: Simulates how sound waves reflect off surrounding geometry, mimicking real-world acoustic behavior.
 
+For a demonstration of AudioNimbus' capabilities, watch [the walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
+
 ## Get Started
 
 To get started using [`audionimbus`](audionimbus), check out the [`demo`](audionimbus/demo) for a practical example of how to integrate and use the library in your project.

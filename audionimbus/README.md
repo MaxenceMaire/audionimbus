@@ -8,6 +8,8 @@ A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/
 
 It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindings to the Steam Audio C API.
 
+To experience AudioNimbus in action, play the [interactive demo](https://github.com/MaxenceMaire/audionimbus-demo) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
+
 ## Version compatibility
 
 `audionimbus` currently tracks Steam Audio 4.6.0.
@@ -116,7 +118,9 @@ let _effect_state =
 // required, use the `AudioBuffer::interleave` method to convert the format.
 ```
 
-To implement real-time audio processing and playback in your game, check out the [demo crate](./demo) for a more comprehensive example.
+To implement real-time audio processing and playback in your game, check out the [demo crate](./demo) for a basic example.
+
+For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 
 For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
 
