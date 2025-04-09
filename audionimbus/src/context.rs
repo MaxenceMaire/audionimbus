@@ -1,6 +1,5 @@
 use crate::error::{to_option_error, SteamAudioError};
 use crate::version::SteamAudioVersion;
-use std::os::raw::c_uint;
 
 /// A context object, which controls low-level operations of Steam Audio.
 ///
@@ -170,6 +169,6 @@ bitflags::bitflags! {
 
 impl From<ContextFlags> for audionimbus_sys::IPLContextFlags {
     fn from(context_flags: ContextFlags) -> Self {
-        Self(context_flags.bits() as c_uint)
+        Self(context_flags.bits() as _)
     }
 }

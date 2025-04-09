@@ -5,7 +5,6 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use std::os::raw::c_uint;
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 #[derive(Debug)]
@@ -174,7 +173,7 @@ impl From<audionimbus_sys::IPLDirectEffectParams> for DirectEffectParams {
 
 impl DirectEffectParams {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLDirectEffectParams, Self> {
-        let mut flags = audionimbus_sys::IPLDirectEffectFlags(c_uint::default());
+        let mut flags = audionimbus_sys::IPLDirectEffectFlags(<_>::default());
 
         let distance_attenuation = self.distance_attenuation.unwrap_or_default();
         if self.distance_attenuation.is_some() {
