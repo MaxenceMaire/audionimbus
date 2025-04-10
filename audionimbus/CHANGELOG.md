@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Casting `u32` flags into `std::os::raw::c_uint` would fail on systems expecting `std::os::raw::c_int` IPL flags.
+
 ## [0.4.0] - 2025-04-01
 
 ### Added

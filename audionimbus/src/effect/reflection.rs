@@ -12,7 +12,6 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
-use std::os::raw::c_uint;
 
 #[cfg(doc)]
 use crate::simulation::BakedDataVariation;
@@ -633,7 +632,7 @@ bitflags::bitflags! {
 
 impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
     fn from(reflections_bake_flags: ReflectionsBakeFlags) -> Self {
-        Self(reflections_bake_flags.bits() as c_uint)
+        Self(reflections_bake_flags.bits() as _)
     }
 }
 

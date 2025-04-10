@@ -12,7 +12,6 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry;
 use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
-use std::os::raw::c_uint;
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
 ///
@@ -521,7 +520,7 @@ bitflags::bitflags! {
 
 impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
     fn from(simulation_flags: SimulationFlags) -> Self {
-        Self(simulation_flags.bits() as c_uint)
+        Self(simulation_flags.bits() as _)
     }
 }
 

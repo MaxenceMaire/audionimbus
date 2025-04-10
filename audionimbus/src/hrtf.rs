@@ -91,7 +91,7 @@ impl From<&HrtfSettings> for audionimbus_sys::IPLHRTFSettings {
             audionimbus_sys::IPLHRTFType,
             *const std::os::raw::c_char,
             *const u8,
-            std::os::raw::c_int,
+            _,
         ) = if let Some(information) = &settings.sofa_information {
             match information {
                 Sofa::Filename(filename) => {
