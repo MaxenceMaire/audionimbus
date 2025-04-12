@@ -17,7 +17,7 @@ It is inherently unsafe, as it interfaces with external C code; for a safe API, 
 
 `audionimbus-sys` requires linking against the Steam Audio library during compilation.
 
-To do so, download `steamaudio_4.6.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+To do so, download `steamaudio_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
 Locate the relevant library for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 
@@ -40,7 +40,7 @@ Finally, add `audionimbus-sys` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus-sys = "4.6.0"
+audionimbus-sys = "4.6.1"
 ```
 
 ## Documentation
