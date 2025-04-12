@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.1] - 2025-04-12
+
+### Added
+
+- Support for Steam Audio v.4.6.1 via `audionimbus-sys` v.4.6.1.
+
 ## [0.5.0] - 2025-04-10
 
 ### Fixed

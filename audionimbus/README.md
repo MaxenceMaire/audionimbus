@@ -12,7 +12,7 @@ To experience AudioNimbus in action, play the [interactive demo](https://github.
 
 ## Version compatibility
 
-`audionimbus` currently tracks Steam Audio 4.6.0.
+`audionimbus` currently tracks Steam Audio 4.6.1.
 
 Unlike `audionimbus-sys`, which mirrors Steam Audio's versioning, `audionimbus` introduces its own abstractions and is subject to breaking changes.
 As a result, it uses independent versioning.
@@ -21,7 +21,7 @@ As a result, it uses independent versioning.
 
 `audionimbus` requires linking against the Steam Audio library during compilation.
 
-To do so, download `steamaudio_4.6.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+To do so, download `steamaudio_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
 Locate the relevant library for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 
