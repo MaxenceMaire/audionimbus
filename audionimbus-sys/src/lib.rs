@@ -72,7 +72,7 @@ Finally, add `audionimbus-sys` with the `fmod` feature enabled to your `Cargo.to
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.6.2-fmod", features = ["fmod"] }
+audionimbus-sys = { version = "4.6.2-fmod.1", features = ["fmod"] }
 ```
 
 ## Documentation
