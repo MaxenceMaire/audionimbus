@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.0] - 2025-04-13
+
+### Added
+
+- Support for the Steam Audio FMOD integration.
+
 ## [0.5.1] - 2025-04-12
 
 ### Added
