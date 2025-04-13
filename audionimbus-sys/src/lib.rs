@@ -72,7 +72,7 @@ Finally, add `audionimbus-sys` with the `fmod` feature enabled to your `Cargo.to
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.6.2-fmod.1", features = ["fmod"] }
+audionimbus-sys = { version = "4.6.2-fmod.3", features = ["fmod"] }
 ```
 
 ## Documentation
@@ -86,6 +86,8 @@ Since this crate strictly follows Steam Audio’s C API, you can also refer to t
 `audionimbus-sys` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
 You may choose either license when using the software.
 */
+
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 mod phonon;
 pub use phonon::*;

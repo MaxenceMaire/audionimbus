@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.2] - 2025-04-14
+
+### Added
+
+- Documentation generation for feature `fmod`.
+
+### Fixed
+
+- Version `4.6.2-fmod.2` of dependency `audionimbus-sys` would fail to compile when feature `fmod` was enabled. It has been updated to version `4.6.2-fmod.3`.
+
 ## [0.6.1] - 2025-04-13
 
 ### Fixed

@@ -46,7 +46,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.6.1"
+audionimbus = "0.6.2"
 ```
 
 ## Example
@@ -155,7 +155,7 @@ Finally, add `audionimbus` with the `fmod` feature enabled to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.6.1", features = ["fmod"] }
+audionimbus = { version = "0.6.2", features = ["fmod"] }
 ```
 
 ## Documentation

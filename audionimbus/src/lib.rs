@@ -43,7 +43,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.6.1"
+audionimbus = "0.6.2"
 ```
 
 ## Example
@@ -150,7 +150,7 @@ Finally, add `audionimbus` with the `fmod` feature enabled to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.6.1", features = ["fmod"] }
+audionimbus = { version = "0.6.2", features = ["fmod"] }
 ```
 
 ## Documentation
@@ -164,6 +164,8 @@ For more details on Steam Audio's concepts, see the [Steam Audio SDK documentati
 `audionimbus` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
 You may choose either license when using the software.
 */
+
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod audio_buffer;
 pub use audio_buffer::*;
