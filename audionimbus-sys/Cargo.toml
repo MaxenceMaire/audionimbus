@@ -1,7 +1,7 @@
 [package]
 name = "audionimbus-sys"
 description = "Rust bindings for Steam Audio."
-version = "4.6.1"
+version = "4.6.2-fmod"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 license = "MIT OR Apache-2.0"
