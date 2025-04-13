@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.6.2] - 2025-04-14
+
+### Added
+
+- Documentation generation for feature `fmod`.
+
+### Fixed
+
+- Version `4.6.2-fmod.2` of dependency `audionimbus-sys` would fail to compile when feature `fmod` was enabled. It has been updated to version `4.6.2-fmod.3`.
+
+## [0.6.1] - 2025-04-13
+
+### Fixed
+
+- Version `4.6.2-fmod` of dependency `audionimbus-sys` would prevent the documentation from being generated. It has been updated to version `4.6.2-fmod.1`.
+
+## [0.6.0] - 2025-04-13
+
+### Added
+
+- Support for the Steam Audio FMOD integration.
+
 ## [0.5.1] - 2025-04-12
 
 ### Added

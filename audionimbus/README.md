@@ -10,6 +10,8 @@ It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindi
 
 To experience AudioNimbus in action, play the [interactive demo](https://github.com/MaxenceMaire/audionimbus-demo) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 
+`audionimbus` can also integrate with FMOD studio.
+
 ## Version compatibility
 
 `audionimbus` currently tracks Steam Audio 4.6.1.
@@ -44,7 +46,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.1.0"
+audionimbus = "0.6.2"
 ```
 
 ## Example
@@ -123,6 +125,38 @@ To implement real-time audio processing and playback in your game, check out the
 For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 
 For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
+
+## Steam Audio FMOD Studio Integration
+
+`audionimbus` can be used to add spatial audio to an FMOD Studio project.
+
+It requires linking against both the Steam Audio library and the FMOD integration library during compilation, similarly to the steps described in the [Installation](#Installation) section.
+
+Download `steamaudio_fmod_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+
+Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
+
+| Platform | Library Directory | Library To Link |
+| --- | --- | --- |
+| Windows 32-bit | `SDKROOT/lib/windows-x86` | `phonon.dll`, `phonon_fmod.dll` |
+| Windows 64-bit | `SDKROOT/lib/windows-x64` | `phonon.dll`, `phonon_fmod.dll` |
+| Linux 32-bit | `SDKROOT/lib/linux-x86` | `libphonon.so`, `libphonon_fmod.so` |
+| Linux 64-bit | `SDKROOT/lib/linux-x64` | `libphonon.so`, `libphonon_fmod.so` |
+| macOS | `SDKROOT/lib/osx` | `libphonon.dylib`, `libphonon_fmod.dylib` |
+| Android ARMv7 | `SDKROOT/lib/android-armv7` | `libphonon.so`, `libphonon_fmod.so` |
+| Android ARMv8/AArch64 | `SDKROOT/lib/android-armv8` | `libphonon.so`, `libphonon_fmod.so` |
+| Android x86 | `SDKROOT/lib/android-x86` | `libphonon.so`, `libphonon_fmod.so` |
+| Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so`, `libphonon_fmod.so` |
+| iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a`, `libphonon_fmod.a` |
+
+Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+
+Finally, add `audionimbus` with the `fmod` feature enabled to your `Cargo.toml`:
+
+```toml
+[dependencies]
+audionimbus = { version = "0.6.2", features = ["fmod"] }
+```
 
 ## Documentation
 

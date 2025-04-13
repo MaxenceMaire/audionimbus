@@ -43,6 +43,38 @@ Finally, add `audionimbus-sys` to your `Cargo.toml`:
 audionimbus-sys = "4.6.1"
 ```
 
+## Steam Audio FMOD Studio Integration
+
+`audionimbus-sys` can be used to add spatial audio to an FMOD Studio project.
+
+It requires linking against both the Steam Audio library and the FMOD integration library during compilation, similarly to the steps described in the [Installation](#Installation) section.
+
+Download `steamaudio_fmod_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+
+Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
+
+| Platform | Library Directory | Library To Link |
+| --- | --- | --- |
+| Windows 32-bit | `SDKROOT/lib/windows-x86` | `phonon.dll`, `phonon_fmod.dll` |
+| Windows 64-bit | `SDKROOT/lib/windows-x64` | `phonon.dll`, `phonon_fmod.dll` |
+| Linux 32-bit | `SDKROOT/lib/linux-x86` | `libphonon.so`, `libphonon_fmod.so` |
+| Linux 64-bit | `SDKROOT/lib/linux-x64` | `libphonon.so`, `libphonon_fmod.so` |
+| macOS | `SDKROOT/lib/osx` | `libphonon.dylib`, `libphonon_fmod.dylib` |
+| Android ARMv7 | `SDKROOT/lib/android-armv7` | `libphonon.so`, `libphonon_fmod.so` |
+| Android ARMv8/AArch64 | `SDKROOT/lib/android-armv8` | `libphonon.so`, `libphonon_fmod.so` |
+| Android x86 | `SDKROOT/lib/android-x86` | `libphonon.so`, `libphonon_fmod.so` |
+| Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so`, `libphonon_fmod.so` |
+| iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a`, `libphonon_fmod.a` |
+
+Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+
+Finally, add `audionimbus-sys` with the `fmod` feature enabled to your `Cargo.toml`:
+
+```toml
+[dependencies]
+audionimbus-sys = { version = "4.6.2-fmod.3", features = ["fmod"] }
+```
+
 ## Documentation
 
 Documentation is available at [docs.rs](https://docs.rs/audionimbus-sys/latest).
@@ -55,5 +87,12 @@ Since this crate strictly follows Steam Audio’s C API, you can also refer to t
 You may choose either license when using the software.
 */
 
-#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
-include!(concat!(env!("OUT_DIR"), "/phonon.rs"));
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
+mod phonon;
+pub use phonon::*;
+
+#[cfg(feature = "fmod")]
+pub mod fmod;
+#[cfg(feature = "fmod")]
+pub use fmod::*;
