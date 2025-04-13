@@ -113,11 +113,7 @@ fn version() -> Version {
     }
 }
 
-fn temporary_version_header(
-    path: &Path,
-    version: &Version,
-    prefix: &str,
-) -> TemporaryFileGuard {
+fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> TemporaryFileGuard {
     let packed_version = (version.major << 16) | (version.minor << 8) | version.patch;
     let version_header = format!(
         r#"

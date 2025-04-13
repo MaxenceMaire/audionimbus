@@ -176,3 +176,6 @@ pub use simulation::*;
 
 pub mod version;
 pub use version::*;
+
+#[cfg(feature = "fmod")]
+pub mod fmod;
