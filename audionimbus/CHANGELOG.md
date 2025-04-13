@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1] - 2025-04-13
+
+### Fixed
+
+- Version `4.6.2-fmod` of dependency `audionimbus-sys` would prevent the documentation from being generated. It has been updated to version `4.6.2-fmod.1`.
+
 ## [0.6.0] - 2025-04-13
 
 ### Added
