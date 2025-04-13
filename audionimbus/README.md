@@ -10,6 +10,8 @@ It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindi
 
 To experience AudioNimbus in action, play the [interactive demo](https://github.com/MaxenceMaire/audionimbus-demo) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 
+`audionimbus` can also integrate with FMOD studio.
+
 ## Version compatibility
 
 `audionimbus` currently tracks Steam Audio 4.6.1.
