@@ -55,5 +55,10 @@ Since this crate strictly follows Steam Audio’s C API, you can also refer to t
 You may choose either license when using the software.
 */
 
-#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
-include!(concat!(env!("OUT_DIR"), "/phonon.rs"));
+mod phonon;
+pub use phonon::*;
+
+#[cfg(feature = "fmod")]
+pub mod fmod;
+#[cfg(feature = "fmod")]
+pub use fmod::*;

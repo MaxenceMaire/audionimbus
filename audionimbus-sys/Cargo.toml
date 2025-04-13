@@ -11,8 +11,12 @@ repository = "https://github.com/MaxenceMaire/audionimbus"
 readme = "README.md"
 exclude = [
   "steam-audio/**",
-  "!steam-audio/core/src/core/**"
+  "!steam-audio/core/src/core/**/*.h",
+  "!steam-audio/fmod/src/**/*.h"
 ]
 
 [build-dependencies]
 bindgen = "0.71.1"
+
+[features]
+fmod = []
