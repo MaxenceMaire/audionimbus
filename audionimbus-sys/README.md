@@ -73,7 +73,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.6.2-fmod-wwise", features = ["fmod"] }
+audionimbus-sys = { version = "4.6.2-fmodwwise", features = ["fmod"] }
 ```
 
 ## Wwise Integration
@@ -92,7 +92,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.6.2-fmod-wwise", features = ["wwise"] }
+audionimbus-sys = { version = "4.6.2-fmodwwise", features = ["wwise"] }
 ```
 
 ## Documentation

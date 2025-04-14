@@ -11,7 +11,7 @@ repository = "https://github.com/MaxenceMaire/audionimbus"
 readme = "README.md"
 
 [dependencies]
-audionimbus-sys = { version = "4.6.2-fmod-wwise", path = "../audionimbus-sys" }
+audionimbus-sys = { version = "4.6.2-fmodwwise", path = "../audionimbus-sys" }
 bitflags = "2.8.0"
 
 [features]
