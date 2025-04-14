@@ -43,15 +43,15 @@ Finally, add `audionimbus-sys` to your `Cargo.toml`:
 audionimbus-sys = "4.6.1"
 ```
 
-## Steam Audio FMOD Studio Integration
+## FMOD Studio Integration
 
 `audionimbus-sys` can be used to add spatial audio to an FMOD Studio project.
 
-It requires linking against both the Steam Audio library and the FMOD integration library during compilation, similarly to the steps described in the [Installation](#Installation) section.
+It requires linking against both the Steam Audio library and the FMOD integration library during compilation:
 
-Download `steamaudio_fmod_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+1. Download `steamaudio_fmod_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
-Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
+2. Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 
 | Platform | Library Directory | Library To Link |
 | --- | --- | --- |
@@ -66,13 +66,32 @@ Locate the two relevant libraries for your target platform (`SDKROOT` refers to 
 | Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so`, `libphonon_fmod.so` |
 | iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a`, `libphonon_fmod.a` |
 
-Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+3. Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
 
-Finally, add `audionimbus-sys` with the `fmod` feature enabled to your `Cargo.toml`:
+4. Finally, add `audionimbus-sys` with the `fmod` feature enabled to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.6.2-fmod.3", features = ["fmod"] }
+audionimbus-sys = { version = "4.6.2-fmod-wwise", features = ["fmod"] }
+```
+
+## Wwise Integration
+
+`audionimbus-sys` can be used to add spatial audio to a Wwise project.
+
+It requires linking against both the Steam Audio library and the Wwise integration library during compilation:
+
+1. Download `steamaudio_wwise_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+
+2. Locate the two relevant libraries for your target platform and place them in a location listed in [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+
+3. Set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
+
+4. Finally, add `audionimbus-sys` with the `wwise` feature enabled to your `Cargo.toml`:
+
+```toml
+[dependencies]
+audionimbus-sys = { version = "4.6.2-fmod-wwise", features = ["wwise"] }
 ```
 
 ## Documentation
@@ -96,3 +115,8 @@ pub use phonon::*;
 pub mod fmod;
 #[cfg(feature = "fmod")]
 pub use fmod::*;
+
+#[cfg(feature = "wwise")]
+pub mod wwise;
+#[cfg(feature = "wwise")]
+pub use wwise::*;

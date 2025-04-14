@@ -13,7 +13,7 @@ AudioNimbus provides a safe and ergonomic Rust interface to Steam Audio, enablin
 * [`audionimbus`](audionimbus): A high-level, safe wrapper around Steam Audio.
 * [`audionimbus-sys`](audionimbus-sys): Automatically generated raw bindings to the Steam Audio C API.
 
-Both can integrate with FMOD Studio.
+Both can integrate with FMOD Studio and Wwise.
 
 ## Features
 

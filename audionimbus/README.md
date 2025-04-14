@@ -126,7 +126,7 @@ For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb 
 
 For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
 
-## Steam Audio FMOD Studio Integration
+## FMOD Studio Integration
 
 `audionimbus` can be used to add spatial audio to an FMOD Studio project.
 

@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "audionimbus-sys"
-version = "4.6.2-fmod.3"
+version = "4.6.2-fmod-wwise"
 dependencies = [
  "bindgen 0.71.1",
 ]
