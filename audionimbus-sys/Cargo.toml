@@ -1,7 +1,7 @@
 [package]
 name = "audionimbus-sys"
 description = "Rust bindings for Steam Audio."
-version = "4.6.2-fmod.3"
+version = "4.6.2-fmodwwise"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -13,7 +13,9 @@ exclude = [
   "steam-audio/**",
   "!steam-audio/core/src/core/**/*.h",
   "!steam-audio/fmod/src/**/*.h",
-  "!steam-audio/fmod/include/**"
+  "!steam-audio/fmod/include/**",
+  "!steam-audio/wwise/src/**/*.h",
+  "!steam-audio/wwise/include/**"
 ]
 
 [build-dependencies]
@@ -21,6 +23,7 @@ bindgen = "0.71.1"
 
 [features]
 fmod = []
+wwise = []
 
 [package.metadata.docs.rs]
 features = ["fmod"]

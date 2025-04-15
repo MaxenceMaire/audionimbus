@@ -6,14 +6,14 @@ use crate::simulation::{SimulationSettings, Source};
 ///
 /// This function must be called before creating any Steam Audio DSP effects.
 pub fn initialize(context: &Context) {
-    unsafe { audionimbus_sys::iplFMODInitialize(context.raw_ptr()) }
+    unsafe { audionimbus_sys::fmod::iplFMODInitialize(context.raw_ptr()) }
 }
 
 /// Shuts down the FMOD Studio integration.
 ///
 /// This function must be called after all Steam Audio DSP effects have been destroyed.
 pub fn terminate() {
-    unsafe { audionimbus_sys::iplFMODTerminate() }
+    unsafe { audionimbus_sys::fmod::iplFMODTerminate() }
 }
 
 /// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.

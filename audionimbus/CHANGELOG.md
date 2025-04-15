@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.3] - 2025-04-15
+
+### Added
+
+- Support for the Steam Audio Wwise integration.
+
 ## [0.6.2] - 2025-04-14
 
 ### Added
