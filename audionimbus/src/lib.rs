@@ -178,6 +178,9 @@ Documentation is available at [doc.rs](https://docs.rs/audionimbus/latest).
 
 For more details on Steam Audio's concepts, see the [Steam Audio SDK documentation](https://valvesoftware.github.io/steam-audio/doc/capi/index.html).
 
+Note that because the Wwise integration depends on files that are local to your system, documentation for the `wwise` module is not available on docs.rs.
+However, it can be generated locally using `cargo doc --open --features wwise`.
+
 ## License
 
 `audionimbus` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
