@@ -48,7 +48,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.6.3"
+audionimbus = "0.6.4"
 ```
 
 ## Example
@@ -157,7 +157,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.6.3", features = ["fmod"] }
+audionimbus = { version = "0.6.4", features = ["fmod"] }
 ```
 
 ## Wwise Integration
@@ -176,7 +176,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.6.3", features = ["wwise"] }
+audionimbus = { version = "0.6.4", features = ["wwise"] }
 ```
 
 ## Documentation

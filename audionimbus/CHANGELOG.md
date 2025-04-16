@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.4] - 2025-04-16
+
+### Fixed
+
+- Dependency `audionimbus-sys` would fail to compile on some platforms when feature `fmod` was enabled, due to missing flags. It has been updated to version `4.6.2-fmodwwise.2`.
+
 ## [0.6.3] - 2025-04-15
 
 ### Added
