@@ -58,7 +58,7 @@ fn generate_bindings_phonon_fmod(output_path: &Path, version: &Version, tmp_dir:
         .header(PHONON_FMOD_HEADER_PATH)
         .clang_args(&[
             String::from("-xc++"),
-            String::from("-std=c++11"),
+            String::from("-std=c++14"),
             format!("-I{}", tmp_dir.display()),
             format!("-I{}", phonon_header_dir.display()),
             format!("-I{}", "steam-audio/fmod/include"),
@@ -99,7 +99,7 @@ fn generate_bindings_phonon_wwise(output_path: &Path, version: &Version, tmp_dir
         .header(PHONON_WWISE_HEADER_PATH)
         .clang_args(&[
             String::from("-xc++"),
-            String::from("-std=c++11"),
+            String::from("-std=c++14"),
             format!("-I{}", tmp_dir.display()),
             format!("-I{}", phonon_header_dir.display()),
             format!("-I{}", wwise_includes.display()),
