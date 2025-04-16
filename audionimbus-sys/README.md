@@ -16,6 +16,8 @@ It is inherently unsafe, as it interfaces with external C code; for a safe API, 
 
 ## Installation
 
+Before installation, make sure that Clang 9.0 or later is installed on your system.
+
 `audionimbus-sys` requires linking against the Steam Audio library during compilation.
 
 To do so, download `steamaudio_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).

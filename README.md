@@ -1,4 +1,4 @@
-# audionimbus
+# AudioNimbus
 
 A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/), bringing powerful spatial audio capabilities to the Rust ecosystem.
 

@@ -18,6 +18,8 @@ As a result, it uses independent versioning.
 
 ## Installation
 
+Before installation, make sure that Clang 9.0 or later is installed on your system.
+
 `audionimbus` requires linking against the Steam Audio library during compilation.
 
 To do so, download `steamaudio_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
