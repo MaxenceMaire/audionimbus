@@ -28,6 +28,7 @@ fn generate_bindings_phonon(output_path: &Path, version: &Version, tmp_dir: &Pat
     let bindings = bindgen::Builder::default()
         .header(PHONON_HEADER_PATH)
         .clang_arg(format!("-I{}", tmp_dir.display()))
+        .clang_args(system_flags())
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .generate()
@@ -63,6 +64,7 @@ fn generate_bindings_phonon_fmod(output_path: &Path, version: &Version, tmp_dir:
             format!("-I{}", phonon_header_dir.display()),
             format!("-I{}", "steam-audio/fmod/include"),
         ])
+        .clang_args(system_flags())
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .blocklist_type("_?IPL.*")
@@ -104,6 +106,7 @@ fn generate_bindings_phonon_wwise(output_path: &Path, version: &Version, tmp_dir
             format!("-I{}", phonon_header_dir.display()),
             format!("-I{}", wwise_includes.display()),
         ])
+        .clang_args(system_flags())
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .allowlist_recursively(false)
@@ -180,4 +183,47 @@ impl Drop for TemporaryFileGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
     }
+}
+
+fn system_flags() -> Vec<String> {
+    let mut flags = vec![];
+
+    if cfg!(target_os = "windows") {
+        flags.push("-DIPL_OS_WINDOWS");
+    } else if cfg!(target_os = "linux") {
+        flags.push("-DIPL_OS_LINUX");
+    } else if cfg!(target_os = "macos") {
+        flags.push("-DIPL_OS_MACOSX");
+    } else if cfg!(target_os = "android") {
+        flags.push("-DIPL_OS_ANDROID");
+    } else if cfg!(target_os = "ios") {
+        flags.push("-DIPL_OS_IOS");
+    } else if cfg!(target_family = "wasm") {
+        flags.push("-DIPL_OS_WASM");
+    }
+
+    if cfg!(target_os = "windows") || cfg!(target_os = "linux") {
+        if cfg!(target_pointer_width = "64") {
+            flags.push("-DIPL_CPU_X64");
+        } else if cfg!(target_pointer_width = "32") {
+            flags.push("-DIPL_CPU_X86");
+        }
+    } else if cfg!(target_os = "macos") {
+    } else if cfg!(target_os = "android") {
+        if std::env::var("TARGET").unwrap().contains("armv8") {
+            flags.push("-DIPL_CPU_ARMV8");
+        } else if cfg!(target_arch = "arm") {
+            flags.push("-DIPL_CPU_ARMV7");
+        } else if cfg!(target_arch = "x86") {
+            flags.push("-DIPL_CPU_X86");
+        } else if cfg!(target_arch = "x86_64") {
+            flags.push("-DIPL_CPU_X64");
+        }
+    } else if cfg!(target_os = "ios") {
+        flags.push("-DIPL_CPU_ARMV8");
+    } else if cfg!(target_family = "wasm") {
+        flags.push("-DIPL_CPU_ARMV7");
+    }
+
+    flags.into_iter().map(|s| s.to_string()).collect()
 }
