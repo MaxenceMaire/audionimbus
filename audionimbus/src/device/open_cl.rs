@@ -127,13 +127,13 @@ unsafe impl Sync for OpenClDeviceList {}
 /// Specifies requirements that an OpenCL device must meet in order to be considered when listing OpenCL devices.
 #[derive(Debug)]
 pub struct OpenClDeviceSettings {
-    device_type: OpenClDeviceType,
+    pub device_type: OpenClDeviceType,
 
     /// The number of GPU compute units (CUs) that should be reserved for use by Steam Audio.
     ///
     /// If set to a non-zero value, then a GPU will be included in the device list only if it can reserve at least this many CUs.
     /// Set to 0 to indicate that Steam Audio can use the entire GPU, in which case all available GPUs will be considered.
-    num_compute_units_to_reserve: i32,
+    pub num_compute_units_to_reserve: i32,
 
     /// The fraction of reserved CUs that should be used for impulse response (IR) update.
     ///
@@ -148,12 +148,12 @@ pub struct OpenClDeviceSettings {
     /// - Using only Radeon Rays. Set `fraction_of_compute_units_for_impulse_response_update` to 1.0, to make sure all the reserved CUs are used for ray tracing. If using Steam Audio for preprocessing (e.g. baking reverb), then consider setting `fraction_of_compute_units_for_impulse_response_update` to 0.0 to use the entire GPU for accelerated ray tracing.
     ///
     /// Ignored if `num_compute_units_to_reserve` is 0.
-    fraction_of_compute_units_for_impulse_response_update: f32,
+    pub fraction_of_compute_units_for_impulse_response_update: f32,
 
     /// If `true`, then the GPU device must support TrueAudio Next.
     ///
     /// It is not necessary to set this to `true` if `num_compute_units_to_reserve` or `fraction_of_compute_units_for_impulse_response_update` are set to non-zero values.
-    requires_true_audio_next: bool,
+    pub requires_true_audio_next: bool,
 }
 
 impl Default for OpenClDeviceSettings {
