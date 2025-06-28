@@ -12,25 +12,139 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry;
 use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
+use std::marker::PhantomData;
+
+// Marker types for capabilities.
+#[derive(Debug)]
+pub struct Direct;
+#[derive(Debug)]
+pub struct Reflections;
+#[derive(Debug)]
+pub struct Pathing;
+
+/// Builder for creating a [`Simulator`].
+#[derive(Debug)]
+pub struct SimulatorBuilder<D = (), R = (), P = ()> {
+    settings: SimulationSettings<'static>,
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
+}
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
 ///
 /// Your application will typically create one simulator object and use it to run simulations with different source and listener parameters between consecutive simulation runs.
 /// The simulator can also be reused across scene changes.
 #[derive(Debug)]
-pub struct Simulator(audionimbus_sys::IPLSimulator);
+pub struct Simulator<D = (), R = (), P = ()> {
+    inner: audionimbus_sys::IPLSimulator,
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
+}
 
-impl Simulator {
-    pub fn try_new(
-        context: &Context,
-        settings: SimulationSettings,
-    ) -> Result<Self, SteamAudioError> {
-        let mut simulator = Self(std::ptr::null_mut());
+impl Simulator<(), (), ()> {
+    /// Creates a new simulator builder with required parameters.
+    pub fn builder(
+        scene_params: SceneParams<'static>,
+        sampling_rate: usize,
+        frame_size: usize,
+    ) -> SimulatorBuilder<(), (), ()> {
+        SimulatorBuilder {
+            settings: SimulationSettings {
+                scene_params,
+                sampling_rate,
+                frame_size,
+                direct_simulation: None,
+                reflections_simulation: None,
+                pathing_simulation: None,
+            },
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+        }
+    }
+}
+
+impl<D, R, P> SimulatorBuilder<D, R, P> {
+    /// Enables direct simulation.
+    pub fn with_direct(
+        self,
+        direct_settings: DirectSimulationSettings,
+    ) -> SimulatorBuilder<Direct, R, P> {
+        let SimulatorBuilder {
+            mut settings,
+            _reflections,
+            _pathing,
+            ..
+        } = self;
+
+        settings.direct_simulation = Some(direct_settings);
+
+        SimulatorBuilder {
+            settings,
+            _direct: PhantomData,
+            _reflections,
+            _pathing,
+        }
+    }
+
+    /// Enables reflections simulation.
+    pub fn with_reflections(
+        self,
+        reflections_settings: ReflectionsSimulationSettings<'static>,
+    ) -> SimulatorBuilder<D, Reflections, P> {
+        let SimulatorBuilder {
+            mut settings,
+            _direct,
+            _pathing,
+            ..
+        } = self;
+
+        settings.reflections_simulation = Some(reflections_settings);
+
+        SimulatorBuilder {
+            settings,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+        }
+    }
+
+    /// Enables pathing simulation.
+    pub fn with_pathing(
+        self,
+        pathing_settings: PathingSimulationSettings,
+    ) -> SimulatorBuilder<D, R, Pathing> {
+        let SimulatorBuilder {
+            mut settings,
+            _direct,
+            _reflections,
+            ..
+        } = self;
+
+        settings.pathing_simulation = Some(pathing_settings);
+
+        SimulatorBuilder {
+            settings,
+            _direct,
+            _reflections,
+            _pathing: PhantomData,
+        }
+    }
+
+    pub fn try_build(self, context: &Context) -> Result<Simulator<D, R, P>, SteamAudioError> {
+        let mut simulator = Simulator {
+            inner: std::ptr::null_mut(),
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+        };
 
         let status = unsafe {
             audionimbus_sys::iplSimulatorCreate(
                 context.raw_ptr(),
-                &mut audionimbus_sys::IPLSimulationSettings::from(settings),
+                &mut audionimbus_sys::IPLSimulationSettings::from(self.settings),
                 simulator.raw_ptr_mut(),
             )
         };
@@ -41,7 +155,9 @@ impl Simulator {
 
         Ok(simulator)
     }
+}
 
+impl<D, R, P> Simulator<D, R, P> {
     /// Specifies the scene within which all subsequent simulations should be run.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
@@ -118,6 +234,16 @@ impl Simulator {
         }
     }
 
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
+        self.inner
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSimulator {
+        &mut self.inner
+    }
+}
+
+impl<R, P> Simulator<Direct, R, P> {
     /// Runs a direct simulation for all sources added to the simulator.
     /// This may include distance attenuation, air absorption, directivity, occlusion, and transmission.
     ///
@@ -127,7 +253,9 @@ impl Simulator {
             audionimbus_sys::iplSimulatorRunDirect(self.raw_ptr());
         }
     }
+}
 
+impl<D, P> Simulator<D, Reflections, P> {
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
@@ -136,7 +264,9 @@ impl Simulator {
             audionimbus_sys::iplSimulatorRunReflections(self.raw_ptr());
         }
     }
+}
 
+impl<D, R> Simulator<D, R, Pathing> {
     /// Runs a pathing simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
@@ -145,37 +275,35 @@ impl Simulator {
             audionimbus_sys::iplSimulatorRunPathing(self.raw_ptr());
         }
     }
-
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
-        self.0
-    }
-
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSimulator {
-        &mut self.0
-    }
 }
 
-impl Clone for Simulator {
+impl<D, R, P> Clone for Simulator<D, R, P> {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplSimulatorRetain(self.0);
+            audionimbus_sys::iplSimulatorRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+        }
     }
 }
 
-impl Drop for Simulator {
+impl<D, R, P> Drop for Simulator<D, R, P> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSimulatorRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplSimulatorRelease(&mut self.inner) }
     }
 }
 
-unsafe impl Send for Simulator {}
-unsafe impl Sync for Simulator {}
+unsafe impl<D, R, P> Send for Simulator<D, R, P> {}
+unsafe impl<D, R, P> Sync for Simulator<D, R, P> {}
 
 /// Settings used to create a simulator.
 #[derive(Debug, Copy, Clone)]
-pub struct SimulationSettings<'a> {
+struct SimulationSettings<'a> {
     /// The scene parameters that will be used for simulations.
     /// The scene parameters cannot change during the lifetime of a simulator object.
     pub scene_params: SceneParams<'a>,
@@ -531,8 +659,8 @@ impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
 pub struct Source(audionimbus_sys::IPLSource);
 
 impl Source {
-    pub fn try_new(
-        simulator: &Simulator,
+    pub fn try_new<D, R, P>(
+        simulator: &Simulator<D, R, P>,
         source_settings: &SourceSettings,
     ) -> Result<Self, SteamAudioError> {
         let mut source = Self(std::ptr::null_mut());
