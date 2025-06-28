@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0] - 2025-06-28
+
+### Changed
+
+- Make `OpenClDeviceSettings` fields public.
+
+### Fixed
+
+- Calling `run_reflections` (resp. `run_direct`, `run_pathing`) on a `Simulator` that was not configured with the appropriate reflections (resp., direct, pathing) settings would result in a segmentation fault.
+
 ## [0.6.4] - 2025-04-16
 
 ### Fixed
