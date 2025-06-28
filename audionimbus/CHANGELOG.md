@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] - 2025-06-28
+
+### Fixed
+
+- The FMOD integration uses `SimulationSettings` but it was not made public.
+
 ## [0.7.0] - 2025-06-28
 
 ### Changed

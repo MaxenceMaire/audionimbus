@@ -303,7 +303,7 @@ unsafe impl<D, R, P> Sync for Simulator<D, R, P> {}
 
 /// Settings used to create a simulator.
 #[derive(Debug, Copy, Clone)]
-struct SimulationSettings<'a> {
+pub struct SimulationSettings<'a> {
     /// The scene parameters that will be used for simulations.
     /// The scene parameters cannot change during the lifetime of a simulator object.
     pub scene_params: SceneParams<'a>,
