@@ -482,29 +482,30 @@ fn test_simulation() {
 
     let audio_settings = audionimbus::AudioSettings::default();
 
-    let sampling_rate = 44100;
+    let sampling_rate = 48000;
     let frame_size = 1024;
 
-    let simulation_settings = audionimbus::SimulationSettings {
-        scene_params: audionimbus::SceneParams::Default,
-        direct_simulation: Some(audionimbus::DirectSimulationSettings {
-            max_num_occlusion_samples: 4,
-        }),
-        reflections_simulation: Some(audionimbus::ReflectionsSimulationSettings::Convolution {
-            max_num_rays: 4096,
-            num_diffuse_samples: 32,
-            max_duration: 2.0,
-            max_order: 1,
-            max_num_sources: 8,
-            num_threads: 2,
-        }),
-        pathing_simulation: Some(audionimbus::PathingSimulationSettings {
-            num_visibility_samples: 4,
-        }),
+    let mut simulator = audionimbus::Simulator::builder(
+        audionimbus::SceneParams::Default,
         sampling_rate,
         frame_size,
-    };
-    let mut simulator = audionimbus::Simulator::try_new(&context, simulation_settings).unwrap();
+    )
+    .with_direct(audionimbus::DirectSimulationSettings {
+        max_num_occlusion_samples: 4,
+    })
+    .with_reflections(audionimbus::ReflectionsSimulationSettings::Convolution {
+        max_num_rays: 4096,
+        num_diffuse_samples: 32,
+        max_duration: 2.0,
+        max_order: 1,
+        max_num_sources: 8,
+        num_threads: 2,
+    })
+    .with_pathing(audionimbus::PathingSimulationSettings {
+        num_visibility_samples: 4,
+    })
+    .try_build(&context)
+    .unwrap();
 
     let scene_settings = audionimbus::SceneSettings::default();
     let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
@@ -644,26 +645,30 @@ pub fn test_baking() {
     let context_settings = audionimbus::ContextSettings::default();
     let context = audionimbus::Context::try_new(&context_settings).unwrap();
 
-    let simulation_settings = audionimbus::SimulationSettings {
-        scene_params: audionimbus::SceneParams::Default,
-        direct_simulation: Some(audionimbus::DirectSimulationSettings {
-            max_num_occlusion_samples: 4,
-        }),
-        reflections_simulation: Some(audionimbus::ReflectionsSimulationSettings::Convolution {
-            max_num_rays: 4096,
-            num_diffuse_samples: 32,
-            max_duration: 2.0,
-            max_order: 1,
-            max_num_sources: 8,
-            num_threads: 2,
-        }),
-        pathing_simulation: Some(audionimbus::PathingSimulationSettings {
-            num_visibility_samples: 4,
-        }),
-        sampling_rate: 48000,
-        frame_size: 1024,
-    };
-    let mut simulator = audionimbus::Simulator::try_new(&context, simulation_settings).unwrap();
+    let sampling_rate = 48000;
+    let frame_size = 1024;
+
+    let mut simulator = audionimbus::Simulator::builder(
+        audionimbus::SceneParams::Default,
+        sampling_rate,
+        frame_size,
+    )
+    .with_direct(audionimbus::DirectSimulationSettings {
+        max_num_occlusion_samples: 4,
+    })
+    .with_reflections(audionimbus::ReflectionsSimulationSettings::Convolution {
+        max_num_rays: 4096,
+        num_diffuse_samples: 32,
+        max_duration: 2.0,
+        max_order: 1,
+        max_num_sources: 8,
+        num_threads: 2,
+    })
+    .with_pathing(audionimbus::PathingSimulationSettings {
+        num_visibility_samples: 4,
+    })
+    .try_build(&context)
+    .unwrap();
 
     let scene_settings = audionimbus::SceneSettings::default();
     let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
@@ -729,26 +734,30 @@ fn test_pathing() {
 
     let audio_settings = audionimbus::AudioSettings::default();
 
-    let simulation_settings = audionimbus::SimulationSettings {
-        scene_params: audionimbus::SceneParams::Default,
-        direct_simulation: Some(audionimbus::DirectSimulationSettings {
-            max_num_occlusion_samples: 4,
-        }),
-        reflections_simulation: Some(audionimbus::ReflectionsSimulationSettings::Convolution {
-            max_num_rays: 4096,
-            num_diffuse_samples: 32,
-            max_duration: 2.0,
-            max_order: 1,
-            max_num_sources: 8,
-            num_threads: 2,
-        }),
-        pathing_simulation: Some(audionimbus::PathingSimulationSettings {
-            num_visibility_samples: 4,
-        }),
-        sampling_rate: 48000,
-        frame_size: 1024,
-    };
-    let simulator = audionimbus::Simulator::try_new(&context, simulation_settings).unwrap();
+    let sampling_rate = 48000;
+    let frame_size = 1024;
+
+    let simulator = audionimbus::Simulator::builder(
+        audionimbus::SceneParams::Default,
+        sampling_rate,
+        frame_size,
+    )
+    .with_direct(audionimbus::DirectSimulationSettings {
+        max_num_occlusion_samples: 4,
+    })
+    .with_reflections(audionimbus::ReflectionsSimulationSettings::Convolution {
+        max_num_rays: 4096,
+        num_diffuse_samples: 32,
+        max_duration: 2.0,
+        max_order: 1,
+        max_num_sources: 8,
+        num_threads: 2,
+    })
+    .with_pathing(audionimbus::PathingSimulationSettings {
+        num_visibility_samples: 4,
+    })
+    .try_build(&context)
+    .unwrap();
 
     let scene_settings = audionimbus::SceneSettings::default();
     let scene = audionimbus::Scene::try_new(&context, &scene_settings).unwrap();
