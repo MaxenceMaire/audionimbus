@@ -861,6 +861,53 @@ fn test_pathing() {
     output_buffer.interleave(&context, &mut interleaved);
 }
 
+#[test]
+fn test_buffer_mix() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    const FRAME_SIZE: usize = 1024;
+
+    let source_container = vec![0.1; FRAME_SIZE];
+    let source_buffer = audionimbus::AudioBuffer::try_with_data(&source_container).unwrap();
+
+    let mix_container = vec![0.2; FRAME_SIZE];
+    let mut mix_buffer = audionimbus::AudioBuffer::try_with_data(&mix_container).unwrap();
+
+    mix_buffer.mix(&context, &source_buffer);
+
+    assert_eq!(mix_container, vec![0.3; FRAME_SIZE]);
+}
+
+#[test]
+fn test_buffer_downmix() {
+    let context_settings = audionimbus::ContextSettings::default();
+    let context = audionimbus::Context::try_new(&context_settings).unwrap();
+
+    const FRAME_SIZE: usize = 1024;
+    const NUM_CHANNELS: usize = 2;
+
+    let mut input_container = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
+    input_container.extend(std::iter::repeat(0.1).take(FRAME_SIZE));
+    input_container.extend(std::iter::repeat(0.3).take(FRAME_SIZE));
+    let input_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
+        &mut input_container,
+        &audionimbus::AudioBufferSettings {
+            num_channels: Some(NUM_CHANNELS),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let mut downmix_container = vec![0.0; FRAME_SIZE];
+    let mut downmix_buffer =
+        audionimbus::AudioBuffer::try_with_data(&mut downmix_container).unwrap();
+
+    input_buffer.downmix(&context, &mut downmix_buffer);
+
+    assert_eq!(downmix_container, vec![0.2; FRAME_SIZE]);
+}
+
 fn sine_wave(frequency: f32, amplitude: f32, duration_secs: f32, sample_rate: usize) -> Vec<f32> {
     let num_samples = (duration_secs * sample_rate as f32) as usize;
     let phase_increment = 2.0 * std::f32::consts::PI * frequency / sample_rate as f32;

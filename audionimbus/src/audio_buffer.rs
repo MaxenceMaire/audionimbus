@@ -117,27 +117,27 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T> {
         };
     }
 
-    /// Mixes `other` into `self`.
+    /// Mixes `source` into `self`.
     ///
     /// Both audio buffers must have the same number of channels and samples.
-    pub fn mix(&mut self, context: &Context, other: &AudioBuffer<T>) {
+    pub fn mix(&mut self, context: &Context, source: &AudioBuffer<T>) {
         assert_eq!(
             self.num_channels(),
-            other.num_channels(),
+            source.num_channels(),
             "both audio buffers must have the same number of channels"
         );
 
         assert_eq!(
             self.num_samples(),
-            other.num_samples(),
+            source.num_samples(),
             "both audio buffers must have the same number of samples per channel"
         );
 
         unsafe {
             audionimbus_sys::iplAudioBufferMix(
                 context.raw_ptr(),
+                &mut *source.as_ffi(),
                 &mut *self.as_ffi(),
-                &mut *other.as_ffi(),
             );
         }
     }
@@ -148,7 +148,7 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T> {
     ///
     /// Downmixing is performed by summing up the source channels and dividing the result by the number of source channels.
     /// If this is not the desired downmixing behavior, we recommend that downmixing be performed manually.
-    pub fn downmix(&mut self, context: &Context, output: &mut AudioBuffer<T>) {
+    pub fn downmix(&self, context: &Context, output: &mut AudioBuffer<T>) {
         assert_eq!(
             self.num_samples(),
             output.num_samples(),
