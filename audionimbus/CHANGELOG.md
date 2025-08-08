@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2] - 2025-08-08
+
+### Fixed
+
+- `mix` on `AudioBuffer` would incorrectly mix `self` into `other` instead of the other way around.
+- `downmix` on `AudioBuffer` would take a mutable `self`, which was unnecessary.
+
 ## [0.7.1] - 2025-06-28
 
 ### Fixed
