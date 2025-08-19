@@ -546,6 +546,7 @@ fn test_simulation() {
             pathing_order: 1,
             enable_validation: true,
             find_alternate_paths: true,
+            deviation: audionimbus::DeviationModel::default(),
         }),
     };
     source.set_inputs(audionimbus::SimulationFlags::DIRECT, simulation_inputs);
@@ -819,6 +820,7 @@ fn test_pathing() {
             pathing_order: 1,
             enable_validation: true,
             find_alternate_paths: true,
+            deviation: audionimbus::DeviationModel::default(),
         }),
     };
     source.set_inputs(audionimbus::SimulationFlags::PATHING, simulation_inputs);

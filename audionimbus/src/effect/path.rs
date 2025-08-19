@@ -197,6 +197,11 @@ pub struct PathEffectParams {
     /// The position and orientation of the listener.
     /// Only used if [`PathEffectSettings::spatialization`] is `Some` and [`Self::binaural`] is set to `true`.
     pub listener: CoordinateSystem,
+
+    /// If `true`, the values in [`Self::eq_coeffs`] will be normalized before being used, i.e., each value in [`Self::eq_coeffs`] will be divided by the largest value in [`Self::eq_coeffs`].
+    /// This can help counteract overly-aggressive filtering due to a physics-based deviation model.
+    /// If `false`, the values in [`Self::eq_coeffs`] will be used as-is.
+    pub normalize_eq: bool,
 }
 
 impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
@@ -208,6 +213,7 @@ impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
             binaural: params.binaural == audionimbus_sys::IPLbool::IPL_TRUE,
             hrtf: params.hrtf,
             listener: params.listener.into(),
+            normalize_eq: params.normalizeEQ == audionimbus_sys::IPLbool::IPL_TRUE,
         }
     }
 }
@@ -225,6 +231,11 @@ impl PathEffectParams {
             },
             hrtf: self.hrtf,
             listener: self.listener.into(),
+            normalizeEQ: if self.normalize_eq {
+                audionimbus_sys::IPLbool::IPL_TRUE
+            } else {
+                audionimbus_sys::IPLbool::IPL_FALSE
+            },
         };
 
         FFIWrapper::new(path_effect_params)
