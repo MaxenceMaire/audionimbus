@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0] - 2025-08-19
+
+### Added
+
+- Support for Steam Audio v.4.6.1 via `audionimbus-sys` v.4.6.1.
+- Support for custom pathing deviation model.
+
 ## [0.7.2] - 2025-08-08
 
 ### Fixed
