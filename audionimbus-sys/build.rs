@@ -142,12 +142,6 @@ fn version() -> Version {
         .parse::<u32>()
         .unwrap();
 
-    // TODO: remove statement upon release of Steam Audio v4.6.2.
-    // The version of audionimbus-sys is temporarily ahead of Steam Audio's
-    // to allow for the introduction of new features, so we need to explicitly
-    // pin the version.
-    let patch = 1;
-
     Version {
         major,
         minor,
