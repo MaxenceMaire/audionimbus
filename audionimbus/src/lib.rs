@@ -191,6 +191,8 @@ You may choose either license when using the software.
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+pub const NUM_BANDS: u32 = 3;
+
 pub mod audio_buffer;
 pub use audio_buffer::*;
 
@@ -234,6 +236,9 @@ pub use simulation::*;
 
 pub mod version;
 pub use version::*;
+
+pub mod energy_field;
+pub use energy_field::*;
 
 #[cfg(feature = "fmod")]
 pub mod fmod;
