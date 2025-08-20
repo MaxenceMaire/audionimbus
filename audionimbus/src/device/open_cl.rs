@@ -31,6 +31,46 @@ impl OpenClDevice {
         Ok(open_cl_device)
     }
 
+    /// Creates an OpenCL device from an existing OpenCL device created by your application. Steam Audio will use up to two command queues that you provide for enqueuing OpenCL computations.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that:
+    /// - `convolution_queue` and `ir_update_queue` are valid OpenCL command queue handles.
+    /// - They remain valid for the lifetime of the created device.
+    ///
+    /// # Arguments
+    ///
+    /// - `context`: the context used to initialize AudioNimbus.
+    /// - `convolution_queue`: the command queue to use for enqueueing convolution work.
+    /// - `ir_update_queue`: the command queue to use for enqueueing IR update work.
+    ///
+    /// # Returns
+    ///
+    /// The created OpenCL device, or an error.
+    pub unsafe fn from_existing(
+        context: &Context,
+        convolution_queue: *mut std::ffi::c_void,
+        ir_update_queue: *mut std::ffi::c_void,
+    ) -> Result<Self, SteamAudioError> {
+        let mut open_cl_device = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplOpenCLDeviceCreateFromExisting(
+                context.raw_ptr(),
+                convolution_queue,
+                ir_update_queue,
+                open_cl_device.raw_ptr_mut(),
+            )
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(open_cl_device)
+    }
+
     pub fn null() -> Self {
         Self(std::ptr::null_mut())
     }
