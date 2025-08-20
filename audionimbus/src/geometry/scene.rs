@@ -5,6 +5,7 @@ use crate::device::embree::EmbreeDevice;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
+use crate::geometry::{Direction, Point};
 use crate::serialized_object::SerializedObject;
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
@@ -419,4 +420,39 @@ pub enum SceneParams<'a> {
         /// The number of rays that will be passed to the callbacks every time rays need to be traced.
         ray_batch_size: usize,
     },
+}
+
+/// Calculates the relative direction from the listener to a sound source.
+///
+/// The returned direction vector is expressed in the listener’s coordinate system.
+///
+/// # Arguments
+///
+/// - `context`: the context used to initialize AudioNimbus.
+/// - `source_position`: world-space coordinates of the source.
+/// - `listener_position`: world-space coordinates of the listener.
+/// - `listener_ahead`: world-space unit-length vector pointing ahead relative to the listener.
+/// - `listener_up`: world-space unit-length vector pointing up relative to the listener.
+///
+/// # Returns
+///
+/// A unit-length vector in the listener’s coordinate space, pointing from the listener to the source.
+pub fn relative_direction(
+    context: &Context,
+    source_position: Point,
+    listener_position: Point,
+    listener_ahead: Direction,
+    listener_up: Direction,
+) -> Direction {
+    let relative_direction = unsafe {
+        audionimbus_sys::iplCalculateRelativeDirection(
+            context.raw_ptr(),
+            source_position.into(),
+            listener_position.into(),
+            listener_ahead.into(),
+            listener_up.into(),
+        )
+    };
+
+    relative_direction.into()
 }
