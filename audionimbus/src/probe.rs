@@ -2,6 +2,7 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
+use crate::simulation::BakedDataIdentifier;
 
 /// An array of sound probes.
 ///
@@ -156,6 +157,29 @@ impl ProbeBatch {
         Ok(probe_batch)
     }
 
+    /// Returns the number of probes in the probe batch.
+    pub fn num_probes(&self) -> usize {
+        unsafe { audionimbus_sys::iplProbeBatchGetNumProbes(self.raw_ptr()) as usize }
+    }
+
+    /// Returns the size (in bytes) of a specific baked data layer in the probe batch.
+    pub fn data_size(&self, identifier: BakedDataIdentifier) -> usize {
+        let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
+
+        unsafe {
+            audionimbus_sys::iplProbeBatchGetDataSize(self.raw_ptr(), &mut ffi_identifier as *mut _)
+                as usize
+        }
+    }
+
+    pub fn remove_data(&mut self, identifier: BakedDataIdentifier) {
+        let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
+
+        unsafe {
+            audionimbus_sys::iplProbeBatchRemoveData(self.raw_ptr(), &mut ffi_identifier as *mut _)
+        }
+    }
+
     /// Adds a probe to a batch.
     /// The new probe will be added as the last probe in the batch.
     pub fn add_probe(&mut self, probe: &Sphere) {
@@ -164,6 +188,15 @@ impl ProbeBatch {
                 self.raw_ptr(),
                 audionimbus_sys::IPLSphere::from(*probe),
             );
+        }
+    }
+
+    /// Removes a probe from the batch.
+    pub fn remove_probe(&mut self, index: usize) {
+        assert!(index < self.num_probes(), "probe index out of bounds");
+
+        unsafe {
+            audionimbus_sys::iplProbeBatchRemoveProbe(self.raw_ptr(), index as i32);
         }
     }
 
