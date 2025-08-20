@@ -43,12 +43,12 @@ pub fn set_hrtf_disabled(disabled: bool) {
 /// A handle to a [`Source`] that can be used in C# scripts.
 pub type SourceHandle = i32;
 
-/// Registers a source, and returns the corresponding handle.
+/// Registers a source for use by Steam Audio DSP effects in the audio thread, and returns the corresponding handle.
 pub fn add_source(source: &Source) -> SourceHandle {
     unsafe { audionimbus_sys::fmod::iplFMODAddSource(source.raw_ptr()) }
 }
 
-/// Unregisters a [`Source`] associated with the given handle.
+/// Unregisters a [`Source`] associated with the given handle, so the Steam Audio DSP effects can no longer use it.
 pub fn remove_source(handle: SourceHandle) {
     unsafe { audionimbus_sys::fmod::iplFMODRemoveSource(handle as audionimbus_sys::IPLint32) }
 }
