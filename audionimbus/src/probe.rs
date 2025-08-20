@@ -1,4 +1,5 @@
 use crate::context::Context;
+use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
@@ -192,11 +193,11 @@ impl ProbeBatch {
     }
 
     /// Removes a probe from the batch.
-    pub fn remove_probe(&mut self, index: usize) {
-        assert!(index < self.num_probes(), "probe index out of bounds");
+    pub fn remove_probe(&mut self, probe_index: usize) {
+        assert!(probe_index < self.num_probes(), "probe index out of bounds");
 
         unsafe {
-            audionimbus_sys::iplProbeBatchRemoveProbe(self.raw_ptr(), index as i32);
+            audionimbus_sys::iplProbeBatchRemoveProbe(self.raw_ptr(), probe_index as i32);
         }
     }
 
@@ -206,6 +207,44 @@ impl ProbeBatch {
         unsafe {
             audionimbus_sys::iplProbeBatchAddProbeArray(self.raw_ptr(), probe_array.raw_ptr());
         }
+    }
+
+    /// Retrieves a single array of parametric reverb times in a specific baked data layer of a specific probe in the probe batch.
+    pub fn reverb(&self, identifier: BakedDataIdentifier, probe_index: usize) -> [f32; 3] {
+        assert!(probe_index < self.num_probes(), "probe index out of bounds");
+
+        let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
+        let mut reverb_times: [f32; 3] = [0.0; 3];
+
+        unsafe {
+            audionimbus_sys::iplProbeBatchGetReverb(
+                self.raw_ptr(),
+                &mut ffi_identifier as *mut _,
+                probe_index as i32,
+                reverb_times.as_mut_ptr(),
+            );
+        }
+
+        reverb_times
+    }
+
+    /// Retrieves a single energy field in a specific baked data layer of a specific probe in the probe batch.
+    pub fn energy_field(&self, identifier: BakedDataIdentifier, probe_index: usize) -> EnergyField {
+        assert!(probe_index < self.num_probes(), "probe index out of bounds");
+
+        let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
+        let energy_field = EnergyField(std::ptr::null_mut());
+
+        unsafe {
+            audionimbus_sys::iplProbeBatchGetEnergyField(
+                self.raw_ptr(),
+                &mut ffi_identifier as *mut _,
+                probe_index as i32,
+                energy_field.raw_ptr(),
+            );
+        }
+
+        energy_field
     }
 
     /// Commits all changes made to a probe batch since this function was last called (or since the probe batch was first created, if this function was never called).

@@ -13,7 +13,7 @@ use crate::NUM_BANDS;
 ///
 /// Energy field data is stored as a 3D array of size #channels * #bands * #bins, in row-major order.
 #[derive(Debug)]
-pub struct EnergyField(audionimbus_sys::IPLEnergyField);
+pub struct EnergyField(pub(crate) audionimbus_sys::IPLEnergyField);
 
 impl EnergyField {
     pub fn try_new(
