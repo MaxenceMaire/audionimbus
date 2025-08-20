@@ -269,6 +269,11 @@ pub fn bake_path(
     }
 }
 
+/// Cancels any running bakes of pathing data.
+pub fn cancel_bake_path(context: &Context) {
+    unsafe { audionimbus_sys::iplPathBakerCancelBake(context.raw_ptr()) }
+}
+
 /// Parameters used to control how pathing data is baked.
 #[derive(Debug)]
 pub struct PathBakeParams<'a> {
