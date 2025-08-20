@@ -35,6 +35,21 @@ impl ProbeArray {
         }
     }
 
+    /// Returns the number of probes in the probe array.
+    pub fn num_probes(&self) -> usize {
+        unsafe { audionimbus_sys::iplProbeArrayGetNumProbes(self.raw_ptr()) as usize }
+    }
+
+    /// Returns the probe at a given index in the probe array.
+    pub fn probe(&self, index: usize) -> Sphere {
+        assert!(index < self.num_probes(), "probe index out of bounds");
+
+        let ipl_sphere =
+            unsafe { audionimbus_sys::iplProbeArrayGetProbe(self.raw_ptr(), index as i32) };
+
+        Sphere::from(ipl_sphere)
+    }
+
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
         self.0
     }

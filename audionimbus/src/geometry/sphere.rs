@@ -28,3 +28,12 @@ impl From<Sphere> for audionimbus_sys::IPLSphere {
         }
     }
 }
+
+impl From<audionimbus_sys::IPLSphere> for Sphere {
+    fn from(ipl_sphere: audionimbus_sys::IPLSphere) -> Self {
+        Self {
+            center: ipl_sphere.center.into(),
+            radius: ipl_sphere.radius,
+        }
+    }
+}
