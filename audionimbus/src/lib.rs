@@ -243,6 +243,9 @@ pub use energy_field::*;
 pub mod impulse_response;
 pub use impulse_response::*;
 
+pub mod reconstructor;
+pub use reconstructor::*;
+
 #[cfg(feature = "fmod")]
 pub mod fmod;
 
