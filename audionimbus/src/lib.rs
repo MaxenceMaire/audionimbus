@@ -240,6 +240,9 @@ pub use version::*;
 pub mod energy_field;
 pub use energy_field::*;
 
+pub mod impulse_response;
+pub use impulse_response::*;
+
 #[cfg(feature = "fmod")]
 pub mod fmod;
 

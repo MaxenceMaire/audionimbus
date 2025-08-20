@@ -96,7 +96,7 @@ impl EnergyField {
         unsafe { std::slice::from_raw_parts(ptr, len as usize) }
     }
 
-    /// Resets all values stored in an energy field to zero.
+    /// Resets all values stored in the energy field to zero.
     pub fn reset(&mut self) {
         unsafe { audionimbus_sys::iplEnergyFieldReset(self.raw_ptr()) }
     }
