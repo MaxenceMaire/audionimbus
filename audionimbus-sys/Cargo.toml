@@ -22,6 +22,7 @@ exclude = [
 bindgen = "0.71.1"
 
 [features]
+auto-install = []
 fmod = []
 wwise = []
 
