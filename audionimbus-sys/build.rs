@@ -202,7 +202,11 @@ fn install_steam_audio(
     }
 
     // Copy libraries to a location where they can be found
-    copy_libraries(&extract_dir.join("steamaudio"), target_info, &target_info.lib_names)?;
+    copy_libraries(
+        &extract_dir.join("steamaudio"),
+        target_info,
+        &target_info.lib_names,
+    )?;
 
     Ok(())
 }
@@ -260,7 +264,11 @@ fn install_fmod_integration(
         _ => return Err("Unsupported platform for FMOD integration".into()),
     };
 
-    copy_libraries(&extract_dir.join("steamaudio_fmod"), target_info, &[fmod_lib_name.to_string()])?;
+    copy_libraries(
+        &extract_dir.join("steamaudio_fmod"),
+        target_info,
+        &[fmod_lib_name.to_string()],
+    )?;
 
     Ok(())
 }
@@ -325,7 +333,11 @@ fn install_wwise_integration(
             .join(&target_info.lib_dir)
             .join(&lib_name);
         if src.exists() {
-            copy_libraries(&extract_dir.join("steamaudio_wwise"), target_info, &[lib_name])?;
+            copy_libraries(
+                &extract_dir.join("steamaudio_wwise"),
+                target_info,
+                &[lib_name],
+            )?;
             break;
         }
     }
@@ -372,8 +384,8 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
             println!("cargo:warning=curl failed, trying wget...");
             let wget_result = Command::new("wget")
                 .args(&[
-                    "--tries=3",            // Retry on failure
-                    "--waitretry=1",        // Wait between retries
+                    "--tries=3",     // Retry on failure
+                    "--waitretry=1", // Wait between retries
                     "-O",
                     dest.to_str().unwrap(),
                     url,
