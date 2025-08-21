@@ -31,6 +31,46 @@ impl OpenClDevice {
         Ok(open_cl_device)
     }
 
+    /// Creates an OpenCL device from an existing OpenCL device created by your application. Steam Audio will use up to two command queues that you provide for enqueuing OpenCL computations.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that:
+    /// - `convolution_queue` and `ir_update_queue` are valid OpenCL command queue handles.
+    /// - They remain valid for the lifetime of the created device.
+    ///
+    /// # Arguments
+    ///
+    /// - `context`: the context used to initialize AudioNimbus.
+    /// - `convolution_queue`: the command queue to use for enqueueing convolution work.
+    /// - `ir_update_queue`: the command queue to use for enqueueing IR update work.
+    ///
+    /// # Returns
+    ///
+    /// The created OpenCL device, or an error.
+    pub unsafe fn from_existing(
+        context: &Context,
+        convolution_queue: *mut std::ffi::c_void,
+        ir_update_queue: *mut std::ffi::c_void,
+    ) -> Result<Self, SteamAudioError> {
+        let mut open_cl_device = Self(std::ptr::null_mut());
+
+        let status = unsafe {
+            audionimbus_sys::iplOpenCLDeviceCreateFromExisting(
+                context.raw_ptr(),
+                convolution_queue,
+                ir_update_queue,
+                open_cl_device.raw_ptr_mut(),
+            )
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(open_cl_device)
+    }
+
     pub fn null() -> Self {
         Self(std::ptr::null_mut())
     }
@@ -89,6 +129,41 @@ impl OpenClDeviceList {
         };
 
         Ok(Self(open_cl_device_list))
+    }
+
+    /// Returns the number of devices in the OpenCL device list.
+    pub fn num_devices(&self) -> usize {
+        unsafe { audionimbus_sys::iplOpenCLDeviceListGetNumDevices(self.raw_ptr()) as usize }
+    }
+
+    /// Retrieves information about a specific device in an OpenCL device list.
+    pub fn device_descriptor(&self, device_index: usize) -> OpenClDeviceDescriptor {
+        assert!(
+            device_index < self.num_devices(),
+            "device index out of bounds"
+        );
+
+        let mut device_descriptor =
+            std::mem::MaybeUninit::<audionimbus_sys::IPLOpenCLDeviceDesc>::uninit();
+
+        unsafe {
+            audionimbus_sys::iplOpenCLDeviceListGetDeviceDesc(
+                self.raw_ptr(),
+                device_index as i32,
+                device_descriptor.as_mut_ptr(),
+            );
+
+            let device_descriptor = device_descriptor.assume_init();
+            OpenClDeviceDescriptor::try_from(&device_descriptor).expect("invalid C string")
+        }
+    }
+
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDeviceList {
+        self.0
+    }
+
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDeviceList {
+        &mut self.0
     }
 }
 
@@ -202,5 +277,100 @@ impl From<OpenClDeviceType> for audionimbus_sys::IPLOpenCLDeviceType {
             OpenClDeviceType::Cpu => audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_CPU,
             OpenClDeviceType::Gpu => audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_GPU,
         }
+    }
+}
+
+impl From<audionimbus_sys::IPLOpenCLDeviceType> for OpenClDeviceType {
+    fn from(device_type: audionimbus_sys::IPLOpenCLDeviceType) -> Self {
+        match device_type {
+            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_ANY => OpenClDeviceType::Any,
+            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_CPU => OpenClDeviceType::Cpu,
+            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_GPU => OpenClDeviceType::Gpu,
+        }
+    }
+}
+
+/// Describes the properties of an OpenCL device.
+/// This information can be used to select the most suitable device for your application.
+#[derive(Debug)]
+pub struct OpenClDeviceDescriptor {
+    /// The OpenCL platform id.
+    pub platform: *mut std::ffi::c_void,
+
+    /// The OpenCL platform name.
+    pub platform_name: String,
+
+    /// The OpenCL platform vendor's name.
+    pub platform_vendor: String,
+
+    /// The OpenCL platform version.
+    pub platform_version: String,
+
+    /// The OpenCL device id.
+    pub device: *mut std::ffi::c_void,
+
+    /// The OpenCL device name.
+    pub device_name: String,
+
+    /// The OpenCL device vendor's name.
+    pub device_vendor: String,
+
+    /// The OpenCL device version.
+    pub device_version: String,
+
+    /// The type of OpenCL device.
+    pub device_type: OpenClDeviceType,
+
+    /// The number of CUs reserved for convolution.
+    /// May be 0 if CU reservation is not supported.
+    pub num_convolution_cus: i32,
+
+    /// The number of CUs reserved for IR update.
+    /// May be 0 if CU reservation is not supported.
+    pub num_ir_update_cus: i32,
+
+    /// The CU reservation granularity.
+    /// CUs can only be reserved on this device in multiples of this number.
+    pub granularity: i32,
+
+    /// A relative performance score of a single CU of this device.
+    /// Only applicable to supported AMD GPUs.
+    pub perf_score: f32,
+}
+
+/// Helper function to safely convert a C string pointer to a Rust String
+///
+/// # Safety
+/// The caller must ensure that the pointer is valid and points to a null-terminated C string.
+unsafe fn cstr_to_string(ptr: *const std::ffi::c_char) -> Result<String, std::str::Utf8Error> {
+    if ptr.is_null() {
+        return Ok(String::new());
+    }
+
+    let c_str = std::ffi::CStr::from_ptr(ptr);
+    c_str.to_str().map(|s| s.to_string())
+}
+
+impl TryFrom<&audionimbus_sys::IPLOpenCLDeviceDesc> for OpenClDeviceDescriptor {
+    type Error = std::str::Utf8Error;
+
+    fn try_from(
+        ipl_descriptor: &audionimbus_sys::IPLOpenCLDeviceDesc,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            platform: ipl_descriptor.platform,
+            platform_name: unsafe { cstr_to_string(ipl_descriptor.platformName)? },
+            platform_vendor: unsafe { cstr_to_string(ipl_descriptor.platformVendor)? },
+            platform_version: unsafe { cstr_to_string(ipl_descriptor.platformVersion)? },
+            device: ipl_descriptor.device,
+            device_name: unsafe { cstr_to_string(ipl_descriptor.deviceName)? },
+            device_vendor: unsafe { cstr_to_string(ipl_descriptor.deviceVendor)? },
+            device_version: unsafe { cstr_to_string(ipl_descriptor.deviceVersion)? },
+            device_type: ipl_descriptor.type_.into(),
+            num_convolution_cus: ipl_descriptor.numConvolutionCUs,
+            num_ir_update_cus: ipl_descriptor.numIRUpdateCUs,
+            granularity: ipl_descriptor.granularity,
+            perf_score: ipl_descriptor.perfScore,
+        })
     }
 }

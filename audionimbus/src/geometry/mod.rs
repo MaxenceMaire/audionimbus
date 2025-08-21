@@ -20,7 +20,7 @@ mod material;
 pub use material::Material;
 
 mod scene;
-pub use scene::{Scene, SceneParams, SceneSettings};
+pub use scene::{relative_direction, Scene, SceneParams, SceneSettings};
 
 mod static_mesh;
 pub use static_mesh::{StaticMesh, StaticMeshSettings};

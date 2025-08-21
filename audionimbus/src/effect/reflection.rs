@@ -516,6 +516,11 @@ pub fn bake_reflections(
     }
 }
 
+/// Cancels any running bakes of pathing data.
+pub fn cancel_bake_reflections(context: &Context) {
+    unsafe { audionimbus_sys::iplReflectionsBakerCancelBake(context.raw_ptr()) }
+}
+
 /// Parameters used to control how reflections data is baked.
 #[derive(Debug, Copy, Clone)]
 pub struct ReflectionsBakeParams<'a> {

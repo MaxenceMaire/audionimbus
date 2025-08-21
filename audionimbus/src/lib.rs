@@ -45,7 +45,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.7.2"
+audionimbus = "0.8.0"
 ```
 
 ## Example
@@ -152,7 +152,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.7.2", features = ["fmod"] }
+audionimbus = { version = "0.8.0", features = ["fmod"] }
 ```
 
 ## Wwise Integration
@@ -171,7 +171,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.7.2", features = ["wwise"] }
+audionimbus = { version = "0.8.0", features = ["wwise"] }
 ```
 
 ## Documentation
@@ -190,6 +190,8 @@ You may choose either license when using the software.
 */
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
+pub const NUM_BANDS: u32 = 3;
 
 pub mod audio_buffer;
 pub use audio_buffer::*;
@@ -234,6 +236,15 @@ pub use simulation::*;
 
 pub mod version;
 pub use version::*;
+
+pub mod energy_field;
+pub use energy_field::*;
+
+pub mod impulse_response;
+pub use impulse_response::*;
+
+pub mod reconstructor;
+pub use reconstructor::*;
 
 #[cfg(feature = "fmod")]
 pub mod fmod;

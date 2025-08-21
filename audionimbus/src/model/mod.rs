@@ -6,3 +6,6 @@ pub use air_absorption::*;
 
 pub mod directivity;
 pub use directivity::*;
+
+pub mod deviation;
+pub use deviation::*;

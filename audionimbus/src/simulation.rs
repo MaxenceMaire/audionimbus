@@ -1,6 +1,7 @@
 use crate::air_absorption::AirAbsorptionModel;
 use crate::callback::CallbackInformation;
 use crate::context::Context;
+use crate::deviation::DeviationModel;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::device::true_audio_next::TrueAudioNextDevice;
@@ -192,6 +193,8 @@ impl<D, R, P> Simulator<D, R, P> {
     }
 
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
+    ///
+    /// Call [`Self::commit`] after calling this function for the changes to take effect.
     pub fn add_source(&mut self, source: &Source) {
         unsafe {
             audionimbus_sys::iplSourceAdd(source.raw_ptr(), self.raw_ptr());
@@ -199,6 +202,8 @@ impl<D, R, P> Simulator<D, R, P> {
     }
 
     /// Removes a source from the set of sources processed by a simulator in subsequent simulations.
+    ///
+    /// Call [`Self::commit`] after calling this function for the changes to take effect.
     pub fn remove_source(&mut self, source: &Source) {
         unsafe {
             audionimbus_sys::iplSourceRemove(source.raw_ptr(), self.raw_ptr());
@@ -879,6 +884,9 @@ pub struct PathingSimulationParameters<'a> {
 
     /// If `true`, and [`Self::enable_validation`] is `true`, then if a baked path is occluded by dynamic geometry, path finding is re-run in real-time to find alternate paths that take into account the dynamic geometry.
     pub find_alternate_paths: bool,
+
+    /// The deviation model to use for this source.
+    pub deviation: DeviationModel,
 }
 
 impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
@@ -1097,6 +1105,7 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
             pathing_order,
             enable_validation,
             find_alternate_paths,
+            deviation_model,
         ) = if let Some(pathing_simulation_parameters) = pathing_simulation {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
 
@@ -1108,6 +1117,8 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
                 pathing_simulation_parameters.pathing_order,
                 pathing_simulation_parameters.enable_validation,
                 pathing_simulation_parameters.find_alternate_paths,
+                // FIXME: Potential memory leak: this prevents dangling pointers, but there is no guarantee it will be freed by the C library.
+                Box::into_raw(Box::new((&pathing_simulation_parameters.deviation).into())),
             )
         } else {
             (
@@ -1118,6 +1129,7 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
                 usize::default(),
                 bool::default(),
                 bool::default(),
+                std::ptr::null_mut(),
             )
         };
 
@@ -1152,6 +1164,7 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
                 audionimbus_sys::IPLbool::IPL_FALSE
             },
             numTransmissionRays: num_transmission_rays as i32,
+            deviationModel: deviation_model,
         }
     }
 }

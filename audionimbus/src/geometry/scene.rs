@@ -1,24 +1,98 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
+use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
+use crate::geometry::{Direction, Point};
+use crate::serialized_object::SerializedObject;
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///
 /// The scene object itself doesn’t contain any geometry, but is a container for [`StaticMesh`] and [`InstancedMesh`] objects, which do contain geometry.
 #[derive(Debug)]
-pub struct Scene(audionimbus_sys::IPLScene);
+pub struct Scene {
+    inner: audionimbus_sys::IPLScene,
+
+    /// Used for validation when calling [`Self::save`].
+    uses_default_ray_tracer: bool,
+}
 
 impl Scene {
     pub fn try_new(context: &Context, settings: &SceneSettings) -> Result<Self, SteamAudioError> {
-        let mut scene = Self(std::ptr::null_mut());
+        let mut scene = Self {
+            inner: std::ptr::null_mut(),
+            uses_default_ray_tracer: matches!(settings, SceneSettings::Default),
+        };
 
         let status = unsafe {
             audionimbus_sys::iplSceneCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLSceneSettings::from(settings),
+                scene.raw_ptr_mut(),
+            )
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(scene)
+    }
+
+    /// Loads a scene from a serialized object.
+    ///
+    /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    pub fn load(
+        context: &Context,
+        settings: &SceneSettings,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        let mut scene = Self {
+            inner: std::ptr::null_mut(),
+            uses_default_ray_tracer: matches!(settings, SceneSettings::Default),
+        };
+
+        let status = unsafe {
+            audionimbus_sys::iplSceneLoad(
+                context.raw_ptr(),
+                &mut audionimbus_sys::IPLSceneSettings::from(settings),
+                serialized_object.raw_ptr(),
+                None,
+                std::ptr::null_mut(),
+                scene.raw_ptr_mut(),
+            )
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(scene)
+    }
+
+    /// Loads a scene from a serialized object.
+    ///
+    /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    pub fn load_with_callback(
+        context: &Context,
+        settings: &SceneSettings,
+        serialized_object: &SerializedObject,
+        progress_callback: CallbackInformation<ProgressCallback>,
+    ) -> Result<Self, SteamAudioError> {
+        let mut scene = Self {
+            inner: std::ptr::null_mut(),
+            uses_default_ray_tracer: matches!(settings, SceneSettings::Default),
+        };
+
+        let status = unsafe {
+            audionimbus_sys::iplSceneLoad(
+                context.raw_ptr(),
+                &mut audionimbus_sys::IPLSceneSettings::from(settings),
+                serialized_object.raw_ptr(),
+                Some(progress_callback.callback),
+                progress_callback.user_data,
                 scene.raw_ptr_mut(),
             )
         };
@@ -103,6 +177,23 @@ impl Scene {
         }
     }
 
+    /// Saves a scene to a serialized object.
+    ///
+    /// Typically, the serialized object will then be saved to disk.
+    ///
+    /// This function can only be called on a scene created with [`SceneSettings::Default`].
+    pub fn save(&self) -> SerializedObject {
+        assert!(self.uses_default_ray_tracer);
+
+        let serialized_object = SerializedObject(std::ptr::null_mut());
+
+        unsafe {
+            audionimbus_sys::iplSceneSave(self.raw_ptr(), serialized_object.raw_ptr());
+        }
+
+        serialized_object
+    }
+
     /// Saves a scene to an OBJ file.
     ///
     /// An OBJ file is a widely-supported 3D model file format, that can be displayed using a variety of software on most PC platforms.
@@ -119,26 +210,29 @@ impl Scene {
     }
 
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLScene {
-        self.0
+        self.inner
     }
 
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLScene {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl Clone for Scene {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplSceneRetain(self.0);
+            audionimbus_sys::iplSceneRetain(self.inner);
         }
-        Self(self.0)
+        Self {
+            inner: self.inner,
+            uses_default_ray_tracer: self.uses_default_ray_tracer,
+        }
     }
 }
 
 impl Drop for Scene {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSceneRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplSceneRelease(&mut self.inner) }
     }
 }
 
@@ -326,4 +420,39 @@ pub enum SceneParams<'a> {
         /// The number of rays that will be passed to the callbacks every time rays need to be traced.
         ray_batch_size: usize,
     },
+}
+
+/// Calculates the relative direction from the listener to a sound source.
+///
+/// The returned direction vector is expressed in the listener’s coordinate system.
+///
+/// # Arguments
+///
+/// - `context`: the context used to initialize AudioNimbus.
+/// - `source_position`: world-space coordinates of the source.
+/// - `listener_position`: world-space coordinates of the listener.
+/// - `listener_ahead`: world-space unit-length vector pointing ahead relative to the listener.
+/// - `listener_up`: world-space unit-length vector pointing up relative to the listener.
+///
+/// # Returns
+///
+/// A unit-length vector in the listener’s coordinate space, pointing from the listener to the source.
+pub fn relative_direction(
+    context: &Context,
+    source_position: Point,
+    listener_position: Point,
+    listener_ahead: Direction,
+    listener_up: Direction,
+) -> Direction {
+    let relative_direction = unsafe {
+        audionimbus_sys::iplCalculateRelativeDirection(
+            context.raw_ptr(),
+            source_position.into(),
+            listener_position.into(),
+            listener_ahead.into(),
+            listener_up.into(),
+        )
+    };
+
+    relative_direction.into()
 }

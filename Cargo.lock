@@ -35,7 +35,7 @@ dependencies = [
 
 [[package]]
 name = "audionimbus"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "audionimbus-sys",
  "bitflags 2.8.0",
@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "audionimbus-sys"
-version = "4.6.2-fmodwwise.2"
+version = "4.7.0-rc.1"
 dependencies = [
  "bindgen 0.71.1",
 ]
