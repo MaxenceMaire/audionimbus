@@ -4,8 +4,12 @@
 
 ### Added
 
-- Support for Steam Audio v.4.6.1 via `audionimbus-sys` v.4.6.1.
+- Support for Steam Audio v.4.7.0 via `audionimbus-sys` v.4.7.0.
 - Support for custom pathing deviation model.
+- `EnergyField`, `Reconstructor`, `ImpulseResponse` and related methods.
+- Methods to list OpenCL devices.
+- Baking cancellation for pathing and reflections.
+- Missing documentation on simulation.
 
 ## [0.7.2] - 2025-08-08
 
