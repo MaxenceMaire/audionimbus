@@ -65,6 +65,11 @@ When you build your project with the `auto-install` feature, the build script:
 The downloaded files are cached in `$OUT_DIR/steam_audio_cache` and won't be re-downloaded unless the version changes.
 If you need to force a re-download, you can delete this directory.
 
+> **Note**
+> The initial download can be quite large (≈180 MB for Steam Audio, ≈140 MB for the FMOD integration ≈52MB for the Wwise integration).
+> During this step, cargo build may look like it is stuck - it’s just downloading in the background.
+> The files are cached, so this only happens the first time (or when the version changes).
+
 ### Manual Installation
 
 If you prefer manual installation or the automatic installation doesn't work for your setup, you can still install Steam Audio manually.
