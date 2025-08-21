@@ -14,18 +14,80 @@ To experience AudioNimbus in action, play the [interactive demo](https://github.
 
 ## Version compatibility
 
-`audionimbus` currently tracks Steam Audio 4.6.1.
+`audionimbus` currently tracks Steam Audio 4.7.0.
 
 Unlike `audionimbus-sys`, which mirrors Steam Audio's versioning, `audionimbus` introduces its own abstractions and is subject to breaking changes.
 As a result, it uses independent versioning.
 
 ## Installation
 
+### Automatic Installation (Recommended)
+
+The easiest way to use `audionimbus` is with automatic installation. This will automatically download and set up the required Steam Audio libraries for your target platform.
+
+#### Requirements
+
+- **curl** or **wget** (for downloading)
+- **unzip** (for extraction)
+- **Clang 9.0 or later**
+
+#### Basic Usage
+
+Add `audionimbus` to your `Cargo.toml` with the `auto-install` feature:
+
+```toml
+[dependencies]
+audionimbus = { version = "0.8.0", features = ["auto-install"] }
+```
+
+#### With FMOD Studio Integration
+
+```toml
+[dependencies]
+audionimbus = { version = "0.8.0", features = ["auto-install", "fmod"] }
+```
+
+You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMOD="/path/to/FMOD"`).
+
+#### With Wwise Integration
+
+```toml
+[dependencies]
+audionimbus = { version = "0.8.0", features = ["auto-install", "wwise"] }
+```
+
+You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
+
+#### How It Works
+
+When you build your project with the `auto-install` feature, the build script:
+
+1. Automatically detects your target platform and architecture
+2. Downloads the appropriate Steam Audio release zip file (cached to avoid re-downloading)
+3. Extracts only the required shared libraries for your platform
+4. Sets up the library search paths automatically
+
+The downloaded files are cached in `$OUT_DIR/steam_audio_cache` and won't be re-downloaded unless the version changes.
+If you need to force a re-download, you can delete this directory.
+
+> **Note**
+> The initial download can be quite large (≈180 MB for Steam Audio, ≈140 MB for the FMOD integration ≈52MB for the Wwise integration).
+> During this step, cargo build may look like it is stuck - it’s just downloading in the background.
+> The files are cached, so this only happens the first time (or when the version changes).
+
+### Manual Installation
+
+If you prefer manual installation or the automatic installation doesn't work for your setup, you can still install Steam Audio manually.
+
+#### Requirements
+
 Before installation, make sure that Clang 9.0 or later is installed on your system.
+
+#### Steps
 
 `audionimbus` requires linking against the Steam Audio library during compilation.
 
-To do so, download `steamaudio_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+To do so, download `steamaudio_4.7.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
 Locate the relevant library for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 
@@ -49,6 +111,57 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 ```toml
 [dependencies]
 audionimbus = "0.8.0"
+```
+
+#### Manual FMOD Studio Integration
+
+`audionimbus` can be used to add spatial audio to an FMOD Studio project.
+
+It requires linking against both the Steam Audio library and the FMOD integration library during compilation:
+
+1. Download `steamaudio_fmod_4.7.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+
+2. Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
+
+| Platform | Library Directory | Library To Link |
+| --- | --- | --- |
+| Windows 32-bit | `SDKROOT/lib/windows-x86` | `phonon.dll`, `phonon_fmod.dll` |
+| Windows 64-bit | `SDKROOT/lib/windows-x64` | `phonon.dll`, `phonon_fmod.dll` |
+| Linux 32-bit | `SDKROOT/lib/linux-x86` | `libphonon.so`, `libphonon_fmod.so` |
+| Linux 64-bit | `SDKROOT/lib/linux-x64` | `libphonon.so`, `libphonon_fmod.so` |
+| macOS | `SDKROOT/lib/osx` | `libphonon.dylib`, `libphonon_fmod.dylib` |
+| Android ARMv7 | `SDKROOT/lib/android-armv7` | `libphonon.so`, `libphonon_fmod.so` |
+| Android ARMv8/AArch64 | `SDKROOT/lib/android-armv8` | `libphonon.so`, `libphonon_fmod.so` |
+| Android x86 | `SDKROOT/lib/android-x86` | `libphonon.so`, `libphonon_fmod.so` |
+| Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so`, `libphonon_fmod.so` |
+| iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a`, `libphonon_fmod.a` |
+
+3. Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+
+4. Finally, add `audionimbus` with the `fmod` feature enabled to your `Cargo.toml`:
+
+```toml
+[dependencies]
+audionimbus = { version = "0.8.0", features = ["fmod"] }
+```
+
+#### Manual Wwise Integration
+
+`audionimbus` can be used to add spatial audio to a Wwise project.
+
+It requires linking against both the Steam Audio library and the Wwise integration library during compilation:
+
+1. Download `steamaudio_wwise_4.7.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+
+2. Locate the two relevant libraries for your target platform and place them in a location listed in [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+
+3. Set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
+
+4. Finally, add `audionimbus` with the `wwise` feature enabled to your `Cargo.toml`:
+
+```toml
+[dependencies]
+audionimbus = { version = "0.8.0", features = ["wwise"] }
 ```
 
 ## Example
@@ -127,57 +240,6 @@ To implement real-time audio processing and playback in your game, check out the
 For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 
 For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
-
-## FMOD Studio Integration
-
-`audionimbus` can be used to add spatial audio to an FMOD Studio project.
-
-It requires linking against both the Steam Audio library and the FMOD integration library during compilation:
-
-1. Download `steamaudio_fmod_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
-
-2. Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
-
-| Platform | Library Directory | Library To Link |
-| --- | --- | --- |
-| Windows 32-bit | `SDKROOT/lib/windows-x86` | `phonon.dll`, `phonon_fmod.dll` |
-| Windows 64-bit | `SDKROOT/lib/windows-x64` | `phonon.dll`, `phonon_fmod.dll` |
-| Linux 32-bit | `SDKROOT/lib/linux-x86` | `libphonon.so`, `libphonon_fmod.so` |
-| Linux 64-bit | `SDKROOT/lib/linux-x64` | `libphonon.so`, `libphonon_fmod.so` |
-| macOS | `SDKROOT/lib/osx` | `libphonon.dylib`, `libphonon_fmod.dylib` |
-| Android ARMv7 | `SDKROOT/lib/android-armv7` | `libphonon.so`, `libphonon_fmod.so` |
-| Android ARMv8/AArch64 | `SDKROOT/lib/android-armv8` | `libphonon.so`, `libphonon_fmod.so` |
-| Android x86 | `SDKROOT/lib/android-x86` | `libphonon.so`, `libphonon_fmod.so` |
-| Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so`, `libphonon_fmod.so` |
-| iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a`, `libphonon_fmod.a` |
-
-3. Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
-
-4. Finally, add `audionimbus` with the `fmod` feature enabled to your `Cargo.toml`:
-
-```toml
-[dependencies]
-audionimbus = { version = "0.8.0", features = ["fmod"] }
-```
-
-## Wwise Integration
-
-`audionimbus` can be used to add spatial audio to a Wwise project.
-
-It requires linking against both the Steam Audio library and the Wwise integration library during compilation:
-
-1. Download `steamaudio_wwise_4.6.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
-
-2. Locate the two relevant libraries for your target platform and place them in a location listed in [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
-
-3. Set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
-
-4. Finally, add `audionimbus` with the `wwise` feature enabled to your `Cargo.toml`:
-
-```toml
-[dependencies]
-audionimbus = { version = "0.8.0", features = ["wwise"] }
-```
 
 ## Documentation
 

@@ -22,9 +22,9 @@ exclude = [
 bindgen = "0.71.1"
 
 [features]
+auto-install = []
 fmod = []
 wwise = []
 
 [package.metadata.docs.rs]
-features = ["fmod"]
 rustdoc-args = ["--cfg", "docsrs"]
