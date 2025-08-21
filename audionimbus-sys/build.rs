@@ -372,7 +372,6 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
             println!("cargo:warning=curl failed, trying wget...");
             let wget_result = Command::new("wget")
                 .args(&[
-                    "--progress=bar:force", // Show progress bar
                     "--tries=3",            // Retry on failure
                     "--waitretry=1",        // Wait between retries
                     "-O",
