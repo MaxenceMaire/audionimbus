@@ -14,19 +14,19 @@ It is inherently unsafe, as it interfaces with external C code; for a safe API, 
 
 `audionimbus-sys` mirrors the version of [Steam Audio](steam-audio).
 
-# Installation
+## Installation
 
-## Automatic Installation (Recommended)
+### Automatic Installation (Recommended)
 
 The easiest way to use `audionimbus-sys` is with automatic installation. This will automatically download and set up the required Steam Audio libraries for your target platform.
 
-### Requirements
+#### Requirements
 
 - **curl** or **wget** (for downloading)
 - **unzip** (for extraction)
 - **Clang 9.0 or later**
 
-### Basic Usage
+#### Basic Usage
 
 Add `audionimbus-sys` to your `Cargo.toml` with the `auto-install` feature:
 
@@ -35,7 +35,7 @@ Add `audionimbus-sys` to your `Cargo.toml` with the `auto-install` feature:
 audionimbus-sys = { version = "4.7.0", features = ["auto-install"] }
 ```
 
-### With FMOD Studio Integration
+#### With FMOD Studio Integration
 
 ```toml
 [dependencies]
@@ -44,7 +44,7 @@ audionimbus-sys = { version = "4.7.0", features = ["auto-install", "fmod"] }
 
 You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMOD="/path/to/FMOD"`).
 
-### With Wwise Integration
+#### With Wwise Integration
 
 ```toml
 [dependencies]
@@ -53,7 +53,7 @@ audionimbus-sys = { version = "4.7.0", features = ["auto-install", "wwise"] }
 
 You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
 
-### How It Works
+#### How It Works
 
 When you build your project with the `auto-install` feature, the build script:
 
@@ -65,15 +65,15 @@ When you build your project with the `auto-install` feature, the build script:
 The downloaded files are cached in `$OUT_DIR/steam_audio_cache` and won't be re-downloaded unless the version changes.
 If you need to force a re-download, you can delete this directory.
 
-## Manual Installation
+### Manual Installation
 
 If you prefer manual installation or the automatic installation doesn't work for your setup, you can still install Steam Audio manually.
 
-### Requirements
+#### Requirements
 
 Before installation, make sure that Clang 9.0 or later is installed on your system.
 
-### Steps
+#### Steps
 
 `audionimbus-sys` requires linking against the Steam Audio library during compilation.
 
@@ -103,7 +103,7 @@ Finally, add `audionimbus-sys` to your `Cargo.toml`:
 audionimbus-sys = "4.7.0"
 ```
 
-### Manual FMOD Studio Integration
+#### Manual FMOD Studio Integration
 
 `audionimbus-sys` can be used to add spatial audio to an FMOD Studio project.
 
@@ -137,7 +137,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 audionimbus-sys = { version = "4.7.0", features = ["fmod"] }
 ```
 
-### Manual Wwise Integration
+#### Manual Wwise Integration
 
 `audionimbus-sys` can be used to add spatial audio to a Wwise project.
 
