@@ -10,6 +10,7 @@
 - Methods to list OpenCL devices.
 - Baking cancellation for pathing and reflections.
 - Missing documentation on simulation.
+- `auto-install` feature to automatically download and install the Steam Audio library.
 
 ## [0.7.2] - 2025-08-08
 
