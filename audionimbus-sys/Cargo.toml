@@ -27,5 +27,4 @@ fmod = []
 wwise = []
 
 [package.metadata.docs.rs]
-features = ["fmod"]
 rustdoc-args = ["--cfg", "docsrs"]

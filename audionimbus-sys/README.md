@@ -62,19 +62,8 @@ When you build your project with the `auto-install` feature, the build script:
 3. Extracts only the required shared libraries for your platform
 4. Sets up the library search paths automatically
 
-The downloaded files are cached in your build directory and won't be re-downloaded unless the version changes.
-
-### Troubleshooting Auto-Install Issues
-
-If automatic installation fails:
-
-1. **Missing dependencies**: Ensure `curl` (or `wget`) and `unzip` are installed on your system
-2. **Network issues**: The build script downloads from GitHub releases. Ensure you have internet access
-3. **Permissions**: Make sure the build process has write permissions to the `OUT_DIR`
-
-You can always fall back to manual installation if automatic installation doesn't work.
-
-Downloaded files are cached in `$OUT_DIR/steam_audio_cache`. If you need to force a re-download, you can delete this directory.
+The downloaded files are cached in `$OUT_DIR/steam_audio_cache` and won't be re-downloaded unless the version changes.
+If you need to force a re-download, you can delete this directory.
 
 ## Manual Installation
 
@@ -173,8 +162,8 @@ Documentation is available at [docs.rs](https://docs.rs/audionimbus-sys/latest).
 
 Since this crate strictly follows Steam Audio’s C API, you can also refer to the [Steam Audio C API reference](https://valvesoftware.github.io/steam-audio/doc/capi/reference.html) for additional details.
 
-Note that because the Wwise integration depends on files that are local to your system, documentation for the `wwise` module is not available on docs.rs.
-However, it can be generated locally using `cargo doc --open --features wwise`.
+Note that because the FMOD and Wwise integrations depend on files that are local to your system, documentation for the `fmod` and `wwise` modules is not available on docs.rs.
+However, it can be generated locally using `cargo doc --open --features fmod` (resp. `wwise`).
 
 ## License
 
