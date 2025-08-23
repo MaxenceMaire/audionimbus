@@ -176,7 +176,7 @@ audionimbus = { version = "0.8.0", features = ["wwise"] }
 
 ## Documentation
 
-Documentation is available at [doc.rs](https://docs.rs/audionimbus/latest).
+Documentation is available at [docs.rs](https://docs.rs/audionimbus/latest).
 
 For more details on Steam Audio's concepts, see the [Steam Audio SDK documentation](https://valvesoftware.github.io/steam-audio/doc/capi/index.html).
 

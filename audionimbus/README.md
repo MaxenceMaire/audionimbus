@@ -243,7 +243,7 @@ For additional examples, you can explore the [tests](./tests), which closely fol
 
 ## Documentation
 
-Documentation is available at [doc.rs](https://docs.rs/audionimbus/latest).
+Documentation is available at [docs.rs](https://docs.rs/audionimbus/latest).
 
 For more details on Steam Audio's concepts, see the [Steam Audio SDK documentation](https://valvesoftware.github.io/steam-audio/doc/capi/index.html).
 
