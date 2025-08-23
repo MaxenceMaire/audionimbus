@@ -20,6 +20,7 @@ exclude = [
 
 [build-dependencies]
 bindgen = "0.71.1"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 
 [features]
 auto-install = []
