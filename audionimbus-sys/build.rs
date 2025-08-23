@@ -81,7 +81,7 @@ fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
             "windows".to_string(),
             "x64".to_string(),
             "windows-x64".to_string(),
-            vec!["phonon.dll".to_string()],
+            vec!["phonon.dll".to_string(), "phonon.lib".to_string()],
             false,
         ),
         t if t.contains("linux") && t.contains("i686") => (
