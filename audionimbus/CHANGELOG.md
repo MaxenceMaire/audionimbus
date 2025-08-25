@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1] - 2025-08-25
+
+### Changed
+
+- The `unzip` command is no longer a requirement for using the `auto-install` feature.
+
+### Fixed
+
+- The `auto-install` feature would fail on Windows because of the missing `phonon.lib` linkage.
+
 ## [0.8.0] - 2025-08-19
 
 ### Added
