@@ -443,9 +443,6 @@ fn test_zip(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::{fs, io};
 
-    // First, verify the zip file one more time
-    validate_download(zip_path)?;
-
     // Full CRC test before extracting
     if let Err(e) = test_zip(zip_path) {
         return Err(format!("Zip file is corrupted: {}", e).into());
