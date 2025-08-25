@@ -81,7 +81,7 @@ fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
             "windows".to_string(),
             "x64".to_string(),
             "windows-x64".to_string(),
-            vec!["phonon.dll".to_string()],
+            vec!["phonon.dll".to_string(), "phonon.lib".to_string()],
             false,
         ),
         t if t.contains("linux") && t.contains("i686") => (
@@ -426,11 +426,27 @@ fn validate_download(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(feature = "auto-install")]
-fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    use std::process::Command;
+fn test_zip(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use std::{fs, io};
 
-    // First, verify the zip file one more time
-    validate_download(zip_path)?;
+    let file = fs::File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        // Read fully to verify CRC
+        io::copy(&mut entry, &mut io::sink())?;
+    }
+    Ok(())
+}
+
+#[cfg(feature = "auto-install")]
+fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use std::{fs, io};
+
+    // Full CRC test before extracting
+    if let Err(e) = test_zip(zip_path) {
+        return Err(format!("Zip file is corrupted: {}", e).into());
+    }
 
     // Remove existing directory if it exists
     if dest_dir.exists() {
@@ -444,36 +460,37 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
         dest_dir.file_name().unwrap().to_string_lossy()
     );
 
-    // Use system unzip command with verbose output for debugging
-    let output = Command::new("unzip")
-        .args(&[
-            "-q", // Quiet mode (less verbose)
-            "-o", // Overwrite files without prompting
-            zip_path.to_str().unwrap(),
-            "-d",
-            dest_dir.to_str().unwrap(),
-        ])
-        .output()?;
+    let file = fs::File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
 
-        // If unzip failed, try to get more information
-        println!("cargo:warning=unzip stdout: {}", stdout);
-        println!("cargo:warning=unzip stderr: {}", stderr);
+        // Prevent Zip-Slip; skip dangerous paths
+        let rel_path = match entry.enclosed_name() {
+            Some(p) => p.to_owned(),
+            None => continue,
+        };
+        let outpath = dest_dir.join(rel_path);
 
-        // Try to test the zip file
-        let test_output = Command::new("unzip")
-            .args(&["-t", zip_path.to_str().unwrap()])
-            .output()?;
+        if entry.is_dir() || entry.name().ends_with('/') {
+            fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(parent) = outpath.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            let mut outfile = fs::File::create(&outpath)?;
+            io::copy(&mut entry, &mut outfile)?;
 
-        if !test_output.status.success() {
-            let test_stderr = String::from_utf8_lossy(&test_output.stderr);
-            return Err(format!("Zip file is corrupted. Test output: {}", test_stderr).into());
+            // Preserve UNIX perms when present (no-op on Windows)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Some(mode) = entry.unix_mode() {
+                    fs::set_permissions(&outpath, fs::Permissions::from_mode(mode))?;
+                }
+            }
         }
-
-        return Err(format!("Failed to extract zip: {}", stderr).into());
     }
 
     println!("cargo:warning=Successfully extracted Steam Audio");
