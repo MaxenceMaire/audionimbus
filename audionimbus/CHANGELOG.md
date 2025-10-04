@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2] - 2025-10-04
+
+### Fixed
+
+- The documentation would incorrectly instruct users to install Steam Audio v4.6.1 instead of v4.7.0.
+- Fixed the casing of the `user_data` argument of `PathingVisualizationCallback`.
+
 ## [0.8.1] - 2025-08-25
 
 ### Changed

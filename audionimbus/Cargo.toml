@@ -1,7 +1,7 @@
 [package]
 name = "audionimbus"
 description = "A safe wrapper around Steam Audio that provides spatial audio capabilities with realistic occlusion, reverb, and HRTF effects, accounting for physical attributes and scene geometry."
-version = "0.8.1"
+version = "0.8.2"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 license = "MIT OR Apache-2.0"

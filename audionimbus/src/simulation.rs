@@ -1352,7 +1352,7 @@ pub type PathingVisualizationCallback = unsafe extern "C" fn(
     from: audionimbus_sys::IPLVector3,
     to: audionimbus_sys::IPLVector3,
     occluded: audionimbus_sys::IPLbool,
-    userData: *mut std::ffi::c_void,
+    user_data: *mut std::ffi::c_void,
 );
 
 /// Simulation results for a source.
