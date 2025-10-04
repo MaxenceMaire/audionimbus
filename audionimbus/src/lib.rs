@@ -45,7 +45,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.8.2"
+audionimbus = "0.8.3"
 ```
 
 ## Example
@@ -152,7 +152,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.8.2", features = ["fmod"] }
+audionimbus = { version = "0.8.3", features = ["fmod"] }
 ```
 
 ## Wwise Integration
@@ -171,7 +171,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.8.2", features = ["wwise"] }
+audionimbus = { version = "0.8.3", features = ["wwise"] }
 ```
 
 ## Documentation
@@ -188,8 +188,6 @@ However, it can be generated locally using `cargo doc --open --features wwise`.
 `audionimbus` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
 You may choose either license when using the software.
 */
-
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub const NUM_BANDS: u32 = 3;
 

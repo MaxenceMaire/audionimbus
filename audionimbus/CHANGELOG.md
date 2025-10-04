@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.3] - 2025-10-04
+
+### Fixed
+
+- Removed the `doc_auto_cfg` feature as it has been stabilized and it would cause the doc build to fail.
+
 ## [0.8.2] - 2025-10-04
 
 ### Fixed

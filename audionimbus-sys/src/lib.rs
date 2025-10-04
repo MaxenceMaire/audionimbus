@@ -111,8 +111,6 @@ However, it can be generated locally using `cargo doc --open --features wwise`.
 You may choose either license when using the software.
 */
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-
 mod phonon;
 pub use phonon::*;
 
