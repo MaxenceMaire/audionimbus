@@ -81,19 +81,23 @@ let input: Vec<Sample> = (0..audio_settings.frame_size)
             .sin()
     })
     .collect();
+let mut channel_ptrs = AudioBufferSettings::default().prepare_channel_ptrs(&input).unwrap();
 // Create an audio buffer over the input data.
-let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+let input_buffer = AudioBuffer::try_with_data(&input, &mut channel_ptrs).unwrap();
 
 let num_channels: usize = 2; // Stereo
 // Allocate memory to store processed samples.
 let mut output = vec![0.0; audio_settings.frame_size * num_channels];
 // Create another audio buffer over the output container.
+let settings = AudioBufferSettings {
+    num_channels: Some(num_channels),
+    ..Default::default()
+};
+let mut channel_ptrs = settings.prepare_channel_ptrs(&output).unwrap();
 let output_buffer = AudioBuffer::try_with_data_and_settings(
     &mut output,
-    &AudioBufferSettings {
-        num_channels: Some(num_channels),
-        ..Default::default()
-    },
+    &mut channel_ptrs,
+    settings,
 )
 .unwrap();
 

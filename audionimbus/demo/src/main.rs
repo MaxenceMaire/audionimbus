@@ -64,17 +64,27 @@ fn main() {
                         sample
                     })
                     .collect();
+                let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
+                    .prepare_channel_ptrs(&sine_wave)
+                    .unwrap();
 
-                let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
+                let input_buffer =
+                    audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
 
                 // Container the effect will write processed samples into.
                 let mut staging_container = vec![0.0; frame_size * num_channels];
+                let settings = audionimbus::AudioBufferSettings {
+                    num_channels: Some(num_channels),
+                    ..Default::default()
+                };
+                let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
+                    .prepare_channel_ptrs(&sine_wave)
+                    .unwrap();
+
                 let staging_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
                     &mut staging_container,
-                    &audionimbus::AudioBufferSettings {
-                        num_channels: Some(num_channels),
-                        ..Default::default()
-                    },
+                    &mut channel_ptrs,
+                    settings,
                 )
                 .unwrap();
 
