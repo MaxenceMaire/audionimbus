@@ -330,6 +330,8 @@ pub struct ReflectionEffectParams {
     pub true_audio_next_slot: usize,
 }
 
+unsafe impl Send for ReflectionEffectParams {}
+
 impl ReflectionEffectParams {
     /// Multi-channel convolution reverb.
     /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
