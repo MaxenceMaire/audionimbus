@@ -235,7 +235,7 @@ impl DirectEffectParams {
 }
 
 /// Transmission parameters.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Transmission {
     /// Frequency-independent transmission.
     FrequencyIndependent(Equalizer<3>),

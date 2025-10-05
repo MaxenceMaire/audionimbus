@@ -37,6 +37,10 @@ impl TrueAudioNextDevice {
         self.0
     }
 
+    pub fn from_raw_ptr(ptr: audionimbus_sys::IPLTrueAudioNextDevice) -> Self {
+        Self(ptr)
+    }
+
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLTrueAudioNextDevice {
         &mut self.0
     }

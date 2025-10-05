@@ -1,5 +1,5 @@
 /// An N-band equalizer, with band coefficients between 0.0 and 1.0.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Equalizer<const N: usize>(pub [f32; N]);
 
 impl<const N: usize> Default for Equalizer<N> {
