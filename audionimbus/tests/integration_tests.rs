@@ -34,9 +34,7 @@ fn test_binaural_effect() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&sine_wave)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
     let input_buffer =
         audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
     let frame_size = sine_wave.len();
@@ -46,7 +44,9 @@ fn test_binaural_effect() {
         num_channels: Some(2),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&output_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&output_container, settings)
+            .unwrap();
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &mut channel_ptrs,
@@ -96,9 +96,7 @@ fn test_ambisonics_encode_effect() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&sine_wave)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
     let input_buffer =
         audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
     let frame_size = sine_wave.len();
@@ -108,7 +106,9 @@ fn test_ambisonics_encode_effect() {
         num_channels: Some(1),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&output_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&output_container, settings)
+            .unwrap();
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &mut channel_ptrs,
@@ -156,9 +156,7 @@ fn test_ambisonics_decode_effect() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&sine_wave)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
     let input_buffer =
         audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
     let frame_size = sine_wave.len();
@@ -168,7 +166,9 @@ fn test_ambisonics_decode_effect() {
         num_channels: Some(2),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&output_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&output_container, settings)
+            .unwrap();
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &mut channel_ptrs,
@@ -225,9 +225,7 @@ fn test_direct_effect() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&sine_wave)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
     let input_buffer =
         audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
     let frame_size = sine_wave.len();
@@ -238,7 +236,9 @@ fn test_direct_effect() {
         num_channels: Some(2),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&output_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&output_container, settings)
+            .unwrap();
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &mut channel_ptrs,
@@ -619,9 +619,7 @@ fn test_simulation() {
     let amplitude = 0.5;
     let duration_secs = 0.1;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sampling_rate);
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&sine_wave)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
     // Must be mono.
     let input_buffer =
         audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
@@ -632,7 +630,9 @@ fn test_simulation() {
         num_channels: Some(4),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&output_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&output_container, settings)
+            .unwrap();
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &mut channel_ptrs,
@@ -875,9 +875,7 @@ fn test_pathing() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&sine_wave)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
     // Must be mono.
     let input_buffer =
         audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
@@ -888,7 +886,9 @@ fn test_pathing() {
         num_channels: Some(4),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&output_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&output_container, settings)
+            .unwrap();
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
         &mut channel_ptrs,
@@ -914,16 +914,13 @@ fn test_buffer_mix() {
     const FRAME_SIZE: usize = 1024;
 
     let source_container = vec![0.1; FRAME_SIZE];
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&source_container)
-        .unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs(&source_container).unwrap();
     let source_buffer =
         audionimbus::AudioBuffer::try_with_data(&source_container, &mut channel_ptrs).unwrap();
 
     let mix_container = vec![0.2; FRAME_SIZE];
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&mix_container)
-        .unwrap();
+    let mut channel_ptrs = audionimbus::AudioBuffer::prepare_channel_ptrs(&mix_container).unwrap();
     let mut mix_buffer =
         audionimbus::AudioBuffer::try_with_data(&mix_container, &mut channel_ptrs).unwrap();
 
@@ -947,7 +944,9 @@ fn test_buffer_downmix() {
         num_channels: Some(NUM_CHANNELS),
         ..Default::default()
     };
-    let mut channel_ptrs = settings.prepare_channel_ptrs(&input_container).unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs_with_settings(&input_container, settings)
+            .unwrap();
     let input_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut input_container,
         &mut channel_ptrs,
@@ -956,9 +955,8 @@ fn test_buffer_downmix() {
     .unwrap();
 
     let mut downmix_container = vec![0.0; FRAME_SIZE];
-    let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-        .prepare_channel_ptrs(&downmix_container)
-        .unwrap();
+    let mut channel_ptrs =
+        audionimbus::AudioBuffer::prepare_channel_ptrs(&downmix_container).unwrap();
     let mut downmix_buffer =
         audionimbus::AudioBuffer::try_with_data(&mut downmix_container, &mut channel_ptrs).unwrap();
 

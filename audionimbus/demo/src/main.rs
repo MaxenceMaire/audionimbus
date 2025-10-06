@@ -64,9 +64,8 @@ fn main() {
                         sample
                     })
                     .collect();
-                let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-                    .prepare_channel_ptrs(&sine_wave)
-                    .unwrap();
+                let mut channel_ptrs =
+                    audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
 
                 let input_buffer =
                     audionimbus::AudioBuffer::try_with_data(&sine_wave, &mut channel_ptrs).unwrap();
@@ -77,9 +76,8 @@ fn main() {
                     num_channels: Some(num_channels),
                     ..Default::default()
                 };
-                let mut channel_ptrs = audionimbus::AudioBufferSettings::default()
-                    .prepare_channel_ptrs(&sine_wave)
-                    .unwrap();
+                let mut channel_ptrs =
+                    audionimbus::AudioBuffer::prepare_channel_ptrs(&sine_wave).unwrap();
 
                 let staging_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
                     &mut staging_container,

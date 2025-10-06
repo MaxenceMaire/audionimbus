@@ -81,7 +81,7 @@ let input: Vec<Sample> = (0..audio_settings.frame_size)
             .sin()
     })
     .collect();
-let mut channel_ptrs = AudioBufferSettings::default().prepare_channel_ptrs(&input).unwrap();
+let mut channel_ptrs = AudioBuffer::prepare_channel_ptrs(&input).unwrap();
 // Create an audio buffer over the input data.
 let input_buffer = AudioBuffer::try_with_data(&input, &mut channel_ptrs).unwrap();
 
@@ -93,7 +93,7 @@ let settings = AudioBufferSettings {
     num_channels: Some(num_channels),
     ..Default::default()
 };
-let mut channel_ptrs = settings.prepare_channel_ptrs(&output).unwrap();
+let mut channel_ptrs = AudioBuffer::prepare_channel_ptrs_with_settings(&output, settings).unwrap();
 let output_buffer = AudioBuffer::try_with_data_and_settings(
     &mut output,
     &mut channel_ptrs,
