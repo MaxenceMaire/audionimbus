@@ -333,10 +333,11 @@ pub struct ReflectionEffectParams {
 unsafe impl Send for ReflectionEffectParams {}
 
 /// The impulse response of [`ReflectionEffectParams`].
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
 
 unsafe impl Send for ReflectionEffectIR {}
+unsafe impl Sync for ReflectionEffectIR {}
 
 impl ReflectionEffectParams {
     /// Multi-channel convolution reverb.
