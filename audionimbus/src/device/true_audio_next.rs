@@ -4,7 +4,7 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Application-wide state for the TrueAudio Next convolution engine.
 ///
 /// A TrueAudio Next device must be created before using any of Steam Audio’s TrueAudio Next convolution functionality.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TrueAudioNextDevice(pub(crate) audionimbus_sys::IPLTrueAudioNextDevice);
 
 impl TrueAudioNextDevice {
