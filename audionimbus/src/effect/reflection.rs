@@ -303,7 +303,7 @@ pub struct ReflectionEffectParams {
     pub reflection_effect_type: ReflectionEffectType,
 
     /// The impulse response.
-    pub impulse_response: audionimbus_sys::IPLReflectionEffectIR,
+    pub impulse_response: ReflectionEffectIR,
 
     /// 3-band reverb decay times (RT60).
     pub reverb_times: [f32; 3],
@@ -332,6 +332,12 @@ pub struct ReflectionEffectParams {
 
 unsafe impl Send for ReflectionEffectParams {}
 
+/// The impulse response of [`ReflectionEffectParams`].
+#[derive(Debug, PartialEq)]
+pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
+
+unsafe impl Send for ReflectionEffectIR {}
+
 impl ReflectionEffectParams {
     /// Multi-channel convolution reverb.
     /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
@@ -350,7 +356,7 @@ impl ReflectionEffectParams {
     ) -> Self {
         Self {
             reflection_effect_type: ReflectionEffectType::Convolution,
-            impulse_response,
+            impulse_response: ReflectionEffectIR(impulse_response),
             reverb_times: <[f32; 3]>::default(),
             equalizer: Equalizer::default(),
             delay: usize::default(),
@@ -379,7 +385,7 @@ impl ReflectionEffectParams {
     ) -> Self {
         Self {
             reflection_effect_type: ReflectionEffectType::Parametric,
-            impulse_response: std::ptr::null_mut(),
+            impulse_response: ReflectionEffectIR(std::ptr::null_mut()),
             reverb_times,
             equalizer: Equalizer::default(),
             delay: usize::default(),
@@ -414,7 +420,7 @@ impl ReflectionEffectParams {
     ) -> Self {
         Self {
             reflection_effect_type: ReflectionEffectType::Hybrid,
-            impulse_response,
+            impulse_response: ReflectionEffectIR(impulse_response),
             reverb_times,
             equalizer,
             delay,
@@ -443,7 +449,7 @@ impl ReflectionEffectParams {
     ) -> Self {
         Self {
             reflection_effect_type: ReflectionEffectType::TrueAudioNext,
-            impulse_response: std::ptr::null_mut(),
+            impulse_response: ReflectionEffectIR(std::ptr::null_mut()),
             reverb_times: <[f32; 3]>::default(),
             equalizer: Equalizer::default(),
             delay: usize::default(),
@@ -459,7 +465,7 @@ impl From<audionimbus_sys::IPLReflectionEffectParams> for ReflectionEffectParams
     fn from(params: audionimbus_sys::IPLReflectionEffectParams) -> Self {
         Self {
             reflection_effect_type: params.type_.into(),
-            impulse_response: params.ir,
+            impulse_response: ReflectionEffectIR(params.ir),
             reverb_times: params.reverbTimes,
             equalizer: Equalizer(params.eq),
             delay: params.delay as usize,
@@ -477,7 +483,7 @@ impl ReflectionEffectParams {
     ) -> FFIWrapper<'_, audionimbus_sys::IPLReflectionEffectParams, Self> {
         let reflection_effect_params = audionimbus_sys::IPLReflectionEffectParams {
             type_: self.reflection_effect_type.into(),
-            ir: self.impulse_response,
+            ir: self.impulse_response.0,
             reverbTimes: self.reverb_times,
             eq: *self.equalizer,
             delay: self.delay as i32,
