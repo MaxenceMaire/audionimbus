@@ -297,7 +297,7 @@ impl From<&ReflectionEffectSettings> for audionimbus_sys::IPLReflectionEffectSet
 }
 
 /// Parameters for applying a reflection effect to an audio buffer.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReflectionEffectParams {
     /// Type of reflection effect algorithm to use.
     pub reflection_effect_type: ReflectionEffectType,
@@ -337,7 +337,6 @@ unsafe impl Send for ReflectionEffectParams {}
 pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
 
 unsafe impl Send for ReflectionEffectIR {}
-unsafe impl Sync for ReflectionEffectIR {}
 
 impl ReflectionEffectParams {
     /// Multi-channel convolution reverb.

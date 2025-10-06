@@ -128,7 +128,7 @@ impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {
 }
 
 /// Parameters for applying a direct effect to an audio buffer.
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct DirectEffectParams {
     /// Optional distance attenuation, with a value between 0.0 and 1.0.
     pub distance_attenuation: Option<f32>,

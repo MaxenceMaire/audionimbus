@@ -12,6 +12,10 @@ impl<T, Owner> FFIWrapper<'_, T, Owner> {
             _marker: std::marker::PhantomData,
         }
     }
+
+    pub fn take(self) -> T {
+        self.ffi_object
+    }
 }
 
 impl<T, Owner> std::ops::Deref for FFIWrapper<'_, T, Owner> {
