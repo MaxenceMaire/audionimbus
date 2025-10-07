@@ -140,7 +140,7 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     }
 
     /// Returns an iterator over channels.
-    pub fn channels(&self) -> impl Iterator<Item = &[Sample]> {
+    pub fn channels<'a>(&'a self) -> impl Iterator<Item = &'a [Sample]> + 'a {
         self.channel_ptrs.as_slice().iter().map(|&ptr|
                 // SAFETY: pointers are guaranteed to be valid by the lifetime.
                 unsafe { std::slice::from_raw_parts(ptr, self.num_samples) })
@@ -274,62 +274,14 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
         data: T,
         settings: &AudioBufferSettings,
     ) -> Result<Self, AudioBufferError> {
-        Self::with_data_and_settings(data, settings)
-    }
-
-    /// Constructs an `AudioBuffer` over `data` given the provided [`AudioBufferSettings`].
-    ///
-    /// # Errors
-    ///
-    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
-    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    fn with_data_and_settings(
-        data: T,
-        settings: &AudioBufferSettings,
-    ) -> Result<Self, AudioBufferError> {
         let data = data.as_ref();
 
         if data.is_empty() {
             return Err(AudioBufferError::EmptyData);
         }
 
-        let (num_channels, num_samples) = match (settings.num_channels, settings.num_samples) {
-            (None, None) => (1, data.len()),
-            (Some(num_channels), Some(num_samples)) => {
-                if num_channels == 0 {
-                    return Err(AudioBufferError::InvalidNumChannels { num_channels });
-                }
-
-                if num_samples == 0 || num_channels * num_samples != data.len() {
-                    return Err(AudioBufferError::InvalidNumSamples { num_samples });
-                }
-
-                (num_channels, num_samples)
-            }
-            (Some(num_channels), None) => {
-                if num_channels == 0 || data.len() % num_channels != 0 {
-                    return Err(AudioBufferError::InvalidNumChannels { num_channels });
-                }
-
-                let num_samples = data.len() / num_channels;
-
-                (num_channels, num_samples)
-            }
-            (None, Some(num_samples)) => {
-                if num_samples == 0 || data.len() % num_samples != 0 {
-                    return Err(AudioBufferError::InvalidNumSamples { num_samples });
-                }
-
-                let num_channels = data.len() / num_samples;
-
-                (num_channels, num_samples)
-            }
-        };
-
+        let (num_channels, num_samples) = settings.num_channels_and_samples(data)?;
         let frame_size = settings.frame_size.unwrap_or(num_samples);
-
         let frame_index = settings.frame_index;
 
         if (frame_index + 1) * frame_size > num_samples {
@@ -372,7 +324,7 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     /// - The lifetime of the `AudioBuffer` must not exceed the lifetime of the memory referenced by `channel_ptrs`.
     ///
     /// Any violations of the above invariants will result in undefined behavior.
-    pub unsafe fn try_from_ptrs(
+    pub unsafe fn try_new_borrowed(
         channel_ptrs: &'a mut [*mut Sample],
         num_samples: usize,
     ) -> Result<Self, AudioBufferError> {
@@ -393,6 +345,83 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
 
         Ok(Self {
             num_samples,
+            channel_ptrs,
+            _marker: std::marker::PhantomData,
+        })
+    }
+
+    /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
+    /// The `null_channel_ptrs` argument will be filled with actual channel pointers.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
+    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to `num_channels`.
+    pub fn try_borrowed_with_data(
+        data: T,
+        null_channel_ptrs: &'a mut [*mut Sample],
+    ) -> Result<Self, AudioBufferError> {
+        Self::try_borrowed_with_data_and_settings(
+            data,
+            null_channel_ptrs,
+            &AudioBufferSettings::default(),
+        )
+    }
+
+    /// Constructs an `AudioBuffer` over `data` given the provided [`AudioBufferSettings`].
+    /// The `null_channel_ptrs` argument will be filled with actual channel pointers.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
+    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to `num_channels`.
+    pub fn try_borrowed_with_data_and_settings(
+        data: T,
+        null_channel_ptrs: &'a mut [*mut Sample],
+        settings: &AudioBufferSettings,
+    ) -> Result<Self, AudioBufferError> {
+        let data = data.as_ref();
+
+        if data.is_empty() {
+            return Err(AudioBufferError::EmptyData);
+        }
+
+        let (num_channels, num_samples) = settings.num_channels_and_samples(data)?;
+        let frame_size = settings.frame_size.unwrap_or(num_samples);
+        let frame_index = settings.frame_index;
+
+        if (frame_index + 1) * frame_size > num_samples {
+            return Err(AudioBufferError::FrameOutOfBounds {
+                frame_size,
+                frame_index,
+            });
+        }
+
+        if null_channel_ptrs.len() != num_channels {
+            return Err(AudioBufferError::InvalidChannelPtrs {
+                actual: null_channel_ptrs.len(),
+                expected: num_channels,
+            });
+        }
+
+        null_channel_ptrs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, channel)| {
+                let index = i * num_samples + frame_index * frame_size;
+                *channel = data[index..].as_ptr() as *mut Sample;
+            });
+
+        let channel_ptrs = null_channel_ptrs;
+
+        Ok(AudioBuffer {
+            num_samples: frame_size,
             channel_ptrs,
             _marker: std::marker::PhantomData,
         })
@@ -428,6 +457,100 @@ pub struct AudioBufferSettings {
     pub frame_index: usize,
 }
 
+impl AudioBufferSettings {
+    /// Creates a new [`AudioBufferSettings`] with the specified number of channels.
+    /// The number of samples per channel will be inferred.
+    pub fn with_num_channels(num_channels: usize) -> Self {
+        Self {
+            num_channels: Some(num_channels),
+            ..Default::default()
+        }
+    }
+
+    /// Creates a new [`AudioBufferSettings`] with the specified number of samples per channel.
+    /// The number of channels will be inferred.
+    pub fn with_num_samples(num_samples: usize) -> Self {
+        Self {
+            num_samples: Some(num_samples),
+            ..Default::default()
+        }
+    }
+
+    /// Creates a new [`AudioBufferSettings`] with the specified number of samples per channel and
+    /// channels.
+    pub fn with_num_channels_and_num_samples(num_channels: usize, num_samples: usize) -> Self {
+        Self {
+            num_channels: Some(num_channels),
+            num_samples: Some(num_samples),
+            ..Default::default()
+        }
+    }
+
+    /// Returns the number of channels and the number of samples derived from these
+    /// [`AudioBufferSettings`].
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::InvalidNumSamples`] if [`Self::num_samples`] is 0 or the data length is not divisible by [`Self::num_samples`].
+    /// - [`AudioBufferError::InvalidNumChannels`] if [`Self::num_channels`] is 0 or the data length is not divisible by [`Self::num_channels`].
+    pub fn num_channels_and_samples<T: AsRef<[Sample]>>(
+        &self,
+        data: T,
+    ) -> Result<(usize, usize), AudioBufferError> {
+        let data = data.as_ref();
+
+        let (num_channels, num_samples) = match (self.num_channels, self.num_samples) {
+            (None, None) => (1, data.len()),
+            (Some(num_channels), Some(num_samples)) => {
+                if num_channels == 0 {
+                    return Err(AudioBufferError::InvalidNumChannels { num_channels });
+                }
+
+                if num_samples == 0 || num_channels * num_samples != data.len() {
+                    return Err(AudioBufferError::InvalidNumSamples { num_samples });
+                }
+
+                (num_channels, num_samples)
+            }
+            (Some(num_channels), None) => {
+                if num_channels == 0 || data.len() % num_channels != 0 {
+                    return Err(AudioBufferError::InvalidNumChannels { num_channels });
+                }
+
+                let num_samples = data.len() / num_channels;
+
+                (num_channels, num_samples)
+            }
+            (None, Some(num_samples)) => {
+                if num_samples == 0 || data.len() % num_samples != 0 {
+                    return Err(AudioBufferError::InvalidNumSamples { num_samples });
+                }
+
+                let num_channels = data.len() / num_samples;
+
+                (num_channels, num_samples)
+            }
+        };
+
+        Ok((num_channels, num_samples))
+    }
+}
+
+/// Allocates a vector of mutable pointers to later store channel pointers of an audio buffer.
+///
+/// # Errors
+///
+/// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` in `settings` is 0 or the data length is not divisible by `num_samples` in `settings`.
+/// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` in `settings` is 0 or the data length is not divisible by `num_channels` in `settings`.
+pub fn allocate_channel_ptrs<T: AsRef<[Sample]>>(
+    data: T,
+    settings: &AudioBufferSettings,
+) -> Result<Vec<*mut Sample>, AudioBufferError> {
+    let (num_channels, _) = settings.num_channels_and_samples(data)?;
+    let channel_ptrs = vec![std::ptr::null_mut(); num_channels];
+    Ok(channel_ptrs)
+}
+
 /// [`AudioBuffer`] construction errors.
 #[derive(Debug)]
 pub enum AudioBufferError {
@@ -440,6 +563,9 @@ pub enum AudioBufferError {
 
     /// Error when trying to construct an [`AudioBuffer`] with an invalid number of channels.
     InvalidNumChannels { num_channels: usize },
+
+    /// Error when trying to construct an [`AudioBuffer`] with an invalid length of channel pointers.
+    InvalidChannelPtrs { actual: usize, expected: usize },
 
     /// Error when trying to construct an [`AudioBuffer`] with a frame out of channel bounds.
     FrameOutOfBounds {
@@ -460,6 +586,12 @@ impl std::fmt::Display for AudioBufferError {
             Self::InvalidNumChannels { num_channels } => {
                 write!(f, "invalid number of channels: {num_channels}")
             }
+            Self::InvalidChannelPtrs { actual, expected } => {
+                write!(
+                    f,
+                    "invalid length of channel pointers: expected {expected}, got {actual}"
+                )
+            }
             Self::FrameOutOfBounds {
                 frame_size,
                 frame_index,
@@ -477,7 +609,7 @@ impl std::fmt::Display for AudioBufferError {
 mod tests {
     use super::*;
 
-    mod with_data_and_settings {
+    mod try_with_data_and_settings {
         use super::*;
 
         #[test]
@@ -485,7 +617,7 @@ mod tests {
             let data: Vec<Sample> = vec![0.0; 10];
             let settings = AudioBufferSettings::default();
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(result.is_ok());
         }
 
@@ -498,7 +630,7 @@ mod tests {
                 ..Default::default()
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(result.is_ok());
         }
 
@@ -512,7 +644,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(result.is_ok());
         }
 
@@ -525,7 +657,7 @@ mod tests {
                 ..Default::default()
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(result.is_ok());
         }
 
@@ -534,7 +666,7 @@ mod tests {
             let data: Vec<Sample> = vec![];
             let settings = AudioBufferSettings::default();
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(matches!(result, Err(AudioBufferError::EmptyData)));
         }
 
@@ -548,7 +680,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumChannels { num_channels: 0 })
@@ -565,7 +697,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumSamples { num_samples: 0 })
@@ -582,7 +714,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumSamples { num_samples: 3 })
@@ -599,7 +731,7 @@ mod tests {
                 frame_index: 1,
             };
 
-            let result = AudioBuffer::with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::FrameOutOfBounds {
@@ -610,7 +742,7 @@ mod tests {
         }
     }
 
-    mod try_from_ptrs {
+    mod try_new_borrowed {
         use super::*;
 
         #[test]
@@ -620,7 +752,7 @@ mod tests {
             let mut ptrs = vec![channel1.as_mut_ptr(), channel2.as_mut_ptr()];
 
             let buffer =
-                unsafe { AudioBuffer::<&[Sample], _>::try_from_ptrs(&mut ptrs, 3) }.unwrap();
+                unsafe { AudioBuffer::<&[Sample], _>::try_new_borrowed(&mut ptrs, 3) }.unwrap();
             assert_eq!(buffer.num_channels(), 2);
             assert_eq!(buffer.num_samples(), 3);
 
@@ -633,7 +765,7 @@ mod tests {
         fn test_empty_channel_ptrs() {
             let mut ptrs: Vec<*mut Sample> = vec![];
 
-            let result = unsafe { AudioBuffer::<&[Sample], _>::try_from_ptrs(&mut ptrs, 100) };
+            let result = unsafe { AudioBuffer::<&[Sample], _>::try_new_borrowed(&mut ptrs, 100) };
 
             assert!(matches!(
                 result,
@@ -646,11 +778,56 @@ mod tests {
             let mut data = vec![1.0, 2.0, 3.0];
             let mut ptrs = vec![data.as_mut_ptr()];
 
-            let result = unsafe { AudioBuffer::<&[Sample], _>::try_from_ptrs(&mut ptrs, 0) };
+            let result = unsafe { AudioBuffer::<&[Sample], _>::try_new_borrowed(&mut ptrs, 0) };
 
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumSamples { num_samples: 0 })
+            ));
+        }
+    }
+
+    mod try_borrowed_with_data_and_settings {
+        use super::*;
+
+        #[test]
+        fn test_valid_construction() {
+            let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let settings = AudioBufferSettings::with_num_channels(2);
+            let mut channel_ptrs = allocate_channel_ptrs(&data, &settings).unwrap();
+
+            let buffer = AudioBuffer::try_borrowed_with_data_and_settings(
+                &data,
+                &mut channel_ptrs,
+                &settings,
+            )
+            .unwrap();
+            assert_eq!(buffer.num_channels(), 2);
+            assert_eq!(buffer.num_samples(), 3);
+
+            let channels: Vec<&[Sample]> = buffer.channels().collect();
+            assert_eq!(channels[0], &[1.0, 2.0, 3.0]);
+            assert_eq!(channels[1], &[4.0, 5.0, 6.0]);
+        }
+
+        #[test]
+        fn test_invalid_channel_ptrs() {
+            let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let settings = AudioBufferSettings::with_num_channels(2);
+            let mut channel_ptrs = [std::ptr::null_mut(); 3];
+
+            let result = AudioBuffer::try_borrowed_with_data_and_settings(
+                &data,
+                &mut channel_ptrs,
+                &settings,
+            );
+
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidChannelPtrs {
+                    actual: 3,
+                    expected: 2
+                })
             ));
         }
     }
