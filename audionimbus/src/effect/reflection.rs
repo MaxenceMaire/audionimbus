@@ -304,7 +304,7 @@ pub struct ReflectionEffectParams {
     pub reflection_effect_type: ReflectionEffectType,
 
     /// The impulse response.
-    #[diff(skip)]
+    #[cfg_attr(feature = "firewheel", diff(skip))]
     pub impulse_response: ReflectionEffectIR,
 
     /// 3-band reverb decay times (RT60).
@@ -325,7 +325,7 @@ pub struct ReflectionEffectParams {
     pub impulse_response_size: u32,
 
     /// The TrueAudio Next device to use for convolution processing.
-    #[diff(skip)]
+    #[cfg_attr(feature = "firewheel", diff(skip))]
     pub true_audio_next_device: TrueAudioNextDevice,
 
     /// The TrueAudio Next slot index to use for convolution processing.
