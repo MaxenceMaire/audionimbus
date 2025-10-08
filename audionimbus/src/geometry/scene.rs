@@ -242,11 +242,12 @@ unsafe impl Sync for Scene {}
 /// Settings used to create a scene.
 ///
 /// Each scene variant corresponds to a different ray tracing implementation.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum SceneSettings {
     /// Steam Audio’s built-in ray tracer.
     ///
     /// Supports multi-threading. Runs on all platforms that Steam Audio supports.
+    #[default]
     Default,
 
     /// The Intel Embree ray tracer.
@@ -316,12 +317,6 @@ pub enum SceneSettings {
         /// Arbitrary user-provided data for use by ray tracing callbacks.
         user_data: *mut std::ffi::c_void,
     },
-}
-
-impl Default for SceneSettings {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {

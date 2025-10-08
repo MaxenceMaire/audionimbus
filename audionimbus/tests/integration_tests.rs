@@ -895,8 +895,8 @@ fn test_buffer_downmix() {
     const NUM_CHANNELS: usize = 2;
 
     let mut input_container = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
-    input_container.extend(std::iter::repeat(0.1).take(FRAME_SIZE));
-    input_container.extend(std::iter::repeat(0.3).take(FRAME_SIZE));
+    input_container.extend(std::iter::repeat_n(0.1, FRAME_SIZE));
+    input_container.extend(std::iter::repeat_n(0.3, FRAME_SIZE));
     let input_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut input_container,
         audionimbus::AudioBufferSettings {

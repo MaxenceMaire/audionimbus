@@ -12,8 +12,8 @@ fn main() {
     let num_channels: u32 = 2;
 
     let config = cpal::StreamConfig {
-        buffer_size: cpal::BufferSize::Fixed(frame_size as u32),
-        sample_rate: cpal::SampleRate(sample_rate as u32),
+        buffer_size: cpal::BufferSize::Fixed(frame_size),
+        sample_rate: cpal::SampleRate(sample_rate),
         channels: num_channels as u16,
     };
 

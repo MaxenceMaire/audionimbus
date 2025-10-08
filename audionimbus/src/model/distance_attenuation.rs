@@ -3,10 +3,11 @@ use crate::geometry;
 
 /// A distance attenuation model that can be used for modeling attenuation of sound over distance.
 /// Can be used with both direct and indirect sound propagation.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub enum DistanceAttenuationModel {
     /// The default distance attenuation model.
     /// This is an inverse distance falloff, with all sounds within 1 meter of the listener rendered without distance attenuation.
+    #[default]
     Default,
 
     /// An inverse distance falloff.
@@ -39,12 +40,6 @@ pub enum DistanceAttenuationModel {
         /// If the user is editing the curve in real-time, set this to `true` whenever the curve changes, so Steam Audio can update simulation results to match.
         dirty: bool,
     },
-}
-
-impl Default for DistanceAttenuationModel {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl From<&DistanceAttenuationModel> for audionimbus_sys::IPLDistanceAttenuationModel {

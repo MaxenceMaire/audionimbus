@@ -1,8 +1,9 @@
 /// A deviation model that can be used for modeling frequency-dependent attenuation of sound as it bends along the path from the source to the listener.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub enum DeviationModel {
     /// The default deviation model.
     /// This is a physics-based model, based on the Uniform Theory of Diffraction, with various additional assumptions.
+    #[default]
     Default,
 
     /// An arbitrary deviation model, defined by a callback function.
@@ -28,12 +29,6 @@ pub enum DeviationModel {
         /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
         user_data: *mut std::ffi::c_void,
     },
-}
-
-impl Default for DeviationModel {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl From<&DeviationModel> for audionimbus_sys::IPLDeviationModel {

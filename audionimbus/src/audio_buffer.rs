@@ -513,7 +513,7 @@ impl AudioBufferSettings {
                 (num_channels, num_samples)
             }
             (Some(num_channels), None) => {
-                if num_channels == 0 || data.len() as u32 % num_channels != 0 {
+                if num_channels == 0 || !(data.len() as u32).is_multiple_of(num_channels) {
                     return Err(AudioBufferError::InvalidNumChannels { num_channels });
                 }
 
@@ -522,7 +522,7 @@ impl AudioBufferSettings {
                 (num_channels, num_samples)
             }
             (None, Some(num_samples)) => {
-                if num_samples == 0 || data.len() as u32 % num_samples != 0 {
+                if num_samples == 0 || !(data.len() as u32).is_multiple_of(num_samples) {
                     return Err(AudioBufferError::InvalidNumSamples { num_samples });
                 }
 

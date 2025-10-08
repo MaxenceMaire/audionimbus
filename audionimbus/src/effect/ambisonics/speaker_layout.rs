@@ -59,14 +59,14 @@ impl From<&SpeakerLayout> for audionimbus_sys::IPLSpeakerLayout {
                 speaker_directions
                     .clone()
                     .into_iter()
-                    .map(|speaker_direction| audionimbus_sys::IPLVector3::from(speaker_direction))
+                    .map(audionimbus_sys::IPLVector3::from)
                     .collect(),
             ),
         };
 
         Self {
             type_,
-            numSpeakers: num_speakers as i32,
+            numSpeakers: num_speakers,
             speakers: speaker_directions.as_mut_ptr(),
         }
     }
