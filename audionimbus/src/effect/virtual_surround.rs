@@ -50,7 +50,7 @@ impl VirtualSurroundEffect {
     /// This effect CANNOT be applied in-place.
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &self,
-        virtual_surround_effect_params: &VirtualSurroundEffectParams,
+        virtual_surround_effect_params: &mut VirtualSurroundEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState

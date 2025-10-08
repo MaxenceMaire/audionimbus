@@ -1359,6 +1359,8 @@ pub type PathingVisualizationCallback = unsafe extern "C" fn(
 #[derive(Debug)]
 pub struct SimulationOutputs(*mut audionimbus_sys::IPLSimulationOutputs);
 
+unsafe impl Send for SimulationOutputs {}
+
 impl SimulationOutputs {
     pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
         unsafe { FFIWrapper::new((*self.0).direct.into()) }

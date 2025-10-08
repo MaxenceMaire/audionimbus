@@ -54,7 +54,7 @@ impl ReflectionEffect {
     /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &self,
-        reflection_effect_params: &ReflectionEffectParams,
+        reflection_effect_params: &mut ReflectionEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
@@ -88,7 +88,7 @@ impl ReflectionEffect {
     /// This can have a performance benefit if using convolution.
     pub fn apply_into_mixer<I, PI: ChannelPointers>(
         &self,
-        reflection_effect_params: &ReflectionEffectParams,
+        reflection_effect_params: &mut ReflectionEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         mixer: &ReflectionMixer,
     ) -> AudioEffectState
@@ -298,14 +298,12 @@ impl From<&ReflectionEffectSettings> for audionimbus_sys::IPLReflectionEffectSet
 }
 
 /// Parameters for applying a reflection effect to an audio buffer.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
+#[derive(Debug, PartialEq)]
 pub struct ReflectionEffectParams {
     /// Type of reflection effect algorithm to use.
     pub reflection_effect_type: ReflectionEffectType,
 
     /// The impulse response.
-    #[cfg_attr(feature = "firewheel", diff(skip))]
     pub impulse_response: ReflectionEffectIR,
 
     /// 3-band reverb decay times (RT60).
@@ -326,7 +324,6 @@ pub struct ReflectionEffectParams {
     pub impulse_response_size: u32,
 
     /// The TrueAudio Next device to use for convolution processing.
-    #[cfg_attr(feature = "firewheel", diff(skip))]
     pub true_audio_next_device: TrueAudioNextDevice,
 
     /// The TrueAudio Next slot index to use for convolution processing.
@@ -337,11 +334,10 @@ pub struct ReflectionEffectParams {
 unsafe impl Send for ReflectionEffectParams {}
 
 /// The impulse response of [`ReflectionEffectParams`].
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
 
 unsafe impl Send for ReflectionEffectIR {}
-unsafe impl Sync for ReflectionEffectIR {}
 
 impl ReflectionEffectParams {
     /// Multi-channel convolution reverb.
@@ -755,7 +751,7 @@ impl ReflectionMixer {
     /// Retrieves the contents of the reflection mixer and places it into the audio buffer.
     pub fn apply<O, PO: ChannelPointers>(
         &self,
-        reflection_effect_params: &ReflectionEffectParams,
+        reflection_effect_params: &mut ReflectionEffectParams,
         output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where

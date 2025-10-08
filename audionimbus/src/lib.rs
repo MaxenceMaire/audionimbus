@@ -99,7 +99,7 @@ let output_buffer = AudioBuffer::try_with_data_and_settings(
 .unwrap();
 
 // Apply a binaural audio effect.
-let binaural_effect_params = BinauralEffectParams {
+let mut binaural_effect_params = BinauralEffectParams {
     direction: Direction::new(
         1.0, // Right
         0.0, // Up
@@ -111,7 +111,7 @@ let binaural_effect_params = BinauralEffectParams {
     peak_delays: None,
 };
 let _effect_state =
-    binaural_effect.apply(&binaural_effect_params, &input_buffer, &output_buffer);
+    binaural_effect.apply(&mut binaural_effect_params, &input_buffer, &output_buffer);
 
 // `output` now contains the processed samples in a deinterleaved format (i.e., left channel
 // samples followed by right channel samples).
