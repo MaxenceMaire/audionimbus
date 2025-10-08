@@ -575,7 +575,7 @@ fn test_simulation() {
 
     simulator.run_direct();
     simulator.run_reflections();
-    let simulation_outputs = source.get_outputs(
+    let mut simulation_outputs = source.get_outputs(
         audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
     );
 

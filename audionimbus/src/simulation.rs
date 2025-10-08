@@ -706,7 +706,7 @@ impl Source {
     /// # Arguments
     ///
     /// - `flags`: the types of simulation for which to retrieve results.
-    pub fn get_outputs(&self, simulation_flags: SimulationFlags) -> SimulationOutputs {
+    pub fn get_outputs(&mut self, simulation_flags: SimulationFlags) -> SimulationOutputs {
         let simulation_outputs = SimulationOutputs::default();
 
         unsafe {
@@ -1366,7 +1366,7 @@ impl SimulationOutputs {
         unsafe { FFIWrapper::new((*self.0).direct.into()) }
     }
 
-    pub fn reflections(&self) -> FFIWrapper<'_, ReflectionEffectParams, Self> {
+    pub fn reflections(&mut self) -> FFIWrapper<'_, ReflectionEffectParams, Self> {
         unsafe { FFIWrapper::new((*self.0).reflections.into()) }
     }
 
