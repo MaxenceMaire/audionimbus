@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Support for borrowed channel pointers in `AudioBuffer`, in addition to the existing owned version.
+
 ## [0.8.3] - 2025-10-04
 
 ### Fixed
