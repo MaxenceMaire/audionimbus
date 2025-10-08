@@ -1,8 +1,12 @@
+#[cfg(feature = "firewheel")]
+use firewheel::diff::{Diff, Patch, RealtimeClone};
+
 /// A point or vector in 3D space.
 ///
 /// Steam Audio uses a right-handed coordinate system, with the positive x-axis pointing right, the positive y-axis pointing up, and the negative z-axis pointing ahead.
 /// Position and direction data obtained from a game engine or audio engine must be properly transformed before being passed to any Steam Audio API function.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub struct Vector3 {
     /// The x-coordinate.
     pub x: f32,

@@ -6,6 +6,9 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 
+#[cfg(feature = "firewheel")]
+use firewheel::diff::{Diff, Patch, RealtimeClone};
+
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 #[derive(Debug)]
 pub struct DirectEffect(audionimbus_sys::IPLDirectEffect);
@@ -128,7 +131,8 @@ impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {
 }
 
 /// Parameters for applying a direct effect to an audio buffer.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub struct DirectEffectParams {
     /// Optional distance attenuation, with a value between 0.0 and 1.0.
     pub distance_attenuation: Option<f32>,
@@ -235,7 +239,8 @@ impl DirectEffectParams {
 }
 
 /// Transmission parameters.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub enum Transmission {
     /// Frequency-independent transmission.
     FrequencyIndependent(Equalizer<3>),

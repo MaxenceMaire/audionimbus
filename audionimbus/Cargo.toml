@@ -13,11 +13,13 @@ readme = "README.md"
 [dependencies]
 audionimbus-sys = { version = "4.7.1-rc.1", path = "../audionimbus-sys" }
 bitflags = "2.8.0"
+firewheel = { version = "0.8.0-rc.1", default-features = false, optional = true }
 
 [features]
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
+firewheel = ["dep:firewheel"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
