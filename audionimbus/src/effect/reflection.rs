@@ -207,10 +207,10 @@ pub enum ReflectionEffectSettings {
     /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
     Convolution {
         /// Number of samples per channel in the IR.
-        impulse_response_size: usize,
+        impulse_response_size: u32,
 
         /// Number of channels in the IR.
-        num_channels: usize,
+        num_channels: u32,
     },
 
     /// Parametric (or artificial) reverb, using feedback delay networks.
@@ -220,10 +220,10 @@ pub enum ReflectionEffectSettings {
     /// A reflection mixer cannot be used with this algorithm.
     Parametric {
         /// Number of samples per channel in the IR.
-        impulse_response_size: usize,
+        impulse_response_size: u32,
 
         /// Number of channels in the IR.
-        num_channels: usize,
+        num_channels: u32,
     },
 
     /// A hybrid of convolution and parametric reverb.
@@ -233,10 +233,10 @@ pub enum ReflectionEffectSettings {
     /// An reflection mixer cannot be used with this algorithm.
     Hybrid {
         /// Number of samples per channel in the IR.
-        impulse_response_size: usize,
+        impulse_response_size: u32,
 
         /// Number of channels in the IR.
-        num_channels: usize,
+        num_channels: u32,
     },
 
     /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
@@ -244,10 +244,10 @@ pub enum ReflectionEffectSettings {
     /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
     TrueAudioNext {
         /// Number of samples per channel in the IR.
-        impulse_response_size: usize,
+        impulse_response_size: u32,
 
         /// Number of channels in the IR.
-        num_channels: usize,
+        num_channels: u32,
     },
 }
 

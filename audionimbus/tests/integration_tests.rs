@@ -40,7 +40,7 @@ fn test_binaural_effect() {
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(2),
             ..Default::default()
         },
@@ -95,7 +95,7 @@ fn test_ambisonics_encode_effect() {
     let mut output_container = vec![0.0; input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(1),
             ..Default::default()
         },
@@ -148,7 +148,7 @@ fn test_ambisonics_decode_effect() {
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(2),
             ..Default::default()
         },
@@ -210,7 +210,7 @@ fn test_direct_effect() {
     let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(2),
             ..Default::default()
         },
@@ -597,7 +597,7 @@ fn test_simulation() {
     let mut output_container = vec![0.0; 4 * input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(4),
             ..Default::default()
         },
@@ -846,7 +846,7 @@ fn test_pathing() {
     let mut output_container = vec![0.0; 4 * input_buffer.num_samples()];
     let output_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(4),
             ..Default::default()
         },
@@ -876,7 +876,7 @@ fn test_buffer_mix() {
     let mix_container = vec![0.2; FRAME_SIZE];
     let mut mix_buffer = audionimbus::AudioBuffer::try_with_data(&mix_container).unwrap();
 
-    mix_buffer.mix(&context, &source_buffer);
+    mix_buffer.mix(&context, source_buffer);
 
     assert_eq!(mix_container, vec![0.3; FRAME_SIZE]);
 }
@@ -894,7 +894,7 @@ fn test_buffer_downmix() {
     input_container.extend(std::iter::repeat(0.3).take(FRAME_SIZE));
     let input_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
         &mut input_container,
-        &audionimbus::AudioBufferSettings {
+        audionimbus::AudioBufferSettings {
             num_channels: Some(NUM_CHANNELS),
             ..Default::default()
         },
@@ -910,7 +910,7 @@ fn test_buffer_downmix() {
     assert_eq!(downmix_container, vec![0.2; FRAME_SIZE]);
 }
 
-fn sine_wave(frequency: f32, amplitude: f32, duration_secs: f32, sample_rate: usize) -> Vec<f32> {
+fn sine_wave(frequency: f32, amplitude: f32, duration_secs: f32, sample_rate: u32) -> Vec<f32> {
     let num_samples = (duration_secs * sample_rate as f32) as usize;
     let phase_increment = 2.0 * std::f32::consts::PI * frequency / sample_rate as f32;
 

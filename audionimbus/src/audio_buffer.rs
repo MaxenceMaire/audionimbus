@@ -617,7 +617,7 @@ mod tests {
             let data: Vec<Sample> = vec![0.0; 10];
             let settings = AudioBufferSettings::default();
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(result.is_ok());
         }
 
@@ -630,7 +630,7 @@ mod tests {
                 ..Default::default()
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(result.is_ok());
         }
 
@@ -644,7 +644,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(result.is_ok());
         }
 
@@ -657,7 +657,7 @@ mod tests {
                 ..Default::default()
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(result.is_ok());
         }
 
@@ -666,7 +666,7 @@ mod tests {
             let data: Vec<Sample> = vec![];
             let settings = AudioBufferSettings::default();
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(matches!(result, Err(AudioBufferError::EmptyData)));
         }
 
@@ -680,7 +680,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumChannels { num_channels: 0 })
@@ -697,7 +697,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumSamples { num_samples: 0 })
@@ -714,7 +714,7 @@ mod tests {
                 frame_index: 0,
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::InvalidNumSamples { num_samples: 3 })
@@ -731,7 +731,7 @@ mod tests {
                 frame_index: 1,
             };
 
-            let result = AudioBuffer::try_with_data_and_settings(&data, &settings);
+            let result = AudioBuffer::try_with_data_and_settings(&data, settings);
             assert!(matches!(
                 result,
                 Err(AudioBufferError::FrameOutOfBounds {
@@ -794,12 +794,12 @@ mod tests {
         fn test_valid_construction() {
             let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
             let settings = AudioBufferSettings::with_num_channels(2);
-            let mut channel_ptrs = allocate_channel_ptrs(&data, &settings).unwrap();
+            let mut channel_ptrs = allocate_channel_ptrs(&data, settings).unwrap();
 
             let buffer = AudioBuffer::try_borrowed_with_data_and_settings(
                 &data,
                 &mut channel_ptrs,
-                &settings,
+                settings,
             )
             .unwrap();
             assert_eq!(buffer.num_channels(), 2);
@@ -819,7 +819,7 @@ mod tests {
             let result = AudioBuffer::try_borrowed_with_data_and_settings(
                 &data,
                 &mut channel_ptrs,
-                &settings,
+                settings,
             );
 
             assert!(matches!(

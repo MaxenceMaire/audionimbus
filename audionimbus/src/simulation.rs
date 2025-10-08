@@ -48,8 +48,8 @@ impl Simulator<(), (), ()> {
     /// Creates a new simulator builder with required parameters.
     pub fn builder(
         scene_params: SceneParams<'static>,
-        sampling_rate: usize,
-        frame_size: usize,
+        sampling_rate: u32,
+        frame_size: u32,
     ) -> SimulatorBuilder<(), (), ()> {
         SimulatorBuilder {
             settings: SimulationSettings {
@@ -324,10 +324,10 @@ pub struct SimulationSettings<'a> {
     pub pathing_simulation: Option<PathingSimulationSettings>,
 
     /// The sampling rate (in Hz) used for audio processing.
-    pub sampling_rate: usize,
+    pub sampling_rate: u32,
 
     /// The size (in samples) of the audio buffers used for audio processing.
-    pub frame_size: usize,
+    pub frame_size: u32,
 }
 
 /// Settings used for direct path simulation.
