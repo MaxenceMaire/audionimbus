@@ -108,12 +108,14 @@ impl AmbisonicsDecodeEffect {
         self.0
     }
 
-    pub fn from_raw_ptr(ptr: audionimbus_sys::IPLAmbisonicsDecodeEffect) -> Self {
-        Self(ptr)
-    }
-
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsDecodeEffect {
         &mut self.0
+    }
+}
+
+impl From<audionimbus_sys::IPLAmbisonicsDecodeEffect> for AmbisonicsDecodeEffect {
+    fn from(ptr: audionimbus_sys::IPLAmbisonicsDecodeEffect) -> Self {
+        Self(ptr)
     }
 }
 
