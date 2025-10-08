@@ -298,7 +298,7 @@ impl From<&ReflectionEffectSettings> for audionimbus_sys::IPLReflectionEffectSet
 }
 
 /// Parameters for applying a reflection effect to an audio buffer.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub struct ReflectionEffectParams {
     /// Type of reflection effect algorithm to use.

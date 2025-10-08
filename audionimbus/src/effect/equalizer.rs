@@ -2,7 +2,7 @@
 use firewheel::diff::{Diff, Patch, RealtimeClone};
 
 /// An N-band equalizer, with band coefficients between 0.0 and 1.0.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub struct Equalizer<const N: usize>(pub [f32; N]);
 

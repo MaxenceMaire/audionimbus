@@ -132,7 +132,7 @@ impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {
 }
 
 /// Parameters for applying a direct effect to an audio buffer.
-#[derive(Default, Clone, Debug, Eq, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub struct DirectEffectParams {
     /// Optional distance attenuation, with a value between 0.0 and 1.0.
@@ -240,7 +240,7 @@ impl DirectEffectParams {
 }
 
 /// Transmission parameters.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub enum Transmission {
     /// Frequency-independent transmission.
