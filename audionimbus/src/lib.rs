@@ -67,7 +67,7 @@ let audio_settings = AudioSettings {
 let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
 
 // Create a binaural effect.
-let binaural_effect = BinauralEffect::try_new(
+let mut binaural_effect = BinauralEffect::try_new(
     &context,
     &audio_settings,
     &BinauralEffectSettings { hrtf: &hrtf },
@@ -99,7 +99,7 @@ let output_buffer = AudioBuffer::try_with_data_and_settings(
 .unwrap();
 
 // Apply a binaural audio effect.
-let mut binaural_effect_params = BinauralEffectParams {
+let binaural_effect_params = BinauralEffectParams {
     direction: Direction::new(
         1.0, // Right
         0.0, // Up
@@ -111,7 +111,7 @@ let mut binaural_effect_params = BinauralEffectParams {
     peak_delays: None,
 };
 let _effect_state =
-    binaural_effect.apply(&mut binaural_effect_params, &input_buffer, &output_buffer);
+    binaural_effect.apply(&binaural_effect_params, &input_buffer, &output_buffer);
 
 // `output` now contains the processed samples in a deinterleaved format (i.e., left channel
 // samples followed by right channel samples).

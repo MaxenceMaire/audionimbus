@@ -45,7 +45,7 @@ impl AmbisonicsDecodeEffect {
     ///
     /// This effect CANNOT be applied in-place.
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
-        &self,
+        &mut self,
         ambisonics_decode_effect_params: &AmbisonicsDecodeEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,

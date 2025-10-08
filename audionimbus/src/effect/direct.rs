@@ -42,7 +42,7 @@ impl DirectEffect {
     ///
     /// This effect CAN be applied in-place.
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
-        &self,
+        &mut self,
         direct_effect_params: &DirectEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,

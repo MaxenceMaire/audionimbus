@@ -1366,7 +1366,7 @@ impl SimulationOutputs {
         unsafe { FFIWrapper::new((*self.0).direct.into()) }
     }
 
-    pub fn reflections(&mut self) -> FFIWrapper<'_, ReflectionEffectParams, Self> {
+    pub fn reflections(&self) -> FFIWrapper<'_, ReflectionEffectParams, Self> {
         unsafe { FFIWrapper::new((*self.0).reflections.into()) }
     }
 

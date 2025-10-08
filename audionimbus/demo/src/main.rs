@@ -34,7 +34,7 @@ fn main() {
     .unwrap();
 
     // Create a binaural effect.
-    let binaural_effect = audionimbus::BinauralEffect::try_new(
+    let mut binaural_effect = audionimbus::BinauralEffect::try_new(
         &context,
         &audio_settings,
         &audionimbus::BinauralEffectSettings { hrtf: &hrtf },

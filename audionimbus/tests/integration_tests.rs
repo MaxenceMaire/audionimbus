@@ -61,7 +61,7 @@ fn test_binaural_effect() {
 
     let binaural_effect_settings = audionimbus::effect::BinauralEffectSettings { hrtf: &hrtf };
 
-    let binaural_effect = audionimbus::effect::BinauralEffect::try_new(
+    let mut binaural_effect = audionimbus::effect::BinauralEffect::try_new(
         &context,
         &audio_settings,
         &binaural_effect_settings,
@@ -114,7 +114,7 @@ fn test_ambisonics_encode_effect() {
     let ambisonics_encode_effect_settings =
         audionimbus::effect::AmbisonicsEncodeEffectSettings { max_order: 0 };
 
-    let ambisonics_encode_effect = audionimbus::effect::AmbisonicsEncodeEffect::try_new(
+    let mut ambisonics_encode_effect = audionimbus::effect::AmbisonicsEncodeEffect::try_new(
         &context,
         &audio_settings,
         &ambisonics_encode_effect_settings,
@@ -175,7 +175,7 @@ fn test_ambisonics_decode_effect() {
         max_order: 0,
     };
 
-    let ambisonics_decode_effect = audionimbus::effect::AmbisonicsDecodeEffect::try_new(
+    let mut ambisonics_decode_effect = audionimbus::effect::AmbisonicsDecodeEffect::try_new(
         &context,
         &audio_settings,
         &ambisonics_decode_effect_settings,
@@ -230,7 +230,7 @@ fn test_direct_effect() {
 
     let direct_effect_settings = audionimbus::effect::DirectEffectSettings { num_channels: 1 };
 
-    let direct_effect = audionimbus::effect::DirectEffect::try_new(
+    let mut direct_effect = audionimbus::effect::DirectEffect::try_new(
         &context,
         &audio_settings,
         &direct_effect_settings,
@@ -575,7 +575,7 @@ fn test_simulation() {
 
     simulator.run_direct();
     simulator.run_reflections();
-    let mut simulation_outputs = source.get_outputs(
+    let simulation_outputs = source.get_outputs(
         audionimbus::SimulationFlags::DIRECT | audionimbus::SimulationFlags::REFLECTIONS,
     );
 
@@ -583,7 +583,7 @@ fn test_simulation() {
         impulse_response_size: 2 * sampling_rate, // 2.0f (IR duration) * 44100 (sampling rate)
         num_channels: 4,                          // 1st order Ambisonics
     };
-    let reflection_effect = audionimbus::ReflectionEffect::try_new(
+    let mut reflection_effect = audionimbus::ReflectionEffect::try_new(
         &context,
         &audio_settings,
         &reflection_effect_settings,
@@ -611,7 +611,7 @@ fn test_simulation() {
     let mut reflection_effect_params = simulation_outputs.reflections();
     reflection_effect_params.num_channels = 4; // use all channels of the IR
     reflection_effect_params.impulse_response_size = 2 * sampling_rate; // use the full duration of the IR
-    let _ = reflection_effect.apply(&mut reflection_effect_params, &input_buffer, &output_buffer);
+    let _ = reflection_effect.apply(&reflection_effect_params, &input_buffer, &output_buffer);
 }
 
 #[test]
@@ -835,7 +835,7 @@ fn test_pathing() {
         max_order: 1, // Render up to 1st order Ambisonic sound fields.
         spatialization: None,
     };
-    let path_effect =
+    let mut path_effect =
         audionimbus::PathEffect::try_new(&context, &audio_settings, &path_effect_settings).unwrap();
 
     let frequency = 440.0;

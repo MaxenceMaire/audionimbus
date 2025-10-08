@@ -53,8 +53,8 @@ impl ReflectionEffect {
     ///
     /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
-        &self,
-        reflection_effect_params: &mut ReflectionEffectParams,
+        &mut self,
+        reflection_effect_params: &ReflectionEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
@@ -87,7 +87,7 @@ impl ReflectionEffect {
     /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
     /// This can have a performance benefit if using convolution.
     pub fn apply_into_mixer<I, PI: ChannelPointers>(
-        &self,
+        &mut self,
         reflection_effect_params: &mut ReflectionEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         mixer: &ReflectionMixer,
@@ -750,7 +750,7 @@ impl ReflectionMixer {
 
     /// Retrieves the contents of the reflection mixer and places it into the audio buffer.
     pub fn apply<O, PO: ChannelPointers>(
-        &self,
+        &mut self,
         reflection_effect_params: &mut ReflectionEffectParams,
         output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState

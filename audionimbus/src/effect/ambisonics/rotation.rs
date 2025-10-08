@@ -44,7 +44,7 @@ impl AmbisonicsRotationEffect {
     ///
     /// This effect CANNOT be applied in-place.
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
-        &self,
+        &mut self,
         ambisonics_rotation_effect_params: &AmbisonicsRotationEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
