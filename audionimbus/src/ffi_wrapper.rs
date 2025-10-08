@@ -13,7 +13,7 @@ impl<T, Owner> FFIWrapper<'_, T, Owner> {
         }
     }
 
-    pub fn take(self) -> T {
+    pub fn into_inner(self) -> T {
         self.ffi_object
     }
 }
