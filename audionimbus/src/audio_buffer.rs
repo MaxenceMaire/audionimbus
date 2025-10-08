@@ -95,7 +95,7 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     /// Mixes `source` into `self`.
     ///
     /// Both audio buffers must have the same number of channels and samples.
-    pub fn mix<P2: ChannelPointers>(&mut self, context: &Context, source: &AudioBuffer<T, P2>) {
+    pub fn mix<P2: ChannelPointers>(&mut self, context: &Context, source: AudioBuffer<T, P2>) {
         assert_eq!(
             self.num_channels(),
             source.num_channels(),
@@ -259,7 +259,7 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
 
     /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
     pub fn try_with_data(data: T) -> Result<Self, AudioBufferError> {
-        Self::try_with_data_and_settings(data, &AudioBufferSettings::default())
+        Self::try_with_data_and_settings(data, AudioBufferSettings::default())
     }
 
     /// Constructs an `AudioBuffer` over `data` given the provided [`AudioBufferSettings`].
@@ -272,7 +272,7 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
     /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
     pub fn try_with_data_and_settings(
         data: T,
-        settings: &AudioBufferSettings,
+        settings: AudioBufferSettings,
     ) -> Result<Self, AudioBufferError> {
         let data = data.as_ref();
 
@@ -367,7 +367,7 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
         Self::try_borrowed_with_data_and_settings(
             data,
             null_channel_ptrs,
-            &AudioBufferSettings::default(),
+            AudioBufferSettings::default(),
         )
     }
 
@@ -384,7 +384,7 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     pub fn try_borrowed_with_data_and_settings(
         data: T,
         null_channel_ptrs: &'a mut [*mut Sample],
-        settings: &AudioBufferSettings,
+        settings: AudioBufferSettings,
     ) -> Result<Self, AudioBufferError> {
         let data = data.as_ref();
 
@@ -544,7 +544,7 @@ impl AudioBufferSettings {
 /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` in `settings` is 0 or the data length is not divisible by `num_channels` in `settings`.
 pub fn allocate_channel_ptrs<T: AsRef<[Sample]>>(
     data: T,
-    settings: &AudioBufferSettings,
+    settings: AudioBufferSettings,
 ) -> Result<Vec<*mut Sample>, AudioBufferError> {
     let (num_channels, _) = settings.num_channels_and_samples(data)?;
     let channel_ptrs = vec![std::ptr::null_mut(); num_channels];
