@@ -5,7 +5,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::Hrtf;
+use crate::{ChannelPointers, Hrtf};
 
 /// Spatializes multi-channel speaker-based audio (e.g., stereo, quadraphonic, 5.1, or 7.1) using HRTF-based binaural rendering.
 ///
@@ -48,11 +48,11 @@ impl VirtualSurroundEffect {
     /// Applies a virtual surround effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &self,
         virtual_surround_effect_params: &VirtualSurroundEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,

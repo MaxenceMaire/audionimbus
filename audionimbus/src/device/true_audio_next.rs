@@ -68,16 +68,16 @@ unsafe impl Sync for TrueAudioNextDevice {}
 #[derive(Debug)]
 pub struct TrueAudioNextDeviceSettings {
     /// The number of samples in an audio frame.
-    pub frame_size: usize,
+    pub frame_size: u32,
 
     /// The number of samples in the impulse responses that will be used for convolution.
-    pub impulse_response_size: usize,
+    pub impulse_response_size: u32,
 
     /// The Ambisonic order of the impulse responses that will be used for convolution.
-    pub order: usize,
+    pub order: u32,
 
     /// The maximum number of sources that will use TrueAudio Next for convolution.
-    pub max_sources: usize,
+    pub max_sources: u32,
 }
 
 impl From<&TrueAudioNextDeviceSettings> for audionimbus_sys::IPLTrueAudioNextDeviceSettings {

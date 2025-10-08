@@ -5,6 +5,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
+use crate::ChannelPointers;
 
 /// Renders Ambisonic audio by panning it to a standard speaker layout.
 ///
@@ -41,11 +42,11 @@ impl AmbisonicsPanningEffect {
     /// Applies an ambisonics panning effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &self,
         ambisonics_panning_effect_params: &AmbisonicsPanningEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -135,7 +136,7 @@ pub struct AmbisonicsPanningEffectSettings {
     pub speaker_layout: SpeakerLayout,
 
     /// The maximum ambisonics order that will be used by input audio buffers.
-    pub max_order: usize,
+    pub max_order: u32,
 }
 
 impl From<&AmbisonicsPanningEffectSettings>
@@ -155,7 +156,7 @@ pub struct AmbisonicsPanningEffectParams {
     /// Ambisonic order of the input buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will process fewer input channels, reducing CPU usage.
-    pub order: usize,
+    pub order: u32,
 }
 
 impl AmbisonicsPanningEffectParams {

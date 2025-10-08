@@ -418,7 +418,7 @@ pub enum SceneParams<'a> {
     /// Custom ray tracer.
     Custom {
         /// The number of rays that will be passed to the callbacks every time rays need to be traced.
-        ray_batch_size: usize,
+        ray_batch_size: u32,
     },
 }
 

@@ -12,7 +12,7 @@ pub struct Reconstructor {
 
     /// Used for validation when calling [`Self::reconstruct`].
     max_duration: f32,
-    max_order: usize,
+    max_order: u32,
 }
 
 impl Reconstructor {
@@ -114,10 +114,10 @@ pub struct ReconstructorSettings {
     pub max_duration: f32,
 
     /// The largest possible Ambisonic order of any impulse response that will be reconstructed using this reconstructor.
-    pub max_order: usize,
+    pub max_order: u32,
 
     /// The sampling rate of impulse responses reconstructed using this reconstructor.
-    pub sampling_rate: usize,
+    pub sampling_rate: u32,
 }
 
 impl From<&ReconstructorSettings> for audionimbus_sys::IPLReconstructorSettings {
@@ -142,7 +142,7 @@ pub struct ReconstructorSharedInputs {
     /// Ambisonic order of impulse responses to reconstruct.
     ///
     /// Must be less than or equal to maxOrder specified in [`ReconstructorSettings`].
-    pub order: usize,
+    pub order: u32,
 }
 
 impl From<&ReconstructorSharedInputs> for audionimbus_sys::IPLReconstructorSharedInputs {

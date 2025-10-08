@@ -12,6 +12,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
+use crate::ChannelPointers;
 
 #[cfg(feature = "firewheel")]
 use firewheel::diff::{Diff, Patch, RealtimeClone};
@@ -51,11 +52,11 @@ impl ReflectionEffect {
     /// This effect CANNOT be applied in-place.
     ///
     /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
-    pub fn apply<I, O>(
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -85,10 +86,10 @@ impl ReflectionEffect {
     ///
     /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
     /// This can have a performance benefit if using convolution.
-    pub fn apply_into_mixer<I>(
+    pub fn apply_into_mixer<I, PI: ChannelPointers>(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &AudioBuffer<I>,
+        input_buffer: &AudioBuffer<I, PI>,
         mixer: &ReflectionMixer,
     ) -> AudioEffectState
     where
@@ -555,15 +556,15 @@ pub struct ReflectionsBakeParams<'a> {
 
     /// The number of rays to trace from each listener position when baking.
     /// Increasing this number results in improved accuracy, at the cost of increased bake times.
-    pub num_rays: usize,
+    pub num_rays: u32,
 
     /// The number of directions to consider when generating diffusely-reflected rays when baking.
     /// Increasing this number results in slightly improved accuracy of diffuse reflections.
-    pub num_diffuse_samples: usize,
+    pub num_diffuse_samples: u32,
 
     /// The number of times each ray is reflected off of solid geometry.
     /// Increasing this number results in longer reverb tails and improved accuracy, at the cost of increased bake times.
-    pub num_bounces: usize,
+    pub num_bounces: u32,
 
     /// The length (in seconds) of the impulse responses to simulate.
     /// Increasing this number allows the baked data to represent longer reverb tails (and hence larger spaces), at the cost of increased memory usage while baking.
@@ -577,21 +578,21 @@ pub struct ReflectionsBakeParams<'a> {
     pub saved_duration: f32,
 
     /// Ambisonic order of the baked IRs.
-    pub order: usize,
+    pub order: u32,
 
     /// Number of threads to use for baking.
-    pub num_threads: usize,
+    pub num_threads: u32,
 
     /// When calculating how much sound energy reaches a surface directly from a source, any source that is closer than [`Self::irradiance_min_distance`] to the surface is assumed to be at a distance of [`Self::irradiance_min_distance`], for the purposes of energy calculations.
     pub irradiance_min_distance: f32,
 
     /// If using Radeon Rays or if [`Self::identifier`] uses [`BakedDataVariation::StaticListener`], this is the number of probes for which data is baked simultaneously.
-    pub bake_batch_size: usize,
+    pub bake_batch_size: u32,
 }
 
 impl From<ReflectionsBakeParams<'_>> for audionimbus_sys::IPLReflectionsBakeParams {
     fn from(params: ReflectionsBakeParams) -> Self {
-        let mut ray_batch_size = usize::default();
+        let mut ray_batch_size = 0;
         let mut open_cl_device = &OpenClDevice::null();
         let mut radeon_rays_device = &RadeonRaysDevice::null();
         let scene_type = match params.scene_params {
@@ -752,10 +753,10 @@ impl ReflectionMixer {
     }
 
     /// Retrieves the contents of the reflection mixer and places it into the audio buffer.
-    pub fn apply<O>(
+    pub fn apply<O, PO: ChannelPointers>(
         &self,
         reflection_effect_params: &ReflectionEffectParams,
-        output_buffer: &AudioBuffer<O>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,

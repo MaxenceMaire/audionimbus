@@ -34,7 +34,7 @@ impl ChannelPointers for &mut [*mut Sample] {
 #[derive(Debug)]
 pub struct AudioBuffer<T, P: ChannelPointers = Vec<*mut Sample>> {
     /// Number of samples per channel.
-    num_samples: usize,
+    num_samples: u32,
 
     /// Pointers to sample data for each channel.
     channel_ptrs: P,
@@ -45,19 +45,19 @@ pub struct AudioBuffer<T, P: ChannelPointers = Vec<*mut Sample>> {
 
 impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     /// Returns the number of channels of the audio buffer.
-    pub fn num_channels(&self) -> usize {
-        self.channel_ptrs.as_slice().len()
+    pub fn num_channels(&self) -> u32 {
+        self.channel_ptrs.as_slice().len() as u32
     }
 
     /// Returns the number of samples per channel in the audio buffer.
-    pub fn num_samples(&self) -> usize {
+    pub fn num_samples(&self) -> u32 {
         self.num_samples
     }
 
     /// Reads samples from the audio buffer and interleaves them into `dst`.
     pub fn interleave(&self, context: &Context, dst: &mut [Sample]) {
         assert_eq!(
-            dst.len(),
+            dst.len() as u32,
             self.num_channels() * self.num_samples(),
             "destination slice and audio buffer must have the same length"
         );
@@ -76,7 +76,7 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     /// Deinterleaves the `src` sample data into `Self`.
     pub fn deinterleave(&mut self, context: &Context, src: &[Sample]) {
         assert_eq!(
-            src.len(),
+            src.len() as u32,
             self.num_channels() * self.num_samples(),
             "source slice and audio buffer must have the same length"
         );
@@ -143,7 +143,7 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     pub fn channels<'a>(&'a self) -> impl Iterator<Item = &'a [Sample]> + 'a {
         self.channel_ptrs.as_slice().iter().map(|&ptr|
                 // SAFETY: pointers are guaranteed to be valid by the lifetime.
-                unsafe { std::slice::from_raw_parts(ptr, self.num_samples) })
+                unsafe { std::slice::from_raw_parts(ptr, self.num_samples() as usize) })
     }
 
     /// Converts an Ambisonic audio buffer from one Ambisonic format to another.
@@ -233,11 +233,11 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
     /// Any violations of the above invariants will result in undefined behavior.
     pub unsafe fn try_new(
         channel_ptrs: Vec<*mut Sample>,
-        num_samples: usize,
+        num_samples: u32,
     ) -> Result<Self, AudioBufferError> {
         if channel_ptrs.is_empty() {
             return Err(AudioBufferError::InvalidNumChannels {
-                num_channels: channel_ptrs.len(),
+                num_channels: channel_ptrs.len() as u32,
             });
         }
 
@@ -293,7 +293,7 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
 
         let channel_ptrs = (0..num_channels)
             .map(|channel| {
-                let index = channel * num_samples + frame_index * frame_size;
+                let index = (channel * num_samples + frame_index * frame_size) as usize;
                 data[index..].as_ptr() as *mut Sample
             })
             .collect();
@@ -326,11 +326,11 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     /// Any violations of the above invariants will result in undefined behavior.
     pub unsafe fn try_new_borrowed(
         channel_ptrs: &'a mut [*mut Sample],
-        num_samples: usize,
+        num_samples: u32,
     ) -> Result<Self, AudioBufferError> {
         if channel_ptrs.is_empty() {
             return Err(AudioBufferError::InvalidNumChannels {
-                num_channels: channel_ptrs.len(),
+                num_channels: channel_ptrs.len() as u32,
             });
         }
 
@@ -403,9 +403,9 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
             });
         }
 
-        if null_channel_ptrs.len() != num_channels {
+        if null_channel_ptrs.len() as u32 != num_channels {
             return Err(AudioBufferError::InvalidChannelPtrs {
-                actual: null_channel_ptrs.len(),
+                actual: null_channel_ptrs.len() as u32,
                 expected: num_channels,
             });
         }
@@ -414,8 +414,8 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
             .iter_mut()
             .enumerate()
             .for_each(|(i, channel)| {
-                let index = i * num_samples + frame_index * frame_size;
-                *channel = data[index..].as_ptr() as *mut Sample;
+                let index = i as u32 * num_samples + frame_index * frame_size;
+                *channel = data[index as usize..].as_ptr() as *mut Sample;
             });
 
         let channel_ptrs = null_channel_ptrs;
@@ -439,28 +439,28 @@ pub struct AudioBufferSettings {
     /// If `None`, the number of channels is:
     /// - 1 if [`Self::num_samples`] is `None`.
     /// - The length of the data divided by the number of samples per channel if [`Self::num_samples`] is `Some`.
-    pub num_channels: Option<usize>,
+    pub num_channels: Option<u32>,
 
     /// The number of samples per channel.
     ///
     /// If `None`, the number of samples per channel is:
     /// - The length of the data if [`Self::num_channels`] is `None`.
     /// - The length of the data divided by the number of channels if [`Self::num_channels`] is `Some`.
-    pub num_samples: Option<usize>,
+    pub num_samples: Option<u32>,
 
     /// The size of a frame.
     ///
     /// If `None`, the frame size is the number of samples per channel.
-    pub frame_size: Option<usize>,
+    pub frame_size: Option<u32>,
 
     /// Zero-based index of the frame.
-    pub frame_index: usize,
+    pub frame_index: u32,
 }
 
 impl AudioBufferSettings {
     /// Creates a new [`AudioBufferSettings`] with the specified number of channels.
     /// The number of samples per channel will be inferred.
-    pub fn with_num_channels(num_channels: usize) -> Self {
+    pub fn with_num_channels(num_channels: u32) -> Self {
         Self {
             num_channels: Some(num_channels),
             ..Default::default()
@@ -469,7 +469,7 @@ impl AudioBufferSettings {
 
     /// Creates a new [`AudioBufferSettings`] with the specified number of samples per channel.
     /// The number of channels will be inferred.
-    pub fn with_num_samples(num_samples: usize) -> Self {
+    pub fn with_num_samples(num_samples: u32) -> Self {
         Self {
             num_samples: Some(num_samples),
             ..Default::default()
@@ -478,7 +478,7 @@ impl AudioBufferSettings {
 
     /// Creates a new [`AudioBufferSettings`] with the specified number of samples per channel and
     /// channels.
-    pub fn with_num_channels_and_num_samples(num_channels: usize, num_samples: usize) -> Self {
+    pub fn with_num_channels_and_num_samples(num_channels: u32, num_samples: u32) -> Self {
         Self {
             num_channels: Some(num_channels),
             num_samples: Some(num_samples),
@@ -496,37 +496,37 @@ impl AudioBufferSettings {
     pub fn num_channels_and_samples<T: AsRef<[Sample]>>(
         &self,
         data: T,
-    ) -> Result<(usize, usize), AudioBufferError> {
+    ) -> Result<(u32, u32), AudioBufferError> {
         let data = data.as_ref();
 
         let (num_channels, num_samples) = match (self.num_channels, self.num_samples) {
-            (None, None) => (1, data.len()),
+            (None, None) => (1, data.len() as u32),
             (Some(num_channels), Some(num_samples)) => {
                 if num_channels == 0 {
                     return Err(AudioBufferError::InvalidNumChannels { num_channels });
                 }
 
-                if num_samples == 0 || num_channels * num_samples != data.len() {
+                if num_samples == 0 || num_channels * num_samples != data.len() as u32 {
                     return Err(AudioBufferError::InvalidNumSamples { num_samples });
                 }
 
                 (num_channels, num_samples)
             }
             (Some(num_channels), None) => {
-                if num_channels == 0 || data.len() % num_channels != 0 {
+                if num_channels == 0 || data.len() as u32 % num_channels != 0 {
                     return Err(AudioBufferError::InvalidNumChannels { num_channels });
                 }
 
-                let num_samples = data.len() / num_channels;
+                let num_samples = data.len() as u32 / num_channels;
 
                 (num_channels, num_samples)
             }
             (None, Some(num_samples)) => {
-                if num_samples == 0 || data.len() % num_samples != 0 {
+                if num_samples == 0 || data.len() as u32 % num_samples != 0 {
                     return Err(AudioBufferError::InvalidNumSamples { num_samples });
                 }
 
-                let num_channels = data.len() / num_samples;
+                let num_channels = data.len() as u32 / num_samples;
 
                 (num_channels, num_samples)
             }
@@ -547,7 +547,7 @@ pub fn allocate_channel_ptrs<T: AsRef<[Sample]>>(
     settings: AudioBufferSettings,
 ) -> Result<Vec<*mut Sample>, AudioBufferError> {
     let (num_channels, _) = settings.num_channels_and_samples(data)?;
-    let channel_ptrs = vec![std::ptr::null_mut(); num_channels];
+    let channel_ptrs = vec![std::ptr::null_mut(); num_channels as usize];
     Ok(channel_ptrs)
 }
 
@@ -559,19 +559,16 @@ pub enum AudioBufferError {
 
     /// Error when trying to construct an [`AudioBuffer`] with an invalid number of samples per
     /// channel.
-    InvalidNumSamples { num_samples: usize },
+    InvalidNumSamples { num_samples: u32 },
 
     /// Error when trying to construct an [`AudioBuffer`] with an invalid number of channels.
-    InvalidNumChannels { num_channels: usize },
+    InvalidNumChannels { num_channels: u32 },
 
     /// Error when trying to construct an [`AudioBuffer`] with an invalid length of channel pointers.
-    InvalidChannelPtrs { actual: usize, expected: usize },
+    InvalidChannelPtrs { actual: u32, expected: u32 },
 
     /// Error when trying to construct an [`AudioBuffer`] with a frame out of channel bounds.
-    FrameOutOfBounds {
-        frame_size: usize,
-        frame_index: usize,
-    },
+    FrameOutOfBounds { frame_size: u32, frame_index: u32 },
 }
 
 impl std::error::Error for AudioBufferError {}

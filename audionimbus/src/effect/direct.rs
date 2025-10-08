@@ -5,6 +5,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
+use crate::ChannelPointers;
 
 #[cfg(feature = "firewheel")]
 use firewheel::diff::{Diff, Patch, RealtimeClone};
@@ -40,11 +41,11 @@ impl DirectEffect {
     /// Applies a direct effect to an audio buffer.
     ///
     /// This effect CAN be applied in-place.
-    pub fn apply<I, O>(
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &self,
         direct_effect_params: &DirectEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -119,7 +120,7 @@ unsafe impl Sync for DirectEffect {}
 #[derive(Debug)]
 pub struct DirectEffectSettings {
     /// Number of channels that will be used by input and output buffers.
-    pub num_channels: usize,
+    pub num_channels: u32,
 }
 
 impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {

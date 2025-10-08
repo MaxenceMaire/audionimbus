@@ -171,7 +171,7 @@ pub struct EnergyFieldSettings {
     /// The Ambisonic order.
     ///
     /// This determines the number of channels.
-    pub order: usize,
+    pub order: u32,
 }
 
 impl From<&EnergyFieldSettings> for audionimbus_sys::IPLEnergyFieldSettings {
