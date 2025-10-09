@@ -14,9 +14,6 @@ use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
 use crate::ChannelPointers;
 
-#[cfg(feature = "firewheel")]
-use firewheel::diff::{Diff, Patch, RealtimeClone};
-
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
 /// The result is encoded in ambisonics, and can be decoded using an ambisonics decode effect.
@@ -652,7 +649,6 @@ impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
 
 /// Type of reflection effect algorithm to use.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub enum ReflectionEffectType {
     /// Multi-channel convolution reverb.
     /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.

@@ -1,11 +1,7 @@
 use super::{Point, Vector3};
 
-#[cfg(feature = "firewheel")]
-use firewheel::diff::{Diff, Patch, RealtimeClone};
-
 /// A 3D coordinate system, expressed relative to a canonical coordinate system.
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "firewheel", derive(Diff, Patch, RealtimeClone))]
 pub struct CoordinateSystem {
     /// Unit vector pointing to the right (local +x axis).
     pub right: Vector3,
