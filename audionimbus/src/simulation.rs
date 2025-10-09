@@ -226,7 +226,7 @@ impl<D, R, P> Simulator<D, R, P> {
     /// - `flags`: the types of simulation for which to specify shared inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `shared_inputs`: the shared input parameters to set.
     pub fn set_shared_inputs(
-        &mut self,
+        &self,
         simulation_flags: SimulationFlags,
         shared_inputs: &SimulationSharedInputs,
     ) {
