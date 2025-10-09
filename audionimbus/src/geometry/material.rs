@@ -21,6 +21,12 @@ pub struct Material {
     pub transmission: [f32; 3],
 }
 
+impl Default for Material {
+    fn default() -> Self {
+        Self::GENERIC
+    }
+}
+
 impl Material {
     pub const GENERIC: Self = Self {
         absorption: [0.10, 0.20, 0.30],
