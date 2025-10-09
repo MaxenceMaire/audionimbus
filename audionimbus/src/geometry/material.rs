@@ -3,7 +3,7 @@
 /// You can specify the acoustic material properties of each triangle, although typically many triangles will share a common material.
 ///
 /// The acoustic material properties are specified for three frequency bands with center frequencies of 400 Hz, 2.5 KHz, and 15 KHz.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Material {
     /// Fraction of sound energy absorbed at low, middle, high frequencies.
     ///
