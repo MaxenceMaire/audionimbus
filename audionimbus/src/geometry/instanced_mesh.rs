@@ -42,7 +42,7 @@ impl InstancedMesh {
     /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
     ///
     /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
-    pub fn update_transform(&mut self, scene: &Scene, new_transform: &Matrix<f32, 4, 4>) {
+    pub fn update_transform(&mut self, scene: &Scene, new_transform: Matrix<f32, 4, 4>) {
         unsafe {
             audionimbus_sys::iplInstancedMeshUpdateTransform(
                 self.raw_ptr(),
