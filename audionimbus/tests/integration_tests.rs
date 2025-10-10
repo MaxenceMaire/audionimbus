@@ -412,8 +412,8 @@ fn test_instanced_mesh() {
     ]);
 
     let instanced_mesh_settings = audionimbus::geometry::InstancedMeshSettings {
-        sub_scene: &sub_scene,
-        transform: &transform,
+        sub_scene,
+        transform,
     };
 
     let mut instanced_mesh =

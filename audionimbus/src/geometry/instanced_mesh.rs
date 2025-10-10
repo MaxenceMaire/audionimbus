@@ -81,10 +81,10 @@ unsafe impl Sync for InstancedMesh {}
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug)]
-pub struct InstancedMeshSettings<'a> {
+pub struct InstancedMeshSettings {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: &'a Scene,
+    pub sub_scene: Scene,
 
     /// Local-to-world transform that places the instance within the parent scene.
-    pub transform: &'a Matrix<f32, 4, 4>,
+    pub transform: Matrix<f32, 4, 4>,
 }
