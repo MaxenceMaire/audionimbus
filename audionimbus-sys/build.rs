@@ -261,8 +261,7 @@ fn install_fmod_integration(
 
     // Copy FMOD libraries
     let fmod_lib_name = match target_info.platform.as_str() {
-        "windows" if cfg!(feature = "static") => "phonon_fmod.dll",
-        "windows" if !cfg!(feature = "static") => "phonon_fmod.lib",
+        "windows" => "phonon_fmod.dll",
         "linux" | "android" => "libphonon_fmod.so",
         "macos" => "libphonon_fmod.dylib",
         "ios" => "libphonon_fmod.a",
