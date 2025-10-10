@@ -18,6 +18,7 @@ bitflags = "2.8.0"
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
+static = ["audionimbus-sys/static"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
