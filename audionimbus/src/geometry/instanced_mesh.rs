@@ -13,7 +13,7 @@ pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
 impl InstancedMesh {
     pub fn try_new(
         scene: &Scene,
-        settings: &InstancedMeshSettings,
+        settings: InstancedMeshSettings,
     ) -> Result<Self, SteamAudioError> {
         let mut instanced_mesh = Self(std::ptr::null_mut());
 
@@ -80,7 +80,7 @@ unsafe impl Send for InstancedMesh {}
 unsafe impl Sync for InstancedMesh {}
 
 /// Settings used to create an instanced mesh.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InstancedMeshSettings {
     /// Handle to the scene to be instantiated.
     pub sub_scene: Scene,

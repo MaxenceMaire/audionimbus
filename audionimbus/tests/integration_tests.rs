@@ -417,7 +417,7 @@ fn test_instanced_mesh() {
     };
 
     let mut instanced_mesh =
-        audionimbus::InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
+        audionimbus::InstancedMesh::try_new(&main_scene, instanced_mesh_settings).unwrap();
     main_scene.add_instanced_mesh(&instanced_mesh);
     main_scene.commit();
 
