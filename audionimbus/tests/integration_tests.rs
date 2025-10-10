@@ -421,7 +421,12 @@ fn test_instanced_mesh() {
     main_scene.add_instanced_mesh(instanced_mesh.clone());
     main_scene.commit();
 
-    let new_transform = audionimbus::Matrix::<f32, 4, 4>::IDENTITY;
+    let new_transform = audionimbus::Matrix::new([
+        [1.0, 0.0, 0.0, 10.0], // Move 10 meters along the X axis.
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]);
 
     instanced_mesh.update_transform(&main_scene, new_transform);
     main_scene.commit();
