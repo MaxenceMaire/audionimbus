@@ -5,6 +5,35 @@ pub struct Matrix<T, const ROWS: usize, const COLS: usize> {
     pub elements: [[T; COLS]; ROWS],
 }
 
+impl Matrix<f32, 3, 3> {
+    pub const IDENTITY: Self = Self {
+        elements: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+    };
+}
+
+impl Default for Matrix<f32, 3, 3> {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
+impl Matrix<f32, 4, 4> {
+    pub const IDENTITY: Self = Self {
+        elements: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ],
+    };
+}
+
+impl Default for Matrix<f32, 4, 4> {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
 impl<T, const ROWS: usize, const COLS: usize> Matrix<T, ROWS, COLS> {
     pub fn new(elements: [[T; COLS]; ROWS]) -> Self {
         Self { elements }
