@@ -61,7 +61,7 @@ If you want to link statically against the Steam Audio library on Windows, you c
 audionimbus-sys = { version = "4.7.1-rc.1", features = ["auto-install", "static"] }
 ```
 
-Note that static linking is only supported on Windows.
+Note that static linking is only supported on Windows, without FMOD or Wwise integration.
 
 #### How It Works
 

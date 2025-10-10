@@ -327,11 +327,7 @@ fn install_wwise_integration(
     let lib_names = vec![
         format!("lib{}.so", wwise_lib_name),
         format!("lib{}.dylib", wwise_lib_name),
-        if target_info.platform == "windows" {
-            format!("{}.lib", wwise_lib_name)
-        } else {
-            format!("lib{}.lib", wwise_lib_name)
-        },
+        format!("{}.dll", wwise_lib_name),
         format!("lib{}.a", wwise_lib_name),
     ];
 
