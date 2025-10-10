@@ -148,7 +148,7 @@ impl Scene {
     pub fn update_instanced_mesh_transform(
         &mut self,
         instanced_mesh: &InstancedMesh,
-        transform: &Matrix<f32, 4, 4>,
+        transform: Matrix<f32, 4, 4>,
     ) {
         unsafe {
             audionimbus_sys::iplInstancedMeshUpdateTransform(
