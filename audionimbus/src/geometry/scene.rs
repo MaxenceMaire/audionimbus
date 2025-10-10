@@ -107,7 +107,7 @@ impl Scene {
     /// Adds a static mesh to a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn add_static_mesh(&mut self, static_mesh: &StaticMesh) {
+    pub fn add_static_mesh(&mut self, static_mesh: StaticMesh) {
         unsafe {
             audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -125,7 +125,7 @@ impl Scene {
     /// Adds an instanced mesh to a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn add_instanced_mesh(&mut self, instanced_mesh: &InstancedMesh) {
+    pub fn add_instanced_mesh(&mut self, instanced_mesh: InstancedMesh) {
         unsafe {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }

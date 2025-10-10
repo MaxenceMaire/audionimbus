@@ -357,7 +357,7 @@ fn test_static_mesh() {
 
     let static_mesh = audionimbus::StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();
 
-    scene.add_static_mesh(&static_mesh);
+    scene.add_static_mesh(static_mesh);
 
     scene.commit();
 }
@@ -401,7 +401,7 @@ fn test_instanced_mesh() {
     };
 
     let static_mesh = audionimbus::StaticMesh::try_new(&sub_scene, &static_mesh_settings).unwrap();
-    sub_scene.add_static_mesh(&static_mesh);
+    sub_scene.add_static_mesh(static_mesh);
     sub_scene.commit();
 
     let transform = audionimbus::Matrix::new([
@@ -418,7 +418,7 @@ fn test_instanced_mesh() {
 
     let mut instanced_mesh =
         audionimbus::InstancedMesh::try_new(&main_scene, instanced_mesh_settings).unwrap();
-    main_scene.add_instanced_mesh(&instanced_mesh);
+    main_scene.add_instanced_mesh(instanced_mesh.clone());
     main_scene.commit();
 
     let new_transform = audionimbus::Matrix::new([
