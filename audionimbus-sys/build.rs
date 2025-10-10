@@ -81,7 +81,11 @@ fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
             "windows".to_string(),
             "x64".to_string(),
             "windows-x64".to_string(),
-            vec!["phonon.dll".to_string(), "phonon.lib".to_string()],
+            if cfg!(feature = "static") {
+                vec!["phonon.lib".to_string()]
+            } else {
+                vec!["phonon.dll".to_string(), "phonon.lib".to_string()]
+            },
             false,
         ),
         t if t.contains("linux") && t.contains("i686") => (
@@ -257,7 +261,8 @@ fn install_fmod_integration(
 
     // Copy FMOD libraries
     let fmod_lib_name = match target_info.platform.as_str() {
-        "windows" => "phonon_fmod.dll",
+        "windows" if cfg!(feature = "static") => "phonon_fmod.dll",
+        "windows" if !cfg!(feature = "static") => "phonon_fmod.lib",
         "linux" | "android" => "libphonon_fmod.so",
         "macos" => "libphonon_fmod.dylib",
         "ios" => "libphonon_fmod.a",
@@ -322,7 +327,11 @@ fn install_wwise_integration(
     let lib_names = vec![
         format!("lib{}.so", wwise_lib_name),
         format!("lib{}.dylib", wwise_lib_name),
-        format!("{}.dll", wwise_lib_name),
+        if target_info.platform == "windows" {
+            format!("{}.lib", wwise_lib_name)
+        } else {
+            format!("lib{}.lib", wwise_lib_name)
+        },
         format!("lib{}.a", wwise_lib_name),
     ];
 

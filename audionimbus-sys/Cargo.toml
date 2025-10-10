@@ -27,5 +27,7 @@ auto-install = ["dep:zip"]
 fmod = []
 wwise = []
 
+static = []
+
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

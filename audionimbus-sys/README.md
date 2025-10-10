@@ -52,6 +52,17 @@ audionimbus-sys = { version = "4.7.1-rc.1", features = ["auto-install", "wwise"]
 
 You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
 
+#### With static linking on Windows
+
+If you want to link statically against the Steam Audio library on Windows, you can enable the `static` feature:
+
+```toml
+[dependencies]
+audionimbus-sys = { version = "4.7.1-rc.1", features = ["auto-install", "static"] }
+```
+
+Note that static linking is only supported on Windows.
+
 #### How It Works
 
 When you build your project with the `auto-install` feature, the build script:
