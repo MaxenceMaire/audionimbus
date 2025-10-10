@@ -389,6 +389,39 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     }
 }
 
+impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
+    pub fn try_from_slices(
+        channels: &[&'a [Sample]],
+        null_channel_ptrs: &'a mut [*mut Sample],
+    ) -> Result<Self, AudioBufferError> {
+        if channels.is_empty() {
+            return Err(AudioBufferError::InvalidNumChannels { num_channels: 0 });
+        }
+
+        let num_samples = channels[0].len();
+        if num_samples == 0 {
+            return Err(AudioBufferError::InvalidNumSamples { num_samples: 0 });
+        }
+
+        if null_channel_ptrs.len() != channels.len() {
+            return Err(AudioBufferError::InvalidChannelPtrs {
+                actual: null_channel_ptrs.len(),
+                expected: channels.len(),
+            });
+        }
+
+        for (ptr, channel) in null_channel_ptrs.iter_mut().zip(channels.iter()) {
+            *ptr = channel.as_ptr() as *mut Sample;
+        }
+
+        Ok(AudioBuffer {
+            num_samples,
+            channel_ptrs: null_channel_ptrs,
+            _marker: std::marker::PhantomData,
+        })
+    }
+}
+
 /// An audio sample.
 pub type Sample = f32;
 
@@ -709,8 +742,7 @@ mod tests {
             let mut channel2 = vec![4.0, 5.0, 6.0];
             let mut ptrs = vec![channel1.as_mut_ptr(), channel2.as_mut_ptr()];
 
-            let buffer =
-                unsafe { AudioBuffer::<&[Sample], _>::try_new(&mut ptrs, 3) }.unwrap();
+            let buffer = unsafe { AudioBuffer::<&[Sample], _>::try_new(&mut ptrs, 3) }.unwrap();
             assert_eq!(buffer.num_channels(), 2);
             assert_eq!(buffer.num_samples(), 3);
 
@@ -786,6 +818,69 @@ mod tests {
                     actual: 3,
                     expected: 2
                 })
+            ));
+        }
+    }
+
+    mod try_from_slices {
+        use super::*;
+
+        #[test]
+        fn test_valid_construction() {
+            let channel_0 = vec![1.0, 2.0, 3.0, 4.0];
+            let channel_1 = vec![5.0, 6.0, 7.0, 8.0];
+
+            let channels: &[&[Sample]] = &[&channel_0, &channel_1];
+            let mut channel_ptrs = vec![std::ptr::null_mut(); 2];
+
+            let audio_buffer = AudioBuffer::try_from_slices(channels, &mut channel_ptrs).unwrap();
+
+            assert_eq!(audio_buffer.num_channels(), 2);
+            assert_eq!(audio_buffer.num_samples(), 4);
+
+            let mut iter = audio_buffer.channels();
+            assert_eq!(iter.next().unwrap(), &[1.0, 2.0, 3.0, 4.0]);
+            assert_eq!(iter.next().unwrap(), &[5.0, 6.0, 7.0, 8.0]);
+            assert!(iter.next().is_none());
+        }
+
+        #[test]
+        fn test_empty_channels() {
+            let empty_channels: &[&[Sample]] = &[];
+            let mut channel_ptrs = vec![std::ptr::null_mut(); 0];
+            let result = AudioBuffer::try_from_slices(empty_channels, &mut channel_ptrs);
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidNumChannels { num_channels: 0 })
+            ));
+        }
+
+        #[test]
+        fn test_mismatched_channel_ptrs_length() {
+            let channel_0 = vec![1.0, 2.0, 3.0];
+            let channel_1 = vec![4.0, 5.0, 6.0];
+            let channels: &[&[Sample]] = &[&channel_0, &channel_1];
+
+            let mut channel_ptrs_wrong_size = vec![std::ptr::null_mut(); 1];
+            let result = AudioBuffer::try_from_slices(channels, &mut channel_ptrs_wrong_size);
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidChannelPtrs {
+                    actual: 1,
+                    expected: 2
+                })
+            ));
+        }
+
+        #[test]
+        fn test_empty_channel_data() {
+            let empty_channel = vec![];
+            let channels_with_empty: &[&[Sample]] = &[&empty_channel];
+            let mut channel_ptrs = vec![std::ptr::null_mut(); 1];
+            let result = AudioBuffer::try_from_slices(channels_with_empty, &mut channel_ptrs);
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidNumSamples { num_samples: 0 })
             ));
         }
     }
