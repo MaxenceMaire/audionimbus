@@ -62,7 +62,7 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
     /// - The lifetime of the `AudioBuffer` must not exceed the lifetime of the memory referenced by `channel_ptrs`.
     ///
     /// Any violations of the above invariants will result in undefined behavior.
-    pub unsafe fn try_new(channel_ptrs: P, num_samples: usize) -> Result<Self, AudioBufferError> {
+    pub unsafe fn try_new(channel_ptrs: P, num_samples: u32) -> Result<Self, AudioBufferError> {
         if channel_ptrs.as_slice().is_empty() {
             return Err(AudioBufferError::InvalidNumChannels { num_channels: 0 });
         }
@@ -189,15 +189,16 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
     /// Returns an iterator over channels.
     pub fn channels(&self) -> impl Iterator<Item = &[Sample]> + '_ {
         self.channel_ptrs.as_slice().iter().map(|&ptr|
-                // SAFETY: pointers are guaranteed to be valid by the lifetime.
-                unsafe { std::slice::from_raw_parts(ptr, self.num_samples() as usize) })
+            // SAFETY: pointers are guaranteed to be valid by the lifetime.
+            unsafe { std::slice::from_raw_parts(ptr, self.num_samples() as usize) })
     }
 
     /// Returns an iterator over mutable channels.
     pub fn channels_mut(&mut self) -> impl Iterator<Item = &mut [Sample]> + '_ {
-        self.channel_ptrs.as_mut_slice().iter_mut().map(|ptr|
-                // SAFETY: pointers are guaranteed to be valid by the lifetime.
-                unsafe { std::slice::from_raw_parts_mut(*ptr, self.num_samples) })
+        let num_samples = self.num_samples as usize;
+        self.channel_ptrs.as_mut_slice().iter_mut().map(move |ptr|
+            // SAFETY: pointers are guaranteed to be valid by the lifetime.
+            unsafe { std::slice::from_raw_parts_mut(*ptr, num_samples) })
     }
 
     /// Converts an Ambisonic audio buffer from one Ambisonic format to another.
@@ -405,8 +406,8 @@ impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
 
         if null_channel_ptrs.len() != channels.len() {
             return Err(AudioBufferError::InvalidChannelPtrs {
-                actual: null_channel_ptrs.len(),
-                expected: channels.len(),
+                actual: null_channel_ptrs.len() as u32,
+                expected: channels.len() as u32,
             });
         }
 
@@ -415,7 +416,7 @@ impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
         }
 
         Ok(AudioBuffer {
-            num_samples,
+            num_samples: num_samples as u32,
             channel_ptrs: null_channel_ptrs,
             _marker: std::marker::PhantomData,
         })
