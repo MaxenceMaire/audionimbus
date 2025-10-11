@@ -193,7 +193,7 @@ pub struct PathEffectParams {
 
     /// The HRTF to use when spatializing.
     /// Only used if [`PathEffectSettings::spatialization`] is `Some` and [`Self::binaural`] is set to `true`.
-    pub hrtf: audionimbus_sys::IPLHRTF,
+    pub hrtf: Hrtf,
 
     /// The position and orientation of the listener.
     /// Only used if [`PathEffectSettings::spatialization`] is `Some` and [`Self::binaural`] is set to `true`.
@@ -212,7 +212,7 @@ impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
             sh_coeffs: params.shCoeffs,
             order: params.order as u32,
             binaural: params.binaural == audionimbus_sys::IPLbool::IPL_TRUE,
-            hrtf: params.hrtf,
+            hrtf: params.hrtf.into(),
             listener: params.listener.into(),
             normalize_eq: params.normalizeEQ == audionimbus_sys::IPLbool::IPL_TRUE,
         }
@@ -230,7 +230,7 @@ impl PathEffectParams {
             } else {
                 audionimbus_sys::IPLbool::IPL_FALSE
             },
-            hrtf: self.hrtf,
+            hrtf: self.hrtf.0,
             listener: self.listener.into(),
             normalizeEQ: if self.normalize_eq {
                 audionimbus_sys::IPLbool::IPL_TRUE
