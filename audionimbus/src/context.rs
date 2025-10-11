@@ -113,7 +113,7 @@ impl From<&ContextSettings> for audionimbus_sys::IPLContextSettings {
 }
 
 /// SIMD instruction sets that Steam Audio can attempt to use.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub enum SimdLevel {
     /// Intel Streaming SIMD Extensions 2.
     /// Up to 4 simultaneous floating-point operations.
@@ -133,13 +133,8 @@ pub enum SimdLevel {
 
     /// Intel Advanced Vector Extensions 512 or older.
     /// Up to 16 simultaneous floating-point operations.
+    #[default]
     AVX512 = 4,
-}
-
-impl Default for SimdLevel {
-    fn default() -> Self {
-        Self::AVX512
-    }
 }
 
 impl From<SimdLevel> for audionimbus_sys::IPLSIMDLevel {

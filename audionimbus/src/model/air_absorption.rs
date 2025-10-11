@@ -2,10 +2,11 @@ use crate::context::Context;
 use crate::geometry;
 
 /// An air absorption model that can be used for modeling frequency-dependent attenuation of sound over distance.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub enum AirAbsorptionModel {
     /// The default air absorption model.
     /// This is an exponential falloff, with decay rates derived from physical properties of air.
+    #[default]
     Default,
 
     /// An exponential falloff.
@@ -40,12 +41,6 @@ pub enum AirAbsorptionModel {
         /// If the user is editing the curves in real-time, set this to `true` whenever the curves change, so Steam Audio can update simulation results to match.
         dirty: bool,
     },
-}
-
-impl Default for AirAbsorptionModel {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl From<&AirAbsorptionModel> for audionimbus_sys::IPLAirAbsorptionModel {

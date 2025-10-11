@@ -1,12 +1,12 @@
 /// Global settings for audio signal processing.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AudioSettings {
     /// Sampling rate, in Hz.
-    pub sampling_rate: usize,
+    pub sampling_rate: u32,
 
     /// Frame size, in samples.
     /// Independent of number of channels.
-    pub frame_size: usize,
+    pub frame_size: u32,
 }
 
 impl Default for AudioSettings {

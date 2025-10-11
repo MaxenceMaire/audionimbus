@@ -10,6 +10,7 @@ use crate::geometry::{CoordinateSystem, Scene};
 use crate::hrtf::Hrtf;
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
+use crate::ChannelPointers;
 
 /// Applies the result of simulating sound paths from the source to the listener.
 ///
@@ -44,11 +45,11 @@ impl PathEffect {
     /// Applies a path effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         path_effect_params: &PathEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -123,7 +124,7 @@ unsafe impl Sync for PathEffect {}
 #[derive(Debug)]
 pub struct PathEffectSettings<'a> {
     /// The maximum ambisonics order that will be used by output audio buffers.
-    pub max_order: usize,
+    pub max_order: u32,
 
     /// If `Some`, then this effect will render spatialized audio into the output buffer.
     ///
@@ -184,7 +185,7 @@ pub struct PathEffectParams {
 
     /// Ambisonic order of the output buffer.
     /// May be less than the maximum order specified when creating the effect, in which case higher-order [`Self::sh_coeffs`] will be ignored, and CPU usage will be reduced.
-    pub order: usize,
+    pub order: u32,
 
     /// If `true`, spatialize using HRTF-based binaural rendering.
     /// Only used if [`PathEffectSettings::spatialization`] is `Some`.
@@ -209,7 +210,7 @@ impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
         Self {
             eq_coeffs: params.eqCoeffs,
             sh_coeffs: params.shCoeffs,
-            order: params.order as usize,
+            order: params.order as u32,
             binaural: params.binaural == audionimbus_sys::IPLbool::IPL_TRUE,
             hrtf: params.hrtf,
             listener: params.listener.into(),
@@ -290,7 +291,7 @@ pub struct PathBakeParams<'a> {
 
     /// Number of point samples to use around each probe when testing whether one probe can see another.
     /// To determine if two probes are mutually visible, numSamples * numSamples rays are traced, from each point sample of the first probe, to every other point sample of the second probe.
-    pub num_samples: usize,
+    pub num_samples: u32,
 
     /// When testing for mutual visibility between a pair of probes, each probe is treated as a sphere of this radius (in meters), and point samples are generated within this sphere.
     pub radius: f32,
@@ -307,7 +308,7 @@ pub struct PathBakeParams<'a> {
     pub path_range: f32,
 
     /// Number of threads to use for baking.
-    pub num_threads: usize,
+    pub num_threads: u32,
 }
 
 impl From<&PathBakeParams<'_>> for audionimbus_sys::IPLPathBakeParams {

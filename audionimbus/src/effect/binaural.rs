@@ -6,6 +6,7 @@ use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
 use crate::hrtf::{Hrtf, HrtfInterpolation};
+use crate::ChannelPointers;
 
 /// Spatializes a point source using an HRTF, based on the 3D position of the source relative to the listener.
 ///
@@ -40,11 +41,11 @@ impl BinauralEffect {
     /// Applies a binaural effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         binaural_effect_params: &BinauralEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,

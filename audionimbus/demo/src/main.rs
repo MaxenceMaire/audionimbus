@@ -7,13 +7,13 @@ fn main() {
         .default_output_device()
         .expect("no output device available");
 
-    let frame_size: usize = 1024;
-    let sample_rate: usize = 48000;
-    let num_channels: usize = 2;
+    let frame_size: u32 = 1024;
+    let sample_rate: u32 = 48000;
+    let num_channels: u32 = 2;
 
     let config = cpal::StreamConfig {
-        buffer_size: cpal::BufferSize::Fixed(frame_size as u32),
-        sample_rate: cpal::SampleRate(sample_rate as u32),
+        buffer_size: cpal::BufferSize::Fixed(frame_size),
+        sample_rate: cpal::SampleRate(sample_rate),
         channels: num_channels as u16,
     };
 
@@ -34,7 +34,7 @@ fn main() {
     .unwrap();
 
     // Create a binaural effect.
-    let binaural_effect = audionimbus::BinauralEffect::try_new(
+    let mut binaural_effect = audionimbus::BinauralEffect::try_new(
         &context,
         &audio_settings,
         &audionimbus::BinauralEffectSettings { hrtf: &hrtf },
@@ -68,10 +68,10 @@ fn main() {
                 let input_buffer = audionimbus::AudioBuffer::try_with_data(&sine_wave).unwrap();
 
                 // Container the effect will write processed samples into.
-                let mut staging_container = vec![0.0; frame_size * num_channels];
+                let mut staging_container = vec![0.0; (frame_size * num_channels) as usize];
                 let staging_buffer = audionimbus::AudioBuffer::try_with_data_and_settings(
                     &mut staging_container,
-                    &audionimbus::AudioBufferSettings {
+                    audionimbus::AudioBufferSettings {
                         num_channels: Some(num_channels),
                         ..Default::default()
                     },

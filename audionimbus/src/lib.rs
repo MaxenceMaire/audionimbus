@@ -67,7 +67,7 @@ let audio_settings = AudioSettings {
 let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
 
 // Create a binaural effect.
-let binaural_effect = BinauralEffect::try_new(
+let mut binaural_effect = BinauralEffect::try_new(
     &context,
     &audio_settings,
     &BinauralEffectSettings { hrtf: &hrtf },
@@ -84,16 +84,17 @@ let input: Vec<Sample> = (0..audio_settings.frame_size)
 // Create an audio buffer over the input data.
 let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
 
-let num_channels: usize = 2; // Stereo
+let num_channels: u32 = 2; // Stereo
 // Allocate memory to store processed samples.
-let mut output = vec![0.0; audio_settings.frame_size * num_channels];
+let mut output = vec![0.0; (audio_settings.frame_size * num_channels) as usize];
 // Create another audio buffer over the output container.
+let settings = AudioBufferSettings {
+    num_channels: Some(num_channels),
+    ..Default::default()
+};
 let output_buffer = AudioBuffer::try_with_data_and_settings(
     &mut output,
-    &AudioBufferSettings {
-        num_channels: Some(num_channels),
-        ..Default::default()
-    },
+    settings,
 )
 .unwrap();
 

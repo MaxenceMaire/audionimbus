@@ -6,6 +6,7 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
+use crate::ChannelPointers;
 
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
 #[derive(Debug)]
@@ -38,11 +39,11 @@ impl PanningEffect {
     /// Applies a panning effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         panning_effect_params: &PanningEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,

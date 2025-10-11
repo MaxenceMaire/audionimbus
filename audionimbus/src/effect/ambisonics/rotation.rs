@@ -5,6 +5,7 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::CoordinateSystem;
+use crate::ChannelPointers;
 
 /// Applies a rotation to an ambisonics audio buffer.
 ///
@@ -42,11 +43,11 @@ impl AmbisonicsRotationEffect {
     /// Applies an ambisonics rotation effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         ambisonics_rotation_effect_params: &AmbisonicsRotationEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -140,7 +141,7 @@ unsafe impl Sync for AmbisonicsRotationEffect {}
 #[derive(Debug)]
 pub struct AmbisonicsRotationEffectSettings {
     /// The maximum ambisonics order that will be used by input audio buffers.
-    pub max_order: usize,
+    pub max_order: u32,
 }
 
 impl From<&AmbisonicsRotationEffectSettings>
@@ -162,7 +163,7 @@ pub struct AmbisonicsRotationEffectParams {
     /// Ambisonic order of the input and output buffers.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will process fewer channels, reducing CPU usage.
-    pub order: usize,
+    pub order: u32,
 }
 
 impl AmbisonicsRotationEffectParams {

@@ -142,12 +142,12 @@ pub struct ImpulseResponseSettings {
     /// The Ambisonic order.
     ///
     /// This determines the number of channels.
-    pub order: usize,
+    pub order: u32,
 
     /// The sampling rate.
     ///
     /// This, together with the duration, determines the number of samples in each channel.
-    pub sampling_rate: usize,
+    pub sampling_rate: u32,
 }
 
 impl From<&ImpulseResponseSettings> for audionimbus_sys::IPLImpulseResponseSettings {

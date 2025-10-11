@@ -1,7 +1,7 @@
 use super::{Point, Vector3};
 
 /// A 3D coordinate system, expressed relative to a canonical coordinate system.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct CoordinateSystem {
     /// Unit vector pointing to the right (local +x axis).
     pub right: Vector3,

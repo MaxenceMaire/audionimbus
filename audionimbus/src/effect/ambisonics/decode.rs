@@ -7,6 +7,7 @@ use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
+use crate::ChannelPointers;
 
 /// Applies a rotation to an ambisonics audio buffer, then decodes it using panning or binaural rendering.
 ///
@@ -43,11 +44,11 @@ impl AmbisonicsDecodeEffect {
     /// Applies an ambisonics decode effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         ambisonics_decode_effect_params: &AmbisonicsDecodeEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -112,6 +113,12 @@ impl AmbisonicsDecodeEffect {
     }
 }
 
+impl From<audionimbus_sys::IPLAmbisonicsDecodeEffect> for AmbisonicsDecodeEffect {
+    fn from(ptr: audionimbus_sys::IPLAmbisonicsDecodeEffect) -> Self {
+        Self(ptr)
+    }
+}
+
 impl Clone for AmbisonicsDecodeEffect {
     fn clone(&self) -> Self {
         unsafe {
@@ -140,7 +147,7 @@ pub struct AmbisonicsDecodeEffectSettings<'a> {
     pub hrtf: &'a Hrtf,
 
     /// The maximum ambisonics order that will be used by input audio buffers.
-    pub max_order: usize,
+    pub max_order: u32,
 }
 
 impl From<&AmbisonicsDecodeEffectSettings<'_>>
@@ -161,7 +168,7 @@ pub struct AmbisonicsDecodeEffectParams<'a> {
     /// Ambisonic order of the input buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will process fewer input channels, reducing CPU usage.
-    pub order: usize,
+    pub order: u32,
 
     /// The HRTF to use.
     pub hrtf: &'a Hrtf,

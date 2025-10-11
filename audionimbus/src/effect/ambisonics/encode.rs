@@ -5,6 +5,7 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
+use crate::ChannelPointers;
 
 /// Encodes a point source into ambisonics.
 ///
@@ -42,11 +43,11 @@ impl AmbisonicsEncodeEffect {
     /// Applies an ambisonics encode effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         ambisonics_encode_effect_params: &AmbisonicsEncodeEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -140,7 +141,7 @@ unsafe impl Sync for AmbisonicsEncodeEffect {}
 pub struct AmbisonicsEncodeEffectSettings {
     /// The maximum ambisonics order that will be used by input audio buffers.
     /// Maximum ambisonics order to encode audio buffers to.
-    pub max_order: usize,
+    pub max_order: u32,
 }
 
 impl From<&AmbisonicsEncodeEffectSettings> for audionimbus_sys::IPLAmbisonicsEncodeEffectSettings {
@@ -163,7 +164,7 @@ pub struct AmbisonicsEncodeEffectParams {
     /// Ambisonic order of the output buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will generate fewer output channels, reducing CPU usage.
-    pub order: usize,
+    pub order: u32,
 }
 
 impl AmbisonicsEncodeEffectParams {

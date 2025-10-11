@@ -13,7 +13,7 @@ pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
 impl InstancedMesh {
     pub fn try_new(
         scene: &Scene,
-        settings: &InstancedMeshSettings,
+        settings: InstancedMeshSettings,
     ) -> Result<Self, SteamAudioError> {
         let mut instanced_mesh = Self(std::ptr::null_mut());
 
@@ -42,7 +42,7 @@ impl InstancedMesh {
     /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
     ///
     /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
-    pub fn update_transform(&mut self, scene: &Scene, new_transform: &Matrix<f32, 4, 4>) {
+    pub fn update_transform(&mut self, scene: &Scene, new_transform: Matrix<f32, 4, 4>) {
         unsafe {
             audionimbus_sys::iplInstancedMeshUpdateTransform(
                 self.raw_ptr(),
@@ -80,11 +80,11 @@ unsafe impl Send for InstancedMesh {}
 unsafe impl Sync for InstancedMesh {}
 
 /// Settings used to create an instanced mesh.
-#[derive(Debug)]
-pub struct InstancedMeshSettings<'a> {
+#[derive(Debug, Clone)]
+pub struct InstancedMeshSettings {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: &'a Scene,
+    pub sub_scene: Scene,
 
     /// Local-to-world transform that places the instance within the parent scene.
-    pub transform: &'a Matrix<f32, 4, 4>,
+    pub transform: Matrix<f32, 4, 4>,
 }

@@ -4,7 +4,7 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Application-wide state for the TrueAudio Next convolution engine.
 ///
 /// A TrueAudio Next device must be created before using any of Steam Audio’s TrueAudio Next convolution functionality.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct TrueAudioNextDevice(pub(crate) audionimbus_sys::IPLTrueAudioNextDevice);
 
 impl TrueAudioNextDevice {
@@ -42,6 +42,12 @@ impl TrueAudioNextDevice {
     }
 }
 
+impl From<audionimbus_sys::IPLTrueAudioNextDevice> for TrueAudioNextDevice {
+    fn from(ptr: audionimbus_sys::IPLTrueAudioNextDevice) -> Self {
+        Self(ptr)
+    }
+}
+
 impl Clone for TrueAudioNextDevice {
     fn clone(&self) -> Self {
         unsafe {
@@ -64,16 +70,16 @@ unsafe impl Sync for TrueAudioNextDevice {}
 #[derive(Debug)]
 pub struct TrueAudioNextDeviceSettings {
     /// The number of samples in an audio frame.
-    pub frame_size: usize,
+    pub frame_size: u32,
 
     /// The number of samples in the impulse responses that will be used for convolution.
-    pub impulse_response_size: usize,
+    pub impulse_response_size: u32,
 
     /// The Ambisonic order of the impulse responses that will be used for convolution.
-    pub order: usize,
+    pub order: u32,
 
     /// The maximum number of sources that will use TrueAudio Next for convolution.
-    pub max_sources: usize,
+    pub max_sources: u32,
 }
 
 impl From<&TrueAudioNextDeviceSettings> for audionimbus_sys::IPLTrueAudioNextDeviceSettings {

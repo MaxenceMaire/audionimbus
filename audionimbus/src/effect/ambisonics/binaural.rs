@@ -5,6 +5,7 @@ use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::hrtf::Hrtf;
+use crate::ChannelPointers;
 
 /// Renders ambisonic audio using HRTF-based binaural rendering.
 ///
@@ -41,11 +42,11 @@ impl AmbisonicsBinauralEffect {
     /// Applies an ambisonics binaural effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         ambisonics_binaural_effect_params: &AmbisonicsBinauralEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -147,7 +148,7 @@ pub struct AmbisonicsBinauralEffectSettings<'a> {
     pub hrtf: &'a Hrtf,
 
     /// The maximum ambisonics order that will be used by input audio buffers.
-    pub max_order: usize,
+    pub max_order: u32,
 }
 
 impl From<&AmbisonicsBinauralEffectSettings<'_>>
@@ -170,7 +171,7 @@ pub struct AmbisonicsBinauralEffectParams<'a> {
     /// Ambisonic order of the input buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will process fewer input channels, reducing CPU usage.
-    pub order: usize,
+    pub order: u32,
 }
 
 impl AmbisonicsBinauralEffectParams<'_> {

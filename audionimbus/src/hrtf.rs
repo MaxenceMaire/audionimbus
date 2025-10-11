@@ -42,6 +42,12 @@ impl Hrtf {
     }
 }
 
+impl From<audionimbus_sys::IPLHRTF> for Hrtf {
+    fn from(ptr: audionimbus_sys::IPLHRTF) -> Self {
+        Self(ptr)
+    }
+}
+
 impl Clone for Hrtf {
     fn clone(&self) -> Self {
         unsafe {

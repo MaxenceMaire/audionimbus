@@ -107,7 +107,7 @@ impl Scene {
     /// Adds a static mesh to a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn add_static_mesh(&mut self, static_mesh: &StaticMesh) {
+    pub fn add_static_mesh(&mut self, static_mesh: StaticMesh) {
         unsafe {
             audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -125,7 +125,7 @@ impl Scene {
     /// Adds an instanced mesh to a scene.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
-    pub fn add_instanced_mesh(&mut self, instanced_mesh: &InstancedMesh) {
+    pub fn add_instanced_mesh(&mut self, instanced_mesh: InstancedMesh) {
         unsafe {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
@@ -148,7 +148,7 @@ impl Scene {
     pub fn update_instanced_mesh_transform(
         &mut self,
         instanced_mesh: &InstancedMesh,
-        transform: &Matrix<f32, 4, 4>,
+        transform: Matrix<f32, 4, 4>,
     ) {
         unsafe {
             audionimbus_sys::iplInstancedMeshUpdateTransform(
@@ -242,11 +242,12 @@ unsafe impl Sync for Scene {}
 /// Settings used to create a scene.
 ///
 /// Each scene variant corresponds to a different ray tracing implementation.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum SceneSettings {
     /// Steam Audio’s built-in ray tracer.
     ///
     /// Supports multi-threading. Runs on all platforms that Steam Audio supports.
+    #[default]
     Default,
 
     /// The Intel Embree ray tracer.
@@ -316,12 +317,6 @@ pub enum SceneSettings {
         /// Arbitrary user-provided data for use by ray tracing callbacks.
         user_data: *mut std::ffi::c_void,
     },
-}
-
-impl Default for SceneSettings {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {
@@ -418,7 +413,7 @@ pub enum SceneParams<'a> {
     /// Custom ray tracer.
     Custom {
         /// The number of rays that will be passed to the callbacks every time rays need to be traced.
-        ray_batch_size: usize,
+        ray_batch_size: u32,
     },
 }
 

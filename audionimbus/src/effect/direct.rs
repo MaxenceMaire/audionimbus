@@ -5,6 +5,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
+use crate::ChannelPointers;
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 #[derive(Debug)]
@@ -37,11 +38,11 @@ impl DirectEffect {
     /// Applies a direct effect to an audio buffer.
     ///
     /// This effect CAN be applied in-place.
-    pub fn apply<I, O>(
-        &self,
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
         direct_effect_params: &DirectEffectParams,
-        input_buffer: &AudioBuffer<I>,
-        output_buffer: &AudioBuffer<O>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
     ) -> AudioEffectState
     where
         I: AsRef<[Sample]>,
@@ -116,7 +117,7 @@ unsafe impl Sync for DirectEffect {}
 #[derive(Debug)]
 pub struct DirectEffectSettings {
     /// Number of channels that will be used by input and output buffers.
-    pub num_channels: usize,
+    pub num_channels: u32,
 }
 
 impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {
@@ -128,7 +129,7 @@ impl From<&DirectEffectSettings> for audionimbus_sys::IPLDirectEffectSettings {
 }
 
 /// Parameters for applying a direct effect to an audio buffer.
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug, PartialEq)]
 pub struct DirectEffectParams {
     /// Optional distance attenuation, with a value between 0.0 and 1.0.
     pub distance_attenuation: Option<f32>,
@@ -235,7 +236,7 @@ impl DirectEffectParams {
 }
 
 /// Transmission parameters.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Transmission {
     /// Frequency-independent transmission.
     FrequencyIndependent(Equalizer<3>),
