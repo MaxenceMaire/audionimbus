@@ -5,6 +5,16 @@
 ### Added
 
 - Support for borrowed channel pointers in `AudioBuffer`, in addition to the existing owned version.
+- Support for different audio buffer lifetimes for `mix`, `downmix`, `convert_ambisonics_into`.
+- Add `Default` trait to `DistanceAttenuationModel`, `DeviationModel`, `AirAbsorptionModel`, `Sphere`, `SceneSettings`, `Matrix<f32, 3, 3>`, `Matrix<f32, 4, 4>`, `Material`, `SimdLevel`.
+- Add `PartialEq` trait to `Vector3`, `Material`, `CoordinateSystem`, `ReflectionEffectIR`, `TrueAudioNextDevice`.
+- Implement `Send` for `ReflectionEffectIR`, `ReflectionEffectParams`.
+
+### Changed
+
+- Use `u32` instead of `usize` for frame size, sampling rate, number of channels, ambisonics order, and other similar types of values.
+- The git submodule for Steam Audio now uses HTTPS to avoid authentication.
+- Update `bitflages` dependency to v2.9.
 
 ## [0.8.3] - 2025-10-04
 
