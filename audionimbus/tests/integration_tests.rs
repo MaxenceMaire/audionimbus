@@ -881,7 +881,7 @@ fn test_buffer_mix() {
     let mix_container = vec![0.2; FRAME_SIZE];
     let mut mix_buffer = audionimbus::AudioBuffer::try_with_data(&mix_container).unwrap();
 
-    mix_buffer.mix(&context, source_buffer);
+    mix_buffer.mix(&context, &source_buffer);
 
     assert_eq!(mix_container, vec![0.3; FRAME_SIZE]);
 }
