@@ -7,21 +7,15 @@ pub trait ChannelPointers {
     fn as_mut_slice(&mut self) -> &mut [*mut Sample];
 }
 
-impl ChannelPointers for Vec<*mut Sample> {
+impl<T> ChannelPointers for T
+where
+    T: AsRef<[*mut Sample]> + AsMut<[*mut Sample]>,
+{
     fn as_slice(&self) -> &[*mut Sample] {
-        self
+        self.as_ref()
     }
     fn as_mut_slice(&mut self) -> &mut [*mut Sample] {
-        self
-    }
-}
-
-impl ChannelPointers for &mut [*mut Sample] {
-    fn as_slice(&self) -> &[*mut Sample] {
-        self
-    }
-    fn as_mut_slice(&mut self) -> &mut [*mut Sample] {
-        self
+        self.as_mut()
     }
 }
 
@@ -43,7 +37,52 @@ pub struct AudioBuffer<T, P: ChannelPointers = Vec<*mut Sample>> {
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
+impl<T, P: ChannelPointers> AudioBuffer<T, P> {
+    /// Constructs a new `AudioBuffer` from raw pointers to mutable channel samples and the number
+    /// of samples.
+    ///
+    /// This function is designed to provide maximum flexibility for advanced users who need
+    /// fine-grained control over the memory layout of audio data.
+    /// However, for most use cases, the safe constructors [`Self::try_with_data`] and
+    /// [`Self::try_with_data_and_settings`] should be preferred, because they enforce invariants
+    /// using lifetimes.
+    ///
+    /// The generic parameter `T` can be used to enforce a lifetime and ensure the pointers remain
+    /// valid.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::InvalidNumChannels`] if `channel_ptrs` is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0.
+    ///
+    /// # Safety
+    ///
+    /// - `channel_ptrs` must contain valid pointers for the duration of the `AudioBuffer`.
+    /// - Each pointer in `channel_ptrs` must point to a region of memory containing at least `num_samples` valid samples.
+    /// - The lifetime of the `AudioBuffer` must not exceed the lifetime of the memory referenced by `channel_ptrs`.
+    ///
+    /// Any violations of the above invariants will result in undefined behavior.
+    pub unsafe fn try_new(channel_ptrs: P, num_samples: u32) -> Result<Self, AudioBufferError> {
+        if channel_ptrs.as_slice().is_empty() {
+            return Err(AudioBufferError::InvalidNumChannels { num_channels: 0 });
+        }
+
+        if num_samples == 0 {
+            return Err(AudioBufferError::InvalidNumSamples { num_samples });
+        }
+
+        debug_assert!(
+            channel_ptrs.as_slice().iter().all(|&ptr| !ptr.is_null()),
+            "some channel pointers are null"
+        );
+
+        Ok(Self {
+            num_samples,
+            channel_ptrs,
+            _marker: std::marker::PhantomData,
+        })
+    }
+
     /// Returns the number of channels of the audio buffer.
     pub fn num_channels(&self) -> u32 {
         self.channel_ptrs.as_slice().len() as u32
@@ -95,10 +134,11 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     /// Mixes `source` into `self`.
     ///
     /// Both audio buffers must have the same number of channels and samples.
-    pub fn mix<P2: ChannelPointers, T2>(&mut self, context: &Context, source: &AudioBuffer<T2, P2>)
-    where
-        T2: AsRef<[Sample]>,
-    {
+    pub fn mix<T2, P2: ChannelPointers>(
+        &mut self,
+        context: &Context,
+        source: &AudioBuffer<T2, P2>,
+    ) {
         assert_eq!(
             self.num_channels(),
             source.num_channels(),
@@ -126,13 +166,11 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     ///
     /// Downmixing is performed by summing up the source channels and dividing the result by the number of source channels.
     /// If this is not the desired downmixing behavior, we recommend that downmixing be performed manually.
-    pub fn downmix<P2: ChannelPointers, T2>(
+    pub fn downmix<T2, P2: ChannelPointers>(
         &mut self,
         context: &Context,
         source: &AudioBuffer<T2, P2>,
-    ) where
-        T2: AsRef<[Sample]>,
-    {
+    ) {
         assert_eq!(
             self.num_samples(),
             source.num_samples(),
@@ -149,10 +187,18 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     }
 
     /// Returns an iterator over channels.
-    pub fn channels<'a>(&'a self) -> impl Iterator<Item = &'a [Sample]> + 'a {
+    pub fn channels(&self) -> impl Iterator<Item = &[Sample]> + '_ {
         self.channel_ptrs.as_slice().iter().map(|&ptr|
-                // SAFETY: pointers are guaranteed to be valid by the lifetime.
-                unsafe { std::slice::from_raw_parts(ptr, self.num_samples() as usize) })
+            // SAFETY: pointers are guaranteed to be valid by the lifetime.
+            unsafe { std::slice::from_raw_parts(ptr, self.num_samples() as usize) })
+    }
+
+    /// Returns an iterator over mutable channels.
+    pub fn channels_mut(&mut self) -> impl Iterator<Item = &mut [Sample]> + '_ {
+        let num_samples = self.num_samples as usize;
+        self.channel_ptrs.as_mut_slice().iter_mut().map(move |ptr|
+            // SAFETY: pointers are guaranteed to be valid by the lifetime.
+            unsafe { std::slice::from_raw_parts_mut(*ptr, num_samples) })
     }
 
     /// Converts an Ambisonic audio buffer from one Ambisonic format to another.
@@ -180,12 +226,12 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
     /// Both audio buffers must have the same number of samples.
     ///
     /// Steam Audio’s "native" Ambisonic format is [`AmbisonicsType::N3D`], so for best performance, keep all Ambisonic data in N3D format except when exchanging data with your audio engine.
-    pub fn convert_ambisonics_into<P2: ChannelPointers>(
+    pub fn convert_ambisonics_into<T2, P2: ChannelPointers>(
         &mut self,
         context: &Context,
         in_type: AmbisonicsType,
         out_type: AmbisonicsType,
-        out: &mut AudioBuffer<T, P2>,
+        out: &mut AudioBuffer<T2, P2>,
     ) {
         assert_eq!(
             self.num_channels() * self.num_samples(),
@@ -216,56 +262,6 @@ impl<T: AsRef<[Sample]>, P: ChannelPointers> AudioBuffer<T, P> {
 }
 
 impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
-    /// Constructs a new `AudioBuffer` from raw pointers to mutable channel samples and the number
-    /// of samples.
-    ///
-    /// This function is designed to provide maximum flexibility for advanced users who need
-    /// fine-grained control over the memory layout of audio data.
-    /// However, for most use cases, the safe constructors [`Self::try_with_data`] and
-    /// [`Self::try_with_data_and_settings`] should be preferred, because they enforce invariants
-    /// using lifetimes.
-    ///
-    /// The generic parameter `T` can be used to enforce a lifetime and ensure the pointers remain
-    /// valid.
-    ///
-    /// # Errors
-    ///
-    /// - [`AudioBufferError::InvalidNumChannels`] if `channel_ptrs` is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0.
-    ///
-    /// # Safety
-    ///
-    /// - `channel_ptrs` must contain valid pointers for the duration of the `AudioBuffer`.
-    /// - Each pointer in `channel_ptrs` must point to a region of memory containing at least `num_samples` valid samples.
-    /// - The lifetime of the `AudioBuffer` must not exceed the lifetime of the memory referenced by `channel_ptrs`.
-    ///
-    /// Any violations of the above invariants will result in undefined behavior.
-    pub unsafe fn try_new(
-        channel_ptrs: Vec<*mut Sample>,
-        num_samples: u32,
-    ) -> Result<Self, AudioBufferError> {
-        if channel_ptrs.is_empty() {
-            return Err(AudioBufferError::InvalidNumChannels {
-                num_channels: channel_ptrs.len() as u32,
-            });
-        }
-
-        if num_samples == 0 {
-            return Err(AudioBufferError::InvalidNumSamples { num_samples });
-        }
-
-        debug_assert!(
-            channel_ptrs.iter().all(|&ptr| !ptr.is_null()),
-            "some channel pointers are null"
-        );
-
-        Ok(Self {
-            num_samples,
-            channel_ptrs,
-            _marker: std::marker::PhantomData,
-        })
-    }
-
     /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
     pub fn try_with_data(data: T) -> Result<Self, AudioBufferError> {
         Self::try_with_data_and_settings(data, AudioBufferSettings::default())
@@ -316,49 +312,6 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
 }
 
 impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
-    /// Constructs a new `AudioBuffer` from a borrowed slice of raw pointers to mutable channel samples.
-    ///
-    /// The generic parameter `T` can be used to enforce a lifetime and ensure the pointers remain
-    /// valid.
-    ///
-    /// # Errors
-    ///
-    /// - [`AudioBufferError::InvalidNumChannels`] if `channel_ptrs` is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0.
-    ///
-    /// # Safety
-    ///
-    /// - `channel_ptrs` must contain valid pointers for the duration of the `AudioBuffer`.
-    /// - Each pointer in `channel_ptrs` must point to a region of memory containing at least `num_samples` valid samples.
-    /// - The lifetime of the `AudioBuffer` must not exceed the lifetime of the memory referenced by `channel_ptrs`.
-    ///
-    /// Any violations of the above invariants will result in undefined behavior.
-    pub unsafe fn try_new_borrowed(
-        channel_ptrs: &'a mut [*mut Sample],
-        num_samples: u32,
-    ) -> Result<Self, AudioBufferError> {
-        if channel_ptrs.is_empty() {
-            return Err(AudioBufferError::InvalidNumChannels {
-                num_channels: channel_ptrs.len() as u32,
-            });
-        }
-
-        if num_samples == 0 {
-            return Err(AudioBufferError::InvalidNumSamples { num_samples });
-        }
-
-        debug_assert!(
-            channel_ptrs.iter().all(|&ptr| !ptr.is_null()),
-            "some channel pointers are null"
-        );
-
-        Ok(Self {
-            num_samples,
-            channel_ptrs,
-            _marker: std::marker::PhantomData,
-        })
-    }
-
     /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
     /// The `null_channel_ptrs` argument will be filled with actual channel pointers.
     ///
@@ -432,6 +385,39 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
         Ok(AudioBuffer {
             num_samples: frame_size,
             channel_ptrs,
+            _marker: std::marker::PhantomData,
+        })
+    }
+}
+
+impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
+    pub fn try_from_slices(
+        channels: &[&'a [Sample]],
+        null_channel_ptrs: &'a mut [*mut Sample],
+    ) -> Result<Self, AudioBufferError> {
+        if channels.is_empty() {
+            return Err(AudioBufferError::InvalidNumChannels { num_channels: 0 });
+        }
+
+        let num_samples = channels[0].len();
+        if num_samples == 0 {
+            return Err(AudioBufferError::InvalidNumSamples { num_samples: 0 });
+        }
+
+        if null_channel_ptrs.len() != channels.len() {
+            return Err(AudioBufferError::InvalidChannelPtrs {
+                actual: null_channel_ptrs.len() as u32,
+                expected: channels.len() as u32,
+            });
+        }
+
+        for (ptr, channel) in null_channel_ptrs.iter_mut().zip(channels.iter()) {
+            *ptr = channel.as_ptr() as *mut Sample;
+        }
+
+        Ok(AudioBuffer {
+            num_samples: num_samples as u32,
+            channel_ptrs: null_channel_ptrs,
             _marker: std::marker::PhantomData,
         })
     }
@@ -757,8 +743,7 @@ mod tests {
             let mut channel2 = vec![4.0, 5.0, 6.0];
             let mut ptrs = vec![channel1.as_mut_ptr(), channel2.as_mut_ptr()];
 
-            let buffer =
-                unsafe { AudioBuffer::<&[Sample], _>::try_new_borrowed(&mut ptrs, 3) }.unwrap();
+            let buffer = unsafe { AudioBuffer::<&[Sample], _>::try_new(&mut ptrs, 3) }.unwrap();
             assert_eq!(buffer.num_channels(), 2);
             assert_eq!(buffer.num_samples(), 3);
 
@@ -771,7 +756,7 @@ mod tests {
         fn test_empty_channel_ptrs() {
             let mut ptrs: Vec<*mut Sample> = vec![];
 
-            let result = unsafe { AudioBuffer::<&[Sample], _>::try_new_borrowed(&mut ptrs, 100) };
+            let result = unsafe { AudioBuffer::<&[Sample], _>::try_new(&mut ptrs, 100) };
 
             assert!(matches!(
                 result,
@@ -784,7 +769,7 @@ mod tests {
             let mut data = vec![1.0, 2.0, 3.0];
             let mut ptrs = vec![data.as_mut_ptr()];
 
-            let result = unsafe { AudioBuffer::<&[Sample], _>::try_new_borrowed(&mut ptrs, 0) };
+            let result = unsafe { AudioBuffer::<&[Sample], _>::try_new(&mut ptrs, 0) };
 
             assert!(matches!(
                 result,
@@ -834,6 +819,69 @@ mod tests {
                     actual: 3,
                     expected: 2
                 })
+            ));
+        }
+    }
+
+    mod try_from_slices {
+        use super::*;
+
+        #[test]
+        fn test_valid_construction() {
+            let channel_0 = vec![1.0, 2.0, 3.0, 4.0];
+            let channel_1 = vec![5.0, 6.0, 7.0, 8.0];
+
+            let channels: &[&[Sample]] = &[&channel_0, &channel_1];
+            let mut channel_ptrs = vec![std::ptr::null_mut(); 2];
+
+            let audio_buffer = AudioBuffer::try_from_slices(channels, &mut channel_ptrs).unwrap();
+
+            assert_eq!(audio_buffer.num_channels(), 2);
+            assert_eq!(audio_buffer.num_samples(), 4);
+
+            let mut iter = audio_buffer.channels();
+            assert_eq!(iter.next().unwrap(), &[1.0, 2.0, 3.0, 4.0]);
+            assert_eq!(iter.next().unwrap(), &[5.0, 6.0, 7.0, 8.0]);
+            assert!(iter.next().is_none());
+        }
+
+        #[test]
+        fn test_empty_channels() {
+            let empty_channels: &[&[Sample]] = &[];
+            let mut channel_ptrs = vec![std::ptr::null_mut(); 0];
+            let result = AudioBuffer::try_from_slices(empty_channels, &mut channel_ptrs);
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidNumChannels { num_channels: 0 })
+            ));
+        }
+
+        #[test]
+        fn test_mismatched_channel_ptrs_length() {
+            let channel_0 = vec![1.0, 2.0, 3.0];
+            let channel_1 = vec![4.0, 5.0, 6.0];
+            let channels: &[&[Sample]] = &[&channel_0, &channel_1];
+
+            let mut channel_ptrs_wrong_size = vec![std::ptr::null_mut(); 1];
+            let result = AudioBuffer::try_from_slices(channels, &mut channel_ptrs_wrong_size);
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidChannelPtrs {
+                    actual: 1,
+                    expected: 2
+                })
+            ));
+        }
+
+        #[test]
+        fn test_empty_channel_data() {
+            let empty_channel = vec![];
+            let channels_with_empty: &[&[Sample]] = &[&empty_channel];
+            let mut channel_ptrs = vec![std::ptr::null_mut(); 1];
+            let result = AudioBuffer::try_from_slices(channels_with_empty, &mut channel_ptrs);
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidNumSamples { num_samples: 0 })
             ));
         }
     }

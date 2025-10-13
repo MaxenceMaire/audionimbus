@@ -880,7 +880,7 @@ fn test_buffer_mix() {
     let mix_container = vec![0.2; FRAME_SIZE];
     let mut mix_buffer = audionimbus::AudioBuffer::try_with_data(&mix_container).unwrap();
 
-    mix_buffer.mix(&context, source_buffer);
+    mix_buffer.mix(&context, &source_buffer);
 
     assert_eq!(mix_container, vec![0.3; FRAME_SIZE]);
 }
@@ -909,7 +909,7 @@ fn test_buffer_downmix() {
     let mut downmix_buffer =
         audionimbus::AudioBuffer::try_with_data(&mut downmix_container).unwrap();
 
-    input_buffer.downmix(&context, &mut downmix_buffer);
+    downmix_buffer.downmix(&context, &input_buffer);
 
     assert_eq!(downmix_container, vec![0.2; FRAME_SIZE]);
 }
