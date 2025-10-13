@@ -208,7 +208,7 @@ pub struct PathEffectParams {
 /// The spherical harmonic coefficients used in [`PathEffectParams`].
 /// Do not access these pointers after applying the effect.
 #[derive(Debug)]
-pub struct ShCoeffs(*mut f32);
+pub struct ShCoeffs(pub *mut f32);
 
 unsafe impl Send for ShCoeffs {}
 
