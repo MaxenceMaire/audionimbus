@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "audionimbus"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "audionimbus-sys",
  "bitflags 2.9.4",

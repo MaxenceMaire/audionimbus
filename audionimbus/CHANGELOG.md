@@ -7,14 +7,27 @@
 - Support for borrowed channel pointers in `AudioBuffer`, in addition to the existing owned version.
 - Support for different audio buffer lifetimes for `mix`, `downmix`, `convert_ambisonics_into`.
 - Add `Default` trait to `DistanceAttenuationModel`, `DeviationModel`, `AirAbsorptionModel`, `Sphere`, `SceneSettings`, `Matrix<f32, 3, 3>`, `Matrix<f32, 4, 4>`, `Material`, `SimdLevel`.
-- Add `PartialEq` trait to `Vector3`, `Material`, `CoordinateSystem`, `ReflectionEffectIR`, `TrueAudioNextDevice`.
+- Add `PartialEq` trait to `Vector3`, `Material`, `CoordinateSystem`, `ReflectionEffectIR`, `TrueAudioNextDevice`, `Hrtf`.
 - Implement `Send` for `ReflectionEffectIR`, `ReflectionEffectParams`.
+- Add `try_from_slices` method to construct an `AudioBuffer` from `&[&[f32]]` data.
+- Add a `channels_mut` method for iterating over mutable channels.
+- Add `ShCoeffs` for spherical harmonic coefficients.
+
+### Fixed
+
+- Changed the signature of `AudioBuffer::downmix` to match `AudioBuffer::mix`.
 
 ### Changed
 
 - Use `u32` instead of `usize` for frame size, sampling rate, number of channels, ambisonics order, and other similar types of values.
 - The git submodule for Steam Audio now uses HTTPS to avoid authentication.
 - Update `bitflages` dependency to v2.9.
+- Relaxed trait constraints for the `try_new` method of `AudioBuffer`.
+- `Simulator::add_source` now takes a simple reference to `self` instead of a mutable reference.
+
+### Removed
+
+- `try_new_borrowed` method on `AudioBuffer`.
 
 ## [0.8.3] - 2025-10-04
 
