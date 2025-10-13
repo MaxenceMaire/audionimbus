@@ -212,6 +212,11 @@ pub struct ShCoeffs(pub *mut f32);
 
 unsafe impl Send for ShCoeffs {}
 
+impl ShCoeffs {
+    pub fn raw_ptr(&self) -> *mut f32 {
+        self.0
+    }
+}
 impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
     fn from(params: audionimbus_sys::IPLPathEffectParams) -> Self {
         Self {
