@@ -235,7 +235,7 @@ impl PathEffectParams {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLPathEffectParams, Self> {
         let path_effect_params = audionimbus_sys::IPLPathEffectParams {
             eqCoeffs: self.eq_coeffs,
-            shCoeffs: self.sh_coeffs.0,
+            shCoeffs: self.sh_coeffs.raw_ptr(),
             order: self.order as i32,
             binaural: if self.binaural {
                 audionimbus_sys::IPLbool::IPL_TRUE
