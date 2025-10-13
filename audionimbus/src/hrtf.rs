@@ -6,7 +6,7 @@ use crate::error::{to_option_error, SteamAudioError};
 ///
 /// HRTFs describe how sound from different directions is perceived by a each of a listener’s ears, and are a crucial component of spatial audio.
 /// Steam Audio includes a built-in HRTF, while also allowing developers and users to import their own custom HRTFs.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Hrtf(pub(crate) audionimbus_sys::IPLHRTF);
 
 impl Hrtf {

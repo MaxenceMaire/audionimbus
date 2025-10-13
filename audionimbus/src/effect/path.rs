@@ -181,7 +181,7 @@ pub struct PathEffectParams {
 
     /// Ambisonic coefficients for modeling the directional distribution of sound reaching the listener.
     /// The coefficients are specified in world-space, and must be rotated to match the listener’s orientation separately.
-    pub sh_coeffs: *mut f32,
+    pub sh_coeffs: ShCoeffs,
 
     /// Ambisonic order of the output buffer.
     /// May be less than the maximum order specified when creating the effect, in which case higher-order [`Self::sh_coeffs`] will be ignored, and CPU usage will be reduced.
@@ -193,7 +193,7 @@ pub struct PathEffectParams {
 
     /// The HRTF to use when spatializing.
     /// Only used if [`PathEffectSettings::spatialization`] is `Some` and [`Self::binaural`] is set to `true`.
-    pub hrtf: audionimbus_sys::IPLHRTF,
+    pub hrtf: Hrtf,
 
     /// The position and orientation of the listener.
     /// Only used if [`PathEffectSettings::spatialization`] is `Some` and [`Self::binaural`] is set to `true`.
@@ -205,14 +205,26 @@ pub struct PathEffectParams {
     pub normalize_eq: bool,
 }
 
+/// The spherical harmonic coefficients used in [`PathEffectParams`].
+/// Do not access these pointers after applying the effect.
+#[derive(Debug)]
+pub struct ShCoeffs(pub *mut f32);
+
+unsafe impl Send for ShCoeffs {}
+
+impl ShCoeffs {
+    pub fn raw_ptr(&self) -> *mut f32 {
+        self.0
+    }
+}
 impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
     fn from(params: audionimbus_sys::IPLPathEffectParams) -> Self {
         Self {
             eq_coeffs: params.eqCoeffs,
-            sh_coeffs: params.shCoeffs,
+            sh_coeffs: ShCoeffs(params.shCoeffs),
             order: params.order as u32,
             binaural: params.binaural == audionimbus_sys::IPLbool::IPL_TRUE,
-            hrtf: params.hrtf,
+            hrtf: params.hrtf.into(),
             listener: params.listener.into(),
             normalize_eq: params.normalizeEQ == audionimbus_sys::IPLbool::IPL_TRUE,
         }
@@ -223,14 +235,14 @@ impl PathEffectParams {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLPathEffectParams, Self> {
         let path_effect_params = audionimbus_sys::IPLPathEffectParams {
             eqCoeffs: self.eq_coeffs,
-            shCoeffs: self.sh_coeffs,
+            shCoeffs: self.sh_coeffs.raw_ptr(),
             order: self.order as i32,
             binaural: if self.binaural {
                 audionimbus_sys::IPLbool::IPL_TRUE
             } else {
                 audionimbus_sys::IPLbool::IPL_FALSE
             },
-            hrtf: self.hrtf,
+            hrtf: self.hrtf.raw_ptr(),
             listener: self.listener.into(),
             normalizeEQ: if self.normalize_eq {
                 audionimbus_sys::IPLbool::IPL_TRUE

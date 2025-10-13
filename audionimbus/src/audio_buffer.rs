@@ -160,28 +160,28 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         }
     }
 
-    /// Downmixes the multi-channel `self` audio buffer into a mono `output` audio buffer.
+    /// Downmixes the multi-channel `source` audio buffer into a mono `self` audio buffer.
     ///
     /// Both audio buffers must have the same number of samples per channel.
     ///
     /// Downmixing is performed by summing up the source channels and dividing the result by the number of source channels.
     /// If this is not the desired downmixing behavior, we recommend that downmixing be performed manually.
     pub fn downmix<T2, P2: ChannelPointers>(
-        &self,
+        &mut self,
         context: &Context,
-        output: &mut AudioBuffer<T2, P2>,
+        source: &AudioBuffer<T2, P2>,
     ) {
         assert_eq!(
             self.num_samples(),
-            output.num_samples(),
+            source.num_samples(),
             "both audio buffers must have the same number of samples per channel"
         );
 
         unsafe {
             audionimbus_sys::iplAudioBufferDownmix(
                 context.raw_ptr(),
+                &mut *source.as_ffi(),
                 &mut *self.as_ffi(),
-                &mut *output.as_ffi(),
             );
         }
     }
@@ -848,7 +848,7 @@ mod tests {
         #[test]
         fn test_empty_channels() {
             let empty_channels: &[&[Sample]] = &[];
-            let mut channel_ptrs = vec![std::ptr::null_mut(); 0];
+            let mut channel_ptrs = vec![];
             let result = AudioBuffer::try_from_slices(empty_channels, &mut channel_ptrs);
             assert!(matches!(
                 result,

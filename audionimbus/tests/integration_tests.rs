@@ -794,7 +794,6 @@ fn test_pathing() {
     };
     let mut source = audionimbus::Source::try_new(&simulator, &source_settings).unwrap();
 
-    let pathing_probes = audionimbus::ProbeBatch::try_new(&context).unwrap();
     let simulation_inputs = audionimbus::SimulationInputs {
         source: audionimbus::CoordinateSystem {
             right: audionimbus::Vector3::new(1.0, 0.0, 0.0),
@@ -817,7 +816,7 @@ fn test_pathing() {
             baked_data_identifier: None,
         }),
         pathing_simulation: Some(audionimbus::PathingSimulationParameters {
-            pathing_probes: &pathing_probes,
+            pathing_probes: &probe_batch,
             visibility_radius: 1.0,
             visibility_threshold: 10.0,
             visibility_range: 10.0,
@@ -910,7 +909,7 @@ fn test_buffer_downmix() {
     let mut downmix_buffer =
         audionimbus::AudioBuffer::try_with_data(&mut downmix_container).unwrap();
 
-    input_buffer.downmix(&context, &mut downmix_buffer);
+    downmix_buffer.downmix(&context, &input_buffer);
 
     assert_eq!(downmix_container, vec![0.2; FRAME_SIZE]);
 }
