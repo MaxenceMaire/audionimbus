@@ -848,7 +848,7 @@ mod tests {
         #[test]
         fn test_empty_channels() {
             let empty_channels: &[&[Sample]] = &[];
-            let mut channel_ptrs = vec![std::ptr::null_mut(); 0];
+            let mut channel_ptrs = vec![];
             let result = AudioBuffer::try_from_slices(empty_channels, &mut channel_ptrs);
             assert!(matches!(
                 result,
