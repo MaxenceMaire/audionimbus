@@ -242,7 +242,7 @@ impl PathEffectParams {
             } else {
                 audionimbus_sys::IPLbool::IPL_FALSE
             },
-            hrtf: self.hrtf.0,
+            hrtf: self.hrtf.raw_ptr(),
             listener: self.listener.into(),
             normalizeEQ: if self.normalize_eq {
                 audionimbus_sys::IPLbool::IPL_TRUE
