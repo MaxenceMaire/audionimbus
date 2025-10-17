@@ -204,7 +204,7 @@ impl<D, R, P> Simulator<D, R, P> {
     /// Removes a source from the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn remove_source(&mut self, source: &Source) {
+    pub fn remove_source(&self, source: &Source) {
         unsafe {
             audionimbus_sys::iplSourceRemove(source.raw_ptr(), self.raw_ptr());
         }
