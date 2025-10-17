@@ -85,15 +85,15 @@ impl From<&DistanceAttenuationModel> for audionimbus_sys::IPLDistanceAttenuation
 /// Calculates the distance attenuation between a source and a listener.
 pub fn distance_attenuation(
     context: &Context,
-    source: &geometry::Point,
-    listener: &geometry::Point,
+    source: geometry::Point,
+    listener: geometry::Point,
     model: &DistanceAttenuationModel,
 ) -> f32 {
     unsafe {
         audionimbus_sys::iplDistanceAttenuationCalculate(
             context.raw_ptr(),
-            (*source).into(),
-            (*listener).into(),
+            source.into(),
+            listener.into(),
             &mut model.into(),
         )
     }

@@ -264,12 +264,8 @@ fn test_distance_attenuation() {
 
     let distance_attenuation_model = audionimbus::DistanceAttenuationModel::default();
 
-    let distance_attenuation = audionimbus::distance_attenuation(
-        &context,
-        &source,
-        &listener,
-        &distance_attenuation_model,
-    );
+    let distance_attenuation =
+        audionimbus::distance_attenuation(&context, source, listener, &distance_attenuation_model);
 
     assert_eq!(distance_attenuation, 0.57735026);
 }
