@@ -1,5 +1,5 @@
 use crate::context::Context;
-use crate::geometry;
+use crate::{geometry, Equalizer};
 
 /// An air absorption model that can be used for modeling frequency-dependent attenuation of sound over distance.
 #[derive(Debug, Copy, Clone, Default)]
@@ -93,7 +93,7 @@ pub fn air_absorption(
     source: &geometry::Point,
     listener: &geometry::Point,
     model: &AirAbsorptionModel,
-) -> [f32; 3] {
+) -> Equalizer<3> {
     let mut air_absorption = [0.0; 3];
 
     unsafe {
@@ -106,5 +106,5 @@ pub fn air_absorption(
         );
     }
 
-    air_absorption
+    Equalizer(air_absorption)
 }
