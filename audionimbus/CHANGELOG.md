@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.1] - 2025-10-19
+
+### Changed
+
+- `Simulator::remove_source` now takes `&self` instead of `&mut self`.
+- `directivity_attenuation` now takes `source` and `listener` by value instead of by reference.
+- `air_absorption` now returns `Equalizer<3>` instead of `[f32; 3]`.
+
+## [0.9.0] - 2025-10-13
 
 ### Added
 
