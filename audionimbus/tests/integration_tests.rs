@@ -484,11 +484,13 @@ fn test_simulation() {
 
     let sampling_rate = 48000;
     let frame_size = 1024;
+    let max_order = 1;
 
     let mut simulator = audionimbus::Simulator::builder(
         audionimbus::SceneParams::Default,
         sampling_rate,
         frame_size,
+        max_order,
     )
     .with_direct(audionimbus::DirectSimulationSettings {
         max_num_occlusion_samples: 4,
@@ -497,7 +499,6 @@ fn test_simulation() {
         max_num_rays: 4096,
         num_diffuse_samples: 32,
         max_duration: 2.0,
-        max_order: 1,
         max_num_sources: 8,
         num_threads: 2,
     })
@@ -648,11 +649,13 @@ pub fn test_baking() {
 
     let sampling_rate = 48000;
     let frame_size = 1024;
+    let max_order = 1;
 
     let mut simulator = audionimbus::Simulator::builder(
         audionimbus::SceneParams::Default,
         sampling_rate,
         frame_size,
+        max_order,
     )
     .with_direct(audionimbus::DirectSimulationSettings {
         max_num_occlusion_samples: 4,
@@ -661,7 +664,6 @@ pub fn test_baking() {
         max_num_rays: 4096,
         num_diffuse_samples: 32,
         max_duration: 2.0,
-        max_order: 1,
         max_num_sources: 8,
         num_threads: 2,
     })
@@ -737,11 +739,13 @@ fn test_pathing() {
 
     let sampling_rate = 48000;
     let frame_size = 1024;
+    let max_order = 1;
 
     let simulator = audionimbus::Simulator::builder(
         audionimbus::SceneParams::Default,
         sampling_rate,
         frame_size,
+        max_order,
     )
     .with_direct(audionimbus::DirectSimulationSettings {
         max_num_occlusion_samples: 4,
@@ -750,7 +754,6 @@ fn test_pathing() {
         max_num_rays: 4096,
         num_diffuse_samples: 32,
         max_duration: 2.0,
-        max_order: 1,
         max_num_sources: 8,
         num_threads: 2,
     })
