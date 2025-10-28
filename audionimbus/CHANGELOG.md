@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0] - 2025-10-28
+
+### Fixed
+
+- Disabling reflections would cause the ambisonic order to default to 0, leading to out-of-bounds writes and memory corruption.
+
 ## [0.9.1] - 2025-10-19
 
 ### Changed
