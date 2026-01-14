@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.0] - 2026-01-14
+
+### Changed
+
+- Upgrade to Steam Audio v4.8.0.
+
 ## [0.10.0] - 2025-10-28
 
 ### Fixed
