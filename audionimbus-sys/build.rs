@@ -661,16 +661,10 @@ fn version() -> Version {
         .parse::<u32>()
         .unwrap();
 
-    let _patch = std::env::var("CARGO_PKG_VERSION_PATCH")
+    let patch = std::env::var("CARGO_PKG_VERSION_PATCH")
         .unwrap()
         .parse::<u32>()
         .unwrap();
-
-    // TODO: remove statement upon new release of Steam Audio.
-    // The version of audionimbus-sys is temporarily ahead of Steam Audio's
-    // to allow for the introduction of new features, so we need to explicitly
-    // pin the version.
-    let patch = 0;
 
     Version {
         major,
