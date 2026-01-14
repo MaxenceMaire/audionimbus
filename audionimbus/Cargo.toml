@@ -11,7 +11,7 @@ repository = "https://github.com/MaxenceMaire/audionimbus"
 readme = "README.md"
 
 [dependencies]
-audionimbus-sys = { version = "4.7.1-rc.1", path = "../audionimbus-sys" }
+audionimbus-sys = { version = "4.8.0-rc.1", path = "../audionimbus-sys" }
 bitflags = "2.9"
 
 [features]

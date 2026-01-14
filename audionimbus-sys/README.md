@@ -31,14 +31,14 @@ Add `audionimbus-sys` to your `Cargo.toml` with the `auto-install` feature:
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.7.1-rc.1", features = ["auto-install"] }
+audionimbus-sys = { version = "4.8.0-rc.1", features = ["auto-install"] }
 ```
 
 #### With FMOD Studio Integration
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.7.1-rc.1", features = ["auto-install", "fmod"] }
+audionimbus-sys = { version = "4.8.0-rc.1", features = ["auto-install", "fmod"] }
 ```
 
 You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMOD="/path/to/FMOD"`).
@@ -47,7 +47,7 @@ You also need to set the `FMODSDK` environment variable to the path of the FMOD 
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.7.1-rc.1", features = ["auto-install", "wwise"] }
+audionimbus-sys = { version = "4.8.0-rc.1", features = ["auto-install", "wwise"] }
 ```
 
 You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
@@ -81,7 +81,7 @@ Before installation, make sure that Clang 9.0 or later is installed on your syst
 
 `audionimbus-sys` requires linking against the Steam Audio library during compilation.
 
-To do so, download `steamaudio_4.7.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+To do so, download `steamaudio_4.8.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
 Locate the relevant library for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 
@@ -104,7 +104,7 @@ Finally, add `audionimbus-sys` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus-sys = "4.7.1-rc.1"
+audionimbus-sys = "4.8.0-rc.1"
 ```
 
 #### Manual FMOD Studio Integration
@@ -113,7 +113,7 @@ audionimbus-sys = "4.7.1-rc.1"
 
 It requires linking against both the Steam Audio library and the FMOD integration library during compilation:
 
-1. Download `steamaudio_fmod_4.7.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+1. Download `steamaudio_fmod_4.8.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
 2. Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 
@@ -138,7 +138,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.7.1-rc.1", features = ["fmod"] }
+audionimbus-sys = { version = "4.8.0-rc.1", features = ["fmod"] }
 ```
 
 #### Manual Wwise Integration
@@ -147,7 +147,7 @@ audionimbus-sys = { version = "4.7.1-rc.1", features = ["fmod"] }
 
 It requires linking against both the Steam Audio library and the Wwise integration library during compilation:
 
-1. Download `steamaudio_wwise_4.7.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+1. Download `steamaudio_wwise_4.8.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 
 2. Locate the two relevant libraries for your target platform and place them in a location listed in [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
 
@@ -157,7 +157,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.7.1-rc.1", features = ["wwise"] }
+audionimbus-sys = { version = "4.8.0-rc.1", features = ["wwise"] }
 ```
 
 ## Documentation
