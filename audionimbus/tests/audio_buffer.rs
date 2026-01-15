@@ -143,3 +143,63 @@ fn test_buffer_interleave_deinterleave() {
 
     assert_eq!(deinterleaved_back, deinterleaved);
 }
+
+#[test]
+fn test_convert_ambisonics() {
+    let context = Context::default();
+
+    const FRAME_SIZE: usize = 256;
+    const NUM_CHANNELS: usize = 4; // First-order Ambisonics
+
+    let mut n3d_data = vec![0.5; NUM_CHANNELS * FRAME_SIZE];
+    let mut n3d_buffer = AudioBuffer::try_with_data_and_settings(
+        &mut n3d_data,
+        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
+    )
+    .unwrap();
+
+    n3d_buffer.convert_ambisonics(&context, AmbisonicsType::N3D, AmbisonicsType::SN3D);
+
+    n3d_buffer.convert_ambisonics(&context, AmbisonicsType::SN3D, AmbisonicsType::N3D);
+
+    // After round-trip conversion, values should be approximately the same.
+    for &value in &n3d_data {
+        assert!(
+            (value - 0.5).abs() < 0.01,
+            "Value {} too far from 0.5",
+            value
+        );
+    }
+}
+
+#[test]
+fn test_convert_ambisonics_into() {
+    let context = Context::default();
+
+    const FRAME_SIZE: usize = 256;
+    const NUM_CHANNELS: usize = 4;
+
+    let mut n3d_data = vec![0.7; NUM_CHANNELS * FRAME_SIZE];
+    let mut n3d_buffer = AudioBuffer::try_with_data_and_settings(
+        &mut n3d_data,
+        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
+    )
+    .unwrap();
+
+    let mut sn3d_data = vec![0.0; NUM_CHANNELS * FRAME_SIZE];
+    let mut sn3d_buffer = AudioBuffer::try_with_data_and_settings(
+        &mut sn3d_data,
+        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
+    )
+    .unwrap();
+
+    n3d_buffer.convert_ambisonics_into(
+        &context,
+        AmbisonicsType::N3D,
+        AmbisonicsType::SN3D,
+        &mut sn3d_buffer,
+    );
+
+    // Output should be written into sn3d_buffer.
+    assert_ne!(sn3d_data[0], 0.0);
+}

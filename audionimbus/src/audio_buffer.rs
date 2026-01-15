@@ -601,6 +601,48 @@ impl std::fmt::Display for AudioBufferError {
 mod tests {
     use super::*;
 
+    mod try_new {
+        use super::*;
+
+        #[test]
+        #[should_panic(expected = "both audio buffers must have the same number of channels")]
+        fn test_mix_mismatched_channels() {
+            let context = Context::default();
+
+            let source = vec![0.5; 100];
+            let source_buffer = AudioBuffer::try_with_data(&source).unwrap();
+
+            let mut mix = vec![0.5; 200];
+            let mut mix_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut mix,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            mix_buffer.mix(&context, &source_buffer);
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "both audio buffers must have the same number of samples per channel"
+        )]
+        fn test_downmix_mismatched_samples() {
+            let context = Context::default();
+
+            let input = vec![0.5; 200];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.5; 50];
+            let mut output_buffer = AudioBuffer::try_with_data(&mut output).unwrap();
+
+            output_buffer.downmix(&context, &input_buffer);
+        }
+    }
+
     mod try_with_data_and_settings {
         use super::*;
 
