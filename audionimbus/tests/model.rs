@@ -1,21 +1,6 @@
 use audionimbus::*;
 
 #[test]
-fn test_distance_attenuation() {
-    let context = Context::default();
-
-    let source = Point::new(1.0, 1.0, 1.0);
-    let listener = Point::new(0.0, 0.0, 0.0);
-
-    let distance_attenuation_model = DistanceAttenuationModel::default();
-
-    let distance_attenuation =
-        distance_attenuation(&context, source, listener, &distance_attenuation_model);
-
-    assert_eq!(distance_attenuation, 0.57735026);
-}
-
-#[test]
 fn test_air_absorption() {
     let context = Context::default();
 

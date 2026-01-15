@@ -98,3 +98,92 @@ pub fn distance_attenuation(
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Point;
+
+    #[test]
+    fn test_default_model() {
+        let context = Context::default();
+        let source = Point::new(10.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = DistanceAttenuationModel::default();
+
+        let attenuation = distance_attenuation(&context, source, listener, &model);
+
+        // The default model is an inverse distance falloff.
+        assert_eq!(attenuation, 0.1);
+    }
+
+    #[test]
+    fn test_inverse_distance_model() {
+        let context = Context::default();
+        let source = Point::new(5.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = DistanceAttenuationModel::InverseDistance { min_distance: 1.0 };
+
+        let attenuation = distance_attenuation(&context, source, listener, &model);
+
+        assert_eq!(attenuation, 0.2);
+    }
+
+    #[test]
+    fn test_zero_distance() {
+        let context = Context::default();
+        let source = Point::new(0.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = DistanceAttenuationModel::default();
+
+        let attenuation = distance_attenuation(&context, source, listener, &model);
+
+        // At zero distance, attenuation should be 1.0 (no attenuation).
+        assert_eq!(attenuation, 1.0);
+    }
+
+    #[test]
+    fn test_various_distances() {
+        let context = Context::default();
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = DistanceAttenuationModel::default();
+
+        let distances = [1.0, 5.0, 10.0, 50.0];
+        let mut prev_attenuation = 1.1; // Start higher than max possible.
+
+        for &dist in &distances {
+            let source = Point::new(dist, 0.0, 0.0);
+            let attenuation = distance_attenuation(&context, source, listener, &model);
+
+            // Attenuation should decrease with distance.
+            assert!(attenuation < prev_attenuation);
+            prev_attenuation = attenuation;
+        }
+    }
+
+    #[test]
+    fn test_callback_model() {
+        let context = Context::default();
+        let source = Point::new(10.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+
+        unsafe extern "C" fn custom_attenuation(
+            distance: f32,
+            _user_data: *mut std::ffi::c_void,
+        ) -> f32 {
+            // Custom: linear falloff to 0 at 100m.
+            (1.0 - distance / 100.0).max(0.0)
+        }
+
+        let model = DistanceAttenuationModel::Callback {
+            callback: custom_attenuation,
+            user_data: std::ptr::null_mut(),
+            dirty: false,
+        };
+
+        let attenuation = distance_attenuation(&context, source, listener, &model);
+
+        // At 10m, should be 0.9.
+        assert_eq!(attenuation, 0.9);
+    }
+}
