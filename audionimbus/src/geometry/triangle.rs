@@ -6,7 +6,7 @@
 /// This means that when looking at the triangle such that the normal is pointing towards you, the vertices are specified in counter-clockwise order.
 ///
 /// Each triangle must be specified using three vertices; triangle strip or fan representations are not supported.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Triangle {
     /// Indices of the three vertices of this triangle.
     pub indices: [i32; 3],
@@ -25,5 +25,16 @@ impl From<Triangle> for audionimbus_sys::IPLTriangle {
         audionimbus_sys::IPLTriangle {
             indices: triangle.indices,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_triangle_new() {
+        let t = Triangle::new(0, 1, 2);
+        assert_eq!(t, Triangle { indices: [0, 1, 2] });
     }
 }
