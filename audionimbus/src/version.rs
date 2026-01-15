@@ -31,20 +31,16 @@ impl Default for SteamAudioVersion {
 mod tests {
     use super::*;
 
-    mod try_new {
-        use super::*;
+    #[test]
+    fn test_version_to_u32() {
+        let version = SteamAudioVersion {
+            major: 4,
+            minor: 8,
+            patch: 0,
+        };
 
-        #[test]
-        fn test_version_to_u32() {
-            let version = SteamAudioVersion {
-                major: 4,
-                minor: 8,
-                patch: 0,
-            };
+        let version_u32: u32 = version.into();
 
-            let version_u32: u32 = version.into();
-
-            assert_eq!(version_u32, 264192);
-        }
+        assert_eq!(version_u32, 264192);
     }
 }

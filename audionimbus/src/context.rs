@@ -179,27 +179,25 @@ impl From<ContextFlags> for audionimbus_sys::IPLContextFlags {
 mod tests {
     use super::*;
 
-    mod try_new {
-        use super::*;
+    use super::*;
 
-        #[test]
-        fn test_context_settings_simd_levels() {
-            let levels = [
-                SimdLevel::SSE2,
-                SimdLevel::SSE4,
-                SimdLevel::AVX,
-                SimdLevel::AVX2,
-                SimdLevel::AVX512,
-            ];
+    #[test]
+    fn test_context_settings_simd_levels() {
+        let levels = [
+            SimdLevel::SSE2,
+            SimdLevel::SSE4,
+            SimdLevel::AVX,
+            SimdLevel::AVX2,
+            SimdLevel::AVX512,
+        ];
 
-            for level in levels {
-                let settings = ContextSettings {
-                    simd_level: level,
-                    ..Default::default()
-                };
-                let result = Context::try_new(&settings);
-                assert!(result.is_ok());
-            }
+        for level in levels {
+            let settings = ContextSettings {
+                simd_level: level,
+                ..Default::default()
+            };
+            let result = Context::try_new(&settings);
+            assert!(result.is_ok());
         }
     }
 }
