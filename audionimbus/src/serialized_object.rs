@@ -93,3 +93,23 @@ impl Drop for SerializedObject {
 
 unsafe impl Send for SerializedObject {}
 unsafe impl Sync for SerializedObject {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_new() {
+        let context = Context::default();
+        let serialized_object = SerializedObject::try_new(&context);
+        assert!(serialized_object.is_ok());
+    }
+
+    #[test]
+    fn test_try_with_buffer() {
+        let context = Context::default();
+        let mut buffer = vec![0u8; 1024];
+        let serialized_object = SerializedObject::try_with_buffer(&context, &mut buffer);
+        assert!(serialized_object.is_ok());
+    }
+}

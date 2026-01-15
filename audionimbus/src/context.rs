@@ -179,8 +179,6 @@ impl From<ContextFlags> for audionimbus_sys::IPLContextFlags {
 mod tests {
     use super::*;
 
-    use super::*;
-
     #[test]
     fn test_context_settings_simd_levels() {
         let levels = [
