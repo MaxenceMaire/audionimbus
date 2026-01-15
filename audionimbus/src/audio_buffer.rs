@@ -922,4 +922,52 @@ mod tests {
             assert_eq!(data, vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0]);
         }
     }
+
+    mod audio_buffer_settings {
+        use super::*;
+
+        #[test]
+        fn test_with_num_channels() {
+            let settings = AudioBufferSettings::with_num_channels(4);
+            assert_eq!(settings.num_channels, Some(4));
+            assert_eq!(settings.num_samples, None);
+        }
+
+        #[test]
+        fn test_with_num_samples() {
+            let settings = AudioBufferSettings::with_num_samples(1024);
+            assert_eq!(settings.num_channels, None);
+            assert_eq!(settings.num_samples, Some(1024));
+        }
+
+        #[test]
+        fn test_with_num_channels_and_num_samples() {
+            let settings = AudioBufferSettings::with_num_channels_and_num_samples(2, 512);
+            assert_eq!(settings.num_channels, Some(2));
+            assert_eq!(settings.num_samples, Some(512));
+        }
+
+        #[test]
+        fn test_num_channels_and_samples_inference() {
+            let data = vec![0.0; 12];
+
+            // Infer both from data length
+            let settings = AudioBufferSettings::default();
+            let (channels, samples) = settings.num_channels_and_samples(&data).unwrap();
+            assert_eq!(channels, 1);
+            assert_eq!(samples, 12);
+
+            // Infer samples from channels
+            let settings = AudioBufferSettings::with_num_channels(3);
+            let (channels, samples) = settings.num_channels_and_samples(&data).unwrap();
+            assert_eq!(channels, 3);
+            assert_eq!(samples, 4);
+
+            // Infer channels from samples
+            let settings = AudioBufferSettings::with_num_samples(4);
+            let (channels, samples) = settings.num_channels_and_samples(&data).unwrap();
+            assert_eq!(channels, 3);
+            assert_eq!(samples, 4);
+        }
+    }
 }
