@@ -104,3 +104,56 @@ impl From<Material> for audionimbus_sys::IPLMaterial {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_material_default() {
+        let m = Material::default();
+        assert_eq!(m.absorption, Material::GENERIC.absorption);
+        assert_eq!(m.scattering, Material::GENERIC.scattering);
+        assert_eq!(m.transmission, Material::GENERIC.transmission);
+    }
+
+    #[test]
+    fn test_all_material_presets_valid() {
+        let materials = [
+            Material::GENERIC,
+            Material::BRICK,
+            Material::CONCRETE,
+            Material::CERAMIC,
+            Material::GRAVEL,
+            Material::CARPET,
+            Material::GLASS,
+            Material::PLASTER,
+            Material::WOOD,
+            Material::METAL,
+            Material::ROCK,
+        ];
+
+        for material in materials {
+            // Check absorption values are in range [0, 1].
+            for &absorption in &material.absorption {
+                assert!(
+                    (0.0..=1.0).contains(&absorption),
+                    "invalid absorption value: {}",
+                    absorption
+                );
+            }
+
+            // Check scattering is in range [0, 1].
+            assert!(material.scattering >= 0.0 && material.scattering <= 1.0);
+
+            // Check transmission values are in range [0, 1].
+            for &transmission in &material.transmission {
+                assert!(
+                    (0.0..=1.0).contains(&transmission),
+                    "invalid transmission value: {}",
+                    transmission
+                );
+            }
+        }
+    }
+}
