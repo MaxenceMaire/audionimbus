@@ -206,3 +206,90 @@ pub fn scale_accum_impulse_response(
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_new_impulse_response() {
+        let context = Context::default();
+        let settings = ImpulseResponseSettings {
+            duration: 1.0,
+            order: 1,
+            sampling_rate: 48000,
+        };
+
+        let impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
+        assert_eq!(impulse_response.num_samples(), 48000);
+        assert_eq!(impulse_response.num_channels(), 4);
+
+        let data = impulse_response.data();
+        assert_eq!(
+            data.len() as u32,
+            impulse_response.num_channels() * impulse_response.num_samples()
+        );
+    }
+
+    #[test]
+    fn test_impulse_response_channel() {
+        let context = Context::default();
+        let settings = ImpulseResponseSettings {
+            duration: 0.1,
+            order: 1,
+            sampling_rate: 48000,
+        };
+
+        let impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
+        let channel = impulse_response.channel(0);
+
+        assert_eq!(channel.len() as u32, impulse_response.num_samples());
+    }
+
+    #[test]
+    #[should_panic(expected = "channel index out of bounds")]
+    fn test_impulse_response_channel_out_of_bounds() {
+        let context = Context::default();
+        let settings = ImpulseResponseSettings {
+            duration: 0.1,
+            order: 0,
+            sampling_rate: 48000,
+        };
+
+        let impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
+        let _ = impulse_response.channel(10); // Only 1 channel exists.
+    }
+
+    #[test]
+    fn test_impulse_response_reset() {
+        let context = Context::default();
+        let settings = ImpulseResponseSettings {
+            duration: 0.1,
+            order: 0,
+            sampling_rate: 48000,
+        };
+
+        let mut impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
+        impulse_response.reset();
+
+        let data = impulse_response.data();
+        assert!(data.iter().all(|&x| x == 0.0));
+    }
+
+    #[test]
+    fn test_impulse_response_scale() {
+        let context = Context::default();
+        let settings = ImpulseResponseSettings {
+            duration: 0.1,
+            order: 0,
+            sampling_rate: 48000,
+        };
+
+        let mut impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
+        impulse_response.scale(2.0);
+
+        let data = impulse_response.data();
+        // Values before scaling are 0.0, so they should remain 0.0.
+        assert!(data.iter().all(|&x| x == 0.0));
+    }
+}
