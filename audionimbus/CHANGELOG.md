@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Mark `air_absorption` function as `unsafe` since it calls `iplAirAbsorptionCalculate` which causes a segfault when using a callback.
+
 ### Added
 
 - Implement `Default` trait for `Context` using default `ContextSettings`.
