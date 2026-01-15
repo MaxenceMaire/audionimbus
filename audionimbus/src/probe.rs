@@ -314,7 +314,7 @@ unsafe impl Sync for ProbeBatch {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Point, SceneSettings};
+    use crate::{Material, Point, SceneSettings, StaticMesh, StaticMeshSettings, Triangle};
 
     mod probe_array {
         use super::*;
@@ -348,13 +348,33 @@ mod tests {
 
         #[test]
         fn test_generation_uniform_floor() {
-            // TODO: implement test.
-            /*
             let context = Context::default();
             let scene_settings = SceneSettings::default();
-            let scene = Scene::try_new(&context, &scene_settings).expect("failed to create scene");
-            let mut probe_array = ProbeArray::try_new(&context).unwrap();
+            let mut scene =
+                Scene::try_new(&context, &scene_settings).expect("failed to create scene");
 
+            // Add a floor mesh.
+            let vertices = vec![
+                Point::new(-50.0, 0.0, -50.0),
+                Point::new(50.0, 0.0, -50.0),
+                Point::new(50.0, 0.0, 50.0),
+                Point::new(-50.0, 0.0, 50.0),
+            ];
+            let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
+            let material_indices = vec![0, 0];
+            let materials = vec![Material::default()];
+
+            let static_mesh_settings = StaticMeshSettings {
+                vertices: &vertices,
+                triangles: &triangles,
+                material_indices: &material_indices,
+                materials: &materials,
+            };
+            let static_mesh = StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();
+            scene.add_static_mesh(static_mesh);
+            scene.commit();
+
+            let mut probe_array = ProbeArray::try_new(&context).unwrap();
             let transform = Matrix::new([
                 [100.0, 0.0, 0.0, 0.0],
                 [0.0, 100.0, 0.0, 0.0],
@@ -369,11 +389,7 @@ mod tests {
             };
 
             probe_array.generate_probes(&scene, &params);
-
-            let num_probes = probe_array.num_probes();
-            assert!(num_probes > 0);
-            // TODO: investigate possible bug where probes not created or num_probes() incorrect.
-            */
+            assert_eq!(probe_array.num_probes(), 121);
         }
     }
 
