@@ -428,5 +428,13 @@ mod tests {
 
             assert_eq!(probe_batch.num_probes(), probe_array.num_probes());
         }
+
+        #[test]
+        #[should_panic(expected = "probe index out of bounds")]
+        fn test_remove_out_of_bounds() {
+            let context = Context::default();
+            let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+            probe_batch.remove_probe(0); // No probes exist.
+        }
     }
 }
