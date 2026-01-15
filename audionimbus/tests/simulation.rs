@@ -125,7 +125,7 @@ fn test_simulation() {
     .unwrap();
 
     let mut reflection_effect_params = simulation_outputs.reflections();
-    reflection_effect_params.num_channels = 4; // use all channels of the IR
-    reflection_effect_params.impulse_response_size = 2 * sampling_rate; // use the full duration of the IR
+    reflection_effect_params.num_channels = 4; // use all channels of the IR.
+    reflection_effect_params.impulse_response_size = 2 * sampling_rate; // use the full duration of the IR.
     let _ = reflection_effect.apply(&reflection_effect_params, &input_buffer, &output_buffer);
 }
