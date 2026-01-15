@@ -970,4 +970,31 @@ mod tests {
             assert_eq!(samples, 4);
         }
     }
+
+    mod allocate_channel_ptrs_tests {
+        use super::*;
+
+        #[test]
+        fn test_allocate_channel_ptrs_valid() {
+            let data = vec![0.0; 12];
+            let settings = AudioBufferSettings::with_num_channels(3);
+            let ptrs = allocate_channel_ptrs(&data, settings).unwrap();
+
+            assert_eq!(ptrs.len(), 3);
+            assert!(ptrs.iter().all(|&ptr| ptr.is_null()));
+        }
+
+        #[test]
+        fn test_allocate_channel_ptrs_invalid() {
+            let data = vec![0.0; 10];
+            let settings = AudioBufferSettings {
+                num_channels: Some(3),
+                num_samples: Some(3),
+                ..Default::default()
+            };
+
+            let result = allocate_channel_ptrs(&data, settings);
+            assert!(result.is_err());
+        }
+    }
 }
