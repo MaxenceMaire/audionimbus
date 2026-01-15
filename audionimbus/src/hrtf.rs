@@ -198,3 +198,17 @@ impl From<HrtfInterpolation> for audionimbus_sys::IPLHRTFInterpolation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_new_hrtf_default() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let hrtf_settings = HrtfSettings::default();
+        let hrtf_result = Hrtf::try_new(&context, &audio_settings, &hrtf_settings);
+        assert!(hrtf_result.is_ok());
+    }
+}

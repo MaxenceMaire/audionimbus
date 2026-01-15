@@ -2,7 +2,7 @@ use super::Point;
 
 /// A sphere.
 /// Spheres are used to define a region of influence around a point.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Sphere {
     /// The center.
     pub center: Point,

@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Implement `Default` trait for `Context` using default `ContextSettings`.
+- Derive `PartialEq` trait for `Matrix`, `Triangle`, `Sphere`.
+- Increase the test coverage.
+
 ## [0.11.0] - 2026-01-14
 
 ### Changed

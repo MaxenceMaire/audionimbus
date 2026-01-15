@@ -451,3 +451,16 @@ pub fn relative_direction(
 
     relative_direction.into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_matrix3x3_identity() {
+        let context = Context::default();
+        let scene_settings = SceneSettings::default();
+        let scene_result = Scene::try_new(&context, &scene_settings);
+        assert!(scene_result.is_ok());
+    }
+}

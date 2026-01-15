@@ -34,6 +34,13 @@ impl Context {
     }
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        let settings = ContextSettings::default();
+        Self::try_new(&settings).expect("failed to create default context")
+    }
+}
+
 impl Clone for Context {
     fn clone(&self) -> Self {
         unsafe {
