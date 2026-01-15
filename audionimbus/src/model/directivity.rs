@@ -87,3 +87,89 @@ pub fn directivity_attenuation(
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{CoordinateSystem, Point};
+
+    #[test]
+    fn test_default_model() {
+        let context = Context::default();
+        let source = CoordinateSystem::default();
+        let directivity = Directivity::default();
+
+        let listener = Point::new(0.0, 0.0, 1.0);
+        let attenuation = directivity_attenuation(&context, source, listener, &directivity);
+        assert_eq!(attenuation, 1.0); // No attenuation when listener is in front
+
+        let listener = Point::new(0.0, 1.0, 0.0);
+        let attenuation = directivity_attenuation(&context, source, listener, &directivity);
+        assert_eq!(attenuation, 0.70710677);
+    }
+
+    #[test]
+    fn test_weighted_dipole() {
+        let context = Context::default();
+        let source = CoordinateSystem::default();
+
+        // Test listener in front (along +z).
+        let listener_front = Point::new(0.0, 0.0, 1.0);
+        // Test listener behind (along -z).
+        let listener_behind = Point::new(0.0, 0.0, -1.0);
+        // Test listener to the side (along +x).
+        let listener_side = Point::new(1.0, 0.0, 0.0);
+
+        let directivity = Directivity::WeightedDipole {
+            weight: 0.5, // Cardioid pattern
+            power: 1.0,
+        };
+
+        let attenuation_front =
+            directivity_attenuation(&context, source, listener_front, &directivity);
+        let attenuation_behind =
+            directivity_attenuation(&context, source, listener_behind, &directivity);
+        let attenuation_side =
+            directivity_attenuation(&context, source, listener_side, &directivity);
+
+        // Side should have less intensity.
+        assert!(attenuation_side < attenuation_front);
+        assert_eq!(attenuation_behind, 0.0);
+    }
+
+    #[test]
+    fn test_omnidirectional() {
+        let context = Context::default();
+        let source = CoordinateSystem::default();
+
+        let directivity = Directivity::WeightedDipole {
+            weight: 0.0, // Omnidirectional
+            power: 1.0,
+        };
+
+        // Test multiple directions.
+        let directions = [
+            Point::new(1.0, 0.0, 0.0),
+            Point::new(0.0, 1.0, 0.0),
+            Point::new(0.0, 0.0, 1.0),
+            Point::new(-1.0, 0.0, 0.0),
+        ];
+
+        let mut attenuations = Vec::new();
+        for &listener in &directions {
+            let attn = directivity_attenuation(&context, source, listener, &directivity);
+            attenuations.push(attn);
+        }
+
+        // All directions should have similar attenuation.
+        let first = attenuations[0];
+        for &attn in &attenuations {
+            assert!((attn - first).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    fn test_callback_directivity() {
+        // TODO: implement test.
+    }
+}
