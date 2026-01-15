@@ -108,3 +108,60 @@ pub fn air_absorption(
 
     Equalizer(air_absorption)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Point;
+
+    #[test]
+    fn test_default_model() {
+        let context = Context::default();
+        let source = Point::new(10.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = AirAbsorptionModel::default();
+
+        let absorption = air_absorption(&context, &source, &listener, &model);
+
+        // All bands should have some absorption (< 1.0) at 10m.
+        for &band in &absorption.0 {
+            assert!(band > 0.0 && band < 1.0);
+        }
+    }
+
+    #[test]
+    fn test_exponential_model() {
+        let context = Context::default();
+        let source = Point::new(5.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = AirAbsorptionModel::Exponential {
+            coefficients: [0.01, 0.02, 0.03],
+        };
+
+        let absorption = air_absorption(&context, &source, &listener, &model);
+
+        // Higher frequencies should have more absorption.
+        assert!(absorption.0[2] <= absorption.0[1]);
+        assert!(absorption.0[1] <= absorption.0[0]);
+    }
+
+    #[test]
+    fn test_zero_distance() {
+        let context = Context::default();
+        let source = Point::new(0.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = AirAbsorptionModel::default();
+
+        let absorption = air_absorption(&context, &source, &listener, &model);
+
+        // At zero distance, no absorption
+        for &band in &absorption.0 {
+            assert_eq!(band, 1.0);
+        }
+    }
+
+    #[test]
+    fn test_callback_model() {
+        // TODO: implement test.
+    }
+}
