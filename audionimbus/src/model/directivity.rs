@@ -169,7 +169,35 @@ mod tests {
     }
 
     #[test]
-    fn test_callback_directivity() {
-        // TODO: implement test.
+    fn test_callback_model() {
+        let context = Context::default();
+
+        // Source at origin, pointing along +z axis (default ahead direction)
+        let source = CoordinateSystem::default();
+
+        // Listener at various positions
+        let listener_front = Point::new(0.0, 0.0, -1.0); // In front (along -z in world, which is +z in source local)
+        let listener_side = Point::new(1.0, 0.0, 0.0); // To the side
+
+        unsafe extern "C" fn custom_directivity(
+            _direction: audionimbus_sys::IPLVector3,
+            _user_data: *mut std::ffi::c_void,
+        ) -> f32 {
+            0.5
+        }
+
+        let directivity = Directivity::Callback {
+            callback: custom_directivity,
+            user_data: std::ptr::null_mut(),
+        };
+
+        let attenuation_front =
+            directivity_attenuation(&context, source, listener_front, &directivity);
+        let attenuation_side =
+            directivity_attenuation(&context, source, listener_side, &directivity);
+
+        // Both should be valid attenuation values
+        assert_eq!(attenuation_front, 0.5);
+        assert_eq!(attenuation_side, 0.5);
     }
 }
