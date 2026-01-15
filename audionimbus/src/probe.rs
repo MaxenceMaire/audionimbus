@@ -310,3 +310,123 @@ impl Drop for ProbeBatch {
 
 unsafe impl Send for ProbeBatch {}
 unsafe impl Sync for ProbeBatch {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Point, SceneSettings};
+
+    mod probe_array {
+        use super::*;
+
+        #[test]
+        fn test_try_new() {
+            let context = Context::default();
+            let probe_array = ProbeArray::try_new(&context);
+            assert!(probe_array.is_ok());
+        }
+
+        #[test]
+        fn test_generation_centroid() {
+            let context = Context::default();
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).expect("failed to create scene");
+            let mut probe_array = ProbeArray::try_new(&context).unwrap();
+
+            let transform = Matrix::new([
+                [10.0, 0.0, 0.0, 0.0],
+                [0.0, 10.0, 0.0, 0.0],
+                [0.0, 0.0, 10.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]);
+
+            let params = ProbeGenerationParams::Centroid { transform };
+            probe_array.generate_probes(&scene, &params);
+
+            assert_eq!(probe_array.num_probes(), 1);
+        }
+
+        #[test]
+        fn test_generation_uniform_floor() {
+            // TODO: implement test.
+            /*
+            let context = Context::default();
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).expect("failed to create scene");
+            let mut probe_array = ProbeArray::try_new(&context).unwrap();
+
+            let transform = Matrix::new([
+                [100.0, 0.0, 0.0, 0.0],
+                [0.0, 100.0, 0.0, 0.0],
+                [0.0, 0.0, 100.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]);
+
+            let params = ProbeGenerationParams::UniformFloor {
+                spacing: 10.0,
+                height: 1.5,
+                transform,
+            };
+
+            probe_array.generate_probes(&scene, &params);
+
+            let num_probes = probe_array.num_probes();
+            assert!(num_probes > 0);
+            // TODO: investigate possible bug where probes not created or num_probes() incorrect.
+            */
+        }
+    }
+
+    mod probe_batch {
+        use super::*;
+
+        #[test]
+        fn test_try_new() {
+            let context = Context::default();
+            let probe_batch = ProbeBatch::try_new(&context);
+            assert!(probe_batch.is_ok());
+        }
+
+        #[test]
+        fn test_add_remove() {
+            let context = Context::default();
+            let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+
+            let probe = Sphere {
+                center: Point::new(0.0, 0.0, 0.0),
+                radius: 1.0,
+            };
+
+            probe_batch.add_probe(&probe);
+            probe_batch.commit();
+            assert_eq!(probe_batch.num_probes(), 1);
+
+            probe_batch.remove_probe(0);
+            probe_batch.commit();
+            assert_eq!(probe_batch.num_probes(), 0);
+        }
+
+        #[test]
+        fn test_add_array() {
+            let context = Context::default();
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).expect("failed to create scene");
+
+            let mut probe_array = ProbeArray::try_new(&context).unwrap();
+            let transform = Matrix::new([
+                [10.0, 0.0, 0.0, 0.0],
+                [0.0, 10.0, 0.0, 0.0],
+                [0.0, 0.0, 10.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]);
+            let params = ProbeGenerationParams::Centroid { transform };
+            probe_array.generate_probes(&scene, &params);
+
+            let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+            probe_batch.add_probe_array(&probe_array);
+            probe_batch.commit();
+
+            assert_eq!(probe_batch.num_probes(), probe_array.num_probes());
+        }
+    }
+}
