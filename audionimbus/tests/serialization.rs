@@ -76,3 +76,23 @@ fn test_scene_save_obj() {
     // Clean up.
     let _ = std::fs::remove_file(temp_file);
 }
+
+#[test]
+fn test_probe_batch_save_load() {
+    let context = Context::default();
+    let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+
+    let probe = Sphere {
+        center: Point::new(1.0, 2.0, 3.0),
+        radius: 5.0,
+    };
+    probe_batch.add_probe(&probe);
+    probe_batch.commit();
+
+    let mut serialized = SerializedObject::try_new(&context).unwrap();
+    probe_batch.save(&mut serialized);
+
+    let loaded_batch = ProbeBatch::load(&context, &mut serialized);
+    assert!(loaded_batch.is_ok());
+    assert_eq!(loaded_batch.unwrap().num_probes(), 1);
+}
