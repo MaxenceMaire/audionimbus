@@ -885,4 +885,41 @@ mod tests {
             ));
         }
     }
+
+    mod channels_iteration {
+        use super::*;
+
+        #[test]
+        fn test_channels_iter() {
+            let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let buffer = AudioBuffer::try_with_data_and_settings(
+                &data,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let channels: Vec<&[Sample]> = buffer.channels().collect();
+            assert_eq!(channels.len(), 2);
+            assert_eq!(channels[0], &[1.0, 2.0, 3.0]);
+            assert_eq!(channels[1], &[4.0, 5.0, 6.0]);
+        }
+
+        #[test]
+        fn test_channels_mut_iter() {
+            let mut data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let mut buffer = AudioBuffer::try_with_data_and_settings(
+                &mut data,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            for channel in buffer.channels_mut() {
+                for sample in channel.iter_mut() {
+                    *sample *= 2.0;
+                }
+            }
+
+            assert_eq!(data, vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0]);
+        }
+    }
 }
