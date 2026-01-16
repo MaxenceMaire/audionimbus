@@ -125,6 +125,7 @@ mod tests {
         let model = AirAbsorptionModel::default();
 
         // TODO: remove `unsafe` once Steam Audio's `iplAirAbsorptionCalculate` segfault is fixed.
+        // See issue: https://github.com/ValveSoftware/steam-audio/issues/519
         let absorption = unsafe { air_absorption(&context, source, listener, &model) };
 
         // All bands should have some absorption (< 1.0) at 10m.
@@ -143,6 +144,7 @@ mod tests {
         };
 
         // TODO: remove `unsafe` once Steam Audio's `iplAirAbsorptionCalculate` segfault is fixed.
+        // See issue: https://github.com/ValveSoftware/steam-audio/issues/519
         let absorption = unsafe { air_absorption(&context, source, listener, &model) };
 
         // Higher frequencies should have more absorption.
@@ -158,6 +160,7 @@ mod tests {
         let model = AirAbsorptionModel::default();
 
         // TODO: remove `unsafe` once Steam Audio's `iplAirAbsorptionCalculate` segfault is fixed.
+        // See issue: https://github.com/ValveSoftware/steam-audio/issues/519
         let absorption = unsafe { air_absorption(&context, source, listener, &model) };
 
         // At zero distance, no absorption
@@ -168,6 +171,7 @@ mod tests {
 
     // BUG: Steam Audio's `iplAirAbsorptionCalculate` segfaults when using a callback.
     // TODO: uncomment test once the issue is fixed.
+    // See issue: https://github.com/ValveSoftware/steam-audio/issues/519
     /*
     #[test]
     fn test_callback_model() {
