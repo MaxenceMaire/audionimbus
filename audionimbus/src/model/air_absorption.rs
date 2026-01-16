@@ -87,24 +87,128 @@ impl From<&AirAbsorptionModel> for audionimbus_sys::IPLAirAbsorptionModel {
     }
 }
 
+/// # Safety
+/// This function segfaults when using the callback air absorption model.
+///
 /// Calculates the air absorption coefficients between a source and a listener.
-pub fn air_absorption(
+pub unsafe fn air_absorption(
     context: &Context,
-    source: &geometry::Point,
-    listener: &geometry::Point,
+    source: geometry::Point,
+    listener: geometry::Point,
     model: &AirAbsorptionModel,
 ) -> Equalizer<3> {
-    let mut air_absorption = [0.0; 3];
+    let mut air_absorption = Equalizer([0.0; 3]);
 
     unsafe {
         audionimbus_sys::iplAirAbsorptionCalculate(
             context.raw_ptr(),
-            (*source).into(),
-            (*listener).into(),
+            source.into(),
+            listener.into(),
             &mut model.into(),
-            air_absorption.as_mut_ptr(),
+            air_absorption.0.as_mut_ptr(),
         );
     }
 
-    Equalizer(air_absorption)
+    air_absorption
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Point;
+
+    #[test]
+    fn test_default_model() {
+        let context = Context::default();
+        let source = Point::new(10.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = AirAbsorptionModel::default();
+
+        // TODO: remove `unsafe` once Steam Audio's `iplAirAbsorptionCalculate` segfault is fixed.
+        let absorption = unsafe { air_absorption(&context, source, listener, &model) };
+
+        // All bands should have some absorption (< 1.0) at 10m.
+        for &band in &absorption.0 {
+            assert!(band > 0.0 && band < 1.0);
+        }
+    }
+
+    #[test]
+    fn test_exponential_model() {
+        let context = Context::default();
+        let source = Point::new(5.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = AirAbsorptionModel::Exponential {
+            coefficients: [0.01, 0.02, 0.03],
+        };
+
+        // TODO: remove `unsafe` once Steam Audio's `iplAirAbsorptionCalculate` segfault is fixed.
+        let absorption = unsafe { air_absorption(&context, source, listener, &model) };
+
+        // Higher frequencies should have more absorption.
+        assert!(absorption.0[2] <= absorption.0[1]);
+        assert!(absorption.0[1] <= absorption.0[0]);
+    }
+
+    #[test]
+    fn test_zero_distance() {
+        let context = Context::default();
+        let source = Point::new(0.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+        let model = AirAbsorptionModel::default();
+
+        // TODO: remove `unsafe` once Steam Audio's `iplAirAbsorptionCalculate` segfault is fixed.
+        let absorption = unsafe { air_absorption(&context, source, listener, &model) };
+
+        // At zero distance, no absorption
+        for &band in &absorption.0 {
+            assert_eq!(band, 1.0);
+        }
+    }
+
+    // BUG: Steam Audio's `iplAirAbsorptionCalculate` segfaults when using a callback.
+    // TODO: uncomment test once the issue is fixed.
+    /*
+    #[test]
+    fn test_callback_model() {
+
+        let context = Context::default();
+        let source = Point::new(10.0, 0.0, 0.0);
+        let listener = Point::new(0.0, 0.0, 0.0);
+
+        unsafe extern "C" fn custom_absorption(
+            distance: f32,
+            band: i32,
+            _user_data: *mut std::ffi::c_void,
+        ) -> f32 {
+            // More absorption in higher bands (band is 0, 1, or 2)
+            // At 10m distance, return different values for each band.
+            let absorption_per_meter = match band {
+                0 => 0.005, // Low frequency - less absorption
+                1 => 0.010, // Mid frequency
+                2 => 0.015, // High frequency - more absorption
+                _ => 0.01,
+            };
+            // Exponential decay
+            (-absorption_per_meter * distance).exp()
+        }
+
+        let model = AirAbsorptionModel::Callback {
+            callback: custom_absorption,
+            user_data: std::ptr::null_mut(),
+            dirty: false,
+        };
+
+        let absorption = air_absorption(&context, source, listener, &model);
+
+        // All values should be between 0 and 1.
+        for &band in &absorption.0 {
+            assert!(band > 0.0 && band <= 1.0);
+        }
+
+        // Higher bands should have more absorption (lower values).
+        assert!(absorption.0[2] < absorption.0[1]);
+        assert!(absorption.0[1] < absorption.0[0]);
+    }
+    */
 }

@@ -451,3 +451,44 @@ pub fn relative_direction(
 
     relative_direction.into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Vector3;
+
+    #[test]
+    fn test_default_scene() {
+        let context = Context::default();
+        let scene_settings = SceneSettings::default();
+        let scene_result = Scene::try_new(&context, &scene_settings);
+        assert!(scene_result.is_ok());
+    }
+
+    #[test]
+    fn test_relative_direction() {
+        let context = Context::default();
+
+        let source_position = Point::new(1.0, 0.0, 0.0);
+        let listener_position = Point::new(0.0, 0.0, 0.0);
+        let listener_ahead = Direction::new(0.0, 0.0, 1.0);
+        let listener_up = Direction::new(0.0, 1.0, 0.0);
+
+        let direction = relative_direction(
+            &context,
+            source_position,
+            listener_position,
+            listener_ahead,
+            listener_up,
+        );
+
+        assert_eq!(
+            direction,
+            Vector3 {
+                x: -1.0,
+                y: 0.0,
+                z: 0.0
+            }
+        );
+    }
+}

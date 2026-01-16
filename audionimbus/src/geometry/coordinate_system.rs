@@ -48,3 +48,22 @@ impl From<audionimbus_sys::IPLCoordinateSpace3> for CoordinateSystem {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_coordinate_system_default() {
+        let cs = CoordinateSystem::default();
+        assert_eq!(
+            cs,
+            CoordinateSystem {
+                right: Vector3::new(1.0, 0.0, 0.0),
+                up: Vector3::new(0.0, 1.0, 0.0),
+                ahead: Vector3::new(0.0, 0.0, 1.0),
+                origin: Vector3::new(0.0, 0.0, 0.0),
+            }
+        );
+    }
+}

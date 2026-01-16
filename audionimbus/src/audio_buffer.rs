@@ -601,6 +601,48 @@ impl std::fmt::Display for AudioBufferError {
 mod tests {
     use super::*;
 
+    mod try_new {
+        use super::*;
+
+        #[test]
+        #[should_panic(expected = "both audio buffers must have the same number of channels")]
+        fn test_mix_mismatched_channels() {
+            let context = Context::default();
+
+            let source = vec![0.5; 100];
+            let source_buffer = AudioBuffer::try_with_data(&source).unwrap();
+
+            let mut mix = vec![0.5; 200];
+            let mut mix_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut mix,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            mix_buffer.mix(&context, &source_buffer);
+        }
+
+        #[test]
+        #[should_panic(
+            expected = "both audio buffers must have the same number of samples per channel"
+        )]
+        fn test_downmix_mismatched_samples() {
+            let context = Context::default();
+
+            let input = vec![0.5; 200];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.5; 50];
+            let mut output_buffer = AudioBuffer::try_with_data(&mut output).unwrap();
+
+            output_buffer.downmix(&context, &input_buffer);
+        }
+    }
+
     mod try_with_data_and_settings {
         use super::*;
 
@@ -883,6 +925,118 @@ mod tests {
                 result,
                 Err(AudioBufferError::InvalidNumSamples { num_samples: 0 })
             ));
+        }
+    }
+
+    mod channels_iteration {
+        use super::*;
+
+        #[test]
+        fn test_channels_iter() {
+            let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let buffer = AudioBuffer::try_with_data_and_settings(
+                &data,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let channels: Vec<&[Sample]> = buffer.channels().collect();
+            assert_eq!(channels.len(), 2);
+            assert_eq!(channels[0], &[1.0, 2.0, 3.0]);
+            assert_eq!(channels[1], &[4.0, 5.0, 6.0]);
+        }
+
+        #[test]
+        fn test_channels_mut_iter() {
+            let mut data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let mut buffer = AudioBuffer::try_with_data_and_settings(
+                &mut data,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            for channel in buffer.channels_mut() {
+                for sample in channel.iter_mut() {
+                    *sample *= 2.0;
+                }
+            }
+
+            assert_eq!(data, vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0]);
+        }
+    }
+
+    mod audio_buffer_settings {
+        use super::*;
+
+        #[test]
+        fn test_with_num_channels() {
+            let settings = AudioBufferSettings::with_num_channels(4);
+            assert_eq!(settings.num_channels, Some(4));
+            assert_eq!(settings.num_samples, None);
+        }
+
+        #[test]
+        fn test_with_num_samples() {
+            let settings = AudioBufferSettings::with_num_samples(1024);
+            assert_eq!(settings.num_channels, None);
+            assert_eq!(settings.num_samples, Some(1024));
+        }
+
+        #[test]
+        fn test_with_num_channels_and_num_samples() {
+            let settings = AudioBufferSettings::with_num_channels_and_num_samples(2, 512);
+            assert_eq!(settings.num_channels, Some(2));
+            assert_eq!(settings.num_samples, Some(512));
+        }
+
+        #[test]
+        fn test_num_channels_and_samples_inference() {
+            let data = vec![0.0; 12];
+
+            // Infer both from data length
+            let settings = AudioBufferSettings::default();
+            let (channels, samples) = settings.num_channels_and_samples(&data).unwrap();
+            assert_eq!(channels, 1);
+            assert_eq!(samples, 12);
+
+            // Infer samples from channels
+            let settings = AudioBufferSettings::with_num_channels(3);
+            let (channels, samples) = settings.num_channels_and_samples(&data).unwrap();
+            assert_eq!(channels, 3);
+            assert_eq!(samples, 4);
+
+            // Infer channels from samples
+            let settings = AudioBufferSettings::with_num_samples(4);
+            let (channels, samples) = settings.num_channels_and_samples(&data).unwrap();
+            assert_eq!(channels, 3);
+            assert_eq!(samples, 4);
+        }
+    }
+
+    mod allocate_channel_ptrs_tests {
+        use super::*;
+
+        #[test]
+        fn test_allocate_channel_ptrs_valid() {
+            let data = vec![0.0; 12];
+            let settings = AudioBufferSettings::with_num_channels(3);
+            let ptrs = allocate_channel_ptrs(&data, settings).unwrap();
+
+            assert_eq!(ptrs.len(), 3);
+            assert!(ptrs.iter().all(|&ptr| ptr.is_null()));
+        }
+
+        #[test]
+        fn test_allocate_channel_ptrs_invalid() {
+            let data = vec![0.0; 10];
+            let settings = AudioBufferSettings {
+                num_channels: Some(3),
+                num_samples: Some(3),
+                ..Default::default()
+            };
+
+            let result = allocate_channel_ptrs(&data, settings);
+            assert!(result.is_err());
         }
     }
 }

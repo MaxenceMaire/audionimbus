@@ -34,6 +34,13 @@ impl Context {
     }
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        let settings = ContextSettings::default();
+        Self::try_new(&settings).expect("failed to create default context")
+    }
+}
+
 impl Clone for Context {
     fn clone(&self) -> Self {
         unsafe {
@@ -165,5 +172,30 @@ bitflags::bitflags! {
 impl From<ContextFlags> for audionimbus_sys::IPLContextFlags {
     fn from(context_flags: ContextFlags) -> Self {
         Self(context_flags.bits() as _)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_context_settings_simd_levels() {
+        let levels = [
+            SimdLevel::SSE2,
+            SimdLevel::SSE4,
+            SimdLevel::AVX,
+            SimdLevel::AVX2,
+            SimdLevel::AVX512,
+        ];
+
+        for level in levels {
+            let settings = ContextSettings {
+                simd_level: level,
+                ..Default::default()
+            };
+            let result = Context::try_new(&settings);
+            assert!(result.is_ok());
+        }
     }
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed HRTF loading from SOFA files where the filename string was being dropped before the FFI call completed, causing load failures.
+
+### Changed
+
+- Mark `air_absorption` function as `unsafe` since it calls `iplAirAbsorptionCalculate` which causes a segfault when using a callback.
+
+### Added
+
+- Implement `Default` trait for `Context` using default `ContextSettings`.
+- Derive `PartialEq` trait for `Matrix`, `Triangle`, `Sphere`.
+- Increase the test coverage.
+
+### Removed
+
+- Removed the `From<&HrtfSettings>` trait implementation for `audionimbus_sys::IPLHRTFSettings` in favor of the new `to_ffi` method on `HrtfSettings`, which allows the optional filename variable to be kept alive for FFI calls.
+
 ## [0.11.0] - 2026-01-14
 
 ### Changed

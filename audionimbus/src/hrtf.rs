@@ -17,11 +17,13 @@ impl Hrtf {
     ) -> Result<Self, SteamAudioError> {
         let mut hrtf = Self(std::ptr::null_mut());
 
+        let (mut settings_ffi, _filename_keeper) = hrtf_settings.to_ffi();
+
         let status = unsafe {
             audionimbus_sys::iplHRTFCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLHRTFSettings::from(hrtf_settings),
+                &mut settings_ffi,
                 hrtf.raw_ptr_mut(),
             )
         };
@@ -81,57 +83,66 @@ pub struct HrtfSettings {
     pub volume_normalization: VolumeNormalization,
 }
 
+impl HrtfSettings {
+    /// Converts the settings to the FFI representation.
+    ///
+    /// Returns a tuple of the FFI settings struct and an optional `CString` that must be kept
+    /// alive for the duration of any FFI calls using the returned settings. The `CString` contains
+    /// the SOFA filename path and is returned separately because Rust's ownership rules require
+    /// it to live as long as the C pointer in the FFI struct remains valid.
+    pub fn to_ffi(&self) -> (audionimbus_sys::IPLHRTFSettings, Option<std::ffi::CString>) {
+        let (type_, sofa_data, sofa_data_size, filename_cstring) =
+            if let Some(information) = &self.sofa_information {
+                match information {
+                    Sofa::Filename(filename) => {
+                        let cstring = std::ffi::CString::new(filename.clone()).unwrap();
+                        (
+                            audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
+                            std::ptr::null(),
+                            0,
+                            Some(cstring),
+                        )
+                    }
+                    Sofa::Buffer(buffer) => (
+                        audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
+                        buffer.as_ptr(),
+                        buffer.len() as i32,
+                        None,
+                    ),
+                }
+            } else {
+                (
+                    audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_DEFAULT,
+                    std::ptr::null(),
+                    0,
+                    None,
+                )
+            };
+
+        let sofa_filename = filename_cstring
+            .as_ref()
+            .map(|c| c.as_ptr())
+            .unwrap_or(std::ptr::null());
+
+        let settings = audionimbus_sys::IPLHRTFSettings {
+            type_,
+            sofaFileName: sofa_filename,
+            sofaData: sofa_data,
+            sofaDataSize: sofa_data_size,
+            volume: self.volume,
+            normType: self.volume_normalization.into(),
+        };
+
+        (settings, filename_cstring)
+    }
+}
+
 impl Default for HrtfSettings {
     fn default() -> Self {
         Self {
             volume: 1.0,
             sofa_information: None,
             volume_normalization: VolumeNormalization::None,
-        }
-    }
-}
-
-impl From<&HrtfSettings> for audionimbus_sys::IPLHRTFSettings {
-    fn from(settings: &HrtfSettings) -> Self {
-        let (type_, sofa_filename, sofa_data, sofa_data_size): (
-            audionimbus_sys::IPLHRTFType,
-            *const std::os::raw::c_char,
-            *const u8,
-            _,
-        ) = if let Some(information) = &settings.sofa_information {
-            match information {
-                Sofa::Filename(filename) => {
-                    let c_string = std::ffi::CString::new(filename.clone()).unwrap();
-                    (
-                        audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
-                        c_string.as_ptr() as *const std::os::raw::c_char,
-                        std::ptr::null(),
-                        0,
-                    )
-                }
-                Sofa::Buffer(buffer) => (
-                    audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
-                    std::ptr::null(),
-                    buffer.as_ptr(),
-                    buffer.len() as i32,
-                ),
-            }
-        } else {
-            (
-                audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_DEFAULT,
-                std::ptr::null(),
-                std::ptr::null(),
-                0,
-            )
-        };
-
-        Self {
-            type_,
-            sofaFileName: sofa_filename,
-            sofaData: sofa_data,
-            sofaDataSize: sofa_data_size,
-            volume: settings.volume,
-            normType: settings.volume_normalization.into(),
         }
     }
 }
@@ -196,5 +207,19 @@ impl From<HrtfInterpolation> for audionimbus_sys::IPLHRTFInterpolation {
                 audionimbus_sys::IPLHRTFInterpolation::IPL_HRTFINTERPOLATION_BILINEAR
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_new_hrtf_default() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let hrtf_settings = HrtfSettings::default();
+        let hrtf_result = Hrtf::try_new(&context, &audio_settings, &hrtf_settings);
+        assert!(hrtf_result.is_ok());
     }
 }
