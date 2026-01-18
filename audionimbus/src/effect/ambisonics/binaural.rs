@@ -10,6 +10,45 @@ use crate::ChannelPointers;
 /// Renders ambisonic audio using HRTF-based binaural rendering.
 ///
 /// This results in more immersive spatialization of the ambisonic audio as compared to using an ambisonics binaural effect, at the cost of slightly increased CPU usage.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
+///
+/// let mut effect = AmbisonicsBinauralEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &AmbisonicsBinauralEffectSettings {
+///         hrtf: &hrtf,
+///         max_order: 1,
+///     }
+/// )?;
+///
+/// let params = AmbisonicsBinauralEffectParams {
+///     hrtf: &hrtf,
+///     order: 1,
+/// };
+///
+/// const FRAME_SIZE: usize = 1024;
+/// let input = vec![0.5; 4 * FRAME_SIZE]; // 4 channels
+/// let input_buffer = AudioBuffer::try_with_data_and_settings(
+///     &input,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+/// let mut output = vec![0.0; 2 * FRAME_SIZE]; // Stereo
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(2)
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct AmbisonicsBinauralEffect(audionimbus_sys::IPLAmbisonicsBinauralEffect);
 
