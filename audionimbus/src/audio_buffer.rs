@@ -338,10 +338,10 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     /// # Errors
     ///
     /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::InvalidNumSamples`] if the number of samples is 0 or the data length is not divisible by the number of samples.
+    /// - [`AudioBufferError::InvalidNumChannels`] if number of channels is 0 or the data length is not divisible by the number of channels.
     /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to `num_channels`.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to the number of channels.
     pub fn try_borrowed_with_data(
         data: T,
         null_channel_ptrs: &'a mut [*mut Sample],
@@ -358,11 +358,11 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     ///
     /// # Errors
     ///
-    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::EmptyData`] if `data` is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if the number of samples is 0 or the data length is not divisible by the number of samples.
+    /// - [`AudioBufferError::InvalidNumChannels`] if number of channels is 0 or the data length is not divisible by the number of channels.
     /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to `num_channels`.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to the number of channels.
     pub fn try_borrowed_with_data_and_settings(
         data: T,
         null_channel_ptrs: &'a mut [*mut Sample],
@@ -411,6 +411,15 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
 }
 
 impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
+    /// Constructs an `AudioBuffer` from channel data `channels` and null channel pointers to be
+    /// initialized.
+    /// The `null_channel_ptrs` argument will be filled with actual channel pointers.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::InvalidNumSamples`] if `channels` is empty.
+    /// - [`AudioBufferError::InvalidNumChannels`] if channels contain no samples.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to the length of `channels`.
     pub fn try_from_slices(
         channels: &[&'a [Sample]],
         null_channel_ptrs: &'a mut [*mut Sample],
