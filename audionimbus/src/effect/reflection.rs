@@ -15,11 +15,97 @@ use crate::simulation::BakedDataIdentifier;
 use crate::ChannelPointers;
 
 #[cfg(doc)]
-use crate::simulation::BakedDataVariation;
+use super::AmbisonicsDecodeEffect;
+#[cfg(doc)]
+use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source};
 
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
-/// The result is encoded in ambisonics, and can be decoded using an ambisonics decode effect.
+/// The result is encoded in ambisonics, and can be decoded using an ambisonics decode effect ([`AmbisonicsDecodeEffect`]).
+///
+/// # Examples
+///
+/// Applying reflections involves:
+/// 1. Setting up a [`Simulator`] with a [`Scene`]
+/// 2. Adding [`Source`]s to the scene (don't forget to commit the changes using [`Simulator::commit`]!)
+/// 3. Running the simulation ([`Simulator::run_reflections`]) and retrieving the output for the source ([`Source::get_outputs`])
+/// 4. Applying the reflection effect to the audio buffer using the simulation output ([`SimulationOutputs::reflections`]) as params
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+///
+/// const SAMPLING_RATE: u32 = 48_000;
+/// const FRAME_SIZE: u32 = 1024;
+/// let audio_settings = AudioSettings {
+///     sampling_rate: SAMPLING_RATE,
+///     frame_size: FRAME_SIZE
+/// };
+///
+/// // Create a simulator with reflections.
+/// let mut simulator = Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, 1)
+///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///         max_num_rays: 4096,
+///         num_diffuse_samples: 32,
+///         max_duration: 2.0,
+///         max_num_sources: 8,
+///         num_threads: 2,
+///     })
+///     .try_build(&context)?;
+///
+/// let scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// simulator.set_scene(&scene);
+///
+/// let mut source = Source::try_new(&simulator, &SourceSettings {
+///     flags: SimulationFlags::REFLECTIONS,
+/// })?;
+///
+/// source.set_inputs(SimulationFlags::REFLECTIONS, SimulationInputs {
+///     source: CoordinateSystem::default(),
+///     direct_simulation: None,
+///     reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+///         baked_data_identifier: None,
+///     }),
+///     pathing_simulation: None,
+/// });
+///
+/// simulator.add_source(&source);
+/// simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &SimulationSharedInputs {
+///     listener: CoordinateSystem::default(),
+///     num_rays: 4096,
+///     num_bounces: 16,
+///     duration: 2.0,
+///     order: 1,
+///     irradiance_min_distance: 1.0,
+///     pathing_visualization_callback: None,
+/// });
+/// simulator.commit();
+///
+/// simulator.run_reflections();
+/// let outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+///
+/// let mut effect = ReflectionEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &ReflectionEffectSettings::Convolution {
+///         impulse_response_size: 2 * SAMPLING_RATE, // 2 seconds
+///         num_channels: 4, // 1st order ambisonics
+///     }
+/// )?;
+///
+/// let input = vec![0.5; FRAME_SIZE as usize];
+/// let mut output = vec![0.0; 4 * FRAME_SIZE as usize]; // 4 channels
+/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+///
+/// let params = outputs.reflections();
+/// effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct ReflectionEffect(audionimbus_sys::IPLReflectionEffect);
 
