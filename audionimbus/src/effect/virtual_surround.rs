@@ -16,6 +16,42 @@ use crate::{ChannelPointers, Hrtf};
 /// All sources can be panned to some surround format (say, 7.1).
 /// After the sources are mixed, the mix can be rendered using virtual surround.
 /// This can reduce CPU usage, at the cost of spatialization accuracy.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
+///
+/// let mut effect = VirtualSurroundEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &VirtualSurroundEffectSettings {
+///         speaker_layout: SpeakerLayout::Surround7_1,
+///         hrtf: &hrtf,
+///     }
+/// )?;
+///
+/// let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+///
+/// const FRAME_SIZE: usize = 1024;
+/// let input = vec![0.5; 8 * FRAME_SIZE]; // 8 channels
+/// let mut output = vec![0.0; 2 * FRAME_SIZE]; // Stereo output
+/// let input_buffer = AudioBuffer::try_with_data_and_settings(
+///     &input,
+///     AudioBufferSettings::with_num_channels(8)
+/// )?;
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(2)
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct VirtualSurroundEffect(audionimbus_sys::IPLVirtualSurroundEffect);
 
