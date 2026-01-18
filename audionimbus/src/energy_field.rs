@@ -18,6 +18,11 @@ use crate::NUM_BANDS;
 pub struct EnergyField(pub(crate) audionimbus_sys::IPLEnergyField);
 
 impl EnergyField {
+    /// Creates a new energy field.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         context: &Context,
         energy_field_settings: &EnergyFieldSettings,
@@ -135,10 +140,16 @@ impl EnergyField {
         unsafe { audionimbus_sys::iplEnergyFieldScale(self.raw_ptr(), scalar, self.raw_ptr()) }
     }
 
+    /// Returns the raw FFI pointer to the underlying energy field.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLEnergyField {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLEnergyField {
         &mut self.0
     }
