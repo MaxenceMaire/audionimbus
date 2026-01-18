@@ -243,10 +243,16 @@ impl<D, R, P> Simulator<D, R, P> {
         }
     }
 
+    /// Returns the raw FFI pointer to the underlying simulator.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
         self.inner
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSimulator {
         &mut self.inner
     }
@@ -644,6 +650,11 @@ impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
 pub struct Source(audionimbus_sys::IPLSource);
 
 impl Source {
+    /// Creates a new source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new<D, R, P>(
         simulator: &Simulator<D, R, P>,
         source_settings: &SourceSettings,
@@ -700,10 +711,16 @@ impl Source {
         simulation_outputs
     }
 
+    /// Returns the raw FFI pointer to the underlying source.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLSource {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSource {
         &mut self.0
     }
