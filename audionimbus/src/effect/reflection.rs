@@ -95,15 +95,15 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// )?;
 ///
 /// let input = vec![0.5; FRAME_SIZE as usize];
-/// let mut output = vec![0.0; 4 * FRAME_SIZE as usize]; // 4 channels
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let mut output = vec![0.0; 4 * FRAME_SIZE as usize]; // 4 channels
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
 ///     AudioBufferSettings::with_num_channels(4)
 /// )?;
 ///
 /// let params = outputs.reflections();
-/// effect.apply(&params, &input_buffer, &output_buffer);
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]

@@ -12,9 +12,161 @@ use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
 use crate::ChannelPointers;
 
+#[cfg(doc)]
+use crate::simulation::{SimulationOutputs, Simulator, Source};
+
 /// Applies the result of simulating sound paths from the source to the listener.
 ///
 /// Multiple paths that sound can take as it propagates from the source to the listener are combined into an Ambisonic sound field.
+///
+/// # Examples
+///
+/// Applying pathing involves:
+/// 1. Baking path data between probes using [`bake_path`]
+/// 2. Setting up a [`Simulator`] with a [`Scene`] and [`ProbeBatch`]
+/// 3. Adding [`Source`]s with pathing enabled (don't forget to commit using [`Simulator::commit`]!)
+/// 4. Running the simulation ([`Simulator::run_pathing`]) and retrieving the output for the source ([`Source::get_outputs`])
+/// 5. Applying the path effect using the simulation output ([`SimulationOutputs::pathing`]) as params
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+///
+/// const SAMPLING_RATE: u32 = 48_000;
+/// const FRAME_SIZE: u32 = 1024;
+/// const MAX_ORDER: u32 = 1;
+///
+/// let mut simulator =
+///     Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+///         .with_pathing(PathingSimulationSettings {
+///             num_visibility_samples: 4,
+///         })
+///         .try_build(&context)?;
+///
+/// let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// let vertices = vec![
+///     Point::new(-50.0, 0.0, -50.0),
+///     Point::new(50.0, 0.0, -50.0),
+///     Point::new(50.0, 0.0, 50.0),
+///     Point::new(-50.0, 0.0, 50.0),
+/// ];
+/// let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
+/// let materials = vec![Material::default()];
+/// let material_indices = vec![0, 0];
+/// let static_mesh = StaticMesh::try_new(
+///     &scene,
+///     &StaticMeshSettings {
+///         vertices: &vertices,
+///         triangles: &triangles,
+///         material_indices: &material_indices,
+///         materials: &materials,
+///     },
+/// )?;
+/// scene.add_static_mesh(static_mesh);
+/// scene.commit();
+/// simulator.set_scene(&scene);
+///
+/// let identifier = BakedDataIdentifier::Pathing {
+///     variation: BakedDataVariation::Dynamic,
+/// };
+///
+/// let mut probe_array = ProbeArray::try_new(&context)?;
+/// let box_transform = Matrix::new([
+///     [100.0, 0.0, 0.0, 0.0],
+///     [0.0, 100.0, 0.0, 0.0],
+///     [0.0, 0.0, 100.0, 0.0],
+///     [0.0, 0.0, 0.0, 1.0],
+/// ]);
+/// probe_array.generate_probes(
+///     &scene,
+///     &ProbeGenerationParams::UniformFloor {
+///         spacing: 2.0,
+///         height: 1.5,
+///         transform: box_transform,
+///     },
+/// );
+///
+/// let mut probe_batch = ProbeBatch::try_new(&context)?;
+/// probe_batch.add_probe_array(&probe_array);
+/// probe_batch.commit();
+/// simulator.add_probe_batch(&probe_batch);
+///
+/// let path_bake_params = PathBakeParams {
+///     scene: &scene,
+///     probe_batch: &probe_batch,
+///     identifier: &identifier,
+///     num_samples: 1, // Trace a single ray to test if one probe can see another probe.
+///     visibility_range: 50.0, // Don't check visibility between probes that are > 50m apart.
+///     path_range: 100.0, // Don't store paths between probes that are > 100m apart.
+///     num_threads: 8,
+///     radius: 1.0,
+///     threshold: 0.5,
+/// };
+/// bake_path(&context, &path_bake_params, None);
+///
+/// let source_settings = SourceSettings {
+///     flags: SimulationFlags::PATHING,
+/// };
+/// let mut source = Source::try_new(&simulator, &source_settings)?;
+/// let simulation_inputs = SimulationInputs {
+///     source: CoordinateSystem::default(),
+///     direct_simulation: Some(DirectSimulationParameters {
+///         distance_attenuation: Some(DistanceAttenuationModel::default()),
+///         air_absorption: Some(AirAbsorptionModel::default()),
+///         directivity: Some(Directivity::default()),
+///         occlusion: Some(Occlusion {
+///             transmission: Some(TransmissionParameters {
+///                 num_transmission_rays: 1,
+///             }),
+///             algorithm: OcclusionAlgorithm::Raycast,
+///         }),
+///     }),
+///     reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+///         baked_data_identifier: None,
+///     }),
+///     pathing_simulation: Some(PathingSimulationParameters {
+///         pathing_probes: &probe_batch,
+///         visibility_radius: 1.0,
+///         visibility_threshold: 10.0,
+///         visibility_range: 10.0,
+///         pathing_order: 1,
+///         enable_validation: true,
+///         find_alternate_paths: true,
+///         deviation: DeviationModel::default(),
+///     }),
+/// };
+/// source.set_inputs(SimulationFlags::PATHING, simulation_inputs);
+/// simulator.add_source(&source);
+///
+/// simulator.commit();
+/// simulator.run_pathing();
+///
+/// let audio_settings = AudioSettings::default();
+/// let path_effect_settings = PathEffectSettings {
+///     max_order: MAX_ORDER,
+///     spatialization: None,
+/// };
+/// let mut path_effect = PathEffect::try_new(&context, &audio_settings, &path_effect_settings)?;
+///
+/// let input = vec![0.5; FRAME_SIZE as usize];
+/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+///
+/// // Must have 4 channels (1st order Ambisonics) for this example.
+/// let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output_container,
+///     AudioBufferSettings::with_num_channels(4),
+/// )?;
+///
+/// let simulation_outputs = source.get_outputs(SimulationFlags::PATHING);
+/// let path_effect_params = simulation_outputs.pathing();
+/// let _ = path_effect.apply(&path_effect_params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+
+// FIXME: fix segfault in example above.
+
 #[derive(Debug)]
 pub struct PathEffect(audionimbus_sys::IPLPathEffect);
 
