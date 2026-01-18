@@ -20,6 +20,11 @@ pub struct Scene {
 }
 
 impl Scene {
+    /// Creates a new scene.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context, settings: &SceneSettings) -> Result<Self, SteamAudioError> {
         let mut scene = Self {
             inner: std::ptr::null_mut(),
@@ -209,10 +214,16 @@ impl Scene {
         unsafe { audionimbus_sys::iplSceneSaveOBJ(self.raw_ptr(), filename_c_string.as_ptr()) }
     }
 
+    /// Returns the raw FFI pointer to the underlying scene.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLScene {
         self.inner
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLScene {
         &mut self.inner
     }

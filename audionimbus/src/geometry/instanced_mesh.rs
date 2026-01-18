@@ -11,6 +11,11 @@ use crate::error::{to_option_error, SteamAudioError};
 pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
 
 impl InstancedMesh {
+    /// Creates a new instanced mesh.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         scene: &Scene,
         settings: InstancedMeshSettings,
@@ -52,10 +57,16 @@ impl InstancedMesh {
         }
     }
 
+    /// Returns the raw FFI pointer to the underlying instanced mesh.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLInstancedMesh {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLInstancedMesh {
         &mut self.0
     }

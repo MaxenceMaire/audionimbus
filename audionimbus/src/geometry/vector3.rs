@@ -15,6 +15,7 @@ pub struct Vector3 {
 }
 
 impl Vector3 {
+    /// Creates a new 3D vector given `x`, `y` and `z` components.
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
     }

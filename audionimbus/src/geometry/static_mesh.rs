@@ -14,6 +14,11 @@ use crate::SceneSettings;
 pub struct StaticMesh(audionimbus_sys::IPLStaticMesh);
 
 impl StaticMesh {
+    /// Creates a new static mesh.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(scene: &Scene, settings: &StaticMeshSettings) -> Result<Self, SteamAudioError> {
         let mut static_mesh = Self(std::ptr::null_mut());
 
@@ -66,10 +71,16 @@ impl StaticMesh {
         Ok(static_mesh)
     }
 
+    /// Returns the raw FFI pointer to the underlying static mesh.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLStaticMesh {
         &mut self.0
     }
