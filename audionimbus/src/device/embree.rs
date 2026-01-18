@@ -8,7 +8,12 @@ use crate::error::{to_option_error, SteamAudioError};
 pub struct EmbreeDevice(audionimbus_sys::IPLEmbreeDevice);
 
 impl EmbreeDevice {
-    pub fn new(context: &Context) -> Result<Self, SteamAudioError> {
+    /// Creates a new Embree device for ray tracing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if device creation fails.
+    pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let mut embree_device = Self(std::ptr::null_mut());
 
         let embree_device_settings: *mut audionimbus_sys::IPLEmbreeDeviceSettings =
@@ -29,14 +34,21 @@ impl EmbreeDevice {
         Ok(embree_device)
     }
 
-    pub fn null() -> Self {
+    /// Creates a null Embree device.
+    pub(crate) fn null() -> Self {
         Self(std::ptr::null_mut())
     }
 
+    /// Returns the raw FFI pointer to the underlying Embree device.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLEmbreeDevice {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLEmbreeDevice {
         &mut self.0
     }

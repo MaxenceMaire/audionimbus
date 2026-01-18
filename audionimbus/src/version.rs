@@ -1,3 +1,5 @@
+//! Steam Audio version information.
+
 pub const STEAMAUDIO_VERSION: usize = audionimbus_sys::STEAMAUDIO_VERSION as usize;
 pub const STEAMAUDIO_VERSION_MAJOR: usize = audionimbus_sys::STEAMAUDIO_VERSION_MAJOR as usize;
 pub const STEAMAUDIO_VERSION_MINOR: usize = audionimbus_sys::STEAMAUDIO_VERSION_MINOR as usize;

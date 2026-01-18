@@ -1,3 +1,5 @@
+//! Global audio signal processing settings.
+
 /// Global settings for audio signal processing.
 #[derive(Debug, Copy, Clone)]
 pub struct AudioSettings {

@@ -1,3 +1,5 @@
+//! Impulse responses and related operations.
+
 use crate::audio_buffer::Sample;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
@@ -11,6 +13,11 @@ use crate::error::{to_option_error, SteamAudioError};
 pub struct ImpulseResponse(audionimbus_sys::IPLImpulseResponse);
 
 impl ImpulseResponse {
+    /// Creates a new impulse response.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         context: &Context,
         impulse_response_settings: &ImpulseResponseSettings,
@@ -104,10 +111,16 @@ impl ImpulseResponse {
         unsafe { audionimbus_sys::iplImpulseResponseScale(self.raw_ptr(), scalar, self.raw_ptr()) }
     }
 
+    /// Returns the raw FFI pointer to the underlying impulse response.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLImpulseResponse {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLImpulseResponse {
         &mut self.0
     }

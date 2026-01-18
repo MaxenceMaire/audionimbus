@@ -1,3 +1,5 @@
+//! Callback types.
+
 /// A callback function along with associated user data.
 #[derive(Debug)]
 pub struct CallbackInformation<T> {

@@ -13,6 +13,7 @@ pub struct Triangle {
 }
 
 impl Triangle {
+    /// Creates a new triangle.
     pub fn new(vertex_index_0: i32, vertex_index_1: i32, vertex_index_2: i32) -> Self {
         Self {
             indices: [vertex_index_0, vertex_index_1, vertex_index_2],

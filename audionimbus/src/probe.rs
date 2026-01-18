@@ -1,3 +1,5 @@
+//! Sound probe generation and storage.
+
 use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};
@@ -12,6 +14,11 @@ use crate::simulation::BakedDataIdentifier;
 pub struct ProbeArray(audionimbus_sys::IPLProbeArray);
 
 impl ProbeArray {
+    /// Creates a new probe array.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let mut probe_array = Self(std::ptr::null_mut());
 
@@ -52,10 +59,16 @@ impl ProbeArray {
         Sphere::from(ipl_sphere)
     }
 
+    /// Returns the raw FFI pointer to the underlying probe array.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeArray {
         &mut self.0
     }
@@ -144,6 +157,11 @@ impl From<ProbeGenerationParams> for audionimbus_sys::IPLProbeGenerationParams {
 pub struct ProbeBatch(audionimbus_sys::IPLProbeBatch);
 
 impl ProbeBatch {
+    /// Creates a new probe batch.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let mut probe_batch = Self(std::ptr::null_mut());
 
@@ -284,10 +302,16 @@ impl ProbeBatch {
         Ok(probe_batch)
     }
 
+    /// Returns the raw FFI pointer to the underlying probe batch.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeBatch {
         &mut self.0
     }

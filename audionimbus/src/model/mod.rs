@@ -1,3 +1,5 @@
+//! Acoustic models (air absorption, deviation, directivity, distance attenuation).
+
 pub mod distance_attenuation;
 pub use distance_attenuation::*;
 

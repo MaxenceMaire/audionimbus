@@ -8,10 +8,46 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::ChannelPointers;
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
+///
+/// let mut effect = DirectEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &DirectEffectSettings { num_channels: 1 }
+/// )?;
+///
+/// let params = DirectEffectParams {
+///     distance_attenuation: Some(0.6),
+///     air_absorption: Some(Equalizer([0.9, 0.7, 0.5])),
+///     directivity: Some(0.7),
+///     occlusion: Some(0.4),
+///     transmission: None,
+/// };
+///
+/// let input_buffer = AudioBuffer::try_with_data([1.0; 1024])?;
+/// let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
+/// let mut output_buffer = AudioBuffer::try_with_data(&mut output_container)?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct DirectEffect(audionimbus_sys::IPLDirectEffect);
 
 impl DirectEffect {
+    /// Creates a new direct effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -86,10 +122,16 @@ impl DirectEffect {
         unsafe { audionimbus_sys::iplDirectEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying direct effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLDirectEffect {
         &mut self.0
     }

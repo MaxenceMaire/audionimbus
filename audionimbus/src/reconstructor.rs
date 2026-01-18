@@ -1,3 +1,5 @@
+//! Reconstruction of impulse responses from simulation data.
+
 use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};
@@ -16,6 +18,11 @@ pub struct Reconstructor {
 }
 
 impl Reconstructor {
+    /// Creates a new reconstructor.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         context: &Context,
         reconstructor_settings: &ReconstructorSettings,
@@ -76,10 +83,16 @@ impl Reconstructor {
         }
     }
 
+    /// Returns the raw FFI pointer to the underlying reconstructor.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReconstructor {
         self.inner
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReconstructor {
         &mut self.inner
     }

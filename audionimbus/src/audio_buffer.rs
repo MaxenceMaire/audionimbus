@@ -1,3 +1,5 @@
+//! Types and utilities for working with audio buffers.
+
 use crate::context::Context;
 use crate::effect::ambisonics::AmbisonicsType;
 use crate::ffi_wrapper::FFIWrapper;
@@ -25,6 +27,24 @@ where
 /// The generic parameter `T` is used to ensure that these pointers remain valid for the lifetime of the underlying data.
 /// The generic parameter `P` allows for different storage backends (owned Vec or borrowed slice of
 /// channel pointers).
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::{AudioBuffer, AudioBufferSettings};
+///
+/// // Mono buffer
+/// let samples = vec![0.0; 1024];
+/// let buffer = AudioBuffer::try_with_data(&samples)?;
+///
+/// // Stereo buffer
+/// let stereo_samples = vec![0.0; 2048];
+/// let buffer = AudioBuffer::try_with_data_and_settings(
+///     &stereo_samples,
+///     AudioBufferSettings::with_num_channels(2)
+/// )?;
+/// # Ok::<(), audionimbus::AudioBufferError>(())
+/// ```
 #[derive(Debug)]
 pub struct AudioBuffer<T, P: ChannelPointers = Vec<*mut Sample>> {
     /// Number of samples per channel.
@@ -318,10 +338,10 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     /// # Errors
     ///
     /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::InvalidNumSamples`] if the number of samples is 0 or the data length is not divisible by the number of samples.
+    /// - [`AudioBufferError::InvalidNumChannels`] if the number of channels is 0 or the data length is not divisible by the number of channels.
     /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to `num_channels`.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to the number of channels.
     pub fn try_borrowed_with_data(
         data: T,
         null_channel_ptrs: &'a mut [*mut Sample],
@@ -338,11 +358,11 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
     ///
     /// # Errors
     ///
-    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
-    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
-    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::EmptyData`] if `data` is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if the number of samples is 0 or the data length is not divisible by the number of samples.
+    /// - [`AudioBufferError::InvalidNumChannels`] if the number of channels is 0 or the data length is not divisible by the number of channels.
     /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
-    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to `num_channels`.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to the number of channels.
     pub fn try_borrowed_with_data_and_settings(
         data: T,
         null_channel_ptrs: &'a mut [*mut Sample],
@@ -391,6 +411,15 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
 }
 
 impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
+    /// Constructs an `AudioBuffer` from channel data `channels` and null channel pointers to be
+    /// initialized.
+    /// The `null_channel_ptrs` argument will be filled with actual channel pointers.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::InvalidNumSamples`] if `channels` is empty.
+    /// - [`AudioBufferError::InvalidNumChannels`] if channels contain no samples.
+    /// - [`AudioBufferError::InvalidChannelPtrs`] if the length of `null_channel_ptrs` is not equal to the length of `channels`.
     pub fn try_from_slices(
         channels: &[&'a [Sample]],
         null_channel_ptrs: &'a mut [*mut Sample],
@@ -595,6 +624,28 @@ impl std::fmt::Display for AudioBufferError {
             }
         }
     }
+}
+
+/// Returns the number of channels required for a given ambisonics order.
+///
+/// The channel count is given by:
+///
+/// ```text
+/// (order + 1)²
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// # use audionimbus::*;
+/// const FOA: u32 = num_ambisonics_channels(1);
+/// assert_eq!(FOA, 4);
+///
+/// const HOA3: u32 = num_ambisonics_channels(3);
+/// assert_eq!(HOA3, 16);
+/// ```
+pub const fn num_ambisonics_channels(order: u32) -> u32 {
+    (order + 1) * (order + 1)
 }
 
 #[cfg(test)]

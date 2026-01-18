@@ -12,10 +12,57 @@ use crate::ChannelPointers;
 /// Applies a rotation to an ambisonics audio buffer, then decodes it using panning or binaural rendering.
 ///
 /// This is essentially an ambisonics rotate effect followed by either an ambisonics panning effect or an ambisonics binaural effect.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
+///
+/// let mut effect = AmbisonicsDecodeEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &AmbisonicsDecodeEffectSettings {
+///         speaker_layout: SpeakerLayout::Stereo,
+///         hrtf: &hrtf,
+///         max_order: 1,
+///     }
+/// )?;
+///
+/// let params = AmbisonicsDecodeEffectParams {
+///     order: 1,
+///     hrtf: &hrtf,
+///     orientation: CoordinateSystem::default(),
+///     binaural: true,
+/// };
+///
+/// const FRAME_SIZE: usize = 1024;
+/// let input = vec![0.5; 4 * FRAME_SIZE]; // 4 channels
+/// let input_buffer = AudioBuffer::try_with_data_and_settings(
+///     &input,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+/// let mut output = vec![0.0; 2 * FRAME_SIZE]; // Stereo
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(2)
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct AmbisonicsDecodeEffect(audionimbus_sys::IPLAmbisonicsDecodeEffect);
 
 impl AmbisonicsDecodeEffect {
+    /// Creates a new ambisonics decode effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -104,10 +151,16 @@ impl AmbisonicsDecodeEffect {
         unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying ambisonics decode effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsDecodeEffect {
         &mut self.0
     }

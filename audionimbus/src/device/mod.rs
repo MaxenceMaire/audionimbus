@@ -1,3 +1,5 @@
+//! Audio simulation compute devices and backends.
+
 pub mod open_cl;
 pub use open_cl::{OpenClDevice, OpenClDeviceList, OpenClDeviceSettings, OpenClDeviceType};
 

@@ -9,16 +9,21 @@
 ### Changed
 
 - Mark `air_absorption` function as `unsafe` since it calls `iplAirAbsorptionCalculate` which causes a segfault when using a callback.
+- Improved documentation and added examples.
+- Make `NUM_BANDS` constant private.
+- Rename the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` into `try_new` for consistency.
 
 ### Added
 
 - Implement `Default` trait for `Context` using default `ContextSettings`.
 - Derive `PartialEq` trait for `Matrix`, `Triangle`, `Sphere`.
 - Increase the test coverage.
+- Add `num_ambisonics_channels` const function to compute the number of channels reuqired given an ambisonics order.
 
 ### Removed
 
 - Removed the `From<&HrtfSettings>` trait implementation for `audionimbus_sys::IPLHRTFSettings` in favor of the new `to_ffi` method on `HrtfSettings`, which allows the optional filename variable to be kept alive for FFI calls.
+- Make the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` only public to the crate.
 
 ## [0.11.0] - 2026-01-14
 

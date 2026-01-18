@@ -10,7 +10,7 @@ It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindi
 
 To experience AudioNimbus in action, play the [interactive demo](https://github.com/MaxenceMaire/audionimbus-demo) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 
-`audionimbus` can also integrate with FMOD studio.
+`audionimbus` can also integrate with FMOD and Wwise.
 
 ## Version compatibility
 
@@ -171,7 +171,7 @@ This example demonstrates how to spatialize sound using the `audionimbus` librar
 use audionimbus::*;
 
 // Initialize the audio context.
-let context = Context::try_new(&ContextSettings::default()).unwrap();
+let context = Context::try_new(&ContextSettings::default())?;
 
 let audio_settings = AudioSettings {
     sampling_rate: 48000,
@@ -179,15 +179,14 @@ let audio_settings = AudioSettings {
 };
 
 // Set up HRTF for binaural rendering.
-let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
 
 // Create a binaural effect.
-let binaural_effect = BinauralEffect::try_new(
+let mut binaural_effect = BinauralEffect::try_new(
     &context,
     &audio_settings,
     &BinauralEffectSettings { hrtf: &hrtf },
-)
-.unwrap();
+)?;
 
 // Generate an input frame (in thise case, a single-channel sine wave).
 let input: Vec<Sample> = (0..audio_settings.frame_size)
@@ -197,20 +196,16 @@ let input: Vec<Sample> = (0..audio_settings.frame_size)
     })
     .collect();
 // Create an audio buffer over the input data.
-let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+let input_buffer = AudioBuffer::try_with_data(&input)?;
 
-let num_channels: usize = 2; // Stereo
+let num_channels: u32 = 2; // Stereo
 // Allocate memory to store processed samples.
-let mut output = vec![0.0; audio_settings.frame_size * num_channels];
+let mut output = vec![0.0; (audio_settings.frame_size * num_channels) as usize];
 // Create another audio buffer over the output container.
 let output_buffer = AudioBuffer::try_with_data_and_settings(
     &mut output,
-    &AudioBufferSettings {
-        num_channels: Some(num_channels),
-        ..Default::default()
-    },
-)
-.unwrap();
+    AudioBufferSettings::with_num_channels(num_channels),
+)?;
 
 // Apply a binaural audio effect.
 let binaural_effect_params = BinauralEffectParams {
@@ -238,7 +233,7 @@ To implement real-time audio processing and playback in your game, check out the
 
 For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 
-For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
+For additional examples, you can explore the [tests](./tests).
 
 ## Documentation
 

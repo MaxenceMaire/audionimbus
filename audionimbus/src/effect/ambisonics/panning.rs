@@ -10,10 +10,52 @@ use crate::ChannelPointers;
 /// Renders Ambisonic audio by panning it to a standard speaker layout.
 ///
 /// This involves calculating signals to emit from each speaker so as to approximate the Ambisonic sound field.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+///
+/// let mut effect = AmbisonicsPanningEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &AmbisonicsPanningEffectSettings {
+///         speaker_layout: SpeakerLayout::Surround5_1,
+///         max_order: 1,
+///     }
+/// )?;
+///
+/// let params = AmbisonicsPanningEffectParams {
+///     order: 1,
+/// };
+///
+/// const FRAME_SIZE: usize = 1024;
+/// let input = vec![0.5; 4 * FRAME_SIZE]; // 4 channels
+/// let input_buffer = AudioBuffer::try_with_data_and_settings(
+///     &input,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+/// let mut output = vec![0.0; 2 * FRAME_SIZE]; // Stereo
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(2)
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct AmbisonicsPanningEffect(audionimbus_sys::IPLAmbisonicsPanningEffect);
 
 impl AmbisonicsPanningEffect {
+    /// Creates a new ambisonics panning effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -102,10 +144,16 @@ impl AmbisonicsPanningEffect {
         unsafe { audionimbus_sys::iplAmbisonicsPanningEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying ambisonics panning effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsPanningEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsPanningEffect {
         &mut self.0
     }

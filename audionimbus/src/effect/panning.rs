@@ -9,10 +9,47 @@ use crate::geometry::Direction;
 use crate::ChannelPointers;
 
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+///
+/// let mut effect = PanningEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &PanningEffectSettings {
+///         speaker_layout: SpeakerLayout::Stereo,
+///     }
+/// )?;
+///
+/// let params = PanningEffectParams {
+///     direction: Direction::new(1.0, 0.0, 0.0), // Sound from the right
+/// };
+///
+/// let input = vec![0.5; 1024];
+/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let mut output = vec![0.0; 2 * input_buffer.num_samples() as usize];
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(2),
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct PanningEffect(audionimbus_sys::IPLPanningEffect);
 
 impl PanningEffect {
+    /// Creates a new panning effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -87,10 +124,16 @@ impl PanningEffect {
         unsafe { audionimbus_sys::iplPanningEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying panning effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLPanningEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPanningEffect {
         &mut self.0
     }
