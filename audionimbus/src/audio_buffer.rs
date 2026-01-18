@@ -1,3 +1,5 @@
+//! Types and utilities for working with audio buffers.
+
 use crate::context::Context;
 use crate::effect::ambisonics::AmbisonicsType;
 use crate::ffi_wrapper::FFIWrapper;

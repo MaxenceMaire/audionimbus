@@ -1,3 +1,5 @@
+//! Reconstruction of impulse responses from simulation data.
+
 use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};

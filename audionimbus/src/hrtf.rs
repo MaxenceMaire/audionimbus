@@ -1,3 +1,5 @@
+//! Head-Related Transfer Function (HRTF) for spatial audio rendering.
+
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};

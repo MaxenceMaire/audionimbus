@@ -1,3 +1,5 @@
+//! Spatial audio simulation (direct simulation, reflections, pathing).
+
 use crate::air_absorption::AirAbsorptionModel;
 use crate::callback::CallbackInformation;
 use crate::context::Context;

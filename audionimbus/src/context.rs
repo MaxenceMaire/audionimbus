@@ -1,3 +1,5 @@
+//! Global context management and configuration.
+
 use crate::error::{to_option_error, SteamAudioError};
 use crate::version::SteamAudioVersion;
 

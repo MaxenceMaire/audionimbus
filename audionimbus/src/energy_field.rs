@@ -1,3 +1,5 @@
+//! Types and utilities for working with energy fields.
+
 use crate::audio_buffer::Sample;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
