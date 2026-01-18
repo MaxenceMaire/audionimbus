@@ -8,7 +8,18 @@ use crate::error::{to_option_error, SteamAudioError};
 pub struct OpenClDevice(audionimbus_sys::IPLOpenCLDevice);
 
 impl OpenClDevice {
-    pub fn new(
+    /// Creates a new OpenCL device from a device list.
+    ///
+    /// # Arguments
+    ///
+    /// - `context`: The context used to initialize AudioNimbus.
+    /// - `device_list`: List of available OpenCL devices.
+    /// - `index`: Index of the device to create from the list.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if device creation fails.
+    pub fn try_new(
         context: &Context,
         device_list: &OpenClDeviceList,
         index: usize,
@@ -45,9 +56,9 @@ impl OpenClDevice {
     /// - `convolution_queue`: the command queue to use for enqueueing convolution work.
     /// - `ir_update_queue`: the command queue to use for enqueueing IR update work.
     ///
-    /// # Returns
+    /// # Errors
     ///
-    /// The created OpenCL device, or an error.
+    /// Returns [`SteamAudioError`] if device creation fails.
     pub unsafe fn from_existing(
         context: &Context,
         convolution_queue: *mut std::ffi::c_void,
@@ -71,14 +82,21 @@ impl OpenClDevice {
         Ok(open_cl_device)
     }
 
-    pub fn null() -> Self {
+    /// Creates a null OpenCL device.
+    pub(crate) fn null() -> Self {
         Self(std::ptr::null_mut())
     }
 
+    /// Returns the raw FFI pointer to the underlying OpenCL device.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDevice {
         &mut self.0
     }

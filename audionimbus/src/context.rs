@@ -27,6 +27,14 @@ use crate::version::SteamAudioVersion;
 pub struct Context(pub(crate) audionimbus_sys::IPLContext);
 
 impl Context {
+    /// Creates a new context with the given [`ContextSettings`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if context creation fails, typically due to:
+    /// - Incompatible API version
+    /// - Memory allocation failure
+    /// - External dependency initialization failure
     pub fn try_new(settings: &ContextSettings) -> Result<Self, SteamAudioError> {
         let mut context = Self(std::ptr::null_mut());
 
@@ -44,10 +52,22 @@ impl Context {
         Ok(context)
     }
 
+    /// Returns the raw FFI pointer to the underlying Steam Audio context.
+    ///
+    /// # Safety
+    ///
+    /// This is intended for internal use and advanced scenarios. The returned pointer
+    /// must not outlive the `Context` object.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLContext {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// # Safety
+    ///
+    /// This is intended for internal use and advanced scenarios. The returned pointer
+    /// must not outlive the `Context` object.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLContext {
         &mut self.0
     }
