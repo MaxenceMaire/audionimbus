@@ -107,6 +107,95 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// let _ = effect.apply(&params, &input_buffer, &output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
+///
+/// # Simulating Reverb
+///
+/// In addition to modeling reflections from sources, you can use this effect to simulate reverb
+/// by placing a source at the listener's position:
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// const SAMPLING_RATE: u32 = 48_000;
+/// const FRAME_SIZE: u32 = 1024;
+/// let audio_settings = AudioSettings { sampling_rate: SAMPLING_RATE, frame_size: FRAME_SIZE };
+///
+/// // Create simulator with reflections
+/// let mut simulator = Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, 1)
+///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///         max_num_rays: 2048,
+///         num_diffuse_samples: 32,
+///         max_duration: 2.0,
+///         max_num_sources: 8,
+///         num_threads: 2,
+///     })
+///     .try_build(&context)?;
+///
+/// let scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// simulator.set_scene(&scene);
+///
+/// // Create a reverb source positioned at the listener.
+/// let mut reverb_source = Source::try_new(&simulator, &SourceSettings {
+///     flags: SimulationFlags::REFLECTIONS,
+/// })?;
+///
+/// let listener_position = CoordinateSystem {
+///     origin: Vector3::new(0.0, 1.5, 0.0), // Listener at head height
+///     ..Default::default()
+/// };
+///
+/// // Set source position to match listener position.
+/// reverb_source.set_inputs(SimulationFlags::REFLECTIONS, SimulationInputs {
+///     source: listener_position, // Source at listener = reverb
+///     direct_simulation: None,
+///     reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+///         baked_data_identifier: None,
+///     }),
+///     pathing_simulation: None,
+/// });
+///
+/// simulator.add_source(&reverb_source);
+/// simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &SimulationSharedInputs {
+///     listener: listener_position,
+///     num_rays: 2048,
+///     num_bounces: 8,
+///     duration: 2.0,
+///     order: 1,
+///     irradiance_min_distance: 1.0,
+///     pathing_visualization_callback: None,
+/// });
+/// simulator.commit();
+///
+/// // Run simulation.
+/// simulator.run_reflections();
+/// let reverb_outputs = reverb_source.get_outputs(SimulationFlags::REFLECTIONS);
+/// let reverb_params = reverb_outputs.reflections();
+///
+/// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
+/// let mut reverb_effect = ReflectionEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &ReflectionEffectSettings::Convolution {
+///         impulse_response_size: 2 * SAMPLING_RATE,
+///         num_channels: NUM_CHANNELS,
+///     }
+/// )?;
+///
+/// let input = vec![0.5; FRAME_SIZE as usize];
+/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let mut reverb_output = vec![0.0; (NUM_CHANNELS * FRAME_SIZE) as usize];
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut reverb_output,
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS)
+/// )?;
+///
+/// let _ = reverb_effect.apply(&reverb_params, &input_buffer, &output_buffer);
+///
+/// // Mix with dry signal (e.g., 70% dry, 30% reverb)
+/// // Then decode the ambisonics output for final playback
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct ReflectionEffect(audionimbus_sys::IPLReflectionEffect);
 
