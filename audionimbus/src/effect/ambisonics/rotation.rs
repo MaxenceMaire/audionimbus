@@ -11,6 +11,44 @@ use crate::ChannelPointers;
 ///
 /// The input buffer is assumed to describe a sound field in "world space".
 /// The output buffer is then the same sound field, but expressed relative to the listener’s orientation.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
+///
+/// let mut effect = AmbisonicsRotationEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &AmbisonicsRotationEffectSettings {
+///         max_order: 1,
+///     }
+/// )?;
+///
+/// let params = AmbisonicsRotationEffectParams {
+///     orientation: CoordinateSystem::default(), // Identity orientation
+///     order: 1,
+/// };
+///
+/// const FRAME_SIZE: usize = 1024;
+/// let input = vec![0.5; 4 * FRAME_SIZE]; // 4 channels
+/// let input_buffer = AudioBuffer::try_with_data_and_settings(
+///     &input,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+/// let mut output = vec![0.0; 4 * FRAME_SIZE];
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct AmbisonicsRotationEffect(audionimbus_sys::IPLAmbisonicsRotationEffect);
 
