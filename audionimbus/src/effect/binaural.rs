@@ -39,10 +39,7 @@ use crate::ChannelPointers;
 /// let mut output_container = vec![0.0; 2 * input_buffer.num_samples() as usize];
 /// let mut output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output_container,
-///     AudioBufferSettings {
-///         num_channels: Some(2),
-///         ..Default::default()
-///     },
+///     AudioBufferSettings::with_num_channels(2),
 /// )?;
 ///
 /// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);

@@ -202,13 +202,9 @@ let num_channels: u32 = 2; // Stereo
 // Allocate memory to store processed samples.
 let mut output = vec![0.0; (audio_settings.frame_size * num_channels) as usize];
 // Create another audio buffer over the output container.
-let settings = AudioBufferSettings {
-    num_channels: Some(num_channels),
-    ..Default::default()
-};
 let output_buffer = AudioBuffer::try_with_data_and_settings(
     &mut output,
-    settings,
+    AudioBufferSettings::with_num_channels(num_channels),
 )?;
 
 // Apply a binaural audio effect.

@@ -34,13 +34,7 @@ use crate::ChannelPointers;
 ///
 /// let input_buffer = AudioBuffer::try_with_data([1.0; 1024])?;
 /// let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
-/// let mut output_buffer = AudioBuffer::try_with_data_and_settings(
-///     &mut output_container,
-///     AudioBufferSettings {
-///         num_channels: Some(1),
-///         ..Default::default()
-///     },
-/// )?;
+/// let mut output_buffer = AudioBuffer::try_with_data(&mut output_container)?;
 ///
 /// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())

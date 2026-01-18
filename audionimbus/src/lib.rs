@@ -200,13 +200,9 @@
 //! // Allocate memory to store processed samples.
 //! let mut output = vec![0.0; (audio_settings.frame_size * num_channels) as usize];
 //! // Create another audio buffer over the output container.
-//! let settings = AudioBufferSettings {
-//!     num_channels: Some(num_channels),
-//!     ..Default::default()
-//! };
 //! let output_buffer = AudioBuffer::try_with_data_and_settings(
 //!     &mut output,
-//!     settings,
+//!    AudioBufferSettings::with_num_channels(num_channels),
 //! )?;
 //!
 //! // Apply a binaural audio effect.
@@ -229,7 +225,7 @@
 //!
 //! // Note: most audio engines expect interleaved audio (alternating samples for each channel). If
 //! // required, use the `AudioBuffer::interleave` method to convert the format.
-//! //! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! To implement real-time audio processing and playback in your game, check out the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/demo) for a basic example.
