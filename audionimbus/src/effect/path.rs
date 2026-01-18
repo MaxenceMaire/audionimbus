@@ -153,10 +153,11 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
 ///
 /// // Must have 4 channels (1st order Ambisonics) for this example.
-/// let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
+/// const NUM_CHANNELS: u32 = num_ambisonics_channels(1);
+/// let mut output_container = vec![0.0; (NUM_CHANNELS * input_buffer.num_samples()) as usize];
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output_container,
-///     AudioBufferSettings::with_num_channels(4),
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
 /// )?;
 ///
 /// let simulation_outputs = source.get_outputs(SimulationFlags::PATHING);

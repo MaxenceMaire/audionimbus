@@ -17,6 +17,7 @@
 - Implement `Default` trait for `Context` using default `ContextSettings`.
 - Derive `PartialEq` trait for `Matrix`, `Triangle`, `Sphere`.
 - Increase the test coverage.
+- Add `num_ambisonics_channels` const function to compute the number of channels reuqired given an ambisonics order.
 
 ### Removed
 

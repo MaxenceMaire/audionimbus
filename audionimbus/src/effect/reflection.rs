@@ -85,21 +85,22 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// simulator.run_reflections();
 /// let outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 ///
+/// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
 /// let mut effect = ReflectionEffect::try_new(
 ///     &context,
 ///     &audio_settings,
 ///     &ReflectionEffectSettings::Convolution {
 ///         impulse_response_size: 2 * SAMPLING_RATE, // 2 seconds
-///         num_channels: 4, // 1st order ambisonics
+///         num_channels: NUM_CHANNELS,
 ///     }
 /// )?;
 ///
 /// let input = vec![0.5; FRAME_SIZE as usize];
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
-/// let mut output = vec![0.0; 4 * FRAME_SIZE as usize]; // 4 channels
+/// let mut output = vec![0.0; (NUM_CHANNELS * FRAME_SIZE) as usize]; // 4 channels
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
-///     AudioBufferSettings::with_num_channels(4)
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS)
 /// )?;
 ///
 /// let params = outputs.reflections();

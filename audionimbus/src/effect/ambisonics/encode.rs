@@ -34,10 +34,11 @@ use crate::ChannelPointers;
 /// const FRAME_SIZE: usize = 1024;
 /// let input = vec![0.5; FRAME_SIZE]; // Mono
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
-/// let mut output = vec![0.0; 4 * FRAME_SIZE]; // 4 channels (1st order)
+/// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 4 channels (1st order)
+/// let mut output = vec![0.0; NUM_CHANNELS as usize * FRAME_SIZE];
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
-///     AudioBufferSettings::with_num_channels(4)
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS)
 /// )?;
 ///
 /// let _ = effect.apply(&params, &input_buffer, &output_buffer);

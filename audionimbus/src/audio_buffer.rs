@@ -615,6 +615,28 @@ impl std::fmt::Display for AudioBufferError {
     }
 }
 
+/// Returns the number of channels required for a given ambisonics order.
+///
+/// The channel count is given by:
+///
+/// ```text
+/// (order + 1)²
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// # use audionimbus::*;
+/// const FOA: u32 = num_ambisonics_channels(1);
+/// assert_eq!(FOA, 4);
+///
+/// const HOA3: u32 = num_ambisonics_channels(3);
+/// assert_eq!(HOA3, 16);
+/// ```
+pub const fn num_ambisonics_channels(order: u32) -> u32 {
+    (order + 1) * (order + 1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
