@@ -248,7 +248,7 @@
 //! `audionimbus` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
 //! You may choose either license when using the software.
 
-pub const NUM_BANDS: u32 = 3;
+const NUM_BANDS: u32 = 3;
 
 pub mod audio_buffer;
 pub use audio_buffer::*;
