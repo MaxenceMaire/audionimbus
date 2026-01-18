@@ -12,6 +12,11 @@ use crate::error::{to_option_error, SteamAudioError};
 pub struct Hrtf(pub(crate) audionimbus_sys::IPLHRTF);
 
 impl Hrtf {
+    /// Creates a new Head-Related Transfer Function (HRTF).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -37,10 +42,16 @@ impl Hrtf {
         Ok(hrtf)
     }
 
+    /// Returns the raw FFI pointer to the underlying HRTF.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLHRTF {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLHRTF {
         &mut self.0
     }
