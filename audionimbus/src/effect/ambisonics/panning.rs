@@ -51,6 +51,11 @@ use crate::ChannelPointers;
 pub struct AmbisonicsPanningEffect(audionimbus_sys::IPLAmbisonicsPanningEffect);
 
 impl AmbisonicsPanningEffect {
+    /// Creates a new ambisonics panning effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -139,10 +144,16 @@ impl AmbisonicsPanningEffect {
         unsafe { audionimbus_sys::iplAmbisonicsPanningEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying ambisonics panning effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsPanningEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsPanningEffect {
         &mut self.0
     }

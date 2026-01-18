@@ -39,7 +39,6 @@ impl RadeonRaysDevice {
         Self(std::ptr::null_mut())
     }
 
-
     /// Returns the raw FFI pointer to the underlying Radeon Rays device.
     ///
     /// This is intended for internal use and advanced scenarios.

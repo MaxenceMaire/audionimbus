@@ -111,6 +111,11 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 pub struct ReflectionEffect(audionimbus_sys::IPLReflectionEffect);
 
 impl ReflectionEffect {
+    /// Creates a new reflection effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -259,10 +264,16 @@ impl ReflectionEffect {
         unsafe { audionimbus_sys::iplReflectionEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying reflection effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionEffect {
         &mut self.0
     }
@@ -811,6 +822,11 @@ impl From<audionimbus_sys::IPLReflectionEffectType> for ReflectionEffectType {
 pub struct ReflectionMixer(audionimbus_sys::IPLReflectionMixer);
 
 impl ReflectionMixer {
+    /// Creates a new reflection mixer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if mixer creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -858,10 +874,16 @@ impl ReflectionMixer {
         unsafe { audionimbus_sys::iplReflectionMixerReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying reflection mixer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionMixer {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionMixer {
         &mut self.0
     }

@@ -49,6 +49,11 @@ use crate::ChannelPointers;
 pub struct BinauralEffect(audionimbus_sys::IPLBinauralEffect);
 
 impl BinauralEffect {
+    /// Creates a new binaural effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -129,10 +134,16 @@ impl BinauralEffect {
         unsafe { audionimbus_sys::iplBinauralEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying binaural effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLBinauralEffect {
         &mut self.0
     }

@@ -45,6 +45,11 @@ use crate::ChannelPointers;
 pub struct PanningEffect(audionimbus_sys::IPLPanningEffect);
 
 impl PanningEffect {
+    /// Creates a new panning effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -119,10 +124,16 @@ impl PanningEffect {
         unsafe { audionimbus_sys::iplPanningEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying panning effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLPanningEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPanningEffect {
         &mut self.0
     }

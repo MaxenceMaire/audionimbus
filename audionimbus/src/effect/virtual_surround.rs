@@ -56,6 +56,11 @@ use crate::{ChannelPointers, Hrtf};
 pub struct VirtualSurroundEffect(audionimbus_sys::IPLVirtualSurroundEffect);
 
 impl VirtualSurroundEffect {
+    /// Creates a new virtual surround effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -141,10 +146,16 @@ impl VirtualSurroundEffect {
         unsafe { audionimbus_sys::iplVirtualSurroundEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying virtual surround effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLVirtualSurroundEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLVirtualSurroundEffect {
         &mut self.0
     }

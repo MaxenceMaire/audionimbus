@@ -172,6 +172,11 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 pub struct PathEffect(audionimbus_sys::IPLPathEffect);
 
 impl PathEffect {
+    /// Creates a new path effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if effect creation fails.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -246,10 +251,16 @@ impl PathEffect {
         unsafe { audionimbus_sys::iplPathEffectReset(self.raw_ptr()) };
     }
 
+    /// Returns the raw FFI pointer to the underlying path effect.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPathEffect {
         &mut self.0
     }

@@ -39,7 +39,6 @@ impl TrueAudioNextDevice {
         Self(std::ptr::null_mut())
     }
 
-
     /// Returns the raw FFI pointer to the underlying TrueAudio Next device.
     ///
     /// This is intended for internal use and advanced scenarios.
