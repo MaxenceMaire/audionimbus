@@ -4,6 +4,23 @@ use crate::version::SteamAudioVersion;
 /// A context object, which controls low-level operations of Steam Audio.
 ///
 /// Typically, a context is specified once during the execution of the client program, before calling any other API functions.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::{Context, ContextSettings, SimdLevel};
+///
+/// // Create with default settings.
+/// let context = Context::default();
+///
+/// // Or with custom settings.
+/// let settings = ContextSettings {
+///     simd_level: SimdLevel::AVX2,
+///     ..Default::default()
+/// };
+/// let context = Context::try_new(&settings)?;
+/// # Ok::<(), audionimbus::SteamAudioError>(())
+/// ```
 #[derive(Debug)]
 pub struct Context(pub(crate) audionimbus_sys::IPLContext);
 

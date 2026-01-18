@@ -25,6 +25,24 @@ where
 /// The generic parameter `T` is used to ensure that these pointers remain valid for the lifetime of the underlying data.
 /// The generic parameter `P` allows for different storage backends (owned Vec or borrowed slice of
 /// channel pointers).
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::{AudioBuffer, AudioBufferSettings};
+///
+/// // Mono buffer
+/// let samples = vec![0.0; 1024];
+/// let buffer = AudioBuffer::try_with_data(&samples)?;
+///
+/// // Stereo buffer
+/// let stereo_samples = vec![0.0; 2048];
+/// let buffer = AudioBuffer::try_with_data_and_settings(
+///     &stereo_samples,
+///     AudioBufferSettings::with_num_channels(2)
+/// )?;
+/// # Ok::<(), audionimbus::AudioBufferError>(())
+/// ```
 #[derive(Debug)]
 pub struct AudioBuffer<T, P: ChannelPointers = Vec<*mut Sample>> {
     /// Number of samples per channel.

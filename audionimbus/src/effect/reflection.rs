@@ -14,6 +14,9 @@ use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
 use crate::ChannelPointers;
 
+#[cfg(doc)]
+use crate::simulation::BakedDataVariation;
+
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
 /// The result is encoded in ambisonics, and can be decoded using an ambisonics decode effect.

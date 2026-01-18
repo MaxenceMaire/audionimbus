@@ -11,6 +11,43 @@ use crate::ChannelPointers;
 /// Spatializes a point source using an HRTF, based on the 3D position of the source relative to the listener.
 ///
 /// The source audio can be 1- or 2-channel; in either case all input channels are spatialized from the same position.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
+///
+/// let mut effect = BinauralEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &BinauralEffectSettings { hrtf: &hrtf }
+/// )?;
+///
+/// let params = BinauralEffectParams {
+///     direction: Direction::new(1.0, 0.0, 0.0), // Sound from the right
+///     interpolation: HrtfInterpolation::Nearest,
+///     spatial_blend: 1.0,
+///     hrtf: &hrtf,
+///     peak_delays: None,
+/// };
+///
+/// let input_buffer = AudioBuffer::try_with_data([1.0; 1024])?;
+/// let mut output_container = vec![0.0; 2 * input_buffer.num_samples() as usize];
+/// let mut output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output_container,
+///     AudioBufferSettings {
+///         num_channels: Some(2),
+///         ..Default::default()
+///     },
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct BinauralEffect(audionimbus_sys::IPLBinauralEffect);
 
