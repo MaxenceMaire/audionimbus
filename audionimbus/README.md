@@ -10,7 +10,7 @@ It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindi
 
 To experience AudioNimbus in action, play the [interactive demo](https://github.com/MaxenceMaire/audionimbus-demo) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 
-`audionimbus` can also integrate with FMOD studio.
+`audionimbus` can also integrate with FMOD and Wwise.
 
 ## Version compatibility
 
@@ -237,7 +237,7 @@ To implement real-time audio processing and playback in your game, check out the
 
 For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 
-For additional examples, you can explore the [tests](./tests), which closely follow [Steam Audio's Programmer's Guide](https://valvesoftware.github.io/steam-audio/doc/capi/guide.html).
+For additional examples, you can explore the [tests](./tests).
 
 ## Documentation
 
