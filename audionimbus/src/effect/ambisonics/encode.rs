@@ -11,6 +11,38 @@ use crate::ChannelPointers;
 ///
 /// Given a point source with some direction relative to the listener, this effect generates an Ambisonic audio buffer that approximates a point source in the given direction.
 /// This allows multiple point sources and ambiences to mixed to a single ambisonics buffer before being spatialized.
+///
+/// # Examples
+///
+/// ```
+/// use audionimbus::*;
+///
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+///
+/// let mut effect = AmbisonicsEncodeEffect::try_new(
+///     &context,
+///     &audio_settings,
+///     &AmbisonicsEncodeEffectSettings { max_order: 1 }
+/// )?;
+///
+/// let params = AmbisonicsEncodeEffectParams {
+///     direction: Direction::new(1.0, 0.0, 0.0), // From the right
+///     order: 1,
+/// };
+///
+/// const FRAME_SIZE: usize = 1024;
+/// let input = vec![0.5; FRAME_SIZE]; // Mono
+/// let mut output = vec![0.0; 4 * FRAME_SIZE]; // 4 channels (1st order)
+/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let output_buffer = AudioBuffer::try_with_data_and_settings(
+///     &mut output,
+///     AudioBufferSettings::with_num_channels(4)
+/// )?;
+///
+/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct AmbisonicsEncodeEffect(audionimbus_sys::IPLAmbisonicsEncodeEffect);
 
