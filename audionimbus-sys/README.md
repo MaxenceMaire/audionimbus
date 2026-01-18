@@ -8,7 +8,7 @@ This crate is not meant to be used directly; most users should use [`audionimbus
 `audionimbus-sys` exposes raw bindings to the [Steam Audio C library](steam-audio).
 It is inherently unsafe, as it interfaces with external C code; for a safe API, refer to [`audionimbus`](../audionimbus).
 
-`audionimbus-sys` can also integrate with FMOD studio and Wwise.
+`audionimbus-sys` can also integrate with FMOD and Wwise.
 
 ## Version compatibility
 
