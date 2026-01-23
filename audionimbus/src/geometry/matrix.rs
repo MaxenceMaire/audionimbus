@@ -56,6 +56,9 @@ impl From<&Matrix<f32, 4, 4>> for audionimbus_sys::IPLMatrix4x4 {
     }
 }
 
+pub type Matrix3 = Matrix<f32, 3, 3>;
+pub type Matrix4 = Matrix<f32, 4, 4>;
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -13,6 +13,7 @@ readme = "README.md"
 [dependencies]
 audionimbus-sys = { version = "4.8.0", path = "../audionimbus-sys" }
 bitflags = "2.9"
+slotmap = "1.1.1"
 
 [features]
 fmod = ["audionimbus-sys/fmod"]
