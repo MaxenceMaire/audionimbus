@@ -16,6 +16,7 @@
 - `InstancedMeshSettings` now takes a reference to the sub-scene.
 - `Scene::add_static_mesh` and `Scene::add_instanced_mesh` now return handles.
 - `Scene::remove_static_mesh` and `Scene::remove_instanced_mesh` now take handles as arguments instead of references to `StaticMesh` and `InstancedMesh`.
+- `Scene::add_probe` now takes the probe by value instead of by reference.
 
 ### Added
 
