@@ -128,9 +128,38 @@ impl Scene {
         Ok(scene)
     }
 
-    /// Adds a static mesh to a scene.
+    /// Adds a static mesh to a scene and returns a handle to it.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// A [`StaticMeshHandle`] that can be used to reference or remove this mesh.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// let static_mesh = StaticMesh::try_new(
+    ///     &scene,
+    ///     &StaticMeshSettings {
+    ///         vertices: &vertices,
+    ///         triangles: &triangles,
+    ///         material_indices: &material_indices,
+    ///         materials: &materials,
+    ///     },
+    /// )?;
+    ///
+    /// let handle = scene.add_static_mesh(static_mesh);
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn add_static_mesh(&mut self, static_mesh: StaticMesh) -> StaticMeshHandle {
         unsafe {
             audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
@@ -139,9 +168,40 @@ impl Scene {
         StaticMeshHandle(key)
     }
 
-    /// Removes a static mesh from a scene.
+    /// Removes a static mesh from a scene using its handle.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the mesh was found and removed successfully.
+    /// * `false` if the handle was invalid (mesh already removed or handle never existed).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// # let static_mesh = StaticMesh::try_new(
+    /// #     &scene,
+    /// #     &StaticMeshSettings {
+    /// #         vertices: &vertices,
+    /// #         triangles: &triangles,
+    /// #         material_indices: &material_indices,
+    /// #         materials: &materials,
+    /// #     },
+    /// # )?;
+    /// # let handle = scene.add_static_mesh(static_mesh);
+    /// # scene.commit();
+    /// assert!(scene.remove_static_mesh(handle));
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn remove_static_mesh(&mut self, handle: StaticMeshHandle) -> bool {
         let handle = handle.0;
 
@@ -158,9 +218,49 @@ impl Scene {
         true
     }
 
-    /// Adds an instanced mesh to a scene.
+    /// Adds an instanced mesh to a scene and returns a handle to it.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// An [`InstancedMeshHandle`] that can be used to reference, update, or remove this mesh.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// # let static_mesh = StaticMesh::try_new(
+    /// #     &sub_scene,
+    /// #     &StaticMeshSettings {
+    /// #         vertices: &vertices,
+    /// #         triangles: &triangles,
+    /// #         material_indices: &material_indices,
+    /// #         materials: &materials,
+    /// #     },
+    /// # )?;
+    /// # let _ = sub_scene.add_static_mesh(static_mesh);
+    /// # sub_scene.commit();
+    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let transform = Matrix4::IDENTITY;
+    /// let instanced_mesh = InstancedMesh::try_new(
+    ///     &scene,
+    ///     InstancedMeshSettings {
+    ///         sub_scene: &sub_scene,
+    ///         transform: Matrix4::IDENTITY,
+    ///     },
+    /// )?;
+    ///
+    /// let handle = scene.add_instanced_mesh(instanced_mesh);
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn add_instanced_mesh(&mut self, instanced_mesh: InstancedMesh) -> InstancedMeshHandle {
         unsafe {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
@@ -169,9 +269,51 @@ impl Scene {
         InstancedMeshHandle(key)
     }
 
-    /// Removes an instanced mesh from a scene.
+    /// Removes an instanced mesh from a scene using its handle.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the mesh was found and removed successfully.
+    /// * `false` if the handle was invalid (mesh already removed or handle never existed).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// # let static_mesh = StaticMesh::try_new(
+    /// #     &sub_scene,
+    /// #     &StaticMeshSettings {
+    /// #         vertices: &vertices,
+    /// #         triangles: &triangles,
+    /// #         material_indices: &material_indices,
+    /// #         materials: &materials,
+    /// #     },
+    /// # )?;
+    /// # let _ = sub_scene.add_static_mesh(static_mesh);
+    /// # sub_scene.commit();
+    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let transform = Matrix4::IDENTITY;
+    /// # let instanced_mesh = InstancedMesh::try_new(
+    /// #     &scene,
+    /// #     InstancedMeshSettings {
+    /// #        sub_scene: &sub_scene,
+    /// #         transform: Matrix4::IDENTITY,
+    /// #     },
+    /// # )?;
+    /// # let handle = scene.add_instanced_mesh(instanced_mesh);
+    /// # scene.commit();
+    /// assert!(scene.remove_instanced_mesh(handle));
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn remove_instanced_mesh(&mut self, handle: InstancedMeshHandle) -> bool {
         let handle = handle.0;
 
@@ -193,6 +335,54 @@ impl Scene {
     /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the mesh was found and updated successfully.
+    /// * `false` if the handle was invalid (mesh already removed or handle never existed).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// # let static_mesh = StaticMesh::try_new(
+    /// #     &sub_scene,
+    /// #     &StaticMeshSettings {
+    /// #         vertices: &vertices,
+    /// #         triangles: &triangles,
+    /// #         material_indices: &material_indices,
+    /// #         materials: &materials,
+    /// #     },
+    /// # )?;
+    /// # let _ = sub_scene.add_static_mesh(static_mesh);
+    /// # sub_scene.commit();
+    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let transform = Matrix4::IDENTITY;
+    /// # let instanced_mesh = InstancedMesh::try_new(
+    /// #     &scene,
+    /// #     InstancedMeshSettings {
+    /// #         sub_scene: &sub_scene,
+    /// #         transform: Matrix4::IDENTITY,
+    /// #     },
+    /// # )?;
+    /// # let handle = scene.add_instanced_mesh(instanced_mesh);
+    /// # scene.commit();
+    /// let new_transform = Matrix::new([
+    ///     [1.0, 0.0, 0.0, 5.0],
+    ///     [0.0, 1.0, 0.0, 0.0],
+    ///     [0.0, 0.0, 1.0, 0.0],
+    ///     [0.0, 0.0, 0.0, 1.0],
+    /// ]);
+    /// assert!(scene.update_instanced_mesh_transform(handle, new_transform));
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn update_instanced_mesh_transform(
         &mut self,
         handle: InstancedMeshHandle,
@@ -225,6 +415,31 @@ impl Scene {
     /// For best performance, call this function once after all changes have been made for a given frame.
     ///
     /// This function cannot be called concurrently with any simulation functions.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// let static_mesh = StaticMesh::try_new(
+    ///     &scene,
+    ///     &StaticMeshSettings {
+    ///         vertices: &vertices,
+    ///         triangles: &triangles,
+    ///         material_indices: &material_indices,
+    ///         materials: &materials,
+    ///     },
+    /// )?;
+    ///
+    /// let handle = scene.add_static_mesh(static_mesh);
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn commit(&mut self) {
         unsafe {
             audionimbus_sys::iplSceneCommit(self.raw_ptr());
@@ -601,7 +816,7 @@ pub struct StaticMeshHandle(DefaultKey);
 ///     [0.0, 0.0, 1.0, 0.0],
 ///     [0.0, 0.0, 0.0, 1.0],
 /// ]);
-/// scene.update_instanced_mesh_transform(handle, new_transform);
+/// assert!(scene.update_instanced_mesh_transform(handle, new_transform));
 /// scene.commit();
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
