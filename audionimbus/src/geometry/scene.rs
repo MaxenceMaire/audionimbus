@@ -19,10 +19,16 @@ pub struct Scene {
     /// Used for validation when calling [`Self::save`].
     uses_default_ray_tracer: bool,
 
+    /// Used to keep static meshes alive for the lifetime of the scene.
     static_meshes: SlotMap<DefaultKey, StaticMesh>,
+
+    /// Used to keep instanced meshes alive for the lifetime of the scene.
     instanced_meshes: SlotMap<DefaultKey, InstancedMesh>,
 
+    /// Static meshes to be dropped by the next call to [`Self::commit`].
     static_meshes_to_remove: Vec<StaticMesh>,
+
+    /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh>,
 }
 
