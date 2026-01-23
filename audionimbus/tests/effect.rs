@@ -282,7 +282,7 @@ fn test_pathing() {
         radius: 1.0,
         threshold: 0.5,
     };
-    // FIXME: calling `back_path` segfaults.
+    // FIXME: calling `bake_path` segfaults.
     bake_path(&context, &path_bake_params, None);
 
     let source_settings = SourceSettings {
