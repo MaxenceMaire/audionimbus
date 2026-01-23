@@ -201,11 +201,11 @@ impl ProbeBatch {
 
     /// Adds a probe to a batch.
     /// The new probe will be added as the last probe in the batch.
-    pub fn add_probe(&mut self, probe: &Sphere) {
+    pub fn add_probe(&mut self, probe: Sphere) {
         unsafe {
             audionimbus_sys::iplProbeBatchAddProbe(
                 self.raw_ptr(),
-                audionimbus_sys::IPLSphere::from(*probe),
+                audionimbus_sys::IPLSphere::from(probe),
             );
         }
     }
@@ -437,7 +437,7 @@ mod tests {
                 radius: 1.0,
             };
 
-            probe_batch.add_probe(&probe);
+            probe_batch.add_probe(probe);
             probe_batch.commit();
             assert_eq!(probe_batch.num_probes(), 1);
 

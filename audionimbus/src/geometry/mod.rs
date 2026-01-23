@@ -56,7 +56,7 @@
 //! ]);
 //!
 //! let instanced = InstancedMesh::try_new(&scene, InstancedMeshSettings {
-//!     sub_scene,
+//!     sub_scene: &sub_scene,
 //!     transform,
 //! })?;
 //! scene.add_instanced_mesh(instanced);
@@ -76,7 +76,7 @@ mod coordinate_system;
 pub use coordinate_system::CoordinateSystem;
 
 mod matrix;
-pub use matrix::Matrix;
+pub use matrix::{Matrix, Matrix3, Matrix4};
 
 mod triangle;
 pub use triangle::Triangle;
@@ -85,7 +85,9 @@ mod material;
 pub use material::Material;
 
 mod scene;
-pub use scene::{relative_direction, Scene, SceneParams, SceneSettings};
+pub use scene::{
+    relative_direction, InstancedMeshHandle, Scene, SceneParams, SceneSettings, StaticMeshHandle,
+};
 
 mod static_mesh;
 pub use static_mesh::{StaticMesh, StaticMeshSettings};

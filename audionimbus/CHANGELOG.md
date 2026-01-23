@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed HRTF loading from SOFA files where the filename string was being dropped before the FFI call completed, causing load failures.
+- Fixed a segmentation fault caused by static and instanced meshes not living long enough when added to scenes.
 
 ### Changed
 
@@ -12,6 +13,10 @@
 - Improved documentation and added examples.
 - Make `NUM_BANDS` constant private.
 - Rename the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` into `try_new` for consistency.
+- `InstancedMeshSettings` now takes a reference to the sub-scene.
+- `Scene::add_static_mesh` and `Scene::add_instanced_mesh` now return handles.
+- `Scene::remove_static_mesh` and `Scene::remove_instanced_mesh` now take handles as arguments instead of references to `StaticMesh` and `InstancedMesh`.
+- `Scene::add_probe` now takes the probe by value instead of by reference.
 
 ### Added
 
@@ -19,6 +24,9 @@
 - Derive `PartialEq` trait for `Matrix`, `Triangle`, `Sphere`.
 - Increase the test coverage.
 - Add `num_ambisonics_channels` const function to compute the number of channels reuqired given an ambisonics order.
+- Add `Matrix3` and `Matrix4` type aliases.
+- Add `StaticMeshHandle` and `InstancedMeshHandle` structs (returned by `Scene::add_static_mesh` and `Scene::add_instanced_mesh` respectively).
+- Add `slotmap` lib dependency.
 
 ### Removed
 

@@ -86,7 +86,7 @@ fn test_probe_batch_save_load() {
         center: Point::new(1.0, 2.0, 3.0),
         radius: 5.0,
     };
-    probe_batch.add_probe(&probe);
+    probe_batch.add_probe(probe);
     probe_batch.commit();
 
     let mut serialized = SerializedObject::try_new(&context).unwrap();
