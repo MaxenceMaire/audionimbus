@@ -8,6 +8,7 @@
 - Fixed a segmentation fault caused by static and instanced meshes not living long enough when added to scenes.
 - Fixed a segmentation fault in bake_path when no progress callback was provided, caused by an upstream Steam Audio bug; a no-op callback is now used as a workaround.
 - Fixed a segmentation fault caused by running a pathing simulation without probes.
+- Fixed a segmentation fault caused by running a reflections simulation without having set a scene.
 
 ### Changed
 
@@ -21,6 +22,7 @@
 - `Scene::add_probe` now takes the probe by value instead of by reference.
 - `Simulator::run_pathing` now returns an error if the simulator contains no probes.
 - `ProbeBatch::commit` now takes `&mut self` instead of `&self`.
+- `Simulator::run_reflections` now returns an error if a scene has not been set and committed to the simulator.
 
 ### Added
 
