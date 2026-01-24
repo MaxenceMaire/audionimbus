@@ -95,7 +95,7 @@ fn test_simulation() {
     simulator.commit();
 
     simulator.run_direct();
-    simulator.run_reflections();
+    assert!(simulator.run_reflections().is_ok());
     let simulation_outputs =
         source.get_outputs(SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS);
 
@@ -247,5 +247,45 @@ fn test_pathing_without_probes() {
     assert_eq!(
         simulator.run_pathing(),
         Err(SimulationError::PathingWithoutProbes)
+    );
+}
+
+#[test]
+fn test_reflections_without_scene() {
+    let context_settings = ContextSettings::default();
+    let context = Context::try_new(&context_settings).unwrap();
+
+    let sampling_rate = 48000;
+    let frame_size = 1024;
+    let max_order = 1;
+
+    let mut simulator =
+        Simulator::builder(SceneParams::Default, sampling_rate, frame_size, max_order)
+            .with_reflections(ReflectionsSimulationSettings::Convolution {
+                max_num_rays: 4096,
+                num_diffuse_samples: 32,
+                max_duration: 2.0,
+                max_num_sources: 8,
+                num_threads: 2,
+            })
+            .try_build(&context)
+            .unwrap();
+
+    let simulation_shared_inputs = SimulationSharedInputs {
+        listener: CoordinateSystem::default(),
+        num_rays: 4096,
+        num_bounces: 16,
+        duration: 2.0,
+        order: 1,
+        irradiance_min_distance: 1.0,
+        pathing_visualization_callback: None,
+    };
+    simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+    simulator.commit();
+
+    assert_eq!(
+        simulator.run_reflections(),
+        Err(SimulationError::ReflectionsWithoutScene)
     );
 }

@@ -50,6 +50,12 @@ pub struct Simulator<D = (), R = (), P = ()> {
     /// Pending probe batches to be committed.
     pending_probe_batches: HashMap<audionimbus_sys::IPLProbeBatch, usize>,
 
+    /// Whether a scene has been set and committed.
+    has_committed_scene: bool,
+
+    /// Whether a scene is pending commit.
+    has_pending_scene: bool,
+
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
@@ -152,6 +158,8 @@ impl<D, R, P> SimulatorBuilder<D, R, P> {
             inner: std::ptr::null_mut(),
             committed_num_probes: 0,
             pending_probe_batches: HashMap::new(),
+            has_committed_scene: false,
+            has_pending_scene: false,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
@@ -181,6 +189,7 @@ impl<D, R, P> Simulator<D, R, P> {
     /// This function cannot be called while any simulation is running.
     pub fn set_scene(&mut self, scene: &Scene) {
         unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
+        self.has_pending_scene = true;
     }
 
     /// Adds a probe batch for use in subsequent simulations.
@@ -243,6 +252,11 @@ impl<D, R, P> Simulator<D, R, P> {
         unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
 
         self.committed_num_probes = self.pending_probe_batches.values().sum();
+
+        if self.has_pending_scene {
+            self.has_committed_scene = true;
+            self.has_pending_scene = false;
+        }
     }
 
     /// Specifies simulation parameters that are not associated with any particular source.
@@ -296,10 +310,16 @@ impl<D, P> Simulator<D, Reflections, P> {
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
-    pub fn run_reflections(&self) {
+    pub fn run_reflections(&self) -> Result<(), SimulationError> {
+        if !self.has_committed_scene {
+            return Err(SimulationError::ReflectionsWithoutScene);
+        }
+
         unsafe {
             audionimbus_sys::iplSimulatorRunReflections(self.raw_ptr());
         }
+
+        Ok(())
     }
 }
 
@@ -330,6 +350,8 @@ impl<D, R, P> Clone for Simulator<D, R, P> {
             inner: self.inner,
             committed_num_probes: self.committed_num_probes,
             pending_probe_batches: self.pending_probe_batches.clone(),
+            has_committed_scene: self.has_committed_scene,
+            has_pending_scene: self.has_pending_scene,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
@@ -1438,6 +1460,7 @@ impl Drop for SimulationOutputs {
 #[derive(Eq, PartialEq, Debug)]
 pub enum SimulationError {
     PathingWithoutProbes,
+    ReflectionsWithoutScene,
 }
 
 impl std::error::Error for SimulationError {}
@@ -1447,6 +1470,9 @@ impl std::fmt::Display for SimulationError {
         match &self {
             Self::PathingWithoutProbes => {
                 write!(f, "running pathing on a simulator with no probes")
+            }
+            Self::ReflectionsWithoutScene => {
+                write!(f, "running reflections on a simulator with no scene set")
             }
         }
     }
