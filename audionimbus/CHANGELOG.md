@@ -7,6 +7,7 @@
 - Fixed HRTF loading from SOFA files where the filename string was being dropped before the FFI call completed, causing load failures.
 - Fixed a segmentation fault caused by static and instanced meshes not living long enough when added to scenes.
 - Fixed a segmentation fault in bake_path when no progress callback was provided, caused by an upstream Steam Audio bug; a no-op callback is now used as a workaround.
+- Fixed a segmentation fault caused by running a pathing simulation without probes.
 
 ### Changed
 
@@ -18,6 +19,7 @@
 - `Scene::add_static_mesh` and `Scene::add_instanced_mesh` now return handles.
 - `Scene::remove_static_mesh` and `Scene::remove_instanced_mesh` now take handles as arguments instead of references to `StaticMesh` and `InstancedMesh`.
 - `Scene::add_probe` now takes the probe by value instead of by reference.
+- `Simulator::run_pathing` now returns an error if the simulator contains no probes.
 
 ### Added
 
