@@ -104,8 +104,6 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     threshold: 0.5,
 /// };
 ///
-/// // FIXME: calling `bake_path` segfaults.
-/// // See Steam Audio issue: https://github.com/ValveSoftware/steam-audio/issues/523
 /// bake_path(&context, &path_bake_params, None);
 ///
 /// let source_settings = SourceSettings {
@@ -430,20 +428,30 @@ pub fn bake_path(
     path_bake_params: &PathBakeParams,
     progress_callback: Option<CallbackInformation<ProgressCallback>>,
 ) {
+    // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplPathBakerBake`.
+    // We pass a no-op callback instead until the fix is released.
+    // See: https://github.com/ValveSoftware/steam-audio/issues/523
+    // TODO: Remove this workaround when fix is released.
+    unsafe extern "C" fn noop_progress_callback(_progress: f32, _user_data: *mut std::ffi::c_void) {
+    }
+
     let (callback, user_data) = if let Some(callback_information) = progress_callback {
         (
-            Some(callback_information.callback),
+            callback_information.callback,
             callback_information.user_data,
         )
     } else {
-        (None, std::ptr::null_mut())
+        (
+            noop_progress_callback as ProgressCallback,
+            std::ptr::null_mut(),
+        )
     };
 
     unsafe {
         audionimbus_sys::iplPathBakerBake(
             context.raw_ptr(),
             &mut audionimbus_sys::IPLPathBakeParams::from(path_bake_params),
-            callback,
+            Some(callback),
             user_data,
         );
     }

@@ -6,6 +6,7 @@
 
 - Fixed HRTF loading from SOFA files where the filename string was being dropped before the FFI call completed, causing load failures.
 - Fixed a segmentation fault caused by static and instanced meshes not living long enough when added to scenes.
+- Fixed a segmentation fault in bake_path when no progress callback was provided, caused by an upstream Steam Audio bug; a no-op callback is now used as a workaround.
 
 ### Changed
 

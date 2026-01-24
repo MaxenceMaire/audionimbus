@@ -282,8 +282,6 @@ fn test_pathing() {
         radius: 1.0,
         threshold: 0.5,
     };
-    // FIXME: calling `bake_path` segfaults.
-    // See Steam Audio issue: https://github.com/ValveSoftware/steam-audio/issues/523
     bake_path(&context, &path_bake_params, None);
 
     let source_settings = SourceSettings {
