@@ -129,3 +129,121 @@ fn test_simulation() {
     reflection_effect_params.impulse_response_size = 2 * sampling_rate; // use the full duration of the IR.
     let _ = reflection_effect.apply(&reflection_effect_params, &input_buffer, &output_buffer);
 }
+
+#[test]
+fn test_pathing_without_probes() {
+    let context = Context::default();
+
+    const SAMPLING_RATE: u32 = 48_000;
+    const FRAME_SIZE: u32 = 1024;
+    const MAX_ORDER: u32 = 1;
+
+    let mut simulator =
+        Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+            .with_pathing(PathingSimulationSettings {
+                num_visibility_samples: 4,
+            })
+            .try_build(&context)
+            .unwrap();
+
+    let mut scene = Scene::try_new(&context, &SceneSettings::default()).unwrap();
+    let vertices = vec![
+        Point::new(-50.0, 0.0, -50.0),
+        Point::new(50.0, 0.0, -50.0),
+        Point::new(50.0, 0.0, 50.0),
+        Point::new(-50.0, 0.0, 50.0),
+    ];
+    let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
+    let materials = vec![Material::default()];
+    let material_indices = vec![0, 0];
+    let static_mesh = StaticMesh::try_new(
+        &scene,
+        &StaticMeshSettings {
+            vertices: &vertices,
+            triangles: &triangles,
+            material_indices: &material_indices,
+            materials: &materials,
+        },
+    )
+    .unwrap();
+    scene.add_static_mesh(static_mesh);
+    scene.commit();
+    simulator.set_scene(&scene);
+
+    let identifier = BakedDataIdentifier::Pathing {
+        variation: BakedDataVariation::Dynamic,
+    };
+
+    let mut probe_array = ProbeArray::try_new(&context).unwrap();
+    let box_transform = Matrix::new([
+        [100.0, 0.0, 0.0, 0.0],
+        [0.0, 100.0, 0.0, 0.0],
+        [0.0, 0.0, 100.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]);
+    probe_array.generate_probes(
+        &scene,
+        &ProbeGenerationParams::UniformFloor {
+            spacing: 2.0,
+            height: 1.5,
+            transform: box_transform,
+        },
+    );
+
+    let probe_batch = ProbeBatch::try_new(&context).unwrap();
+    // Add the probe batch to the simulator without any probes in it.
+    simulator.add_probe_batch(&probe_batch);
+
+    let path_bake_params = PathBakeParams {
+        scene: &scene,
+        probe_batch: &probe_batch,
+        identifier: &identifier,
+        num_samples: 1, // Trace a single ray to test if one probe can see another probe.
+        visibility_range: 50.0, // Don't check visibility between probes that are > 50m apart.
+        path_range: 100.0, // Don't store paths between probes that are > 100m apart.
+        num_threads: 8,
+        radius: 1.0,
+        threshold: 0.5,
+    };
+    bake_path(&context, &path_bake_params, None);
+
+    let source_settings = SourceSettings {
+        flags: SimulationFlags::PATHING,
+    };
+    let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+    let simulation_inputs = SimulationInputs {
+        source: CoordinateSystem::default(),
+        direct_simulation: Some(DirectSimulationParameters {
+            distance_attenuation: Some(DistanceAttenuationModel::default()),
+            air_absorption: Some(AirAbsorptionModel::default()),
+            directivity: Some(Directivity::default()),
+            occlusion: Some(Occlusion {
+                transmission: Some(TransmissionParameters {
+                    num_transmission_rays: 1,
+                }),
+                algorithm: OcclusionAlgorithm::Raycast,
+            }),
+        }),
+        reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+            baked_data_identifier: None,
+        }),
+        pathing_simulation: Some(PathingSimulationParameters {
+            pathing_probes: &probe_batch,
+            visibility_radius: 1.0,
+            visibility_threshold: 10.0,
+            visibility_range: 10.0,
+            pathing_order: 1,
+            enable_validation: true,
+            find_alternate_paths: true,
+            deviation: DeviationModel::default(),
+        }),
+    };
+    source.set_inputs(SimulationFlags::PATHING, simulation_inputs);
+    simulator.add_source(&source);
+
+    simulator.commit();
+    assert_eq!(
+        simulator.run_pathing(),
+        Err(SimulationError::PathingWithoutProbes)
+    );
+}
