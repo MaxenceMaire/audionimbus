@@ -178,9 +178,9 @@ impl<D, R, P> Simulator<D, R, P> {
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
     /// This function cannot be called while any simulation is running.
-    pub fn add_probe_batch(&mut self, probe: &ProbeBatch) {
+    pub fn add_probe_batch(&mut self, probe_batch: &ProbeBatch) {
         unsafe {
-            audionimbus_sys::iplSimulatorAddProbeBatch(self.raw_ptr(), probe.raw_ptr());
+            audionimbus_sys::iplSimulatorAddProbeBatch(self.raw_ptr(), probe_batch.raw_ptr());
         }
     }
 
@@ -190,9 +190,9 @@ impl<D, R, P> Simulator<D, R, P> {
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
     /// This function cannot be called while any simulation is running.
-    pub fn remove_probe_batch(&mut self, probe: &ProbeBatch) {
+    pub fn remove_probe_batch(&mut self, probe_batch: &ProbeBatch) {
         unsafe {
-            audionimbus_sys::iplSimulatorRemoveProbeBatch(self.raw_ptr(), probe.raw_ptr());
+            audionimbus_sys::iplSimulatorRemoveProbeBatch(self.raw_ptr(), probe_batch.raw_ptr());
         }
     }
 
