@@ -20,6 +20,7 @@
 - `Scene::remove_static_mesh` and `Scene::remove_instanced_mesh` now take handles as arguments instead of references to `StaticMesh` and `InstancedMesh`.
 - `Scene::add_probe` now takes the probe by value instead of by reference.
 - `Simulator::run_pathing` now returns an error if the simulator contains no probes.
+- `ProbeBatch::commit` now takes `&mut self` instead of `&self`.
 
 ### Added
 
@@ -30,6 +31,7 @@
 - Add `Matrix3` and `Matrix4` type aliases.
 - Add `StaticMeshHandle` and `InstancedMeshHandle` structs (returned by `Scene::add_static_mesh` and `Scene::add_instanced_mesh` respectively).
 - Add `slotmap` lib dependency.
+- Add method `ProbeBatch::committed_num_probes`.
 
 ### Removed
 

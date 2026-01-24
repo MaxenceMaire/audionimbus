@@ -190,7 +190,9 @@ fn test_pathing_without_probes() {
         },
     );
 
-    let probe_batch = ProbeBatch::try_new(&context).unwrap();
+    let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+    // Add a probe array without commit.
+    probe_batch.add_probe_array(&probe_array);
     // Add the probe batch to the simulator without any probes in it.
     simulator.add_probe_batch(&probe_batch);
 

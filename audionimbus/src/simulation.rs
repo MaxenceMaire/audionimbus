@@ -15,7 +15,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry;
 use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 // Marker types for capabilities.
@@ -43,11 +43,12 @@ pub struct SimulatorBuilder<D = (), R = (), P = ()> {
 pub struct Simulator<D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSimulator,
 
+    /// Number of probes after the last commit.
     /// Used to ensure the simulator has probes before running pathing.
-    num_probes: usize,
+    committed_num_probes: usize,
 
-    /// Tracks added batches.
-    probe_batches: HashSet<audionimbus_sys::IPLProbeBatch>,
+    /// Pending probe batches to be committed.
+    pending_probe_batches: HashMap<audionimbus_sys::IPLProbeBatch, usize>,
 
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -149,8 +150,8 @@ impl<D, R, P> SimulatorBuilder<D, R, P> {
     pub fn try_build(self, context: &Context) -> Result<Simulator<D, R, P>, SteamAudioError> {
         let mut simulator = Simulator {
             inner: std::ptr::null_mut(),
-            num_probes: 0,
-            probe_batches: HashSet::new(),
+            committed_num_probes: 0,
+            pending_probe_batches: HashMap::new(),
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
@@ -195,9 +196,8 @@ impl<D, R, P> Simulator<D, R, P> {
             audionimbus_sys::iplSimulatorAddProbeBatch(self.raw_ptr(), probe_batch.raw_ptr());
         }
 
-        if self.probe_batches.insert(raw_ptr) {
-            self.num_probes += probe_batch.num_probes();
-        }
+        self.pending_probe_batches
+            .insert(raw_ptr, probe_batch.committed_num_probes());
     }
 
     /// Removes a probe batch from use in subsequent simulations.
@@ -213,9 +213,7 @@ impl<D, R, P> Simulator<D, R, P> {
             audionimbus_sys::iplSimulatorRemoveProbeBatch(self.raw_ptr(), probe_batch.raw_ptr());
         }
 
-        if self.probe_batches.remove(&raw_ptr) {
-            self.num_probes -= probe_batch.num_probes();
-        }
+        self.pending_probe_batches.remove(&raw_ptr);
     }
 
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
@@ -243,6 +241,8 @@ impl<D, R, P> Simulator<D, R, P> {
     /// This function cannot be called while any simulation is running.
     pub fn commit(&mut self) {
         unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
+
+        self.committed_num_probes = self.pending_probe_batches.values().sum();
     }
 
     /// Specifies simulation parameters that are not associated with any particular source.
@@ -308,7 +308,7 @@ impl<D, R> Simulator<D, R, Pathing> {
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
     pub fn run_pathing(&self) -> Result<(), SimulationError> {
-        if self.num_probes == 0 {
+        if self.committed_num_probes == 0 {
             return Err(SimulationError::PathingWithoutProbes);
         }
 
@@ -328,8 +328,8 @@ impl<D, R, P> Clone for Simulator<D, R, P> {
 
         Self {
             inner: self.inner,
-            num_probes: self.num_probes,
-            probe_batches: self.probe_batches.clone(),
+            committed_num_probes: self.committed_num_probes,
+            pending_probe_batches: self.pending_probe_batches.clone(),
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
