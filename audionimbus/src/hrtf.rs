@@ -17,6 +17,8 @@ impl Hrtf {
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
+    ///
+    /// WARNING: There is a known Steam Audio issue where using sampling rates other than 44,100 Hz or 48,000 Hz with the default HRTF settings results in a [`SteamAudioError::Initialization`] error.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
@@ -27,6 +29,10 @@ impl Hrtf {
         let (mut settings_ffi, _filename_keeper) = hrtf_settings.to_ffi();
 
         let status = unsafe {
+            // BUG: using sampling rates other than 44,100Hz or 48,000Hz with the default HRTF
+            // settings results in a [`SteamAudioError::Initialization`] error.
+            // See: https://github.com/ValveSoftware/steam-audio/issues/497
+            // TODO: remove warning in doc comment when fixed.
             audionimbus_sys::iplHRTFCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
