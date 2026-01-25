@@ -43,6 +43,7 @@
 - Add method `ProbeBatch::committed_num_probes`.
 - `SpeakerLayout` now implements `Clone` and `Display`.
 - Add `EffectError` for errors that can occur when applying audio effects.
+- `SteamAudioError` implements `PartialEq`, `Copy` and `Clone`.
 
 ### Removed
 
