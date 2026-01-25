@@ -166,9 +166,6 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let _ = path_effect.apply(&path_effect_params, &input_buffer, &output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-
-// FIXME: fix segfault in example above.
-
 #[derive(Debug)]
 pub struct PathEffect(audionimbus_sys::IPLPathEffect);
 
