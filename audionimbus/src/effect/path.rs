@@ -218,6 +218,13 @@ impl PathEffect {
     /// The input audio buffer must have one channel, and the output audio buffer must have as many
     /// channels as needed for the ambisonics order specified when creating the effect (see
     /// [`num_ambisonics_channels`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer has more than one channel
+    /// - The output buffer has a number of channels different from that needed for the ambisonics
+    ///   order specified when creating the effect
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
         path_effect_params: &PathEffectParams,
@@ -262,14 +269,29 @@ impl PathEffect {
     /// After the input to the path effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
     /// The output audio buffer must have as many channels as needed for the Ambisonics order specified when creating the effect.
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output buffer has a number of channels different from that
+    /// needed for the ambisonics order specified when creating the effect.
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplPathEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Returns the number of tail samples remaining in a path effect’s internal buffers.

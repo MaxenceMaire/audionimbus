@@ -28,6 +28,7 @@
 - `Simulator::run_reflections` now returns an error if a scene has not been set and committed to the simulator.
 - `DirectEffect::apply` now returns an `EffectError` when the input of output buffers have a number of channels different from that specified when creating the effect.
 - `PathEffect::apply` now returns an `EffectError` when the input buffer is not mono or the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
+- `PathEffect::tail` now returns an `EffectError` when the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 
 ### Added
 
