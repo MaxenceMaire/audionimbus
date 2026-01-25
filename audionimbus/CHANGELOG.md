@@ -10,8 +10,9 @@
 - Fixed a segmentation fault caused by running a pathing simulation without probes.
 - Fixed a segmentation fault caused by running a reflections simulation without having set a scene.
 - Fixed a segmentation fault when applying a direct effect on audio buffers that have a number of channels different from that specified when creating the effect.
+- Fixed a segmentation fault when calling `DirectEffect::tail` with an output buffer that has a number of channels different from that specified when creating the effect.
 - Fixed a segmentation fault when applying a pathing effect on an input buffer other than mono.
-- Fixed a segmentation fault when applying a pathing effect with an output buffer that has a number of channels other than that needed for the ambisonics order specified when creating the effect.
+- Fixed a segmentation fault when calling `PathEffect::tail` with an output buffer that has a number of channels other than that needed for the ambisonics order specified when creating the effect.
 
 ### Changed
 
