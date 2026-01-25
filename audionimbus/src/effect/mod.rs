@@ -64,6 +64,9 @@ pub use binaural::*;
 pub mod direct;
 pub use direct::*;
 
+mod error;
+pub use error::EffectError;
+
 pub mod reflection;
 pub use reflection::*;
 
