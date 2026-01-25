@@ -10,6 +10,8 @@
 - Fixed a segmentation fault caused by running a pathing simulation without probes.
 - Fixed a segmentation fault caused by running a reflections simulation without having set a scene.
 - Fixed a segmentation fault when applying a direct effect on audio buffers that have a number of channels different from that specified when creating the effect.
+- Fixed a segmentation fault when applying a pathing effect on an input buffer other than mono.
+- Fixed a segmentation fault when applying a pathing effect with an output buffer that has a number of channels other than that needed for the ambisonics order specified when creating the effect.
 
 ### Changed
 
@@ -25,6 +27,7 @@
 - `ProbeBatch::commit` now takes `&mut self` instead of `&self`.
 - `Simulator::run_reflections` now returns an error if a scene has not been set and committed to the simulator.
 - `DirectEffect::apply` now returns an `EffectError` when the input of output buffers have a number of channels different from that specified when creating the effect.
+- `PathEffect::apply` now returns an `EffectError` when the input buffer is not mono or the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 
 ### Added
 

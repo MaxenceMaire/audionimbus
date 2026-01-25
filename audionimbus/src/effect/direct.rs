@@ -87,6 +87,9 @@ impl DirectEffect {
     ///
     /// This effect CAN be applied in-place.
     ///
+    /// The input and output audio buffers must have as many channels as specified when creating
+    /// the effect.
+    ///
     /// # Errors
     ///
     /// Returns [`EffectError`] if the input or output buffers have a number of channels different
