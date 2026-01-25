@@ -1,5 +1,5 @@
 /// A Steam Audio error.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SteamAudioError {
     /// An unspecified error occurred.
     Unspecified,

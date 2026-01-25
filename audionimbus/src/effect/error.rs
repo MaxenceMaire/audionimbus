@@ -1,7 +1,7 @@
 use super::ambisonics::SpeakerLayout;
 
 /// Errors that can occur when applying audio effects.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EffectError {
     /// Input buffer has wrong number of channels.
     InvalidInputChannels { expected: u32, actual: u32 },

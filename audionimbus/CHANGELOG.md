@@ -9,6 +9,7 @@
 - Fixed a segmentation fault in bake_path when no progress callback was provided, caused by an upstream Steam Audio bug; a no-op callback is now used as a workaround.
 - Fixed a segmentation fault caused by running a pathing simulation without probes.
 - Fixed a segmentation fault caused by running a reflections simulation without having set a scene.
+- Fixed a segmentation fault when applying a direct effect on audio buffers that have a number of channels different from that specified when creating the effect.
 
 ### Changed
 
@@ -23,6 +24,7 @@
 - `Simulator::run_pathing` now returns an error if the simulator contains no probes.
 - `ProbeBatch::commit` now takes `&mut self` instead of `&self`.
 - `Simulator::run_reflections` now returns an error if a scene has not been set and committed to the simulator.
+- `DirectEffect::apply` now returns an `EffectError` when the input of output buffers have a number of channels different from that specified when creating the effect.
 
 ### Added
 
@@ -34,6 +36,8 @@
 - Add `StaticMeshHandle` and `InstancedMeshHandle` structs (returned by `Scene::add_static_mesh` and `Scene::add_instanced_mesh` respectively).
 - Add `slotmap` lib dependency.
 - Add method `ProbeBatch::committed_num_probes`.
+- `SpeakerLayout` now implements `Clone` and `Display`.
+- Add `EffectError` for errors that can occur when applying audio effects.
 
 ### Removed
 

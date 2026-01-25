@@ -2,7 +2,7 @@ use crate::geometry::Direction;
 use std::fmt;
 
 /// Describes a standard or custom speaker layout.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SpeakerLayout {
     /// Mono.
     Mono,
