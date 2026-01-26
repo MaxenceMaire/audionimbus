@@ -107,7 +107,7 @@ impl DirectEffect {
         let num_input_channels = input_buffer.num_channels();
         if num_input_channels != self.num_channels {
             return Err(EffectError::InvalidInputChannels {
-                expected: self.num_channels,
+                expected: ChannelRequirement::Exactly(self.num_channels),
                 actual: num_input_channels,
             });
         }
@@ -428,7 +428,7 @@ mod tests {
             assert_eq!(
                 direct_effect.apply(&direct_effect_params, &input_buffer, &output_buffer),
                 Err(EffectError::InvalidInputChannels {
-                    expected: 1,
+                    expected: ChannelRequirement::Exactly(1),
                     actual: 4
                 })
             );

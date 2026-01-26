@@ -5,7 +5,10 @@ use crate::ChannelRequirement;
 #[derive(Debug, PartialEq)]
 pub enum EffectError {
     /// Input buffer has wrong number of channels.
-    InvalidInputChannels { expected: u32, actual: u32 },
+    InvalidInputChannels {
+        expected: ChannelRequirement,
+        actual: u32,
+    },
 
     /// Output buffer has wrong number of channels.
     InvalidOutputChannels {

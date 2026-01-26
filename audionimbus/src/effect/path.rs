@@ -238,7 +238,7 @@ impl PathEffect {
         let num_input_channels = input_buffer.num_channels();
         if num_input_channels != 1 {
             return Err(EffectError::InvalidInputChannels {
-                expected: 1,
+                expected: ChannelRequirement::Exactly(1),
                 actual: num_input_channels,
             });
         }
@@ -681,7 +681,7 @@ mod tests {
             assert_eq!(
                 path_effect.apply(&path_effect_params, &input_buffer, &output_buffer),
                 Err(EffectError::InvalidInputChannels {
-                    expected: 1,
+                    expected: ChannelRequirement::Exactly(1),
                     actual: 2
                 })
             );
