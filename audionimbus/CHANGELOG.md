@@ -22,6 +22,8 @@
 - Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
 - Fixed a segmentation fault when applying a virtual surround effect on an input buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect, or an output buffer that does not have two channels.
 - Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that does not have two channels.
+- Fixed a segmentation fault when applying an ambisonics encode effect on an input buffer does not have exactly one channel or an output buffer that does not have the correct number of channels for the ambisonics order.
+- Fixed a segmentation fault when calling `AmbisonicsEncodeEffect::tail` with an output buffer that does not have the correct number of channels for the ambisonics order.
 
 ### Changed
 
@@ -48,6 +50,8 @@
 - `PanningEffect::tail` now returns an `EffectError` when the output buffer has a number of channels different from that needed for the speaker layout specified when creating the effect.
 - `VirtualSurroundEfect::apply` now returns an `EffectError` when the input buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect, or the output buffer that does not have two channels.
 - `VirtualSurroundEffect::tail` now returns an `EffectError` when the output buffer does not have two channels.
+- `AmbisonicsEncodeEfect::apply` now returns an `EffectError` when the input buffer does not have exactly one channel or the output buffer that does not have the correct number of channels for the ambisonics order.
+- `AmbisonicsEncodeEffect::tail` now returns an `EffectError` when the output buffer that does not have the correct number of channels for the ambisonics order.
 
 ### Added
 
