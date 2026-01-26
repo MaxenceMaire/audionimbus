@@ -1,6 +1,5 @@
 use super::audio_effect_state::AudioEffectState;
-use super::EffectError;
-use super::Equalizer;
+use super::{EffectError, Equalizer};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;

@@ -30,6 +30,8 @@
 - Fixed a segmentation fault when calling `AmbisonicsRotationEffect::tail` with an output buffer that does not have the correct number of channels for the ambisonics order.
 - Fixed a segmentation fault when applying an ambisonics panning effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have the correct number of channels for the speaker layout specified when creating the effect.
 - Fixed a segmentation fault when calling `AmbisonicsPanningEffect::tail` with an output buffer that does not have the correct number of channels for the speaker layout specified when creating the effect.
+- Fixed a segmentation fault when applying an ambisonics binaural effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have exactly two channels.
+- Fixed a segmentation fault when calling `AmbisonicsBinauralEffect::tail` with an output buffer that does not have exactly two channels.
 
 ### Changed
 
@@ -65,6 +67,8 @@
 - `AmbisonicsRotationEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the ambisonics order.
 - `AmbisonicsPanningEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have the correct number of channels for the speaker layout specified when creating the effect.
 - `AmbisonicsPanningEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the speaker layout specified when creating the effect.
+- `AmbisonicsBinauralEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have exactly two channels.
+- `AmbisonicsBinauralEffect::tail` now returns an `EffectError` when the output buffer does not have exactly two channels.
 
 ### Added
 

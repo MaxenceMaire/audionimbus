@@ -1,5 +1,4 @@
-use super::super::AudioEffectState;
-use super::super::EffectError;
+use super::super::{AudioEffectState, EffectError};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
