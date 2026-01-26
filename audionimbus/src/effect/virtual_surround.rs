@@ -1,11 +1,12 @@
 use super::audio_effect_state::AudioEffectState;
+use super::EffectError;
 use super::SpeakerLayout;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::{ChannelPointers, Hrtf};
+use crate::{ChannelPointers, ChannelRequirement, Hrtf};
 
 /// Spatializes multi-channel speaker-based audio (e.g., stereo, quadraphonic, 5.1, or 7.1) using HRTF-based binaural rendering.
 ///
@@ -53,7 +54,12 @@ use crate::{ChannelPointers, Hrtf};
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct VirtualSurroundEffect(audionimbus_sys::IPLVirtualSurroundEffect);
+pub struct VirtualSurroundEffect {
+    inner: audionimbus_sys::IPLVirtualSurroundEffect,
+
+    /// Number of input channels needed for the speaker layout specified when creating the effect.
+    num_input_channels: u32,
+}
 
 impl VirtualSurroundEffect {
     /// Creates a new virtual surround effect.
@@ -66,7 +72,7 @@ impl VirtualSurroundEffect {
         audio_settings: &AudioSettings,
         virtual_surround_effect_settings: &VirtualSurroundEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let mut virtual_surround_effect = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let status = unsafe {
             audionimbus_sys::iplVirtualSurroundEffectCreate(
@@ -75,7 +81,7 @@ impl VirtualSurroundEffect {
                 &mut audionimbus_sys::IPLVirtualSurroundEffectSettings::from(
                     virtual_surround_effect_settings,
                 ),
-                virtual_surround_effect.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
@@ -83,23 +89,60 @@ impl VirtualSurroundEffect {
             return Err(error);
         }
 
-        Ok(virtual_surround_effect)
+        let num_input_channels = match &virtual_surround_effect_settings.speaker_layout {
+            SpeakerLayout::Mono => 1,
+            SpeakerLayout::Stereo => 2,
+            SpeakerLayout::Quadraphonic => 4,
+            SpeakerLayout::Surround5_1 => 6,
+            SpeakerLayout::Surround7_1 => 8,
+            SpeakerLayout::Custom { speaker_directions } => speaker_directions.len() as u32,
+        };
+
+        Ok(Self {
+            inner,
+            num_input_channels,
+        })
     }
 
     /// Applies a virtual surround effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
+    ///
+    /// The input audio buffer must have as many channels as needed for the speaker layout specified
+    /// when creating the effect, and the output audio buffer must have 2 channels.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer does not have the correct number of channels for the speaker layout
+    /// - The output buffer does not have exactly two channels
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
         virtual_surround_effect_params: &VirtualSurroundEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
-    ) -> AudioEffectState
+    ) -> Result<AudioEffectState, EffectError>
     where
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != self.num_input_channels {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(self.num_input_channels),
+                actual: num_input_channels,
+            });
+        }
+
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != 2 {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(2),
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplVirtualSurroundEffectApply(
                 self.raw_ptr(),
                 &mut *virtual_surround_effect_params.as_ffi(),
@@ -107,7 +150,9 @@ impl VirtualSurroundEffect {
                 &mut *output_buffer.as_ffi(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Retrieves a single frame of tail samples from a virtual surround effect’s internal buffers.
@@ -115,23 +160,31 @@ impl VirtualSurroundEffect {
     /// After the input to the virtual surround effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
     /// The output audio buffer must be 2-channel.
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output buffer does not have exactly 2 channels.
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        assert_eq!(
-            output_buffer.num_channels(),
-            2,
-            "input buffer must have 2 channels",
-        );
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != 2 {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(2),
+                actual: num_output_channels,
+            });
+        }
 
-        unsafe {
+        let state = unsafe {
             audionimbus_sys::iplVirtualSurroundEffectGetTail(
                 self.raw_ptr(),
                 &mut *output_buffer.as_ffi(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Returns the number of tail samples remaining in a virtual surround effect’s internal buffers.
@@ -150,29 +203,33 @@ impl VirtualSurroundEffect {
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLVirtualSurroundEffect {
-        self.0
+        self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLVirtualSurroundEffect {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl Clone for VirtualSurroundEffect {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplVirtualSurroundEffectRetain(self.0);
+            audionimbus_sys::iplVirtualSurroundEffectRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            num_input_channels: self.num_input_channels,
+        }
     }
 }
 
 impl Drop for VirtualSurroundEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplVirtualSurroundEffectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplVirtualSurroundEffectRelease(&mut self.inner) }
     }
 }
 
@@ -216,5 +273,229 @@ impl VirtualSurroundEffectParams<'_> {
         };
 
         FFIWrapper::new(virtual_surround_effect_params)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod apply {
+        use super::*;
+
+        #[test]
+        fn test_valid_stereo() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let mut effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+
+            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+
+            let input = vec![0.5; 2 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect.apply(&params, &input_buffer, &output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_valid_surround_7_1() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let mut effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Surround7_1,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+
+            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+
+            let input = vec![0.5; 8 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(8),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect.apply(&params, &input_buffer, &output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_input_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let mut effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Surround5_1,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+
+            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+
+            let input = vec![0.5; 2 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.apply(&params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidInputChannels {
+                    expected: ChannelRequirement::Exactly(6),
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let mut effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+
+            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+
+            let input = vec![0.5; 2 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 4 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.apply(&params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(2),
+                    actual: 4
+                })
+            );
+        }
+    }
+
+    mod tail {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect.tail(&output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_output_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 4 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.tail(&output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(2),
+                    actual: 4
+                })
+            );
+        }
     }
 }

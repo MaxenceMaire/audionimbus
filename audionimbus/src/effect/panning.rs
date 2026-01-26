@@ -1,6 +1,6 @@
 use super::audio_effect_state::AudioEffectState;
+use super::EffectError;
 use super::SpeakerLayout;
-use super::*;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;

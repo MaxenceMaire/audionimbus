@@ -20,6 +20,8 @@
 - Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that has more than two channels.
 - Fixed a segmentation fault when applying a panning effect on an input buffer other than mono, or passing an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
 - Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
+- Fixed a segmentation fault when applying a virtual surround effect on an input buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect, or an output buffer that does not have two channels.
+- Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that does not have two channels.
 
 ### Changed
 
@@ -44,6 +46,8 @@
 - `BinauralEffect::tail` now returns an `EffectError` when the output buffer has more than two channels.
 - `PanningEffect::apply` now returns an `EffectError` when the input buffer is not mono, or the output buffer has a number of channels different from that needed for the speaker layout specified when creating the effect.
 - `PanningEffect::tail` now returns an `EffectError` when the output buffer has a number of channels different from that needed for the speaker layout specified when creating the effect.
+- `VirtualSurroundEfect::apply` now returns an `EffectError` when the input buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect, or the output buffer that does not have two channels.
+- `VirtualSurroundEffect::tail` now returns an `EffectError` when the output buffer does not have two channels.
 
 ### Added
 
