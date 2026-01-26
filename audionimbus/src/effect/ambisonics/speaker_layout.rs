@@ -1,7 +1,8 @@
 use crate::geometry::Direction;
+use std::fmt;
 
 /// Describes a standard or custom speaker layout.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SpeakerLayout {
     /// Mono.
     Mono,
@@ -23,6 +24,31 @@ pub enum SpeakerLayout {
         /// Unit-length direction for each speaker.
         speaker_directions: Vec<Direction>,
     },
+}
+
+impl SpeakerLayout {
+    /// Returns the name of this speaker layout.
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Mono => "mono",
+            Self::Stereo => "stereo",
+            Self::Quadraphonic => "quadraphonic",
+            Self::Surround5_1 => "5.1",
+            Self::Surround7_1 => "7.1",
+            Self::Custom { .. } => "custom",
+        }
+    }
+}
+
+impl fmt::Display for SpeakerLayout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Custom { speaker_directions } => {
+                write!(f, "{} ({} channels)", self.name(), speaker_directions.len())
+            }
+            _ => f.write_str(self.name()),
+        }
+    }
 }
 
 impl From<&SpeakerLayout> for audionimbus_sys::IPLSpeakerLayout {

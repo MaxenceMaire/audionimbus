@@ -648,6 +648,46 @@ pub const fn num_ambisonics_channels(order: u32) -> u32 {
     (order + 1) * (order + 1)
 }
 
+/// Describes the channel count requirement for an audio buffer.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum ChannelRequirement {
+    /// The buffer must have exactly this many channels.
+    Exactly(u32),
+
+    /// The buffer must have at least this many channels.
+    AtLeast(u32),
+
+    /// The buffer must have a channel count within the given inclusive range.
+    Range { min: u32, max: u32 },
+}
+
+impl ChannelRequirement {
+    /// Returns whether a number of channels satisfies this requirement.
+    pub fn is_satisfied_by(&self, actual: u32) -> bool {
+        match *self {
+            ChannelRequirement::Exactly(num_channels) => actual == num_channels,
+            ChannelRequirement::AtLeast(num_channels) => actual >= num_channels,
+            ChannelRequirement::Range { min, max } => (min..=max).contains(&actual),
+        }
+    }
+}
+
+impl std::fmt::Display for ChannelRequirement {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Exactly(num_channels) => {
+                write!(f, "exactly {}", num_channels)
+            }
+            Self::AtLeast(num_channels) => {
+                write!(f, "at least {}", num_channels)
+            }
+            Self::Range { min, max } => {
+                write!(f, "between {} and {} (inclusive)", min, max)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1088,6 +1128,20 @@ mod tests {
 
             let result = allocate_channel_ptrs(&data, settings);
             assert!(result.is_err());
+        }
+    }
+
+    mod channel_requirement {
+        use super::*;
+
+        #[test]
+        fn test_is_satisfied_by() {
+            assert!(ChannelRequirement::Exactly(2).is_satisfied_by(2));
+            assert!(!ChannelRequirement::Exactly(2).is_satisfied_by(1));
+            assert!(ChannelRequirement::AtLeast(2).is_satisfied_by(3));
+            assert!(!ChannelRequirement::AtLeast(2).is_satisfied_by(1));
+            assert!(ChannelRequirement::Range { min: 1, max: 4 }.is_satisfied_by(3));
+            assert!(!ChannelRequirement::Range { min: 1, max: 4 }.is_satisfied_by(5));
         }
     }
 }

@@ -62,10 +62,7 @@ fn test_buffer_downmix() {
     input_container.extend(std::iter::repeat_n(0.3, FRAME_SIZE));
     let input_buffer = AudioBuffer::try_with_data_and_settings(
         &mut input_container,
-        AudioBufferSettings {
-            num_channels: Some(NUM_CHANNELS as u32),
-            ..Default::default()
-        },
+        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
     )
     .unwrap();
 

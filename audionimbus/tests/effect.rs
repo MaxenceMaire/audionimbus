@@ -132,6 +132,7 @@ fn test_ambisonics_decode_effect() {
         speaker_layout: SpeakerLayout::Mono,
         hrtf: &hrtf,
         max_order: 0,
+        rendering: Rendering::Binaural,
     };
 
     let mut ambisonics_decode_effect = effect::AmbisonicsDecodeEffect::try_new(
@@ -145,7 +146,6 @@ fn test_ambisonics_decode_effect() {
         order: 0,
         hrtf: &hrtf,
         orientation: geometry::CoordinateSystem::default(),
-        binaural: true,
     };
 
     let _ = ambisonics_decode_effect.apply(
