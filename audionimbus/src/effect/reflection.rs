@@ -41,16 +41,27 @@ pub struct Hybrid;
 /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
 pub struct TrueAudioNext;
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for Convolution {}
+impl sealed::Sealed for Parametric {}
+impl sealed::Sealed for Hybrid {}
+impl sealed::Sealed for TrueAudioNext {}
+
 /// Marker trait for effects that can use `apply()`.
-pub trait CanApplyDirectly {}
+pub trait CanApplyDirectly: sealed::Sealed {}
 impl CanApplyDirectly for Convolution {}
 impl CanApplyDirectly for Parametric {}
 impl CanApplyDirectly for Hybrid {}
 
 /// Reflection effect type (convolution, parametric, hybrid, TrueAudioNext).
-pub trait ReflectionEffectType {
+pub trait ReflectionEffectType: sealed::Sealed {
+    /// Returns the FFI enum value for this reflection effect type.
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType;
 
+    /// Converts reflection effect settings to the FFI representation.
     fn ffi_settings(
         settings: &ReflectionEffectSettings,
     ) -> audionimbus_sys::IPLReflectionEffectSettings {
@@ -61,6 +72,7 @@ pub trait ReflectionEffectType {
         }
     }
 
+    /// Returns the number of output channels required for this effect type.
     fn num_output_channels(settings: &ReflectionEffectSettings) -> ChannelRequirement;
 }
 
