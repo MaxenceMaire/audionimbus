@@ -16,6 +16,7 @@
 - Fixed a segmentation fault when applying a reflection effect on an input buffer that is not mono or with an output buffer that has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
 - Fixed a segmentation fault when calling `ReflectionEffect::tail` or `ReflectionEffect::tail_into_mixer` with an output buffer that has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
 - Fixed a segmentation fault where `ReflectionEffect::apply_into_mixer` was missing the output buffer.
+- Fixed a segmentation fault when applying a reflection mixer with an output buffer that has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the mixer.
 - Fixed a segmentation fault when applying a binaural effect on an input buffer that is not mono or stereo, or passing an output buffer that has more than two channels.
 - Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that has more than two channels.
 - Fixed a segmentation fault when applying a panning effect on an input buffer that is not mono, or passing an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
@@ -52,6 +53,7 @@
 - `ReflectionEffect::apply_into_mixer` takes an additional `output_buffer` argument.
 - `ReflectionEffect::apply` and `ReflectionEffect::apply_into_mixer` now return an `EffectError` when the input buffer is not mono or the output buffer has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
 - `ReflectionEffect::tail` and `ReflectionEffect::tail_into_mixer` now return an `EffectError` when the output buffer has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
+- `ReflectionMixer::apply` now returns an `EffectError` when the output buffer has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the mixer.
 - `BinauralEffect::apply` now returns an `EffectError` when the input buffer is not mono or stereo, or the output buffer has more than two channels.
 - `BinauralEffect::tail` now returns an `EffectError` when the output buffer has more than two channels.
 - `PanningEffect::apply` now returns an `EffectError` when the input buffer is not mono, or the output buffer has a number of channels different from that needed for the speaker layout specified when creating the effect.
