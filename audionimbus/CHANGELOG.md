@@ -11,8 +11,11 @@
 - Fixed a segmentation fault caused by running a reflections simulation without having set a scene.
 - Fixed a segmentation fault when applying a direct effect on audio buffers that have a number of channels different from that specified when creating the effect.
 - Fixed a segmentation fault when calling `DirectEffect::tail` with an output buffer that has a number of channels different from that specified when creating the effect.
-- Fixed a segmentation fault when applying a pathing effect on an input buffer other than mono.
+- Fixed a segmentation fault when applying a pathing effect on an input buffer other than mono or passing an output buffer that has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 - Fixed a segmentation fault when calling `PathEffect::tail` with an output buffer that has a number of channels other than that needed for the ambisonics order specified when creating the effect.
+- Fixed a segmentation fault when applying a reflection effect on an input buffer other than mono or with an output buffer that has a number of channels other than that of the impulse response specified when creating the effect.
+- Fixed a segmentation fault when calling `ReflectionEffect::tail` or `ReflectionEffect::tail_into_mixer` with an output buffer that has a number of channels other than that of the impulse response specified when creating the effect.
+- Fixed a segmentation fault where `ReflectionEffect::apply_into_mixer` was missing the output buffer.
 
 ### Changed
 
@@ -30,6 +33,9 @@
 - `DirectEffect::apply` now returns an `EffectError` when the input of output buffers have a number of channels different from that specified when creating the effect.
 - `PathEffect::apply` now returns an `EffectError` when the input buffer is not mono or the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 - `PathEffect::tail` now returns an `EffectError` when the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
+- `ReflectionEffect::apply_into_mixer` takes an additional `output_buffer` argument.
+- `ReflectionEffect::apply` and `ReflectionEffect::apply_into_mixer` now return an `EffectError` when the input buffer is not mono or the output buffer has a number of channels other than that of the impulse response specified when creating the effect.
+- `ReflectionEffect::tail` and `ReflectionEffect::tail_into_mixer` now return an `EffectError` when the output buffer has a number of channels other than that of the impulse response specified when creating the effect.
 
 ### Added
 
@@ -44,6 +50,7 @@
 - `SpeakerLayout` now implements `Clone` and `Display`.
 - Add `EffectError` for errors that can occur when applying audio effects.
 - `SteamAudioError` implements `PartialEq`, `Copy` and `Clone`.
+- Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 
 ### Removed
 

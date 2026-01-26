@@ -6,7 +6,7 @@ use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::ChannelPointers;
+use crate::{ChannelPointers, ChannelRequirement};
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 ///
@@ -115,7 +115,7 @@ impl DirectEffect {
         let num_output_channels = output_buffer.num_channels();
         if num_output_channels != self.num_channels {
             return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_channels,
+                expected: ChannelRequirement::Exactly(self.num_channels),
                 actual: num_output_channels,
             });
         }
@@ -150,7 +150,7 @@ impl DirectEffect {
         let num_output_channels = output_buffer.num_channels();
         if num_output_channels != self.num_channels {
             return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_channels,
+                expected: ChannelRequirement::Exactly(self.num_channels),
                 actual: num_output_channels,
             });
         }
@@ -474,7 +474,7 @@ mod tests {
             assert_eq!(
                 direct_effect.apply(&direct_effect_params, &input_buffer, &output_buffer),
                 Err(EffectError::InvalidOutputChannels {
-                    expected: 1,
+                    expected: ChannelRequirement::Exactly(1),
                     actual: 4
                 })
             );
@@ -526,7 +526,7 @@ mod tests {
             assert_eq!(
                 direct_effect.tail(&output_buffer),
                 Err(EffectError::InvalidOutputChannels {
-                    expected: 1,
+                    expected: ChannelRequirement::Exactly(1),
                     actual: 2,
                 })
             );

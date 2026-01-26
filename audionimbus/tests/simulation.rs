@@ -100,7 +100,7 @@ fn test_simulation() {
         source.get_outputs(SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS);
 
     let reflection_effect_settings = ReflectionEffectSettings::Convolution {
-        impulse_response_size: 2 * sampling_rate, // 2.0f (IR duration) * 44100 (sampling rate)
+        impulse_response_size: 2 * sampling_rate, // 2.0f (IR duration) * 48000 (sampling rate)
         num_channels: 4,                          // 1st order Ambisonics
     };
     let mut reflection_effect =
@@ -117,10 +117,7 @@ fn test_simulation() {
     let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
     let output_buffer = AudioBuffer::try_with_data_and_settings(
         &mut output_container,
-        AudioBufferSettings {
-            num_channels: Some(4),
-            ..Default::default()
-        },
+        AudioBufferSettings::with_num_channels(4),
     )
     .unwrap();
 

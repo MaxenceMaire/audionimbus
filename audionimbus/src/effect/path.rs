@@ -12,7 +12,7 @@ use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
-use crate::ChannelPointers;
+use crate::{ChannelPointers, ChannelRequirement};
 
 #[cfg(doc)]
 use crate::simulation::{SimulationOutputs, Simulator, Source};
@@ -246,7 +246,7 @@ impl PathEffect {
         let num_output_channels = output_buffer.num_channels();
         if num_output_channels != self.num_output_channels {
             return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_output_channels,
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
                 actual: num_output_channels,
             });
         }
@@ -281,7 +281,7 @@ impl PathEffect {
         let num_output_channels = output_buffer.num_channels();
         if num_output_channels != self.num_output_channels {
             return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_output_channels,
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
                 actual: num_output_channels,
             });
         }
@@ -734,7 +734,7 @@ mod tests {
             assert_eq!(
                 path_effect.apply(&path_effect_params, &input_buffer, &output_buffer),
                 Err(EffectError::InvalidOutputChannels {
-                    expected: 4,
+                    expected: ChannelRequirement::Exactly(4),
                     actual: 2
                 })
             );
@@ -796,7 +796,7 @@ mod tests {
             assert_eq!(
                 path_effect.tail(&output_buffer),
                 Err(EffectError::InvalidOutputChannels {
-                    expected: 4,
+                    expected: ChannelRequirement::Exactly(4),
                     actual: 2
                 })
             );

@@ -1,5 +1,6 @@
 use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
+use super::EffectError;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::callback::{CallbackInformation, ProgressCallback};
@@ -12,7 +13,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
-use crate::ChannelPointers;
+use crate::{ChannelPointers, ChannelRequirement};
 
 #[cfg(doc)]
 use super::AmbisonicsDecodeEffect;
@@ -197,7 +198,10 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct ReflectionEffect(audionimbus_sys::IPLReflectionEffect);
+pub struct ReflectionEffect {
+    inner: audionimbus_sys::IPLReflectionEffect,
+    num_output_channels: ChannelRequirement,
+}
 
 impl ReflectionEffect {
     /// Creates a new reflection effect.
@@ -210,20 +214,34 @@ impl ReflectionEffect {
         audio_settings: &AudioSettings,
         reflection_effect_settings: &ReflectionEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let mut reflection_effect = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let status = unsafe {
             audionimbus_sys::iplReflectionEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLReflectionEffectSettings::from(reflection_effect_settings),
-                reflection_effect.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
         if let Some(error) = to_option_error(status) {
             return Err(error);
         }
+
+        let num_output_channels = match *reflection_effect_settings {
+            ReflectionEffectSettings::Parametric { .. } => ChannelRequirement::AtLeast(1),
+            ReflectionEffectSettings::Convolution { num_channels, .. }
+            | ReflectionEffectSettings::Hybrid { num_channels, .. }
+            | ReflectionEffectSettings::TrueAudioNext { num_channels, .. } => {
+                ChannelRequirement::Exactly(num_channels)
+            }
+        };
+
+        let reflection_effect = Self {
+            inner,
+            num_output_channels,
+        };
 
         Ok(reflection_effect)
     }
@@ -233,23 +251,48 @@ impl ReflectionEffect {
     /// This effect CANNOT be applied in-place.
     ///
     /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
+    ///
+    /// The input audio buffer must have one channel, and the output audio buffer must have as many
+    /// channels as the impulse response specified when creating the effect (for convolution,
+    /// hybrid, and TrueAudioNext) or at least one channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer has more than one channel
+    /// - The output audio buffer does not have as many channels as the impulse response specified
+    ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel
+    ///   (for parametric)
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
         reflection_effect_params: &ReflectionEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
-    ) -> AudioEffectState
+    ) -> Result<AudioEffectState, EffectError>
     where
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        assert_eq!(
-            input_buffer.num_channels(),
-            1,
-            "input buffer must have 1 channel",
-        );
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != 1 {
+            return Err(EffectError::InvalidInputChannels {
+                expected: 1,
+                actual: num_input_channels,
+            });
+        }
 
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
                 &mut *reflection_effect_params.as_ffi(),
@@ -258,7 +301,9 @@ impl ReflectionEffect {
                 std::ptr::null_mut(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Applies a reflection effect to an audio buffer.
@@ -267,50 +312,99 @@ impl ReflectionEffect {
     ///
     /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
     /// This can have a performance benefit if using convolution.
-    pub fn apply_into_mixer<I, PI: ChannelPointers>(
+    ///
+    /// The input audio buffer must have one channel, and the output audio buffer must have as many
+    /// channels as the impulse response specified when creating the effect (for convolution,
+    /// hybrid, and TrueAudioNext) or at least one channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer has more than one channel
+    /// - The output audio buffer does not have as many channels as the impulse response specified
+    ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel
+    ///   (for parametric)
+    pub fn apply_into_mixer<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
-        reflection_effect_params: &mut ReflectionEffectParams,
+        reflection_effect_params: &ReflectionEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
         mixer: &ReflectionMixer,
-    ) -> AudioEffectState
+    ) -> Result<AudioEffectState, EffectError>
     where
         I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        assert_eq!(
-            input_buffer.num_channels(),
-            1,
-            "input buffer must have 1 channel",
-        );
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != 1 {
+            return Err(EffectError::InvalidInputChannels {
+                expected: 1,
+                actual: num_input_channels,
+            });
+        }
 
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
                 &mut *reflection_effect_params.as_ffi(),
                 &mut *input_buffer.as_ffi(),
-                std::ptr::null_mut(),
+                &mut *output_buffer.as_ffi(),
                 mixer.raw_ptr(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
     ///
     /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
-    /// The output audio buffer must have as many channels as the impulse response specified when creating the effect (for convolution, hybrid, and TAN) or at least 1 channel (for parametric).
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    /// The output audio buffer must have as many channels as the impulse response specified when
+    /// creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one
+    /// channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
+    /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplReflectionEffectGetTail(
                 self.raw_ptr(),
                 &mut *output_buffer.as_ffi(),
                 std::ptr::null_mut(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
@@ -322,23 +416,43 @@ impl ReflectionEffect {
     /// This can have a performance benefit if using convolution.
     /// If using TAN, specifying a mixer is required.
     ///
-    ///The output audio buffer must have as many channels as the impulse response specified when creating the effect (for convolution, hybrid, and TAN) or at least 1 channel (for parametric).
+    /// The output audio buffer must have as many channels as the impulse response specified when
+    /// creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one
+    /// channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
+    /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
     pub fn tail_into_mixer<O>(
         &self,
         output_buffer: &AudioBuffer<O>,
         mixer: &ReflectionMixer,
-    ) -> AudioEffectState
+    ) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplReflectionEffectGetTail(
                 self.raw_ptr(),
                 &mut *output_buffer.as_ffi(),
                 mixer.raw_ptr(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Returns the number of tail samples remaining in a reflection effect’s internal buffers.
@@ -357,29 +471,33 @@ impl ReflectionEffect {
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
-        self.0
+        self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionEffect {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl Clone for ReflectionEffect {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplReflectionEffectRetain(self.0);
+            audionimbus_sys::iplReflectionEffectRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            num_output_channels: self.num_output_channels,
+        }
     }
 }
 
 impl Drop for ReflectionEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplReflectionEffectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplReflectionEffectRelease(&mut self.inner) }
     }
 }
 
@@ -995,3 +1113,663 @@ impl Drop for ReflectionMixer {
 
 unsafe impl Send for ReflectionMixer {}
 unsafe impl Sync for ReflectionMixer {}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    mod apply {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+            const MAX_ORDER: u32 = 1;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let mut simulator =
+                Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
+
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).unwrap();
+            simulator.set_scene(&scene);
+
+            let source_settings = SourceSettings {
+                flags: SimulationFlags::REFLECTIONS,
+            };
+            let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs {
+                listener: CoordinateSystem::default(),
+                num_rays: 4096,
+                num_bounces: 16,
+                duration: 2.0,
+                order: 1,
+                irradiance_min_distance: 1.0,
+                pathing_visualization_callback: None,
+            };
+            simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let input_container = vec![0.5; FRAME_SIZE as usize];
+            let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+
+            let mut output_container =
+                vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let reflection_effect_params = simulation_outputs.reflections();
+            assert!(reflection_effect
+                .apply(&reflection_effect_params, &input_buffer, &output_buffer)
+                .is_ok());
+        }
+
+        #[test]
+        fn test_invalid_input_num_channels() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+            const MAX_ORDER: u32 = 1;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let mut simulator =
+                Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
+
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).unwrap();
+            simulator.set_scene(&scene);
+
+            let source_settings = SourceSettings {
+                flags: SimulationFlags::REFLECTIONS,
+            };
+            let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs {
+                listener: CoordinateSystem::default(),
+                num_rays: 4096,
+                num_bounces: 16,
+                duration: 2.0,
+                order: 1,
+                irradiance_min_distance: 1.0,
+                pathing_visualization_callback: None,
+            };
+            simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut input_container = vec![0.5; 2 * FRAME_SIZE as usize];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut input_container,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output_container =
+                vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let reflection_effect_params = simulation_outputs.reflections();
+            assert_eq!(
+                reflection_effect.apply(&reflection_effect_params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidInputChannels {
+                    expected: 1,
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+            const MAX_ORDER: u32 = 1;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let mut simulator =
+                Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
+
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).unwrap();
+            simulator.set_scene(&scene);
+
+            let source_settings = SourceSettings {
+                flags: SimulationFlags::REFLECTIONS,
+            };
+            let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs {
+                listener: CoordinateSystem::default(),
+                num_rays: 4096,
+                num_bounces: 16,
+                duration: 2.0,
+                order: 1,
+                irradiance_min_distance: 1.0,
+                pathing_visualization_callback: None,
+            };
+            simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let input_container = vec![0.5; FRAME_SIZE as usize];
+            let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+
+            let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let reflection_effect_params = simulation_outputs.reflections();
+            assert_eq!(
+                reflection_effect.apply(&reflection_effect_params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2
+                })
+            );
+        }
+    }
+
+    mod apply_into_mixer {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+            const MAX_ORDER: u32 = 1;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let mut simulator =
+                Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
+
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).unwrap();
+            simulator.set_scene(&scene);
+
+            let source_settings = SourceSettings {
+                flags: SimulationFlags::REFLECTIONS,
+            };
+            let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs {
+                listener: CoordinateSystem::default(),
+                num_rays: 4096,
+                num_bounces: 16,
+                duration: 2.0,
+                order: 1,
+                irradiance_min_distance: 1.0,
+                pathing_visualization_callback: None,
+            };
+            simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let input_container = vec![0.5; FRAME_SIZE as usize];
+            let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+
+            let mut output_container =
+                vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let reflection_effect_params = simulation_outputs.reflections();
+            assert!(reflection_effect
+                .apply_into_mixer(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &output_buffer,
+                    &mixer
+                )
+                .is_ok());
+        }
+
+        #[test]
+        fn test_invalid_input_num_channels() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+            const MAX_ORDER: u32 = 1;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let mut simulator =
+                Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
+
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).unwrap();
+            simulator.set_scene(&scene);
+
+            let source_settings = SourceSettings {
+                flags: SimulationFlags::REFLECTIONS,
+            };
+            let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs {
+                listener: CoordinateSystem::default(),
+                num_rays: 4096,
+                num_bounces: 16,
+                duration: 2.0,
+                order: 1,
+                irradiance_min_distance: 1.0,
+                pathing_visualization_callback: None,
+            };
+            simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut input_container = vec![0.5; 2 * FRAME_SIZE as usize];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut input_container,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output_container =
+                vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let reflection_effect_params = simulation_outputs.reflections();
+            assert_eq!(
+                reflection_effect.apply_into_mixer(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &output_buffer,
+                    &mixer
+                ),
+                Err(EffectError::InvalidInputChannels {
+                    expected: 1,
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+            const MAX_ORDER: u32 = 1;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let mut simulator =
+                Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
+
+            let scene_settings = SceneSettings::default();
+            let scene = Scene::try_new(&context, &scene_settings).unwrap();
+            simulator.set_scene(&scene);
+
+            let source_settings = SourceSettings {
+                flags: SimulationFlags::REFLECTIONS,
+            };
+            let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs {
+                listener: CoordinateSystem::default(),
+                num_rays: 4096,
+                num_bounces: 16,
+                duration: 2.0,
+                order: 1,
+                irradiance_min_distance: 1.0,
+                pathing_visualization_callback: None,
+            };
+            simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut input_container = vec![0.5; FRAME_SIZE as usize];
+            let input_buffer = AudioBuffer::try_with_data(&mut input_container).unwrap();
+
+            let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let reflection_effect_params = simulation_outputs.reflections();
+            assert_eq!(
+                reflection_effect.apply_into_mixer(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &output_buffer,
+                    &mixer
+                ),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2
+                })
+            );
+        }
+    }
+
+    mod tail {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut output_container = vec![0.0; (num_output_channels * FRAME_SIZE) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(num_output_channels),
+            )
+            .unwrap();
+
+            assert!(reflection_effect.tail(&output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut output_container = vec![0.0; FRAME_SIZE as usize];
+            let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+
+            assert_eq!(
+                reflection_effect.tail(&output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 1
+                })
+            );
+        }
+    }
+
+    mod tail_into_mixer {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut output_container = vec![0.0; (num_output_channels * FRAME_SIZE) as usize];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output_container,
+                AudioBufferSettings::with_num_channels(num_output_channels),
+            )
+            .unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            assert!(reflection_effect
+                .tail_into_mixer(&output_buffer, &mixer)
+                .is_ok());
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            const SAMPLING_RATE: u32 = 48000;
+            const FRAME_SIZE: u32 = 1024;
+            const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+
+            let context_settings = ContextSettings::default();
+            let context = Context::try_new(&context_settings).unwrap();
+
+            let audio_settings = AudioSettings::default();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                impulse_response_size: IR_SIZE,
+                num_channels: num_output_channels,
+            };
+            let reflection_effect =
+                ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            let mut output_container = vec![0.0; FRAME_SIZE as usize];
+            let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            assert_eq!(
+                reflection_effect.tail_into_mixer(&output_buffer, &mixer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 1
+                })
+            );
+        }
+    }
+}

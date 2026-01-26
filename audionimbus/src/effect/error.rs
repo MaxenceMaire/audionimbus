@@ -1,4 +1,5 @@
 use super::ambisonics::SpeakerLayout;
+use crate::ChannelRequirement;
 
 /// Errors that can occur when applying audio effects.
 #[derive(Debug, PartialEq)]
@@ -7,7 +8,10 @@ pub enum EffectError {
     InvalidInputChannels { expected: u32, actual: u32 },
 
     /// Output buffer has wrong number of channels.
-    InvalidOutputChannels { expected: u32, actual: u32 },
+    InvalidOutputChannels {
+        expected: ChannelRequirement,
+        actual: u32,
+    },
 
     /// Input and output channel counts must match but don't.
     InputOutputChannelMismatch { input: u32, output: u32 },
