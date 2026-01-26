@@ -1,4 +1,3 @@
-use super::ambisonics::SpeakerLayout;
 use crate::ChannelRequirement;
 
 /// Errors that can occur when applying audio effects.
@@ -14,22 +13,6 @@ pub enum EffectError {
     InvalidOutputChannels {
         expected: ChannelRequirement,
         actual: u32,
-    },
-
-    /// Input and output channel counts must match but don't.
-    InputOutputChannelMismatch { input: u32, output: u32 },
-
-    /// Buffer has wrong channels for speaker layout.
-    InvalidSpeakerLayoutChannels {
-        layout: SpeakerLayout,
-        expected: u32,
-        actual: u32,
-    },
-
-    /// Buffer is too small for the required samples.
-    InsufficientBufferSize {
-        required_samples: usize,
-        actual_samples: usize,
     },
 }
 
@@ -50,34 +33,6 @@ impl std::fmt::Display for EffectError {
                     f,
                     "invalid number of output channels: expected {}, got {}",
                     expected, actual
-                )
-            }
-            Self::InputOutputChannelMismatch { input, output } => {
-                write!(
-                    f,
-                    "input and output channel counts must match: input has {}, output has {}",
-                    input, output
-                )
-            }
-            Self::InvalidSpeakerLayoutChannels {
-                layout,
-                expected,
-                actual,
-            } => {
-                write!(
-                    f,
-                    "speaker layout '{}' requires {} channels, but buffer has {}",
-                    layout, expected, actual
-                )
-            }
-            Self::InsufficientBufferSize {
-                required_samples,
-                actual_samples,
-            } => {
-                write!(
-                    f,
-                    "buffer too small: needs {} samples, has {}",
-                    required_samples, actual_samples
                 )
             }
         }
