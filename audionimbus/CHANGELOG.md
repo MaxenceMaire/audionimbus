@@ -26,6 +26,8 @@
 - Fixed a segmentation fault when calling `AmbisonicsEncodeEffect::tail` with an output buffer that does not have the correct number of channels for the ambisonics order.
 - Fixed a segmentation fault when applying an ambisonics decode effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - Fixed a segmentation fault when calling `AmbisonicsDecodeEffect::tail` with an output buffer that does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
+- Fixed a segmentation fault when applying an ambisonics rotation effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have the correct number of channels for the ambisonics order.
+- Fixed a segmentation fault when calling `AmbisonicsRotationEffect::tail` with an output buffer that does not have the correct number of channels for the ambisonics order.
 
 ### Changed
 
@@ -57,6 +59,8 @@
 - `AmbisonicsDecodeEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - `AmbisonicsDecodeEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - `AmbisonicsDecodeEffectParams::binaural` field removed and added field `AmbisonicsDecodeEffectSettings::rendering` in order to validate output buffers in `AmbisonicsDecodeEffect::tail`.
+- `AmbisonicsRotationEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have the correct number of channels for the ambisonics order.
+- `AmbisonicsRotationEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the ambisonics order.
 
 ### Added
 
