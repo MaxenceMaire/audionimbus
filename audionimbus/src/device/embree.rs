@@ -34,11 +34,6 @@ impl EmbreeDevice {
         Ok(embree_device)
     }
 
-    /// Creates a null Embree device.
-    pub(crate) fn null() -> Self {
-        Self(std::ptr::null_mut())
-    }
-
     /// Returns the raw FFI pointer to the underlying Embree device.
     ///
     /// This is intended for internal use and advanced scenarios.
