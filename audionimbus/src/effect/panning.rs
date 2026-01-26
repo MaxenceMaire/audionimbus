@@ -1,12 +1,13 @@
 use super::audio_effect_state::AudioEffectState;
 use super::SpeakerLayout;
+use super::*;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
-use crate::ChannelPointers;
+use crate::{ChannelPointers, ChannelRequirement};
 
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
 ///
@@ -42,7 +43,12 @@ use crate::ChannelPointers;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct PanningEffect(audionimbus_sys::IPLPanningEffect);
+pub struct PanningEffect {
+    inner: audionimbus_sys::IPLPanningEffect,
+
+    /// Number of output channels needed for the speaker layout specified when creating the effect.
+    num_output_channels: u32,
+}
 
 impl PanningEffect {
     /// Creates a new panning effect.
@@ -55,14 +61,14 @@ impl PanningEffect {
         audio_settings: &AudioSettings,
         panning_effect_settings: &PanningEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let mut panning_effect = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let status = unsafe {
             audionimbus_sys::iplPanningEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLPanningEffectSettings::from(panning_effect_settings),
-                panning_effect.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
@@ -70,23 +76,61 @@ impl PanningEffect {
             return Err(error);
         }
 
-        Ok(panning_effect)
+        let num_output_channels = match &panning_effect_settings.speaker_layout {
+            SpeakerLayout::Mono => 1,
+            SpeakerLayout::Stereo => 2,
+            SpeakerLayout::Quadraphonic => 4,
+            SpeakerLayout::Surround5_1 => 6,
+            SpeakerLayout::Surround7_1 => 8,
+            SpeakerLayout::Custom { speaker_directions } => speaker_directions.len() as u32,
+        };
+
+        Ok(Self {
+            inner,
+            num_output_channels,
+        })
     }
 
     /// Applies a panning effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
+    ///
+    /// The input audio buffer must have one channel, and the output audio buffer must have as many
+    /// channels as needed for the speaker layout specified when creating the effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer has more than one channel
+    /// - The output buffer has a number of channels different from that needed for the speaker
+    ///   layout specified when creating the effect
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
         panning_effect_params: &PanningEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
-    ) -> AudioEffectState
+    ) -> Result<AudioEffectState, EffectError>
     where
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != 1 {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(1),
+                actual: num_input_channels,
+            });
+        }
+
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplPanningEffectApply(
                 self.raw_ptr(),
                 &mut *panning_effect_params.as_ffi(),
@@ -94,7 +138,9 @@ impl PanningEffect {
                 &mut *output_buffer.as_ffi(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Retrieves a single frame of tail samples from a panning effect’s internal buffers.
@@ -102,14 +148,29 @@ impl PanningEffect {
     /// After the input to the panning effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
     /// The output audio buffer must have as many channels as needed for the speaker layout specified when creating the panning effect.
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output buffer has a number of channels different from that
+    /// needed for the speaker layout specified when creating the effect.
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplPanningEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Returns the number of tail samples remaining in a panning effect’s internal buffers.
@@ -128,29 +189,33 @@ impl PanningEffect {
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLPanningEffect {
-        self.0
+        self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPanningEffect {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl Clone for PanningEffect {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplPanningEffectRetain(self.0);
+            audionimbus_sys::iplPanningEffectRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            num_output_channels: self.num_output_channels,
+        }
     }
 }
 
 impl Drop for PanningEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplPanningEffectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplPanningEffectRelease(&mut self.inner) }
     }
 }
 
@@ -194,5 +259,217 @@ impl PanningEffectParams {
         };
 
         FFIWrapper::new(panning_effect_params)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod apply {
+        use super::*;
+
+        #[test]
+        fn test_valid_stereo() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                },
+            )
+            .unwrap();
+
+            let panning_effect_params = PanningEffectParams {
+                direction: Direction::new(1.0, 0.0, 0.0),
+            };
+
+            let input = vec![0.5; 1024];
+            let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect
+                .apply(&panning_effect_params, &input_buffer, &output_buffer)
+                .is_ok());
+        }
+
+        #[test]
+        fn test_valid_surround_5_1() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Surround5_1,
+                },
+            )
+            .unwrap();
+
+            let panning_effect_params = PanningEffectParams {
+                direction: Direction::new(1.0, 0.0, 0.0),
+            };
+
+            let input = vec![0.5; 1024];
+            let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+
+            let mut output = vec![0.0; 6 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(6),
+            )
+            .unwrap();
+
+            assert!(effect
+                .apply(&panning_effect_params, &input_buffer, &output_buffer)
+                .is_ok());
+        }
+
+        #[test]
+        fn test_invalid_input_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                },
+            )
+            .unwrap();
+
+            let panning_effect_params = PanningEffectParams {
+                direction: Direction::new(1.0, 0.0, 0.0),
+            };
+
+            let input = vec![0.5; 2 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.apply(&panning_effect_params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidInputChannels {
+                    expected: ChannelRequirement::Exactly(1),
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                },
+            )
+            .unwrap();
+
+            let panning_effect_params = PanningEffectParams {
+                direction: Direction::new(1.0, 0.0, 0.0),
+            };
+
+            let input = vec![0.5; 1024];
+            let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+
+            let mut output = vec![0.0; 4 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.apply(&panning_effect_params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(2),
+                    actual: 4
+                })
+            );
+        }
+    }
+
+    mod tail {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                },
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect.tail(&output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_output_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                },
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 4 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.tail(&output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(2),
+                    actual: 4
+                })
+            );
+        }
     }
 }
