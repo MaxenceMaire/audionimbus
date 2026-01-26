@@ -14,6 +14,105 @@ use crate::geometry::{Scene, SceneParams};
 use crate::probe::ProbeBatch;
 use crate::simulation::BakedDataIdentifier;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::marker::PhantomData;
+
+/// Multi-channel convolution reverb.
+/// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
+/// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
+/// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
+pub struct Convolution;
+
+/// Parametric (or artificial) reverb, using feedback delay networks.
+/// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
+/// This is then used to drive an approximate model of reverberation in an indoor space.
+/// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
+/// A reflection mixer cannot be used with this algorithm.
+pub struct Parametric;
+
+/// A hybrid of convolution and parametric reverb.
+/// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
+/// The point in the IR where this transition occurs can be controlled.
+/// This algorithm allows a trade-off between rendering quality and CPU usage.
+/// An reflection mixer cannot be used with this algorithm.
+pub struct Hybrid;
+
+/// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
+/// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
+/// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
+pub struct TrueAudioNext;
+
+/// Marker trait for effects that can use `apply()`.
+pub trait CanApplyDirectly {}
+impl CanApplyDirectly for Convolution {}
+impl CanApplyDirectly for Parametric {}
+impl CanApplyDirectly for Hybrid {}
+
+/// Reflection effect type (convolution, parametric, hybrid, TrueAudioNext).
+pub trait ReflectionEffectType {
+    fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType;
+
+    fn ffi_settings(
+        settings: &ReflectionEffectSettings,
+    ) -> audionimbus_sys::IPLReflectionEffectSettings {
+        audionimbus_sys::IPLReflectionEffectSettings {
+            type_: Self::to_ffi_type(),
+            irSize: settings.impulse_response_size as i32,
+            numChannels: settings.num_channels as i32,
+        }
+    }
+
+    fn num_output_channels(settings: &ReflectionEffectSettings) -> ChannelRequirement;
+}
+
+impl ReflectionEffectType for Convolution {
+    fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
+        audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION
+    }
+
+    fn num_output_channels(settings: &ReflectionEffectSettings) -> ChannelRequirement {
+        ChannelRequirement::Exactly(settings.num_channels)
+    }
+}
+
+impl ReflectionEffectType for Parametric {
+    fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
+        audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC
+    }
+
+    fn ffi_settings(
+        settings: &ReflectionEffectSettings,
+    ) -> audionimbus_sys::IPLReflectionEffectSettings {
+        audionimbus_sys::IPLReflectionEffectSettings {
+            type_: Self::to_ffi_type(),
+            irSize: settings.impulse_response_size as i32,
+            numChannels: settings.num_channels as i32,
+        }
+    }
+
+    fn num_output_channels(_settings: &ReflectionEffectSettings) -> ChannelRequirement {
+        ChannelRequirement::AtLeast(1)
+    }
+}
+
+impl ReflectionEffectType for Hybrid {
+    fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
+        audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID
+    }
+
+    fn num_output_channels(settings: &ReflectionEffectSettings) -> ChannelRequirement {
+        ChannelRequirement::Exactly(settings.num_channels)
+    }
+}
+
+impl ReflectionEffectType for TrueAudioNext {
+    fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
+        audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN
+    }
+
+    fn num_output_channels(settings: &ReflectionEffectSettings) -> ChannelRequirement {
+        ChannelRequirement::Exactly(settings.num_channels)
+    }
+}
 
 #[cfg(doc)]
 use super::AmbisonicsDecodeEffect;
@@ -87,10 +186,10 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// let outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 ///
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
-/// let mut effect = ReflectionEffect::try_new(
+/// let mut effect = ReflectionEffect::<Convolution>::try_new(
 ///     &context,
 ///     &audio_settings,
-///     &ReflectionEffectSettings::Convolution {
+///     &ReflectionEffectSettings {
 ///         impulse_response_size: 2 * SAMPLING_RATE, // 2 seconds
 ///         num_channels: NUM_CHANNELS,
 ///     }
@@ -174,10 +273,10 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// let reverb_params = reverb_outputs.reflections();
 ///
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
-/// let mut reverb_effect = ReflectionEffect::try_new(
+/// let mut reverb_effect = ReflectionEffect::<Convolution>::try_new(
 ///     &context,
 ///     &audio_settings,
-///     &ReflectionEffectSettings::Convolution {
+///     &ReflectionEffectSettings {
 ///         impulse_response_size: 2 * SAMPLING_RATE,
 ///         num_channels: NUM_CHANNELS,
 ///     }
@@ -198,15 +297,17 @@ use crate::simulation::{BakedDataVariation, SimulationOutputs, Simulator, Source
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct ReflectionEffect {
+pub struct ReflectionEffect<T: ReflectionEffectType> {
     inner: audionimbus_sys::IPLReflectionEffect,
 
     /// Number of output channels needed, i.e. as many channels as the impulse response specified
     /// when creating the effect.
     num_output_channels: ChannelRequirement,
+
+    _marker: PhantomData<T>,
 }
 
-impl ReflectionEffect {
+impl<T: ReflectionEffectType> ReflectionEffect<T> {
     /// Creates a new reflection effect.
     ///
     /// # Errors
@@ -223,7 +324,7 @@ impl ReflectionEffect {
             audionimbus_sys::iplReflectionEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLReflectionEffectSettings::from(reflection_effect_settings),
+                &mut T::ffi_settings(reflection_effect_settings),
                 &mut inner,
             )
         };
@@ -232,81 +333,15 @@ impl ReflectionEffect {
             return Err(error);
         }
 
-        let num_output_channels = match *reflection_effect_settings {
-            ReflectionEffectSettings::Parametric { .. } => ChannelRequirement::AtLeast(1),
-            ReflectionEffectSettings::Convolution { num_channels, .. }
-            | ReflectionEffectSettings::Hybrid { num_channels, .. }
-            | ReflectionEffectSettings::TrueAudioNext { num_channels, .. } => {
-                ChannelRequirement::Exactly(num_channels)
-            }
-        };
+        let num_output_channels = T::num_output_channels(reflection_effect_settings);
 
         let reflection_effect = Self {
             inner,
             num_output_channels,
+            _marker: PhantomData,
         };
 
         Ok(reflection_effect)
-    }
-
-    /// Applies a reflection effect to an audio buffer.
-    ///
-    /// This effect CANNOT be applied in-place.
-    ///
-    /// Cannot be used with [`ReflectionEffectSettings::TrueAudioNext`].
-    ///
-    /// The input audio buffer must have one channel, and the output audio buffer must have as many
-    /// channels as the impulse response specified when creating the effect (for convolution,
-    /// hybrid, and TrueAudioNext) or at least one channel (for parametric).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`EffectError`] if:
-    /// - The input buffer has more than one channel
-    /// - The output audio buffer does not have as many channels as the impulse response specified
-    ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one channel
-    ///   (for parametric)
-    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
-        &mut self,
-        reflection_effect_params: &ReflectionEffectParams,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
-        if num_input_channels != 1 {
-            return Err(EffectError::InvalidInputChannels {
-                expected: ChannelRequirement::Exactly(1),
-                actual: num_input_channels,
-            });
-        }
-
-        let num_output_channels = output_buffer.num_channels();
-        if !self
-            .num_output_channels
-            .is_satisfied_by(num_output_channels)
-        {
-            return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_output_channels,
-                actual: num_output_channels,
-            });
-        }
-
-        let state = unsafe {
-            audionimbus_sys::iplReflectionEffectApply(
-                self.raw_ptr(),
-                &mut *reflection_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
-                std::ptr::null_mut(),
-            )
-        }
-        .into();
-
-        Ok(state)
     }
 
     /// Applies a reflection effect to an audio buffer.
@@ -329,10 +364,10 @@ impl ReflectionEffect {
     ///   (for parametric)
     pub fn apply_into_mixer<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
-        reflection_effect_params: &ReflectionEffectParams,
+        reflection_effect_params: &ReflectionEffectParams<T>,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
-        mixer: &ReflectionMixer,
+        mixer: &ReflectionMixer<T>,
     ) -> Result<AudioEffectState, EffectError>
     where
         I: AsRef<[Sample]>,
@@ -375,45 +410,6 @@ impl ReflectionEffect {
     ///
     /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
-    /// The output audio buffer must have as many channels as the impulse response specified when
-    /// creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one
-    /// channel (for parametric).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
-    /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
-        if !self
-            .num_output_channels
-            .is_satisfied_by(num_output_channels)
-        {
-            return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_output_channels,
-                actual: num_output_channels,
-            });
-        }
-
-        let state = unsafe {
-            audionimbus_sys::iplReflectionEffectGetTail(
-                self.raw_ptr(),
-                &mut *output_buffer.as_ffi(),
-                std::ptr::null_mut(),
-            )
-        }
-        .into();
-
-        Ok(state)
-    }
-
-    /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
-    ///
-    /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
-    ///
     /// The tail samples will be mixed into the given mixer.
     /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
     /// This can have a performance benefit if using convolution.
@@ -430,7 +426,7 @@ impl ReflectionEffect {
     pub fn tail_into_mixer<O>(
         &self,
         output_buffer: &AudioBuffer<O>,
-        mixer: &ReflectionMixer,
+        mixer: &ReflectionMixer<T>,
     ) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
@@ -485,7 +481,106 @@ impl ReflectionEffect {
     }
 }
 
-impl Clone for ReflectionEffect {
+impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
+    /// Applies a reflection effect to an audio buffer.
+    ///
+    /// This effect CANNOT be applied in-place.
+    ///
+    /// The input audio buffer must have one channel, and the output audio buffer must have as many
+    /// channels as the impulse response specified when creating the effect (for convolution,
+    /// hybrid, and TrueAudioNext) or at least one channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer has more than one channel
+    /// - The output audio buffer does not have as many channels as the impulse response specified
+    ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one channel
+    ///   (for parametric)
+    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
+        reflection_effect_params: &ReflectionEffectParams<T>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
+    ) -> Result<AudioEffectState, EffectError>
+    where
+        I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != 1 {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(1),
+                actual: num_input_channels,
+            });
+        }
+
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
+            audionimbus_sys::iplReflectionEffectApply(
+                self.raw_ptr(),
+                &mut *reflection_effect_params.as_ffi(),
+                &mut *input_buffer.as_ffi(),
+                &mut *output_buffer.as_ffi(),
+                std::ptr::null_mut(),
+            )
+        }
+        .into();
+
+        Ok(state)
+    }
+
+    /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
+    ///
+    /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
+    ///
+    /// The output audio buffer must have as many channels as the impulse response specified when
+    /// creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one
+    /// channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
+    /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
+            audionimbus_sys::iplReflectionEffectGetTail(
+                self.raw_ptr(),
+                &mut *output_buffer.as_ffi(),
+                std::ptr::null_mut(),
+            )
+        }
+        .into();
+
+        Ok(state)
+    }
+}
+
+impl<T: ReflectionEffectType> Clone for ReflectionEffect<T> {
     fn clone(&self) -> Self {
         unsafe {
             audionimbus_sys::iplReflectionEffectRetain(self.inner);
@@ -494,123 +589,33 @@ impl Clone for ReflectionEffect {
         Self {
             inner: self.inner,
             num_output_channels: self.num_output_channels,
+            _marker: PhantomData,
         }
     }
 }
 
-impl Drop for ReflectionEffect {
+impl<T: ReflectionEffectType> Drop for ReflectionEffect<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReflectionEffectRelease(&mut self.inner) }
     }
 }
 
-unsafe impl Send for ReflectionEffect {}
-unsafe impl Sync for ReflectionEffect {}
+unsafe impl<T: ReflectionEffectType> Send for ReflectionEffect<T> {}
+unsafe impl<T: ReflectionEffectType> Sync for ReflectionEffect<T> {}
 
 /// Settings used to create a reflection effect.
 #[derive(Copy, Clone, Debug)]
-pub enum ReflectionEffectSettings {
-    /// Multi-channel convolution reverb.
-    /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
-    /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
-    /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
-    Convolution {
-        /// Number of samples per channel in the IR.
-        impulse_response_size: u32,
+pub struct ReflectionEffectSettings {
+    /// Number of samples per channel in the IR.
+    pub impulse_response_size: u32,
 
-        /// Number of channels in the IR.
-        num_channels: u32,
-    },
-
-    /// Parametric (or artificial) reverb, using feedback delay networks.
-    /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
-    /// This is then used to drive an approximate model of reverberation in an indoor space.
-    /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
-    /// A reflection mixer cannot be used with this algorithm.
-    Parametric {
-        /// Number of samples per channel in the IR.
-        impulse_response_size: u32,
-
-        /// Number of channels in the IR.
-        num_channels: u32,
-    },
-
-    /// A hybrid of convolution and parametric reverb.
-    /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
-    /// The point in the IR where this transition occurs can be controlled.
-    /// This algorithm allows a trade-off between rendering quality and CPU usage.
-    /// An reflection mixer cannot be used with this algorithm.
-    Hybrid {
-        /// Number of samples per channel in the IR.
-        impulse_response_size: u32,
-
-        /// Number of channels in the IR.
-        num_channels: u32,
-    },
-
-    /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-    /// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
-    /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
-    TrueAudioNext {
-        /// Number of samples per channel in the IR.
-        impulse_response_size: u32,
-
-        /// Number of channels in the IR.
-        num_channels: u32,
-    },
-}
-
-impl From<&ReflectionEffectSettings> for audionimbus_sys::IPLReflectionEffectSettings {
-    fn from(settings: &ReflectionEffectSettings) -> Self {
-        let (type_, impulse_response_size, num_channels) = match settings {
-            ReflectionEffectSettings::Convolution {
-                impulse_response_size,
-                num_channels,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
-                impulse_response_size,
-                num_channels,
-            ),
-            ReflectionEffectSettings::Parametric {
-                impulse_response_size,
-                num_channels,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC,
-                impulse_response_size,
-                num_channels,
-            ),
-            ReflectionEffectSettings::Hybrid {
-                impulse_response_size,
-                num_channels,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID,
-                impulse_response_size,
-                num_channels,
-            ),
-            ReflectionEffectSettings::TrueAudioNext {
-                impulse_response_size,
-                num_channels,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN,
-                impulse_response_size,
-                num_channels,
-            ),
-        };
-
-        Self {
-            type_,
-            irSize: *impulse_response_size as i32,
-            numChannels: *num_channels as i32,
-        }
-    }
+    /// Number of channels in the IR.
+    pub num_channels: u32,
 }
 
 /// Parameters for applying a reflection effect to an audio buffer.
 #[derive(Debug, PartialEq)]
-pub struct ReflectionEffectParams {
-    /// Type of reflection effect algorithm to use.
-    pub reflection_effect_type: ReflectionEffectType,
-
+pub struct ReflectionEffectParams<T: ReflectionEffectType> {
     /// The impulse response.
     pub impulse_response: ReflectionEffectIR,
 
@@ -637,34 +642,24 @@ pub struct ReflectionEffectParams {
     /// The TrueAudio Next slot index to use for convolution processing.
     /// The slot identifies the IR to use.
     pub true_audio_next_slot: u32,
+
+    _marker: PhantomData<T>,
 }
 
-unsafe impl Send for ReflectionEffectParams {}
-
-/// The impulse response of [`ReflectionEffectParams`].
-#[derive(Debug, Eq, PartialEq)]
-pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
-
-unsafe impl Send for ReflectionEffectIR {}
-
-impl ReflectionEffectParams {
-    /// Multi-channel convolution reverb.
-    /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
-    /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
-    /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
+impl ReflectionEffectParams<Convolution> {
+    /// Constructs multi-channel convolution reverb params.
     ///
     /// # Arguments
     ///
     /// - `impulse_response`: the impulse response.
     /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub fn convolution(
+    pub fn new(
         impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         num_channels: u32,
         impulse_response_size: u32,
     ) -> Self {
         Self {
-            reflection_effect_type: ReflectionEffectType::Convolution,
             impulse_response: ReflectionEffectIR(impulse_response),
             reverb_times: <[f32; 3]>::default(),
             equalizer: Equalizer::default(),
@@ -673,27 +668,21 @@ impl ReflectionEffectParams {
             impulse_response_size,
             true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
             true_audio_next_slot: 0,
+            _marker: PhantomData,
         }
     }
+}
 
-    /// Parametric (or artificial) reverb, using feedback delay networks.
-    /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
-    /// This is then used to drive an approximate model of reverberation in an indoor space.
-    /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
-    /// A reflection mixer cannot be used with this algorithm.
+impl ReflectionEffectParams<Parametric> {
+    /// Constructs parametric (or artificial) reverb params.
     ///
     /// # Arguments
     ///
     /// - `reverb_times`: 3-band reverb decay times (RT60).
     /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub fn parametric(
-        reverb_times: [f32; 3],
-        num_channels: u32,
-        impulse_response_size: u32,
-    ) -> Self {
+    pub fn new(reverb_times: [f32; 3], num_channels: u32, impulse_response_size: u32) -> Self {
         Self {
-            reflection_effect_type: ReflectionEffectType::Parametric,
             impulse_response: ReflectionEffectIR(std::ptr::null_mut()),
             reverb_times,
             equalizer: Equalizer::default(),
@@ -702,14 +691,13 @@ impl ReflectionEffectParams {
             impulse_response_size,
             true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
             true_audio_next_slot: 0,
+            _marker: PhantomData,
         }
     }
+}
 
-    /// A hybrid of convolution and parametric reverb.
-    /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
-    /// The point in the IR where this transition occurs can be controlled.
-    /// This algorithm allows a trade-off between rendering quality and CPU usage.
-    /// A reflection mixer cannot be used with this algorithm.
+impl ReflectionEffectParams<Hybrid> {
+    /// Constructs params for a hybrid of convolution and parametric reverb.
     ///
     /// # Arguments
     ///
@@ -719,7 +707,7 @@ impl ReflectionEffectParams {
     /// - `delay`: samples after which parametric part starts.
     /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub fn hybrid(
+    pub fn new(
         impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         reverb_times: [f32; 3],
         equalizer: Equalizer<3>,
@@ -728,7 +716,6 @@ impl ReflectionEffectParams {
         impulse_response_size: u32,
     ) -> Self {
         Self {
-            reflection_effect_type: ReflectionEffectType::Hybrid,
             impulse_response: ReflectionEffectIR(impulse_response),
             reverb_times,
             equalizer,
@@ -737,12 +724,14 @@ impl ReflectionEffectParams {
             impulse_response_size,
             true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
             true_audio_next_slot: 0,
+            _marker: PhantomData,
         }
     }
+}
 
-    /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-    /// This algorithm is similar to [`ReflectionEffectType::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
-    /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
+impl ReflectionEffectParams<TrueAudioNext> {
+    /// Constructs multi-channel convolution reverb (using AMD TrueAudio Next for GPU acceleration)
+    /// params.
     ///
     /// # Arguments
     ///
@@ -750,14 +739,13 @@ impl ReflectionEffectParams {
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
     /// - `device`: the TrueAudio Next device to use for convolution processing.
     /// - `slot`: the TrueAudio Next slot index to use for convolution processing. The slot identifies the IR to use.
-    pub fn true_audio_next(
+    pub fn new(
         num_channels: u32,
         impulse_response_size: u32,
         device: TrueAudioNextDevice,
         slot: u32,
     ) -> Self {
         Self {
-            reflection_effect_type: ReflectionEffectType::TrueAudioNext,
             impulse_response: ReflectionEffectIR(std::ptr::null_mut()),
             reverb_times: <[f32; 3]>::default(),
             equalizer: Equalizer::default(),
@@ -766,14 +754,24 @@ impl ReflectionEffectParams {
             impulse_response_size,
             true_audio_next_device: device,
             true_audio_next_slot: slot,
+            _marker: PhantomData,
         }
     }
 }
 
-impl From<audionimbus_sys::IPLReflectionEffectParams> for ReflectionEffectParams {
+unsafe impl<T: ReflectionEffectType> Send for ReflectionEffectParams<T> {}
+
+/// The impulse response of [`ReflectionEffectParams`].
+#[derive(Debug, Eq, PartialEq)]
+pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
+
+unsafe impl Send for ReflectionEffectIR {}
+
+impl<T: ReflectionEffectType> From<audionimbus_sys::IPLReflectionEffectParams>
+    for ReflectionEffectParams<T>
+{
     fn from(params: audionimbus_sys::IPLReflectionEffectParams) -> Self {
         Self {
-            reflection_effect_type: params.type_.into(),
             impulse_response: ReflectionEffectIR(params.ir),
             reverb_times: params.reverbTimes,
             equalizer: Equalizer(params.eq),
@@ -782,16 +780,17 @@ impl From<audionimbus_sys::IPLReflectionEffectParams> for ReflectionEffectParams
             impulse_response_size: params.irSize as u32,
             true_audio_next_device: TrueAudioNextDevice(params.tanDevice),
             true_audio_next_slot: params.tanSlot as u32,
+            _marker: PhantomData,
         }
     }
 }
 
-impl ReflectionEffectParams {
+impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLReflectionEffectParams, Self> {
         let reflection_effect_params = audionimbus_sys::IPLReflectionEffectParams {
-            type_: self.reflection_effect_type.into(),
+            type_: T::to_ffi_type(),
             ir: self.impulse_response.0,
             reverbTimes: self.reverb_times,
             eq: *self.equalizer,
@@ -958,85 +957,20 @@ impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
     }
 }
 
-/// Type of reflection effect algorithm to use.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum ReflectionEffectType {
-    /// Multi-channel convolution reverb.
-    /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
-    /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
-    /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
-    Convolution,
-
-    /// Parametric (or artificial) reverb, using feedback delay networks.
-    /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
-    /// This is then used to drive an approximate model of reverberation in an indoor space.
-    /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
-    /// A reflection mixer cannot be used with this algorithm.
-    Parametric,
-
-    /// A hybrid of convolution and parametric reverb.
-    /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
-    /// The point in the IR where this transition occurs can be controlled.
-    /// This algorithm allows a trade-off between rendering quality and CPU usage.
-    /// An reflection mixer cannot be used with this algorithm.
-    Hybrid,
-
-    /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-    /// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
-    /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
-    TrueAudioNext,
-}
-
-impl From<ReflectionEffectType> for audionimbus_sys::IPLReflectionEffectType {
-    fn from(reflection_effect_type: ReflectionEffectType) -> Self {
-        match reflection_effect_type {
-            ReflectionEffectType::Convolution => {
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION
-            }
-            ReflectionEffectType::Parametric => {
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC
-            }
-            ReflectionEffectType::Hybrid => {
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID
-            }
-            ReflectionEffectType::TrueAudioNext => {
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN
-            }
-        }
-    }
-}
-
-impl From<audionimbus_sys::IPLReflectionEffectType> for ReflectionEffectType {
-    fn from(reflection_effect_type: audionimbus_sys::IPLReflectionEffectType) -> Self {
-        match reflection_effect_type {
-            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION => {
-                ReflectionEffectType::Convolution
-            }
-            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC => {
-                ReflectionEffectType::Parametric
-            }
-            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID => {
-                ReflectionEffectType::Hybrid
-            }
-            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN => {
-                ReflectionEffectType::TrueAudioNext
-            }
-        }
-    }
-}
-
 /// Mixes the outputs of multiple reflection effects, and generates a single sound field containing all the reflected sound reaching the listener.
 ///
 /// Using this is optional. Depending on the reflection effect algorithm used, a reflection mixer may provide a reduction in CPU usage.
 #[derive(Debug)]
-pub struct ReflectionMixer {
+pub struct ReflectionMixer<T: ReflectionEffectType> {
     inner: audionimbus_sys::IPLReflectionMixer,
 
     /// Number of output channels required.
     num_output_channels: ChannelRequirement,
+
+    _marker: PhantomData<T>,
 }
 
-impl ReflectionMixer {
+impl<T: ReflectionEffectType> ReflectionMixer<T> {
     /// Creates a new reflection mixer.
     ///
     /// # Errors
@@ -1053,7 +987,7 @@ impl ReflectionMixer {
             audionimbus_sys::iplReflectionMixerCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLReflectionEffectSettings::from(reflection_effect_settings),
+                &mut T::ffi_settings(reflection_effect_settings),
                 &mut inner,
             )
         };
@@ -1062,18 +996,12 @@ impl ReflectionMixer {
             return Err(error);
         }
 
-        let num_output_channels = match *reflection_effect_settings {
-            ReflectionEffectSettings::Parametric { .. } => ChannelRequirement::AtLeast(1),
-            ReflectionEffectSettings::Convolution { num_channels, .. }
-            | ReflectionEffectSettings::Hybrid { num_channels, .. }
-            | ReflectionEffectSettings::TrueAudioNext { num_channels, .. } => {
-                ChannelRequirement::Exactly(num_channels)
-            }
-        };
+        let num_output_channels = T::num_output_channels(reflection_effect_settings);
 
         let reflection_mixer = Self {
             inner,
             num_output_channels,
+            _marker: PhantomData,
         };
 
         Ok(reflection_mixer)
@@ -1092,7 +1020,7 @@ impl ReflectionMixer {
     /// TrueAudioNext) or at least one channel (for parametric).
     pub fn apply<O, PO: ChannelPointers>(
         &mut self,
-        reflection_effect_params: &mut ReflectionEffectParams,
+        reflection_effect_params: &mut ReflectionEffectParams<T>,
         output_buffer: &AudioBuffer<O, PO>,
     ) -> Result<AudioEffectState, EffectError>
     where
@@ -1141,7 +1069,7 @@ impl ReflectionMixer {
     }
 }
 
-impl Clone for ReflectionMixer {
+impl<T: ReflectionEffectType> Clone for ReflectionMixer<T> {
     fn clone(&self) -> Self {
         unsafe {
             audionimbus_sys::iplReflectionMixerRetain(self.inner);
@@ -1150,18 +1078,19 @@ impl Clone for ReflectionMixer {
         Self {
             inner: self.inner,
             num_output_channels: self.num_output_channels,
+            _marker: PhantomData,
         }
     }
 }
 
-impl Drop for ReflectionMixer {
+impl<T: ReflectionEffectType> Drop for ReflectionMixer<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReflectionMixerRelease(&mut self.inner) }
     }
 }
 
-unsafe impl Send for ReflectionMixer {}
-unsafe impl Sync for ReflectionMixer {}
+unsafe impl<T: ReflectionEffectType> Send for ReflectionMixer<T> {}
+unsafe impl<T: ReflectionEffectType> Sync for ReflectionMixer<T> {}
 
 #[cfg(test)]
 mod tests {
@@ -1225,11 +1154,11 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let mut reflection_effect = ReflectionEffect::try_new(
+                let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1305,11 +1234,11 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let mut reflection_effect = ReflectionEffect::try_new(
+                let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1397,11 +1326,11 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let mut reflection_effect = ReflectionEffect::try_new(
+                let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1488,11 +1417,11 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let mut reflection_effect = ReflectionEffect::try_new(
+                let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1580,11 +1509,11 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let mut reflection_effect = ReflectionEffect::try_new(
+                let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1680,11 +1609,11 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let mut reflection_effect = ReflectionEffect::try_new(
+                let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1739,11 +1668,11 @@ mod tests {
                 let audio_settings = AudioSettings::default();
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let reflection_effect = ReflectionEffect::try_new(
+                let reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1772,11 +1701,11 @@ mod tests {
                 let audio_settings = AudioSettings::default();
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let reflection_effect = ReflectionEffect::try_new(
+                let reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1811,11 +1740,11 @@ mod tests {
                 let audio_settings = AudioSettings::default();
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let reflection_effect = ReflectionEffect::try_new(
+                let reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1853,11 +1782,11 @@ mod tests {
                 let audio_settings = AudioSettings::default();
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
-                let reflection_effect = ReflectionEffect::try_new(
+                let reflection_effect = ReflectionEffect::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -1943,12 +1872,12 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
 
-                let mut mixer = ReflectionMixer::try_new(
+                let mut mixer = ReflectionMixer::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -2020,12 +1949,12 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
 
-                let mut mixer = ReflectionMixer::try_new(
+                let mut mixer = ReflectionMixer::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -2101,12 +2030,12 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Parametric {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
 
-                let mut mixer = ReflectionMixer::try_new(
+                let mut mixer = ReflectionMixer::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -2178,12 +2107,12 @@ mod tests {
                 let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS);
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Parametric {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
 
-                let mut mixer = ReflectionMixer::try_new(
+                let mut mixer = ReflectionMixer::<Parametric>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -2215,12 +2144,12 @@ mod tests {
                 let audio_settings = AudioSettings::default();
 
                 let num_output_channels = num_ambisonics_channels(1);
-                let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+                let reflection_effect_settings = ReflectionEffectSettings {
                     impulse_response_size: IR_SIZE,
                     num_channels: num_output_channels,
                 };
 
-                let mut mixer = ReflectionMixer::try_new(
+                let mut mixer = ReflectionMixer::<Convolution>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
