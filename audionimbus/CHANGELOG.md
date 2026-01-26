@@ -33,6 +33,7 @@
 - Fixed a segmentation fault when calling `AmbisonicsPanningEffect::tail` with an output buffer that does not have the correct number of channels for the speaker layout specified when creating the effect.
 - Fixed a segmentation fault when applying an ambisonics binaural effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have exactly two channels.
 - Fixed a segmentation fault when calling `AmbisonicsBinauralEffect::tail` with an output buffer that does not have exactly two channels.
+- Fixed a segmentation fault when calling `ReflectionEffect::apply()` with TrueAudioNext effects (which require a mixer).
 
 ### Changed
 
@@ -71,6 +72,7 @@
 - `AmbisonicsPanningEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the speaker layout specified when creating the effect.
 - `AmbisonicsBinauralEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have exactly two channels.
 - `AmbisonicsBinauralEffect::tail` now returns an `EffectError` when the output buffer does not have exactly two channels.
+- Refactored `ReflectionEffect`, `ReflectionMixer`, and `ReflectionEffectParams` to use compile-time type safety via generic parameters (`Convolution`, `Parametric`, `Hybrid`, `TrueAudioNext`). This prevents segmentation faults by ensuring TrueAudioNext effects can only use `apply_into_mixer()` (not `apply()`), and guarantees effect parameters match their corresponding effect types. `ReflectionEffectSettings` is now a simple struct, with the algorithm type specified through the generic parameter.
 
 ### Added
 

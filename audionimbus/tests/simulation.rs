@@ -99,12 +99,16 @@ fn test_simulation() {
     let simulation_outputs =
         source.get_outputs(SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS);
 
-    let reflection_effect_settings = ReflectionEffectSettings::Convolution {
+    let reflection_effect_settings = ReflectionEffectSettings {
         impulse_response_size: 2 * sampling_rate, // 2.0f (IR duration) * 48000 (sampling rate)
         num_channels: 4,                          // 1st order Ambisonics
     };
-    let mut reflection_effect =
-        ReflectionEffect::try_new(&context, &audio_settings, &reflection_effect_settings).unwrap();
+    let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+        &context,
+        &audio_settings,
+        &reflection_effect_settings,
+    )
+    .unwrap();
 
     let frequency = 440.0;
     let amplitude = 0.5;

@@ -9,6 +9,7 @@ use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::directivity::Directivity;
 use crate::distance_attenuation::DistanceAttenuationModel;
+use crate::effect::reflection::ReflectionEffectType;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
@@ -1415,7 +1416,9 @@ impl SimulationOutputs {
         unsafe { FFIWrapper::new((*self.0).direct.into()) }
     }
 
-    pub fn reflections(&self) -> FFIWrapper<'_, ReflectionEffectParams, Self> {
+    pub fn reflections<T: ReflectionEffectType>(
+        &self,
+    ) -> FFIWrapper<'_, ReflectionEffectParams<T>, Self> {
         unsafe { FFIWrapper::new((*self.0).reflections.into()) }
     }
 
