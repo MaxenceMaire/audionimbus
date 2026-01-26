@@ -148,6 +148,10 @@ impl AmbisonicsEncodeEffect {
     /// After the input to the Ambisonics encode effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
     /// The output audio buffer must have as many channels as needed for the Ambisonics order specified when creating the effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output buffer does not have the correct number of channels for the Ambisonics order.
     pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
