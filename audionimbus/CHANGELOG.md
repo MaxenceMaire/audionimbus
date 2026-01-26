@@ -11,18 +11,18 @@
 - Fixed a segmentation fault caused by running a reflections simulation without having set a scene.
 - Fixed a segmentation fault when applying a direct effect on audio buffers that have a number of channels different from that specified when creating the effect.
 - Fixed a segmentation fault when calling `DirectEffect::tail` with an output buffer that has a number of channels different from that specified when creating the effect.
-- Fixed a segmentation fault when applying a pathing effect on an input buffer other than mono or passing an output buffer that has a number of channels different from that needed for the ambisonics order specified when creating the effect.
+- Fixed a segmentation fault when applying a pathing effect on an input buffer that is not mono or passing an output buffer that has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 - Fixed a segmentation fault when calling `PathEffect::tail` with an output buffer that has a number of channels other than that needed for the ambisonics order specified when creating the effect.
-- Fixed a segmentation fault when applying a reflection effect on an input buffer other than mono or with an output buffer that has a number of channels other than that of the impulse response specified when creating the effect.
-- Fixed a segmentation fault when calling `ReflectionEffect::tail` or `ReflectionEffect::tail_into_mixer` with an output buffer that has a number of channels other than that of the impulse response specified when creating the effect.
+- Fixed a segmentation fault when applying a reflection effect on an input buffer that is not mono or with an output buffer that has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
+- Fixed a segmentation fault when calling `ReflectionEffect::tail` or `ReflectionEffect::tail_into_mixer` with an output buffer that has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
 - Fixed a segmentation fault where `ReflectionEffect::apply_into_mixer` was missing the output buffer.
-- Fixed a segmentation fault when applying a binaural effect on an input buffer other than mono or stereo, or passing an output buffer that has more than two channels.
+- Fixed a segmentation fault when applying a binaural effect on an input buffer that is not mono or stereo, or passing an output buffer that has more than two channels.
 - Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that has more than two channels.
-- Fixed a segmentation fault when applying a panning effect on an input buffer other than mono, or passing an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
-- Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
+- Fixed a segmentation fault when applying a panning effect on an input buffer that is not mono, or passing an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
+- Fixed a segmentation fault when calling `PanningEffect::tail` with an output buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect.
 - Fixed a segmentation fault when applying a virtual surround effect on an input buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect, or an output buffer that does not have two channels.
-- Fixed a segmentation fault when calling `BinauralEffect::tail` with an output buffer that does not have two channels.
-- Fixed a segmentation fault when applying an ambisonics encode effect on an input buffer does not have exactly one channel or an output buffer that does not have the correct number of channels for the ambisonics order.
+- Fixed a segmentation fault when calling `VirtualSurroundEffect::tail` with an output buffer that does not have two channels.
+- Fixed a segmentation fault when applying an ambisonics encode effect on an input buffer that does not have exactly one channel or an output buffer that does not have the correct number of channels for the ambisonics order.
 - Fixed a segmentation fault when calling `AmbisonicsEncodeEffect::tail` with an output buffer that does not have the correct number of channels for the ambisonics order.
 - Fixed a segmentation fault when applying an ambisonics decode effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - Fixed a segmentation fault when calling `AmbisonicsDecodeEffect::tail` with an output buffer that does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
@@ -35,10 +35,10 @@
 
 ### Changed
 
-- Mark `air_absorption` function as `unsafe` since it calls `iplAirAbsorptionCalculate` which causes a segfault when using a callback.
+- Mark the `air_absorption` function as `unsafe` since it calls `iplAirAbsorptionCalculate` which causes a segfault when using a callback.
 - Improved documentation and added examples.
 - Make `NUM_BANDS` constant private.
-- Rename the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` into `try_new` for consistency.
+- Rename the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` to `try_new` for consistency.
 - `InstancedMeshSettings` now takes a reference to the sub-scene.
 - `Scene::add_static_mesh` and `Scene::add_instanced_mesh` now return handles.
 - `Scene::remove_static_mesh` and `Scene::remove_instanced_mesh` now take handles as arguments instead of references to `StaticMesh` and `InstancedMesh`.
@@ -46,20 +46,20 @@
 - `Simulator::run_pathing` now returns an error if the simulator contains no probes.
 - `ProbeBatch::commit` now takes `&mut self` instead of `&self`.
 - `Simulator::run_reflections` now returns an error if a scene has not been set and committed to the simulator.
-- `DirectEffect::apply` now returns an `EffectError` when the input of output buffers have a number of channels different from that specified when creating the effect.
+- `DirectEffect::apply` now returns an `EffectError` when the input or output buffers have a number of channels different from that specified when creating the effect.
 - `PathEffect::apply` now returns an `EffectError` when the input buffer is not mono or the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 - `PathEffect::tail` now returns an `EffectError` when the output buffer has a number of channels different from that needed for the ambisonics order specified when creating the effect.
 - `ReflectionEffect::apply_into_mixer` takes an additional `output_buffer` argument.
-- `ReflectionEffect::apply` and `ReflectionEffect::apply_into_mixer` now return an `EffectError` when the input buffer is not mono or the output buffer has a number of channels other than that of the impulse response specified when creating the effect.
-- `ReflectionEffect::tail` and `ReflectionEffect::tail_into_mixer` now return an `EffectError` when the output buffer has a number of channels other than that of the impulse response specified when creating the effect.
+- `ReflectionEffect::apply` and `ReflectionEffect::apply_into_mixer` now return an `EffectError` when the input buffer is not mono or the output buffer has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
+- `ReflectionEffect::tail` and `ReflectionEffect::tail_into_mixer` now return an `EffectError` when the output buffer has a number of channels other than that of the impulse response (or at least one channel for parametric reflections) specified when creating the effect.
 - `BinauralEffect::apply` now returns an `EffectError` when the input buffer is not mono or stereo, or the output buffer has more than two channels.
 - `BinauralEffect::tail` now returns an `EffectError` when the output buffer has more than two channels.
 - `PanningEffect::apply` now returns an `EffectError` when the input buffer is not mono, or the output buffer has a number of channels different from that needed for the speaker layout specified when creating the effect.
 - `PanningEffect::tail` now returns an `EffectError` when the output buffer has a number of channels different from that needed for the speaker layout specified when creating the effect.
-- `VirtualSurroundEfect::apply` now returns an `EffectError` when the input buffer that has a number of channels different from that needed for the speaker layout specified when creating the effect, or the output buffer that does not have two channels.
+- `VirtualSurroundEffect::apply` now returns an `EffectError` when the input buffer has a number of channels different from that needed for the speaker layout specified when creating the effect, or the output buffer does not have two channels.
 - `VirtualSurroundEffect::tail` now returns an `EffectError` when the output buffer does not have two channels.
-- `AmbisonicsEncodeEfect::apply` now returns an `EffectError` when the input buffer does not have exactly one channel or the output buffer that does not have the correct number of channels for the ambisonics order.
-- `AmbisonicsEncodeEffect::tail` now returns an `EffectError` when the output buffer that does not have the correct number of channels for the ambisonics order.
+- `AmbisonicsEncodeEffect::apply` now returns an `EffectError` when the input buffer does not have exactly one channel or the output buffer does not have the correct number of channels for the ambisonics order.
+- `AmbisonicsEncodeEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the ambisonics order.
 - `AmbisonicsDecodeEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - `AmbisonicsDecodeEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - `AmbisonicsDecodeEffectParams::binaural` field removed and added field `AmbisonicsDecodeEffectSettings::rendering` in order to validate output buffers in `AmbisonicsDecodeEffect::tail`.
