@@ -28,6 +28,8 @@
 - Fixed a segmentation fault when calling `AmbisonicsDecodeEffect::tail` with an output buffer that does not have the correct number of channels for the speaker layout (or two channels for binaural) specified when creating the effect.
 - Fixed a segmentation fault when applying an ambisonics rotation effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have the correct number of channels for the ambisonics order.
 - Fixed a segmentation fault when calling `AmbisonicsRotationEffect::tail` with an output buffer that does not have the correct number of channels for the ambisonics order.
+- Fixed a segmentation fault when applying an ambisonics panning effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have the correct number of channels for the speaker layout specified when creating the effect.
+- Fixed a segmentation fault when calling `AmbisonicsPanningEffect::tail` with an output buffer that does not have the correct number of channels for the speaker layout specified when creating the effect.
 
 ### Changed
 
@@ -61,6 +63,8 @@
 - `AmbisonicsDecodeEffectParams::binaural` field removed and added field `AmbisonicsDecodeEffectSettings::rendering` in order to validate output buffers in `AmbisonicsDecodeEffect::tail`.
 - `AmbisonicsRotationEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have the correct number of channels for the ambisonics order.
 - `AmbisonicsRotationEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the ambisonics order.
+- `AmbisonicsPanningEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have the correct number of channels for the speaker layout specified when creating the effect.
+- `AmbisonicsPanningEffect::tail` now returns an `EffectError` when the output buffer does not have the correct number of channels for the speaker layout specified when creating the effect.
 
 ### Added
 

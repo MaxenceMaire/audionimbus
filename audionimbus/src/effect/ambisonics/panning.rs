@@ -1,11 +1,13 @@
 use super::super::AudioEffectState;
+use super::super::EffectError;
 use super::super::SpeakerLayout;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::ChannelPointers;
+use crate::num_ambisonics_channels;
+use crate::{ChannelPointers, ChannelRequirement};
 
 /// Renders Ambisonic audio by panning it to a standard speaker layout.
 ///
@@ -48,7 +50,12 @@ use crate::ChannelPointers;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct AmbisonicsPanningEffect(audionimbus_sys::IPLAmbisonicsPanningEffect);
+pub struct AmbisonicsPanningEffect {
+    inner: audionimbus_sys::IPLAmbisonicsPanningEffect,
+
+    /// Number of output channels needed for the speaker layout specified when creating the effect.
+    num_output_channels: u32,
+}
 
 impl AmbisonicsPanningEffect {
     /// Creates a new ambisonics panning effect.
@@ -61,7 +68,7 @@ impl AmbisonicsPanningEffect {
         audio_settings: &AudioSettings,
         ambisonics_panning_effect_settings: &AmbisonicsPanningEffectSettings,
     ) -> Result<Self, SteamAudioError> {
-        let mut ambisonics_panning_effect = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let status = unsafe {
             audionimbus_sys::iplAmbisonicsPanningEffectCreate(
@@ -70,7 +77,7 @@ impl AmbisonicsPanningEffect {
                 &mut audionimbus_sys::IPLAmbisonicsPanningEffectSettings::from(
                     ambisonics_panning_effect_settings,
                 ),
-                ambisonics_panning_effect.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
@@ -78,32 +85,66 @@ impl AmbisonicsPanningEffect {
             return Err(error);
         }
 
+        let num_output_channels = match &ambisonics_panning_effect_settings.speaker_layout {
+            SpeakerLayout::Mono => 1,
+            SpeakerLayout::Stereo => 2,
+            SpeakerLayout::Quadraphonic => 4,
+            SpeakerLayout::Surround5_1 => 6,
+            SpeakerLayout::Surround7_1 => 8,
+            SpeakerLayout::Custom { speaker_directions } => speaker_directions.len() as u32,
+        };
+        let ambisonics_panning_effect = Self {
+            inner,
+            num_output_channels,
+        };
+
         Ok(ambisonics_panning_effect)
     }
 
     /// Applies an ambisonics panning effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
+    ///
+    /// The input audio buffer must have as many channels as needed for the ambisonics order
+    /// specified in the parameters.
+    ///
+    /// The output audio buffer must have as many channels as needed for the speaker layout
+    /// specified when creating the effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer does not have the correct number of channels for the Ambisonics order
+    /// - The output buffer does not have the correct number of channels for the speaker layout
     pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
         &mut self,
         ambisonics_panning_effect_params: &AmbisonicsPanningEffectParams,
         input_buffer: &AudioBuffer<I, PI>,
         output_buffer: &AudioBuffer<O, PO>,
-    ) -> AudioEffectState
+    ) -> Result<AudioEffectState, EffectError>
     where
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        let required_num_channels = (ambisonics_panning_effect_params.order + 1).pow(2);
-        assert_eq!(
-            input_buffer.num_channels(),
-            required_num_channels,
-            "ambisonic order N = {} requires (N + 1)^2 = {} input channels",
-            ambisonics_panning_effect_params.order,
-            required_num_channels
-        );
+        let required_input_channels =
+            num_ambisonics_channels(ambisonics_panning_effect_params.order);
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != required_input_channels {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(required_input_channels),
+                actual: num_input_channels,
+            });
+        }
 
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplAmbisonicsPanningEffectApply(
                 self.raw_ptr(),
                 &mut *ambisonics_panning_effect_params.as_ffi(),
@@ -111,25 +152,42 @@ impl AmbisonicsPanningEffect {
                 &mut *output_buffer.as_ffi(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Retrieves a single frame of tail samples from a Ambisonics panning effect’s internal buffers.
     ///
     /// After the input to the Ambisonics panning effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
-    /// The output audio buffer must have as many channels as needed for the speaker layout specified when creating the effect.
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> AudioEffectState
+    /// The output audio buffer must have as many channels as needed for the speaker layout
+    /// specified when creating the effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output buffer does not have the correct number of channels for the speaker layout.
+    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        unsafe {
+        let num_output_channels = output_buffer.num_channels();
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
             audionimbus_sys::iplAmbisonicsPanningEffectGetTail(
                 self.raw_ptr(),
                 &mut *output_buffer.as_ffi(),
             )
         }
-        .into()
+        .into();
+
+        Ok(state)
     }
 
     /// Returns the number of tail samples remaining in an Ambisonics panning effect’s internal buffers.
@@ -148,29 +206,33 @@ impl AmbisonicsPanningEffect {
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsPanningEffect {
-        self.0
+        self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsPanningEffect {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl Clone for AmbisonicsPanningEffect {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplAmbisonicsPanningEffectRetain(self.0);
+            audionimbus_sys::iplAmbisonicsPanningEffectRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            num_output_channels: self.num_output_channels,
+        }
     }
 }
 
 impl Drop for AmbisonicsPanningEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplAmbisonicsPanningEffectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplAmbisonicsPanningEffectRelease(&mut self.inner) }
     }
 }
 
@@ -216,5 +278,189 @@ impl AmbisonicsPanningEffectParams {
         };
 
         FFIWrapper::new(ambisonics_panning_effect_params)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod apply {
+        use super::*;
+
+        #[test]
+        fn test_valid_first_order() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = AmbisonicsPanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsPanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+
+            let params = AmbisonicsPanningEffectParams { order: 1 };
+
+            let mut input = vec![0.5; 4 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut input,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect.apply(&params, &input_buffer, &output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_input_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = AmbisonicsPanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsPanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+
+            let params = AmbisonicsPanningEffectParams { order: 1 };
+
+            let mut input = vec![0.5; 2 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.apply(&params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidInputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2,
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let mut effect = AmbisonicsPanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsPanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+
+            let params = AmbisonicsPanningEffectParams { order: 1 };
+
+            let mut input = vec![0.5; 4 * 1024];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut input,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 3 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(3),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.apply(&params, &input_buffer, &output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(2),
+                    actual: 3,
+                })
+            );
+        }
+    }
+
+    mod tail {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = AmbisonicsPanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsPanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 2 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert!(effect.tail(&output_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_invalid_output_channels() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = AmbisonicsPanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsPanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+
+            let mut output = vec![0.0; 3 * 1024];
+            let output_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut output,
+                AudioBufferSettings::with_num_channels(3),
+            )
+            .unwrap();
+
+            assert_eq!(
+                effect.tail(&output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(2),
+                    actual: 3,
+                })
+            );
+        }
     }
 }
