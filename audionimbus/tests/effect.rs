@@ -340,7 +340,7 @@ fn test_pathing() {
     )
     .unwrap();
 
-    let simulation_outputs = source.get_outputs(SimulationFlags::PATHING);
+    let simulation_outputs = source.get_outputs(SimulationFlags::PATHING).unwrap();
     let path_effect_params = simulation_outputs.pathing();
     let _ = path_effect.apply(&path_effect_params, &input_buffer, &output_buffer);
 }

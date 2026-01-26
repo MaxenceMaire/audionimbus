@@ -750,8 +750,16 @@ impl Source {
     /// # Arguments
     ///
     /// - `flags`: the types of simulation for which to retrieve results.
-    pub fn get_outputs(&mut self, simulation_flags: SimulationFlags) -> SimulationOutputs {
-        let simulation_outputs = SimulationOutputs::default();
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
+    /// [`SimulationOutputs`].
+    pub fn get_outputs(
+        &mut self,
+        simulation_flags: SimulationFlags,
+    ) -> Result<SimulationOutputs, SteamAudioError> {
+        let simulation_outputs = SimulationOutputs::try_allocate()?;
 
         unsafe {
             audionimbus_sys::iplSourceGetOutputs(
@@ -761,7 +769,7 @@ impl Source {
             );
         }
 
-        simulation_outputs
+        Ok(simulation_outputs)
     }
 
     /// Returns the raw FFI pointer to the underlying source.
@@ -1412,6 +1420,20 @@ pub struct SimulationOutputs(*mut audionimbus_sys::IPLSimulationOutputs);
 unsafe impl Send for SimulationOutputs {}
 
 impl SimulationOutputs {
+    fn try_allocate() -> Result<Self, SteamAudioError> {
+        let ptr = unsafe {
+            let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
+            let ptr = std::alloc::alloc(layout) as *mut audionimbus_sys::IPLSimulationOutputs;
+            if ptr.is_null() {
+                return Err(SteamAudioError::OutOfMemory);
+            }
+            std::ptr::write(ptr, std::mem::zeroed());
+            ptr
+        };
+
+        Ok(SimulationOutputs(ptr))
+    }
+
     pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
         unsafe { FFIWrapper::new((*self.0).direct.into()) }
     }
@@ -1432,22 +1454,6 @@ impl SimulationOutputs {
 
     pub fn raw_ptr_mut(&mut self) -> &mut *mut audionimbus_sys::IPLSimulationOutputs {
         &mut self.0
-    }
-}
-
-impl Default for SimulationOutputs {
-    fn default() -> Self {
-        let ptr = unsafe {
-            let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
-            let ptr = std::alloc::alloc(layout) as *mut audionimbus_sys::IPLSimulationOutputs;
-            if ptr.is_null() {
-                panic!("failed to allocate memory for IPLSimulationOutputs");
-            }
-            std::ptr::write(ptr, std::mem::zeroed());
-            ptr
-        };
-
-        SimulationOutputs(ptr)
     }
 }
 

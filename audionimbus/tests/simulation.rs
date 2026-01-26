@@ -96,8 +96,9 @@ fn test_simulation() {
 
     simulator.run_direct();
     assert!(simulator.run_reflections().is_ok());
-    let simulation_outputs =
-        source.get_outputs(SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS);
+    let simulation_outputs = source
+        .get_outputs(SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS)
+        .unwrap();
 
     let reflection_effect_settings = ReflectionEffectSettings {
         impulse_response_size: 2 * sampling_rate, // 2.0f (IR duration) * 48000 (sampling rate)

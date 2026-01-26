@@ -73,6 +73,7 @@
 - `AmbisonicsBinauralEffect::apply` now returns an `EffectError` when the input buffer does not have the correct number of channels for the ambisonics order, or the output buffer does not have exactly two channels.
 - `AmbisonicsBinauralEffect::tail` now returns an `EffectError` when the output buffer does not have exactly two channels.
 - Refactored `ReflectionEffect`, `ReflectionMixer`, and `ReflectionEffectParams` to use compile-time type safety via generic parameters (`Convolution`, `Parametric`, `Hybrid`, `TrueAudioNext`). This prevents segmentation faults by ensuring TrueAudioNext effects can only use `apply_into_mixer()` (not `apply()`), and guarantees effect parameters match their corresponding effect types. `ReflectionEffectSettings` is now a simple struct, with the algorithm type specified through the generic parameter.
+- `Source::get_outputs` now returns an error on failure to allocate sufficient memory for the `SimulationOutputs` (it would `panic!` before the change).
 
 ### Added
 
@@ -94,6 +95,7 @@
 
 - Removed the `From<&HrtfSettings>` trait implementation for `audionimbus_sys::IPLHRTFSettings` in favor of the new `to_ffi` method on `HrtfSettings`, which allows the optional filename variable to be kept alive for FFI calls.
 - Make the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` only public to the crate.
+- Removed the `Default` trait implementation for `SimulationOutputs`.
 
 ## [0.11.0] - 2026-01-14
 
