@@ -50,8 +50,8 @@ use crate::{ChannelPointers, ChannelRequirement};
 pub struct AmbisonicsEncodeEffect {
     inner: audionimbus_sys::IPLAmbisonicsEncodeEffect,
 
-    /// Ambisonics order specified when creating the effect.
-    max_order: u32,
+    /// Number of channels required for the ambisonic order specified when creating the effect.
+    num_output_channels: u32,
 }
 
 impl AmbisonicsEncodeEffect {
@@ -82,9 +82,11 @@ impl AmbisonicsEncodeEffect {
             return Err(error);
         }
 
+        let num_output_channels =
+            num_ambisonics_channels(ambisonics_encode_effect_settings.max_order);
         let ambisonics_encode_effect = Self {
             inner,
-            max_order: ambisonics_encode_effect_settings.max_order,
+            num_output_channels,
         };
 
         Ok(ambisonics_encode_effect)
@@ -120,13 +122,11 @@ impl AmbisonicsEncodeEffect {
             });
         }
 
-        let required_num_channels = num_ambisonics_channels(self.max_order);
         let num_output_channels = output_buffer.num_channels();
-        if num_output_channels != required_num_channels {
-            return Err(EffectError::InvalidAmbisonicOrder {
-                order: self.max_order,
-                buffer_channels: num_output_channels,
-                required_channels: required_num_channels,
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
+                actual: num_output_channels,
             });
         }
 
@@ -156,13 +156,11 @@ impl AmbisonicsEncodeEffect {
     where
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        let required_num_channels = num_ambisonics_channels(self.max_order);
         let num_output_channels = output_buffer.num_channels();
-        if num_output_channels != required_num_channels {
-            return Err(EffectError::InvalidAmbisonicOrder {
-                order: self.max_order,
-                buffer_channels: num_output_channels,
-                required_channels: required_num_channels,
+        if num_output_channels != self.num_output_channels {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: ChannelRequirement::Exactly(self.num_output_channels),
+                actual: num_output_channels,
             });
         }
 
@@ -212,7 +210,7 @@ impl Clone for AmbisonicsEncodeEffect {
 
         Self {
             inner: self.inner,
-            max_order: self.max_order,
+            num_output_channels: self.num_output_channels,
         }
     }
 }
@@ -377,10 +375,9 @@ mod tests {
 
             assert_eq!(
                 effect.apply(&params, &input_buffer, &output_buffer),
-                Err(EffectError::InvalidAmbisonicOrder {
-                    order: 1,
-                    buffer_channels: 2,
-                    required_channels: 4
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2,
                 })
             );
         }
@@ -432,10 +429,9 @@ mod tests {
 
             assert_eq!(
                 effect.tail(&output_buffer),
-                Err(EffectError::InvalidAmbisonicOrder {
-                    order: 1,
-                    buffer_channels: 2,
-                    required_channels: 4
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2,
                 })
             );
         }

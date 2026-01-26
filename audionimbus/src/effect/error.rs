@@ -19,13 +19,6 @@ pub enum EffectError {
     /// Input and output channel counts must match but don't.
     InputOutputChannelMismatch { input: u32, output: u32 },
 
-    /// Buffer doesn't have correct channels for ambisonic order.
-    InvalidAmbisonicOrder {
-        order: u32,
-        buffer_channels: u32,
-        required_channels: u32,
-    },
-
     /// Buffer has wrong channels for speaker layout.
     InvalidSpeakerLayoutChannels {
         layout: SpeakerLayout,
@@ -64,17 +57,6 @@ impl std::fmt::Display for EffectError {
                     f,
                     "input and output channel counts must match: input has {}, output has {}",
                     input, output
-                )
-            }
-            Self::InvalidAmbisonicOrder {
-                order,
-                buffer_channels,
-                required_channels,
-            } => {
-                write!(
-                    f,
-                    "ambisonic order {} requires {} channels, but buffer has {}",
-                    order, required_channels, buffer_channels
                 )
             }
             Self::InvalidSpeakerLayoutChannels {

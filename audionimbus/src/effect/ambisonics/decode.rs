@@ -59,10 +59,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 pub struct AmbisonicsDecodeEffect {
     inner: audionimbus_sys::IPLAmbisonicsDecodeEffect,
 
-    /// Ambisonics order specified when creating the effect.
-    max_order: u32,
+    /// Number of input channels needed for the ambisonics order used when creating the effect.
+    num_input_channels: u32,
 
-    /// Number of output channels required.
+    /// Number of output channels required (2 if binaural, as many channels as needed for the
+    /// speaker layout if panning).
     num_output_channels: u32,
 
     /// Whether the effect uses binaural rendering or panning.
@@ -97,6 +98,8 @@ impl AmbisonicsDecodeEffect {
             return Err(error);
         }
 
+        let num_input_channels =
+            num_ambisonics_channels(ambisonics_decode_effect_settings.max_order);
         let num_output_channels = match ambisonics_decode_effect_settings.rendering {
             Rendering::Binaural => 2,
             Rendering::Panning => match &ambisonics_decode_effect_settings.speaker_layout {
@@ -111,7 +114,7 @@ impl AmbisonicsDecodeEffect {
 
         let ambisonics_decode_effect = Self {
             inner,
-            max_order: ambisonics_decode_effect_settings.max_order,
+            num_input_channels,
             num_output_channels,
             rendering: ambisonics_decode_effect_settings.rendering,
         };
@@ -124,7 +127,7 @@ impl AmbisonicsDecodeEffect {
     /// This effect CANNOT be applied in-place.
     ///
     /// The input audio buffer must have as many channels as needed for the Ambisonics order used
-    /// (see [`num_ambisonics_channels`]).
+    /// when creating the effect (see [`num_ambisonics_channels`]).
     /// The output audio buffer must have:
     /// - 2 channels if using binaural rendering
     /// - As many channels as needed for the speaker layout if using panning
@@ -146,13 +149,11 @@ impl AmbisonicsDecodeEffect {
         I: AsRef<[Sample]>,
         O: AsRef<[Sample]> + AsMut<[Sample]>,
     {
-        let required_input_channels = num_ambisonics_channels(self.max_order);
         let num_input_channels = input_buffer.num_channels();
-        if num_input_channels != required_input_channels {
-            return Err(EffectError::InvalidAmbisonicOrder {
-                order: ambisonics_decode_effect_params.order,
-                buffer_channels: num_input_channels,
-                required_channels: required_input_channels,
+        if num_input_channels != self.num_input_channels {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(self.num_input_channels),
+                actual: num_input_channels,
             });
         }
 
@@ -256,7 +257,7 @@ impl Clone for AmbisonicsDecodeEffect {
 
         Self {
             inner: self.inner,
-            max_order: self.max_order,
+            num_input_channels: self.num_input_channels,
             num_output_channels: self.num_output_channels,
             rendering: self.rendering,
         }
@@ -458,10 +459,9 @@ mod tests {
 
             assert_eq!(
                 effect.apply(&params, &input_buffer, &output_buffer),
-                Err(EffectError::InvalidAmbisonicOrder {
-                    order: 1,
-                    buffer_channels: 2,
-                    required_channels: 4,
+                Err(EffectError::InvalidInputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2,
                 })
             );
         }
