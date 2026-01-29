@@ -35,6 +35,7 @@ impl Default for Matrix<f32, 4, 4> {
 }
 
 impl<T, const ROWS: usize, const COLS: usize> Matrix<T, ROWS, COLS> {
+    /// Creates a new matrix.
     pub fn new(elements: [[T; COLS]; ROWS]) -> Self {
         Self { elements }
     }
