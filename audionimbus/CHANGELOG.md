@@ -83,6 +83,7 @@
 - `Reconstructor::reconstruct` now returns a `ReconstructorError` instead of panicking, if the max duration or the max order is exceeded, or if the inputs and outputs have different lengths.
 - `ImpulseResponse::channel` now returns an `ImpulseResponseError` instead of panicking when the channel index is out of bounds.
 - Methods `interleave`, `deinterleave`, `mix`, `downmix`, `convert_ambisonics_into` of `AudioBuffer` now return an `AudioBufferOperationError` when invariants are not satisfied.
+- Renamed `OpenClDeviceList::new` to `try_new` for consistency.
 
 ### Added
 
@@ -101,6 +102,7 @@
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
 - `SceneParams` implements the `Default` trait.
 - Add `ProbeArrayError`, `ProbeBatchErrors`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError`, `AudioBufferOperationError` errors.
+- `OpenClDeviceType` and `OpenClDeviceDescriptor` implement `PartialEq` trait.
 
 ### Removed
 
