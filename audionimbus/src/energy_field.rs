@@ -63,34 +63,48 @@ impl EnergyField {
 
     /// Returns the data stored in the energy field for the given channel, in row-major order.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `channel_index` is out of bounds.
-    pub fn channel(&self, channel_index: u32) -> &[Sample] {
-        assert!(
-            channel_index < self.num_channels(),
-            "channel index out of bounds",
-        );
+    /// Returns [`EnergyFieldError::ChannelIndexOutOfBounds`] if `channel_index` is out of bounds.
+    pub fn channel(&self, channel_index: u32) -> Result<&[Sample], EnergyFieldError> {
+        let num_channels = self.num_channels();
+        if channel_index >= num_channels {
+            return Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            });
+        }
 
         let ptr = unsafe {
             audionimbus_sys::iplEnergyFieldGetChannel(self.raw_ptr(), channel_index as i32)
         };
         let len = NUM_BANDS * self.num_bins();
-        unsafe { std::slice::from_raw_parts(ptr, len as usize) }
+        let data = unsafe { std::slice::from_raw_parts(ptr, len as usize) };
+        Ok(data)
     }
 
     /// Returns the data stored in the energy field for the given channel and band, in row-major order.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `channel_index` or `band_index` are out of bounds.
-    pub fn band(&self, channel_index: u32, band_index: u32) -> &[Sample] {
-        assert!(
-            channel_index < self.num_channels(),
-            "channel index out of bounds",
-        );
+    /// Returns:
+    /// - [`EnergyFieldError::ChannelIndexOutOfBounds`] if `channel_index` is out of bounds.
+    /// - [`EnergyFieldError::BandIndexOutOfBounds`] if `band_index` is out of bounds.
+    pub fn band(&self, channel_index: u32, band_index: u32) -> Result<&[Sample], EnergyFieldError> {
+        let num_channels = self.num_channels();
+        if channel_index >= num_channels {
+            return Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            });
+        }
 
-        assert!(band_index < NUM_BANDS, "band index out of bounds",);
+        if band_index >= NUM_BANDS {
+            return Err(EnergyFieldError::BandIndexOutOfBounds {
+                band_index,
+                max_bands: NUM_BANDS,
+            });
+        }
 
         let ptr = unsafe {
             audionimbus_sys::iplEnergyFieldGetBand(
@@ -100,7 +114,8 @@ impl EnergyField {
             )
         };
         let len = self.num_bins();
-        unsafe { std::slice::from_raw_parts(ptr, len as usize) }
+        let data = unsafe { std::slice::from_raw_parts(ptr, len as usize) };
+        Ok(data)
     }
 
     /// Resets all values stored in the energy field to zero.
@@ -192,6 +207,41 @@ impl From<&EnergyFieldSettings> for audionimbus_sys::IPLEnergyFieldSettings {
         Self {
             duration: settings.duration,
             order: settings.order as i32,
+        }
+    }
+}
+
+/// [`EnergyField`] errors.
+#[derive(Debug)]
+pub enum EnergyFieldError {
+    /// Channel index is out of bounds.
+    ChannelIndexOutOfBounds {
+        channel_index: u32,
+        num_channels: u32,
+    },
+    /// Band index is out of bounds.
+    BandIndexOutOfBounds { band_index: u32, max_bands: u32 },
+}
+
+impl std::error::Error for EnergyFieldError {}
+
+impl std::fmt::Display for EnergyFieldError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            } => write!(
+                f,
+                "channel index {channel_index} out of bounds (num_channels: {num_channels})"
+            ),
+            Self::BandIndexOutOfBounds {
+                band_index,
+                max_bands,
+            } => write!(
+                f,
+                "band index {band_index} out of bounds (max_bands: {max_bands})"
+            ),
         }
     }
 }
