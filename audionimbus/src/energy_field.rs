@@ -274,3 +274,117 @@ pub fn scale_accum_energy_field(energy_field: &EnergyField, scalar: f32, out: &m
         audionimbus_sys::iplEnergyFieldScaleAccum(energy_field.raw_ptr(), scalar, out.raw_ptr())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod energy_field {
+        use super::*;
+
+        mod channel {
+            use super::*;
+
+            #[test]
+            fn test_valid() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                // Access valid channel
+                let result = energy_field.channel(2);
+                assert!(result.is_ok());
+
+                // Access last valid channel
+                let result = energy_field.channel(3);
+                assert!(result.is_ok());
+            }
+
+            #[test]
+            fn test_index_out_of_bounds() {
+                let context = Context::default();
+
+                let energy_field = EnergyField::try_new(
+                    &context,
+                    &EnergyFieldSettings {
+                        duration: 1.0,
+                        order: 1,
+                    },
+                )
+                .unwrap();
+
+                assert_eq!(
+                    energy_field.channel(5),
+                    Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                        channel_index: 5,
+                        num_channels: 4,
+                    }),
+                );
+            }
+        }
+
+        mod band {
+            use super::*;
+
+            #[test]
+            fn test_valid() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                assert!(energy_field.band(0, 0).is_ok());
+                assert!(energy_field.band(3, NUM_BANDS - 1).is_ok());
+            }
+
+            #[test]
+            fn test_band_index_out_of_bounds() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                assert_eq!(
+                    energy_field.band(0, 5),
+                    Err(EnergyFieldError::BandIndexOutOfBounds {
+                        band_index: 5,
+                        max_bands: 3,
+                    }),
+                );
+            }
+
+            #[test]
+            fn test_band_channel_index_out_of_bounds() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                assert_eq!(
+                    energy_field.band(10, 0),
+                    Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                        channel_index: 10,
+                        num_channels: 4,
+                    }),
+                );
+            }
+        }
+    }
+}
