@@ -265,3 +265,228 @@ impl std::fmt::Display for ReconstructorError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod reconstructor {
+        use super::*;
+
+        const SAMPLING_RATE: u32 = 48_000;
+        const MAX_DURATION: f32 = 2.0;
+        const MAX_ORDER: u32 = 2;
+        const VALID_DURATION: f32 = 1.0;
+        const VALID_ORDER: u32 = 1;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: VALID_DURATION,
+                order: VALID_ORDER,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![ReconstructorInputs {
+                energy_field: &energy_field,
+            }];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            let result = reconstructor.reconstruct(&inputs, &shared_inputs, &outputs);
+
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_duration_exceeds_max() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let invalid_duration = MAX_DURATION + 1.0;
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: invalid_duration,
+                order: VALID_ORDER,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![ReconstructorInputs {
+                energy_field: &energy_field,
+            }];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            assert_eq!(
+                reconstructor.reconstruct(&inputs, &shared_inputs, &outputs),
+                Err(ReconstructorError::DurationExceedsMax {
+                    duration: invalid_duration,
+                    max_duration: MAX_DURATION,
+                }),
+            );
+        }
+
+        #[test]
+        fn test_order_exceeds_max() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let invalid_order = MAX_ORDER + 1;
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: MAX_DURATION,
+                order: invalid_order,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![ReconstructorInputs {
+                energy_field: &energy_field,
+            }];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            assert_eq!(
+                reconstructor.reconstruct(&inputs, &shared_inputs, &outputs),
+                Err(ReconstructorError::OrderExceedsMax {
+                    order: invalid_order,
+                    max_order: MAX_ORDER,
+                }),
+            );
+        }
+
+        #[test]
+        fn test_input_output_length_mismatch() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: VALID_DURATION,
+                order: VALID_ORDER,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![
+                ReconstructorInputs {
+                    energy_field: &energy_field,
+                },
+                ReconstructorInputs {
+                    energy_field: &energy_field,
+                },
+            ];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            assert_eq!(
+                reconstructor.reconstruct(&inputs, &shared_inputs, &outputs),
+                Err(ReconstructorError::InputOutputLengthMismatch {
+                    inputs_len: 2,
+                    outputs_len: 1,
+                }),
+            );
+        }
+    }
+}
