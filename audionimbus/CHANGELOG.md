@@ -75,6 +75,8 @@
 - `AmbisonicsBinauralEffect::tail` now returns an `EffectError` when the output buffer does not have exactly two channels.
 - Refactored `ReflectionEffect`, `ReflectionMixer`, and `ReflectionEffectParams` to use compile-time type safety via generic parameters (`Convolution`, `Parametric`, `Hybrid`, `TrueAudioNext`). This prevents segmentation faults by ensuring TrueAudioNext effects can only use `apply_into_mixer()` (not `apply()`), and guarantees effect parameters match their corresponding effect types. `ReflectionEffectSettings` is now a simple struct, with the algorithm type specified through the generic parameter.
 - `Source::get_outputs` now returns an error on failure to allocate sufficient memory for the `SimulationOutputs` (it would `panic!` before the change).
+- `ProbeArray::probe` now returns a `ProbeArrayError` error if the index argument is out of bounds instead of panicking.
+- Methods `remove_probe`, `reverb` and `energy_field` of `ProbeBatch` return a `ProbeBatchError` error if the index argument is out of bounds instead of panicking.
 
 ### Added
 
@@ -92,6 +94,7 @@
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
 - `SceneParams` implements the `Default` trait.
+- Add `ProbeArrayError` and `ProbeBatchErrors` errors.
 
 ### Removed
 

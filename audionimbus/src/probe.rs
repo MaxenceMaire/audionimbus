@@ -50,13 +50,23 @@ impl ProbeArray {
     }
 
     /// Returns the probe at a given index in the probe array.
-    pub fn probe(&self, index: usize) -> Sphere {
-        assert!(index < self.num_probes(), "probe index out of bounds");
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProbeArrayError::ProbeIndexOutOfBounds`] if `index` is out of bounds.
+    pub fn probe(&self, index: usize) -> Result<Sphere, ProbeArrayError> {
+        let num_probes = self.num_probes();
+        if index >= num_probes {
+            return Err(ProbeArrayError::ProbeIndexOutOfBounds {
+                probe_index: index,
+                num_probes,
+            });
+        }
 
         let ipl_sphere =
             unsafe { audionimbus_sys::iplProbeArrayGetProbe(self.raw_ptr(), index as i32) };
 
-        Sphere::from(ipl_sphere)
+        Ok(Sphere::from(ipl_sphere))
     }
 
     /// Returns the raw FFI pointer to the underlying probe array.
@@ -91,6 +101,32 @@ impl Drop for ProbeArray {
 
 unsafe impl Send for ProbeArray {}
 unsafe impl Sync for ProbeArray {}
+
+/// [`ProbeArray`] errors.
+#[derive(Debug, PartialEq)]
+pub enum ProbeArrayError {
+    /// Probe index is out of bounds.
+    ProbeIndexOutOfBounds {
+        probe_index: usize,
+        num_probes: usize,
+    },
+}
+
+impl std::error::Error for ProbeArrayError {}
+
+impl std::fmt::Display for ProbeArrayError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ProbeIndexOutOfBounds {
+                probe_index,
+                num_probes,
+            } => write!(
+                f,
+                "probe index {probe_index} out of bounds (num_probes: {num_probes})"
+            ),
+        }
+    }
+}
 
 /// Settings used to generate probes.
 #[derive(Copy, Clone, Debug)]
@@ -230,14 +266,25 @@ impl ProbeBatch {
     }
 
     /// Removes a probe from the batch.
-    pub fn remove_probe(&mut self, probe_index: usize) {
-        assert!(probe_index < self.num_probes(), "probe index out of bounds");
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProbeBatchError::ProbeIndexOutOfBounds`] if `probe_index` is out of bounds.
+    pub fn remove_probe(&mut self, probe_index: usize) -> Result<(), ProbeBatchError> {
+        let num_probes = self.num_probes();
+        if probe_index >= num_probes {
+            return Err(ProbeBatchError::ProbeIndexOutOfBounds {
+                probe_index,
+                num_probes,
+            });
+        }
 
         unsafe {
             audionimbus_sys::iplProbeBatchRemoveProbe(self.raw_ptr(), probe_index as i32);
         }
 
         self.pending_num_probes -= 1;
+        Ok(())
     }
 
     /// Adds every probe in an array to a batch.
@@ -251,8 +298,22 @@ impl ProbeBatch {
     }
 
     /// Retrieves a single array of parametric reverb times in a specific baked data layer of a specific probe in the probe batch.
-    pub fn reverb(&self, identifier: BakedDataIdentifier, probe_index: usize) -> [f32; 3] {
-        assert!(probe_index < self.num_probes(), "probe index out of bounds");
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProbeBatchError::ProbeIndexOutOfBounds`] if `probe_index` is out of bounds.
+    pub fn reverb(
+        &self,
+        identifier: BakedDataIdentifier,
+        probe_index: usize,
+    ) -> Result<[f32; 3], ProbeBatchError> {
+        let num_probes = self.num_probes();
+        if probe_index >= num_probes {
+            return Err(ProbeBatchError::ProbeIndexOutOfBounds {
+                probe_index,
+                num_probes,
+            });
+        }
 
         let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
         let mut reverb_times: [f32; 3] = [0.0; 3];
@@ -266,12 +327,26 @@ impl ProbeBatch {
             );
         }
 
-        reverb_times
+        Ok(reverb_times)
     }
 
     /// Retrieves a single energy field in a specific baked data layer of a specific probe in the probe batch.
-    pub fn energy_field(&self, identifier: BakedDataIdentifier, probe_index: usize) -> EnergyField {
-        assert!(probe_index < self.num_probes(), "probe index out of bounds");
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProbeBatchError::ProbeIndexOutOfBounds`] if `probe_index` is out of bounds.
+    pub fn energy_field(
+        &self,
+        identifier: BakedDataIdentifier,
+        probe_index: usize,
+    ) -> Result<EnergyField, ProbeBatchError> {
+        let num_probes = self.num_probes();
+        if probe_index >= num_probes {
+            return Err(ProbeBatchError::ProbeIndexOutOfBounds {
+                probe_index,
+                num_probes,
+            });
+        }
 
         let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
         let energy_field = EnergyField(std::ptr::null_mut());
@@ -285,7 +360,7 @@ impl ProbeBatch {
             );
         }
 
-        energy_field
+        Ok(energy_field)
     }
 
     /// Commits all changes made to a probe batch since this function was last called (or since the probe batch was first created, if this function was never called).
@@ -372,6 +447,32 @@ impl Drop for ProbeBatch {
 
 unsafe impl Send for ProbeBatch {}
 unsafe impl Sync for ProbeBatch {}
+
+/// [`ProbeBatch`] errors.
+#[derive(Debug, PartialEq)]
+pub enum ProbeBatchError {
+    /// Probe index is out of bounds.
+    ProbeIndexOutOfBounds {
+        probe_index: usize,
+        num_probes: usize,
+    },
+}
+
+impl std::error::Error for ProbeBatchError {}
+
+impl std::fmt::Display for ProbeBatchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ProbeIndexOutOfBounds {
+                probe_index,
+                num_probes,
+            } => write!(
+                f,
+                "probe index {probe_index} out of bounds (num_probes: {num_probes})"
+            ),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -479,7 +580,7 @@ mod tests {
             probe_batch.commit();
             assert_eq!(probe_batch.num_probes(), 1);
 
-            probe_batch.remove_probe(0);
+            probe_batch.remove_probe(0).unwrap();
             probe_batch.commit();
             assert_eq!(probe_batch.num_probes(), 0);
         }
@@ -508,11 +609,16 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "probe index out of bounds")]
         fn test_remove_out_of_bounds() {
             let context = Context::default();
             let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
-            probe_batch.remove_probe(0); // No probes exist.
+            assert_eq!(
+                probe_batch.remove_probe(2),
+                Err(ProbeBatchError::ProbeIndexOutOfBounds {
+                    probe_index: 2,
+                    num_probes: 0,
+                })
+            );
         }
     }
 }
