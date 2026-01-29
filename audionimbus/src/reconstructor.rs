@@ -12,8 +12,12 @@ use crate::impulse_response::ImpulseResponse;
 pub struct Reconstructor {
     inner: audionimbus_sys::IPLReconstructor,
 
+    /// The largest possible duration (in seconds) of any impulse response that will be reconstructed.
     /// Used for validation when calling [`Self::reconstruct`].
     max_duration: f32,
+
+    /// The largest possible Ambisonic order of any impulse response that will be reconstructed.
+    /// Used for validation when calling [`Self::reconstruct`].
     max_order: u32,
 }
 
@@ -49,15 +53,39 @@ impl Reconstructor {
     }
 
     /// Reconstructs one or more impulse responses as a single batch of work.
+    ///
+    /// # Errors
+    ///
+    /// Returns:
+    /// - [`ReconstructorError::DurationExceedsMax`] if `shared_inputs.duration` exceeds the max duration.
+    /// - [`ReconstructorError::OrderExceedsMax`] if `shared_inputs.order` exceeds the max order.
+    /// - [`ReconstructorError::InputOutputLengthMismatch`] if `inputs` and `outputs` have different lengths.
     pub fn reconstruct(
         &self,
         inputs: &[ReconstructorInputs],
         shared_inputs: &ReconstructorSharedInputs,
         outputs: &[ReconstructorOutputs],
-    ) {
-        assert!(shared_inputs.duration <= self.max_duration, "duration must be less than or equal to the max duration specified in the reconstructor's settings");
-        assert!(shared_inputs.order <= self.max_order, "order must be less than or equal to the max order specified in the reconstructor's settings");
-        assert_eq!(inputs.len(), outputs.len());
+    ) -> Result<(), ReconstructorError> {
+        if shared_inputs.duration > self.max_duration {
+            return Err(ReconstructorError::DurationExceedsMax {
+                duration: shared_inputs.duration,
+                max_duration: self.max_duration,
+            });
+        }
+
+        if shared_inputs.order > self.max_order {
+            return Err(ReconstructorError::OrderExceedsMax {
+                order: shared_inputs.order,
+                max_order: self.max_order,
+            });
+        }
+
+        if inputs.len() != outputs.len() {
+            return Err(ReconstructorError::InputOutputLengthMismatch {
+                inputs_len: inputs.len(),
+                outputs_len: outputs.len(),
+            });
+        }
 
         let c_inputs: Vec<audionimbus_sys::IPLReconstructorInputs> = inputs
             .iter()
@@ -81,6 +109,8 @@ impl Reconstructor {
                 c_outputs.as_ptr() as *mut audionimbus_sys::IPLReconstructorOutputs,
             )
         }
+
+        Ok(())
     }
 
     /// Returns the raw FFI pointer to the underlying reconstructor.
@@ -192,6 +222,46 @@ impl From<&ReconstructorOutputs<'_>> for audionimbus_sys::IPLReconstructorOutput
     fn from(reconstructor_outputs: &ReconstructorOutputs) -> Self {
         Self {
             impulseResponse: reconstructor_outputs.impulse_response.raw_ptr(),
+        }
+    }
+}
+
+/// [`Reconstructor`] errors.
+#[derive(Debug)]
+pub enum ReconstructorError {
+    /// Duration exceeds the maximum duration specified in the reconstructor's settings.
+    DurationExceedsMax { duration: f32, max_duration: f32 },
+    /// Order exceeds the maximum order specified in the reconstructor's settings.
+    OrderExceedsMax { order: u32, max_order: u32 },
+    /// Input and output arrays have mismatched lengths.
+    InputOutputLengthMismatch {
+        inputs_len: usize,
+        outputs_len: usize,
+    },
+}
+
+impl std::error::Error for ReconstructorError {}
+
+impl std::fmt::Display for ReconstructorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::DurationExceedsMax {
+                duration,
+                max_duration,
+            } => write!(
+                f,
+                "duration {duration} exceeds max duration {max_duration}"
+            ),
+            Self::OrderExceedsMax { order, max_order } => {
+                write!(f, "order {order} exceeds max order {max_order}")
+            }
+            Self::InputOutputLengthMismatch {
+                inputs_len,
+                outputs_len,
+            } => write!(
+                f,
+                "inputs and outputs length mismatch: inputs_len={inputs_len}, outputs_len={outputs_len}"
+            ),
         }
     }
 }

@@ -80,6 +80,7 @@
 - `OpenClDeviceLust::device_descriptor` now returns an `OpenClDeviceListError` error if the device index is out of bounds instead of panicking.
 - `OpenClDeviceLust::device_descriptor` now returns an `OpenClDeviceListError` error if the device index is out of bounds instead of panicking.
 - `channel` and `band` methods of `EnergyField` now return an `EnergyFieldError` error if arguments are out of bounds.
+- `Reconstructor::reconstruct` now returns a `ReconstructorError` instead of panicking, if the max duration or the max order is exceeded, or if the inputs and outputs have different lengths.
 
 ### Added
 
@@ -97,7 +98,7 @@
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
 - `SceneParams` implements the `Default` trait.
-- Add `ProbeArrayError`, `ProbeBatchErrors`, `OpenClDeviceListError`, `EnergyFieldError` errors.
+- Add `ProbeArrayError`, `ProbeBatchErrors`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError` errors.
 
 ### Removed
 
