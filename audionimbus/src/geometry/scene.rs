@@ -681,9 +681,10 @@ impl From<&SceneSettings> for audionimbus_sys::IPLSceneSettings {
 }
 
 /// The scene parameters.
-#[derive(Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug)]
 pub enum SceneParams<'a> {
     /// Steam Audio’s built-in ray tracer.
+    #[default]
     Default,
 
     /// The Intel Embree ray tracer.

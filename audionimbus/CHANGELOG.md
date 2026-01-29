@@ -91,6 +91,7 @@
 - `SteamAudioError` implements `PartialEq`, `Copy` and `Clone`.
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
+- `SceneParams` implements the `Default` trait.
 
 ### Removed
 

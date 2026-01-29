@@ -154,6 +154,25 @@ impl<D, R, P> SimulatorBuilder<D, R, P> {
         }
     }
 
+    /// Builds the simulator with the configured settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying Steam Audio library fails to create the simulator.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use audionimbus::{Context, Simulator, SceneParams, DirectSimulationSettings};
+    /// # let context = Context::default();
+    /// # let scene_params = SceneParams::default();
+    /// let simulator = Simulator::builder(scene_params, 48000, 1024, 2)
+    ///     .with_direct(DirectSimulationSettings {
+    ///         max_num_occlusion_samples: 4,
+    ///     })
+    ///     .try_build(&context)?;
+    /// # Ok::<(), audionimbus::SteamAudioError>(())
+    /// ```
     pub fn try_build(self, context: &Context) -> Result<Simulator<D, R, P>, SteamAudioError> {
         let mut simulator = Simulator {
             inner: std::ptr::null_mut(),
