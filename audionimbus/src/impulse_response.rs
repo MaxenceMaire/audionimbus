@@ -58,20 +58,24 @@ impl ImpulseResponse {
 
     /// Returns a pointer to the data stored in the impulse response for the given channel, in row-major order.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `channel_index` is out of bounds.
-    pub fn channel(&self, channel_index: u32) -> &[Sample] {
-        assert!(
-            channel_index < self.num_channels(),
-            "channel index out of bounds",
-        );
+    /// Returns [`ImpulseResponseError::ChannelIndexOutOfBounds`] if `channel_index` is out of bounds.
+    pub fn channel(&self, channel_index: u32) -> Result<&[Sample], ImpulseResponseError> {
+        let num_channels = self.num_channels();
+        if channel_index >= num_channels {
+            return Err(ImpulseResponseError::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            });
+        }
 
         let ptr = unsafe {
             audionimbus_sys::iplImpulseResponseGetChannel(self.raw_ptr(), channel_index as i32)
         };
         let len = self.num_samples();
-        unsafe { std::slice::from_raw_parts(ptr, len as usize) }
+        let data = unsafe { std::slice::from_raw_parts(ptr, len as usize) };
+        Ok(data)
     }
 
     /// Resets all values stored in the impulse response to zero.
@@ -173,6 +177,32 @@ impl From<&ImpulseResponseSettings> for audionimbus_sys::IPLImpulseResponseSetti
     }
 }
 
+/// [`ImpulseResponse`] errors.
+#[derive(Debug, PartialEq)]
+pub enum ImpulseResponseError {
+    /// Channel index is out of bounds.
+    ChannelIndexOutOfBounds {
+        channel_index: u32,
+        num_channels: u32,
+    },
+}
+
+impl std::error::Error for ImpulseResponseError {}
+
+impl std::fmt::Display for ImpulseResponseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            } => write!(
+                f,
+                "channel index {channel_index} out of bounds (num_channels: {num_channels})"
+            ),
+        }
+    }
+}
+
 /// Adds the values stored in two impulse responses, and stores the result in a third impulse response.
 ///
 /// If the impulse responses have different numbers of channels, only the smallest of the three numbers of channels will be added.
@@ -254,13 +284,12 @@ mod tests {
         };
 
         let impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
-        let channel = impulse_response.channel(0);
+        let channel = impulse_response.channel(0).unwrap();
 
         assert_eq!(channel.len() as u32, impulse_response.num_samples());
     }
 
     #[test]
-    #[should_panic(expected = "channel index out of bounds")]
     fn test_impulse_response_channel_out_of_bounds() {
         let context = Context::default();
         let settings = ImpulseResponseSettings {
@@ -270,7 +299,13 @@ mod tests {
         };
 
         let impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
-        let _ = impulse_response.channel(10); // Only 1 channel exists.
+        assert_eq!(
+            impulse_response.channel(10),
+            Err(ImpulseResponseError::ChannelIndexOutOfBounds {
+                channel_index: 10,
+                num_channels: 1,
+            })
+        );
     }
 
     #[test]

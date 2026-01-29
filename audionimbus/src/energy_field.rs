@@ -212,7 +212,7 @@ impl From<&EnergyFieldSettings> for audionimbus_sys::IPLEnergyFieldSettings {
 }
 
 /// [`EnergyField`] errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EnergyFieldError {
     /// Channel index is out of bounds.
     ChannelIndexOutOfBounds {

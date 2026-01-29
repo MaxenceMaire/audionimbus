@@ -227,7 +227,7 @@ impl From<&ReconstructorOutputs<'_>> for audionimbus_sys::IPLReconstructorOutput
 }
 
 /// [`Reconstructor`] errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ReconstructorError {
     /// Duration exceeds the maximum duration specified in the reconstructor's settings.
     DurationExceedsMax { duration: f32, max_duration: f32 },

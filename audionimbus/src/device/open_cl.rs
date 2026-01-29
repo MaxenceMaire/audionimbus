@@ -228,7 +228,7 @@ unsafe impl Send for OpenClDeviceList {}
 unsafe impl Sync for OpenClDeviceList {}
 
 /// [`OpenClDeviceList`] errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OpenClDeviceListError {
     /// Device index is out of bounds.
     DeviceIndexOutOfBounds {
