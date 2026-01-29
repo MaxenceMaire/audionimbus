@@ -50,7 +50,7 @@ fn test_binaural_effect() {
 
     let mut interleaved =
         vec![0.0; (output_buffer.num_channels() * output_buffer.num_samples()) as usize];
-    output_buffer.interleave(&context, &mut interleaved);
+    assert!(output_buffer.interleave(&context, &mut interleaved).is_ok());
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_ambisonics_encode_effect() {
 
     let mut interleaved =
         vec![0.0; (output_buffer.num_channels() * output_buffer.num_samples()) as usize];
-    output_buffer.interleave(&context, &mut interleaved);
+    assert!(output_buffer.interleave(&context, &mut interleaved).is_ok());
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn test_ambisonics_decode_effect() {
 
     let mut interleaved =
         vec![0.0; (output_buffer.num_channels() * output_buffer.num_samples()) as usize];
-    output_buffer.interleave(&context, &mut interleaved);
+    assert!(output_buffer.interleave(&context, &mut interleaved).is_ok());
 }
 
 #[test]
@@ -203,7 +203,7 @@ fn test_direct_effect() {
 
     let mut interleaved =
         vec![0.0; (output_buffer.num_channels() * output_buffer.num_samples()) as usize];
-    output_buffer.interleave(&context, &mut interleaved);
+    assert!(output_buffer.interleave(&context, &mut interleaved).is_ok());
 }
 
 #[test]

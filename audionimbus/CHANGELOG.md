@@ -82,6 +82,7 @@
 - `channel` and `band` methods of `EnergyField` now return an `EnergyFieldError` error if arguments are out of bounds.
 - `Reconstructor::reconstruct` now returns a `ReconstructorError` instead of panicking, if the max duration or the max order is exceeded, or if the inputs and outputs have different lengths.
 - `ImpulseResponse::channel` now returns an `ImpulseResponseError` instead of panicking when the channel index is out of bounds.
+- Methods `interleave`, `deinterleave`, `mix`, `downmix`, `convert_ambisonics_into` of `AudioBuffer` now return an `AudioBufferOperationError` when invariants are not satisfied.
 
 ### Added
 
@@ -99,7 +100,7 @@
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
 - `SceneParams` implements the `Default` trait.
-- Add `ProbeArrayError`, `ProbeBatchErrors`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError` errors.
+- Add `ProbeArrayError`, `ProbeBatchErrors`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError`, `AudioBufferOperationError` errors.
 
 ### Removed
 
