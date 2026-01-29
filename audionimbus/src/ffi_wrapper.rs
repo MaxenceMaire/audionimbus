@@ -6,6 +6,7 @@ pub struct FFIWrapper<'a, T, Owner> {
 }
 
 impl<T, Owner> FFIWrapper<'_, T, Owner> {
+    /// Creates a new FFI wrapper around the given object.
     pub fn new(ffi_object: T) -> Self {
         FFIWrapper {
             ffi_object,
@@ -13,6 +14,7 @@ impl<T, Owner> FFIWrapper<'_, T, Owner> {
         }
     }
 
+    /// Consumes the wrapper and returns the inner FFI object.
     pub fn into_inner(self) -> T {
         self.ffi_object
     }
