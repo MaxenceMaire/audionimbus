@@ -34,6 +34,7 @@
 - Fixed a segmentation fault when applying an ambisonics binaural effect on an input buffer that does not have the correct number of channels for the ambisonics order, or an output buffer that does not have exactly two channels.
 - Fixed a segmentation fault when calling `AmbisonicsBinauralEffect::tail` with an output buffer that does not have exactly two channels.
 - Fixed a segmentation fault when calling `ReflectionEffect::apply()` with TrueAudioNext effects (which require a mixer).
+- `SerializedObject::to_vec()` now safely handles empty objects, returning an empty vector instead of panicking.
 
 ### Changed
 

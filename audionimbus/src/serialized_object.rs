@@ -13,6 +13,20 @@ use crate::probe::ProbeBatch;
 pub struct SerializedObject(pub(crate) audionimbus_sys::IPLSerializedObject);
 
 impl SerializedObject {
+    /// Creates a new empty serialized object for serialization purposes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying Steam Audio library fails to create the serialized object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use audionimbus::{Context, SerializedObject, SteamAudioError};
+    /// let context = Context::default();
+    /// let serialized_object = SerializedObject::try_new(&context)?;
+    /// # Ok::<(), audionimbus::SteamAudioError>(())
+    /// ```
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let serialized_object_settings = audionimbus_sys::IPLSerializedObjectSettings {
             data: std::ptr::null_mut(),
@@ -22,6 +36,22 @@ impl SerializedObject {
         Self::try_with_settings(context, serialized_object_settings)
     }
 
+    /// Creates a serialized object that wraps an existing byte buffer for deserialization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying Steam Audio library fails to create the serialized
+    /// object or if the buffer contains invalid data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use audionimbus::{Context, SerializedObject, SteamAudioError};
+    /// let context = Context::default();
+    /// let mut buffer = vec![0u8; 1024]; // Load your serialized data here.
+    /// let serialized_object = SerializedObject::try_with_buffer(&context, &mut buffer)?;
+    /// # Ok::<(), audionimbus::SteamAudioError>(())
+    /// ```
     pub fn try_with_buffer(
         context: &Context,
         buffer: &mut Vec<u8>,
@@ -34,6 +64,11 @@ impl SerializedObject {
         Self::try_with_settings(context, serialized_object_settings)
     }
 
+    /// Creates a serialized object with the given settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying Steam Audio library fails to create the object.
     fn try_with_settings(
         context: &Context,
         mut serialized_object_settings: audionimbus_sys::IPLSerializedObjectSettings,
@@ -55,20 +90,50 @@ impl SerializedObject {
         Ok(serialized_object)
     }
 
+    /// Returns the raw FFI pointer to the underlying object.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
         self.0
     }
 
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
     pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSerializedObject {
         &mut self.0
     }
 
+    /// Extracts the serialized data as a byte vector.
+    ///
+    /// This method retrieves the underlying serialized data and copies it into a new
+    /// `Vec<u8>`. Use this to extract serialized data that can be saved to a file or
+    /// transmitted over the network.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<u8>` containing a copy of the serialized data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use audionimbus::{Context, SerializedObject, Scene, SceneSettings};
+    /// # let context = Context::default();
+    /// # let serialized_object = SerializedObject::try_new(&context)?;
+    /// // After serializing some object into serialized_object...
+    /// let bytes = serialized_object.to_vec();
+    /// # Ok::<(), audionimbus::SteamAudioError>(())
+    /// ```
     pub fn to_vec(&self) -> Vec<u8> {
         let raw_ptr = self.raw_ptr();
 
         let data_ptr = unsafe { audionimbus_sys::iplSerializedObjectGetData(raw_ptr) };
 
         let size = unsafe { audionimbus_sys::iplSerializedObjectGetSize(raw_ptr) } as usize;
+
+        if data_ptr.is_null() || size == 0 {
+            return Vec::new();
+        }
 
         let data_slice = unsafe { std::slice::from_raw_parts(data_ptr, size) };
 
