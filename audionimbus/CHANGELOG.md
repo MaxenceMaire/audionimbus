@@ -77,6 +77,7 @@
 - `Source::get_outputs` now returns an error on failure to allocate sufficient memory for the `SimulationOutputs` (it would `panic!` before the change).
 - `ProbeArray::probe` now returns a `ProbeArrayError` error if the index argument is out of bounds instead of panicking.
 - Methods `remove_probe`, `reverb` and `energy_field` of `ProbeBatch` return a `ProbeBatchError` error if the index argument is out of bounds instead of panicking.
+- `OpenClDeviceLust::device_descriptor` now returns an `OpenClDeviceListError` error if the device index is out of bounds instead of panicking.
 
 ### Added
 
@@ -94,7 +95,7 @@
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
 - `SceneParams` implements the `Default` trait.
-- Add `ProbeArrayError` and `ProbeBatchErrors` errors.
+- Add `ProbeArrayError`, `ProbeBatchErrors`, `OpenClDeviceListError` errors.
 
 ### Removed
 

@@ -155,11 +155,21 @@ impl OpenClDeviceList {
     }
 
     /// Retrieves information about a specific device in an OpenCL device list.
-    pub fn device_descriptor(&self, device_index: usize) -> OpenClDeviceDescriptor {
-        assert!(
-            device_index < self.num_devices(),
-            "device index out of bounds"
-        );
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OpenClDeviceListError::DeviceIndexOutOfBounds`] if `device_index` is out of bounds.
+    pub fn device_descriptor(
+        &self,
+        device_index: usize,
+    ) -> Result<OpenClDeviceDescriptor, OpenClDeviceListError> {
+        let num_devices = self.num_devices();
+        if device_index >= num_devices {
+            return Err(OpenClDeviceListError::DeviceIndexOutOfBounds {
+                device_index,
+                num_devices,
+            });
+        }
 
         let mut device_descriptor =
             std::mem::MaybeUninit::<audionimbus_sys::IPLOpenCLDeviceDesc>::uninit();
@@ -172,7 +182,7 @@ impl OpenClDeviceList {
             );
 
             let device_descriptor = device_descriptor.assume_init();
-            OpenClDeviceDescriptor::try_from(&device_descriptor).expect("invalid C string")
+            Ok(OpenClDeviceDescriptor::try_from(&device_descriptor).expect("invalid C string"))
         }
     }
 
@@ -216,6 +226,32 @@ impl Drop for OpenClDeviceList {
 
 unsafe impl Send for OpenClDeviceList {}
 unsafe impl Sync for OpenClDeviceList {}
+
+/// [`OpenClDeviceList`] errors.
+#[derive(Debug)]
+pub enum OpenClDeviceListError {
+    /// Device index is out of bounds.
+    DeviceIndexOutOfBounds {
+        device_index: usize,
+        num_devices: usize,
+    },
+}
+
+impl std::error::Error for OpenClDeviceListError {}
+
+impl std::fmt::Display for OpenClDeviceListError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::DeviceIndexOutOfBounds {
+                device_index,
+                num_devices,
+            } => write!(
+                f,
+                "device index {device_index} out of bounds (num_devices: {num_devices})"
+            ),
+        }
+    }
+}
 
 /// Specifies requirements that an OpenCL device must meet in order to be considered when listing OpenCL devices.
 #[derive(Debug)]
