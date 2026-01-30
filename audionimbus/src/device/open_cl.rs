@@ -126,25 +126,24 @@ unsafe impl Sync for OpenClDevice {}
 pub struct OpenClDeviceList(audionimbus_sys::IPLOpenCLDeviceList);
 
 impl OpenClDeviceList {
-    pub fn new(
+    pub fn try_new(
         context: &Context,
         open_cl_device_settings: &OpenClDeviceSettings,
     ) -> Result<Self, SteamAudioError> {
-        let open_cl_device_list = unsafe {
-            let open_cl_device_list: *mut audionimbus_sys::IPLOpenCLDeviceList =
-                std::ptr::null_mut();
-            let status = audionimbus_sys::iplOpenCLDeviceListCreate(
+        let mut open_cl_device_list: audionimbus_sys::IPLOpenCLDeviceList = std::ptr::null_mut();
+        let mut settings = audionimbus_sys::IPLOpenCLDeviceSettings::from(open_cl_device_settings);
+
+        let status = unsafe {
+            audionimbus_sys::iplOpenCLDeviceListCreate(
                 context.raw_ptr(),
-                &mut audionimbus_sys::IPLOpenCLDeviceSettings::from(open_cl_device_settings),
-                open_cl_device_list,
-            );
-
-            if let Some(error) = to_option_error(status) {
-                return Err(error);
-            }
-
-            *open_cl_device_list
+                &mut settings,
+                &mut open_cl_device_list,
+            )
         };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
 
         Ok(Self(open_cl_device_list))
     }
@@ -155,11 +154,21 @@ impl OpenClDeviceList {
     }
 
     /// Retrieves information about a specific device in an OpenCL device list.
-    pub fn device_descriptor(&self, device_index: usize) -> OpenClDeviceDescriptor {
-        assert!(
-            device_index < self.num_devices(),
-            "device index out of bounds"
-        );
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OpenClDeviceListError::DeviceIndexOutOfBounds`] if `device_index` is out of bounds.
+    pub fn device_descriptor(
+        &self,
+        device_index: usize,
+    ) -> Result<OpenClDeviceDescriptor, OpenClDeviceListError> {
+        let num_devices = self.num_devices();
+        if device_index >= num_devices {
+            return Err(OpenClDeviceListError::DeviceIndexOutOfBounds {
+                device_index,
+                num_devices,
+            });
+        }
 
         let mut device_descriptor =
             std::mem::MaybeUninit::<audionimbus_sys::IPLOpenCLDeviceDesc>::uninit();
@@ -172,7 +181,7 @@ impl OpenClDeviceList {
             );
 
             let device_descriptor = device_descriptor.assume_init();
-            OpenClDeviceDescriptor::try_from(&device_descriptor).expect("invalid C string")
+            Ok(OpenClDeviceDescriptor::try_from(&device_descriptor).expect("invalid C string"))
         }
     }
 
@@ -216,6 +225,32 @@ impl Drop for OpenClDeviceList {
 
 unsafe impl Send for OpenClDeviceList {}
 unsafe impl Sync for OpenClDeviceList {}
+
+/// [`OpenClDeviceList`] errors.
+#[derive(Debug, PartialEq)]
+pub enum OpenClDeviceListError {
+    /// Device index is out of bounds.
+    DeviceIndexOutOfBounds {
+        device_index: usize,
+        num_devices: usize,
+    },
+}
+
+impl std::error::Error for OpenClDeviceListError {}
+
+impl std::fmt::Display for OpenClDeviceListError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::DeviceIndexOutOfBounds {
+                device_index,
+                num_devices,
+            } => write!(
+                f,
+                "device index {device_index} out of bounds (num_devices: {num_devices})"
+            ),
+        }
+    }
+}
 
 /// Specifies requirements that an OpenCL device must meet in order to be considered when listing OpenCL devices.
 #[derive(Debug)]
@@ -276,7 +311,7 @@ impl From<&OpenClDeviceSettings> for audionimbus_sys::IPLOpenCLDeviceSettings {
 }
 
 /// The type of device.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OpenClDeviceType {
     /// List both CPU and GPU devices.
     Any,
@@ -310,7 +345,7 @@ impl From<audionimbus_sys::IPLOpenCLDeviceType> for OpenClDeviceType {
 
 /// Describes the properties of an OpenCL device.
 /// This information can be used to select the most suitable device for your application.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct OpenClDeviceDescriptor {
     /// The OpenCL platform id.
     pub platform: *mut std::ffi::c_void,
@@ -390,5 +425,58 @@ impl TryFrom<&audionimbus_sys::IPLOpenCLDeviceDesc> for OpenClDeviceDescriptor {
             granularity: ipl_descriptor.granularity,
             perf_score: ipl_descriptor.perfScore,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod open_cl_device {
+        use super::*;
+
+        mod device_descriptor {
+            use super::*;
+
+            #[test]
+            fn test_valid() {
+                let context = Context::default();
+
+                let settings = OpenClDeviceSettings::default();
+                let Ok(device_list) = OpenClDeviceList::try_new(&context, &settings) else {
+                    // OpenCL not available
+                    return;
+                };
+
+                let num_devices = device_list.num_devices();
+
+                if num_devices > 0 {
+                    assert!(device_list.device_descriptor(0).is_ok());
+                    assert!(device_list.device_descriptor(num_devices - 1).is_ok());
+                }
+            }
+
+            #[test]
+            fn test_index_out_of_bounds() {
+                let context = Context::default();
+
+                let settings = OpenClDeviceSettings::default();
+                let Ok(device_list) = OpenClDeviceList::try_new(&context, &settings) else {
+                    // OpenCL not available
+                    return;
+                };
+
+                let num_devices = device_list.num_devices();
+
+                assert_eq!(
+                    device_list.device_descriptor(num_devices + 5),
+                    Err(OpenClDeviceListError::DeviceIndexOutOfBounds {
+                        device_index: num_devices + 5,
+                        num_devices,
+                    }),
+                );
+            }
+        }
     }
 }

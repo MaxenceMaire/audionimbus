@@ -12,8 +12,12 @@ use crate::impulse_response::ImpulseResponse;
 pub struct Reconstructor {
     inner: audionimbus_sys::IPLReconstructor,
 
+    /// The largest possible duration (in seconds) of any impulse response that will be reconstructed.
     /// Used for validation when calling [`Self::reconstruct`].
     max_duration: f32,
+
+    /// The largest possible Ambisonic order of any impulse response that will be reconstructed.
+    /// Used for validation when calling [`Self::reconstruct`].
     max_order: u32,
 }
 
@@ -49,15 +53,39 @@ impl Reconstructor {
     }
 
     /// Reconstructs one or more impulse responses as a single batch of work.
+    ///
+    /// # Errors
+    ///
+    /// Returns:
+    /// - [`ReconstructorError::DurationExceedsMax`] if `shared_inputs.duration` exceeds the max duration.
+    /// - [`ReconstructorError::OrderExceedsMax`] if `shared_inputs.order` exceeds the max order.
+    /// - [`ReconstructorError::InputOutputLengthMismatch`] if `inputs` and `outputs` have different lengths.
     pub fn reconstruct(
         &self,
         inputs: &[ReconstructorInputs],
         shared_inputs: &ReconstructorSharedInputs,
         outputs: &[ReconstructorOutputs],
-    ) {
-        assert!(shared_inputs.duration <= self.max_duration, "duration must be less than or equal to the max duration specified in the reconstructor's settings");
-        assert!(shared_inputs.order <= self.max_order, "order must be less than or equal to the max order specified in the reconstructor's settings");
-        assert_eq!(inputs.len(), outputs.len());
+    ) -> Result<(), ReconstructorError> {
+        if shared_inputs.duration > self.max_duration {
+            return Err(ReconstructorError::DurationExceedsMax {
+                duration: shared_inputs.duration,
+                max_duration: self.max_duration,
+            });
+        }
+
+        if shared_inputs.order > self.max_order {
+            return Err(ReconstructorError::OrderExceedsMax {
+                order: shared_inputs.order,
+                max_order: self.max_order,
+            });
+        }
+
+        if inputs.len() != outputs.len() {
+            return Err(ReconstructorError::InputOutputLengthMismatch {
+                inputs_len: inputs.len(),
+                outputs_len: outputs.len(),
+            });
+        }
 
         let c_inputs: Vec<audionimbus_sys::IPLReconstructorInputs> = inputs
             .iter()
@@ -81,6 +109,8 @@ impl Reconstructor {
                 c_outputs.as_ptr() as *mut audionimbus_sys::IPLReconstructorOutputs,
             )
         }
+
+        Ok(())
     }
 
     /// Returns the raw FFI pointer to the underlying reconstructor.
@@ -192,6 +222,271 @@ impl From<&ReconstructorOutputs<'_>> for audionimbus_sys::IPLReconstructorOutput
     fn from(reconstructor_outputs: &ReconstructorOutputs) -> Self {
         Self {
             impulseResponse: reconstructor_outputs.impulse_response.raw_ptr(),
+        }
+    }
+}
+
+/// [`Reconstructor`] errors.
+#[derive(Debug, PartialEq)]
+pub enum ReconstructorError {
+    /// Duration exceeds the maximum duration specified in the reconstructor's settings.
+    DurationExceedsMax { duration: f32, max_duration: f32 },
+    /// Order exceeds the maximum order specified in the reconstructor's settings.
+    OrderExceedsMax { order: u32, max_order: u32 },
+    /// Input and output arrays have mismatched lengths.
+    InputOutputLengthMismatch {
+        inputs_len: usize,
+        outputs_len: usize,
+    },
+}
+
+impl std::error::Error for ReconstructorError {}
+
+impl std::fmt::Display for ReconstructorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::DurationExceedsMax {
+                duration,
+                max_duration,
+            } => write!(
+                f,
+                "duration {duration} exceeds max duration {max_duration}"
+            ),
+            Self::OrderExceedsMax { order, max_order } => {
+                write!(f, "order {order} exceeds max order {max_order}")
+            }
+            Self::InputOutputLengthMismatch {
+                inputs_len,
+                outputs_len,
+            } => write!(
+                f,
+                "inputs and outputs length mismatch: inputs_len={inputs_len}, outputs_len={outputs_len}"
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod reconstructor {
+        use super::*;
+
+        const SAMPLING_RATE: u32 = 48_000;
+        const MAX_DURATION: f32 = 2.0;
+        const MAX_ORDER: u32 = 2;
+        const VALID_DURATION: f32 = 1.0;
+        const VALID_ORDER: u32 = 1;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: VALID_DURATION,
+                order: VALID_ORDER,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![ReconstructorInputs {
+                energy_field: &energy_field,
+            }];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            let result = reconstructor.reconstruct(&inputs, &shared_inputs, &outputs);
+
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_duration_exceeds_max() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let invalid_duration = MAX_DURATION + 1.0;
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: invalid_duration,
+                order: VALID_ORDER,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![ReconstructorInputs {
+                energy_field: &energy_field,
+            }];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            assert_eq!(
+                reconstructor.reconstruct(&inputs, &shared_inputs, &outputs),
+                Err(ReconstructorError::DurationExceedsMax {
+                    duration: invalid_duration,
+                    max_duration: MAX_DURATION,
+                }),
+            );
+        }
+
+        #[test]
+        fn test_order_exceeds_max() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let invalid_order = MAX_ORDER + 1;
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: MAX_DURATION,
+                order: invalid_order,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![ReconstructorInputs {
+                energy_field: &energy_field,
+            }];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            assert_eq!(
+                reconstructor.reconstruct(&inputs, &shared_inputs, &outputs),
+                Err(ReconstructorError::OrderExceedsMax {
+                    order: invalid_order,
+                    max_order: MAX_ORDER,
+                }),
+            );
+        }
+
+        #[test]
+        fn test_input_output_length_mismatch() {
+            let context = Context::default();
+
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+
+            let shared_inputs = ReconstructorSharedInputs {
+                duration: VALID_DURATION,
+                order: VALID_ORDER,
+            };
+
+            let energy_field = EnergyField::try_new(
+                &context,
+                &EnergyFieldSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                },
+            )
+            .unwrap();
+            let inputs = vec![
+                ReconstructorInputs {
+                    energy_field: &energy_field,
+                },
+                ReconstructorInputs {
+                    energy_field: &energy_field,
+                },
+            ];
+
+            let mut impulse_response = ImpulseResponse::try_new(
+                &context,
+                &ImpulseResponseSettings {
+                    duration: VALID_DURATION,
+                    order: VALID_ORDER,
+                    sampling_rate: SAMPLING_RATE,
+                },
+            )
+            .unwrap();
+            let outputs = vec![ReconstructorOutputs {
+                impulse_response: &mut impulse_response,
+            }];
+
+            assert_eq!(
+                reconstructor.reconstruct(&inputs, &shared_inputs, &outputs),
+                Err(ReconstructorError::InputOutputLengthMismatch {
+                    inputs_len: 2,
+                    outputs_len: 1,
+                }),
+            );
         }
     }
 }

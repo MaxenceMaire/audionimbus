@@ -75,6 +75,15 @@
 - `AmbisonicsBinauralEffect::tail` now returns an `EffectError` when the output buffer does not have exactly two channels.
 - Refactored `ReflectionEffect`, `ReflectionMixer`, and `ReflectionEffectParams` to use compile-time type safety via generic parameters (`Convolution`, `Parametric`, `Hybrid`, `TrueAudioNext`). This prevents segmentation faults by ensuring TrueAudioNext effects can only use `apply_into_mixer()` (not `apply()`), and guarantees effect parameters match their corresponding effect types. `ReflectionEffectSettings` is now a simple struct, with the algorithm type specified through the generic parameter.
 - `Source::get_outputs` now returns an error on failure to allocate sufficient memory for the `SimulationOutputs` (it would `panic!` before the change).
+- `ProbeArray::probe` now returns a `ProbeArrayError` error if the index argument is out of bounds instead of panicking.
+- Methods `remove_probe`, `reverb` and `energy_field` of `ProbeBatch` return a `ProbeBatchError` error if the index argument is out of bounds instead of panicking.
+- `OpenClDeviceList::device_descriptor` now returns an `OpenClDeviceListError` error if the device index is out of bounds instead of panicking.
+- `channel` and `band` methods of `EnergyField` now return an `EnergyFieldError` error if arguments are out of bounds.
+- `Reconstructor::reconstruct` now returns a `ReconstructorError` instead of panicking, if the max duration or the max order is exceeded, or if the inputs and outputs have different lengths.
+- `ImpulseResponse::channel` now returns an `ImpulseResponseError` instead of panicking when the channel index is out of bounds.
+- Methods `interleave`, `deinterleave`, `mix`, `downmix`, `convert_ambisonics_into` of `AudioBuffer` now return an `AudioBufferOperationError` when invariants are not satisfied.
+- Renamed `OpenClDeviceList::new` to `try_new` for consistency.
+- Renamed `AmbisonicsType::FUMA` variant to `AmbisonicsType::FuMa`.
 
 ### Added
 
@@ -92,6 +101,8 @@
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
 - `SceneParams` implements the `Default` trait.
+- Add `ProbeArrayError`, `ProbeBatchError`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError`, `AudioBufferOperationError` errors.
+- `OpenClDeviceType` and `OpenClDeviceDescriptor` implement `PartialEq` trait.
 
 ### Removed
 

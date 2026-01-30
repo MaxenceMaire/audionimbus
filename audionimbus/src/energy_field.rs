@@ -63,34 +63,48 @@ impl EnergyField {
 
     /// Returns the data stored in the energy field for the given channel, in row-major order.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `channel_index` is out of bounds.
-    pub fn channel(&self, channel_index: u32) -> &[Sample] {
-        assert!(
-            channel_index < self.num_channels(),
-            "channel index out of bounds",
-        );
+    /// Returns [`EnergyFieldError::ChannelIndexOutOfBounds`] if `channel_index` is out of bounds.
+    pub fn channel(&self, channel_index: u32) -> Result<&[Sample], EnergyFieldError> {
+        let num_channels = self.num_channels();
+        if channel_index >= num_channels {
+            return Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            });
+        }
 
         let ptr = unsafe {
             audionimbus_sys::iplEnergyFieldGetChannel(self.raw_ptr(), channel_index as i32)
         };
         let len = NUM_BANDS * self.num_bins();
-        unsafe { std::slice::from_raw_parts(ptr, len as usize) }
+        let data = unsafe { std::slice::from_raw_parts(ptr, len as usize) };
+        Ok(data)
     }
 
     /// Returns the data stored in the energy field for the given channel and band, in row-major order.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `channel_index` or `band_index` are out of bounds.
-    pub fn band(&self, channel_index: u32, band_index: u32) -> &[Sample] {
-        assert!(
-            channel_index < self.num_channels(),
-            "channel index out of bounds",
-        );
+    /// Returns:
+    /// - [`EnergyFieldError::ChannelIndexOutOfBounds`] if `channel_index` is out of bounds.
+    /// - [`EnergyFieldError::BandIndexOutOfBounds`] if `band_index` is out of bounds.
+    pub fn band(&self, channel_index: u32, band_index: u32) -> Result<&[Sample], EnergyFieldError> {
+        let num_channels = self.num_channels();
+        if channel_index >= num_channels {
+            return Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            });
+        }
 
-        assert!(band_index < NUM_BANDS, "band index out of bounds",);
+        if band_index >= NUM_BANDS {
+            return Err(EnergyFieldError::BandIndexOutOfBounds {
+                band_index,
+                max_bands: NUM_BANDS,
+            });
+        }
 
         let ptr = unsafe {
             audionimbus_sys::iplEnergyFieldGetBand(
@@ -100,7 +114,8 @@ impl EnergyField {
             )
         };
         let len = self.num_bins();
-        unsafe { std::slice::from_raw_parts(ptr, len as usize) }
+        let data = unsafe { std::slice::from_raw_parts(ptr, len as usize) };
+        Ok(data)
     }
 
     /// Resets all values stored in the energy field to zero.
@@ -196,6 +211,41 @@ impl From<&EnergyFieldSettings> for audionimbus_sys::IPLEnergyFieldSettings {
     }
 }
 
+/// [`EnergyField`] errors.
+#[derive(Debug, PartialEq)]
+pub enum EnergyFieldError {
+    /// Channel index is out of bounds.
+    ChannelIndexOutOfBounds {
+        channel_index: u32,
+        num_channels: u32,
+    },
+    /// Band index is out of bounds.
+    BandIndexOutOfBounds { band_index: u32, max_bands: u32 },
+}
+
+impl std::error::Error for EnergyFieldError {}
+
+impl std::fmt::Display for EnergyFieldError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ChannelIndexOutOfBounds {
+                channel_index,
+                num_channels,
+            } => write!(
+                f,
+                "channel index {channel_index} out of bounds (num_channels: {num_channels})"
+            ),
+            Self::BandIndexOutOfBounds {
+                band_index,
+                max_bands,
+            } => write!(
+                f,
+                "band index {band_index} out of bounds (max_bands: {max_bands})"
+            ),
+        }
+    }
+}
+
 /// Adds the values stored in two energy fields, and stores the result in a third energy field.
 ///
 /// If the energy fields have different numbers of channels, only the smallest of the three numbers of channels will be added.
@@ -222,5 +272,119 @@ pub fn scale_energy_field(energy_field: &EnergyField, scalar: f32, out: &mut Ene
 pub fn scale_accum_energy_field(energy_field: &EnergyField, scalar: f32, out: &mut EnergyField) {
     unsafe {
         audionimbus_sys::iplEnergyFieldScaleAccum(energy_field.raw_ptr(), scalar, out.raw_ptr())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    mod energy_field {
+        use super::*;
+
+        mod channel {
+            use super::*;
+
+            #[test]
+            fn test_valid() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                // Access valid channel
+                let result = energy_field.channel(2);
+                assert!(result.is_ok());
+
+                // Access last valid channel
+                let result = energy_field.channel(3);
+                assert!(result.is_ok());
+            }
+
+            #[test]
+            fn test_index_out_of_bounds() {
+                let context = Context::default();
+
+                let energy_field = EnergyField::try_new(
+                    &context,
+                    &EnergyFieldSettings {
+                        duration: 1.0,
+                        order: 1,
+                    },
+                )
+                .unwrap();
+
+                assert_eq!(
+                    energy_field.channel(5),
+                    Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                        channel_index: 5,
+                        num_channels: 4,
+                    }),
+                );
+            }
+        }
+
+        mod band {
+            use super::*;
+
+            #[test]
+            fn test_valid() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                assert!(energy_field.band(0, 0).is_ok());
+                assert!(energy_field.band(3, NUM_BANDS - 1).is_ok());
+            }
+
+            #[test]
+            fn test_band_index_out_of_bounds() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                assert_eq!(
+                    energy_field.band(0, 5),
+                    Err(EnergyFieldError::BandIndexOutOfBounds {
+                        band_index: 5,
+                        max_bands: 3,
+                    }),
+                );
+            }
+
+            #[test]
+            fn test_band_channel_index_out_of_bounds() {
+                let context = Context::default();
+
+                let settings = EnergyFieldSettings {
+                    duration: 1.0,
+                    order: 1,
+                };
+
+                let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+
+                assert_eq!(
+                    energy_field.band(10, 0),
+                    Err(EnergyFieldError::ChannelIndexOutOfBounds {
+                        channel_index: 10,
+                        num_channels: 4,
+                    }),
+                );
+            }
+        }
     }
 }

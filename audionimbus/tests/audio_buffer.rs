@@ -12,7 +12,7 @@ fn test_buffer_mix() {
     let mix_container = vec![0.2; FRAME_SIZE];
     let mut mix_buffer = AudioBuffer::try_with_data(&mix_container).unwrap();
 
-    mix_buffer.mix(&context, &source_buffer);
+    assert!(mix_buffer.mix(&context, &source_buffer).is_ok());
 
     assert_eq!(mix_container, vec![0.3; FRAME_SIZE]);
 }
@@ -42,7 +42,7 @@ fn test_buffer_mix_multichannel() {
     )
     .unwrap();
 
-    mix_buffer.mix(&context, &source_buffer);
+    assert!(mix_buffer.mix(&context, &source_buffer).is_ok());
 
     // First channel: 0.3 + 0.1 = 0.4
     assert_eq!(&mix_container[0..FRAME_SIZE], &vec![0.4; FRAME_SIZE][..]);
@@ -69,7 +69,7 @@ fn test_buffer_downmix() {
     let mut downmix_container = vec![0.0; FRAME_SIZE];
     let mut downmix_buffer = AudioBuffer::try_with_data(&mut downmix_container).unwrap();
 
-    downmix_buffer.downmix(&context, &input_buffer);
+    assert!(downmix_buffer.downmix(&context, &input_buffer).is_ok());
 
     assert_eq!(downmix_container, vec![0.2; FRAME_SIZE]);
 }
@@ -95,7 +95,7 @@ fn test_buffer_downmix_multichannel() {
     let mut downmix_container = vec![0.0; FRAME_SIZE];
     let mut downmix_buffer = AudioBuffer::try_with_data(&mut downmix_container).unwrap();
 
-    downmix_buffer.downmix(&context, &input_buffer);
+    assert!(downmix_buffer.downmix(&context, &input_buffer).is_ok());
 
     // Average of 0.1, 0.2, 0.3, 0.4 = 0.25
     assert_eq!(downmix_container, vec![0.25; FRAME_SIZE]);
@@ -120,7 +120,7 @@ fn test_buffer_interleave_deinterleave() {
 
     // Interleave
     let mut interleaved = vec![0.0; NUM_CHANNELS * FRAME_SIZE];
-    buffer.interleave(&context, &mut interleaved);
+    assert!(buffer.interleave(&context, &mut interleaved).is_ok());
 
     // Verify interleaving: [ch0[0], ch1[0], ch0[1], ch1[1], ...]
     for i in 0..FRAME_SIZE {
@@ -136,7 +136,7 @@ fn test_buffer_interleave_deinterleave() {
     )
     .unwrap();
 
-    buffer_back.deinterleave(&context, &interleaved);
+    assert!(buffer_back.deinterleave(&context, &interleaved).is_ok());
 
     assert_eq!(deinterleaved_back, deinterleaved);
 }
@@ -190,12 +190,14 @@ fn test_convert_ambisonics_into() {
     )
     .unwrap();
 
-    n3d_buffer.convert_ambisonics_into(
-        &context,
-        AmbisonicsType::N3D,
-        AmbisonicsType::SN3D,
-        &mut sn3d_buffer,
-    );
+    assert!(n3d_buffer
+        .convert_ambisonics_into(
+            &context,
+            AmbisonicsType::N3D,
+            AmbisonicsType::SN3D,
+            &mut sn3d_buffer,
+        )
+        .is_ok());
 
     // Output should be written into sn3d_buffer.
     assert_ne!(sn3d_data[0], 0.0);
