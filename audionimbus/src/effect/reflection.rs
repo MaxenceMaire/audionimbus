@@ -17,12 +17,14 @@ use crate::{ChannelPointers, ChannelRequirement};
 use std::marker::PhantomData;
 
 /// Multi-channel convolution reverb.
+///
 /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
 /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
 /// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
 pub struct Convolution;
 
 /// Parametric (or artificial) reverb, using feedback delay networks.
+///
 /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
 /// This is then used to drive an approximate model of reverberation in an indoor space.
 /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
@@ -30,6 +32,7 @@ pub struct Convolution;
 pub struct Parametric;
 
 /// A hybrid of convolution and parametric reverb.
+///
 /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
 /// The point in the IR where this transition occurs can be controlled.
 /// This algorithm allows a trade-off between rendering quality and CPU usage.
@@ -37,7 +40,8 @@ pub struct Parametric;
 pub struct Hybrid;
 
 /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-/// This algorithm is similar to [`Self::Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
+///
+/// This algorithm is similar to [`Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
 /// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
 pub struct TrueAudioNext;
 
@@ -56,7 +60,11 @@ impl CanApplyDirectly for Convolution {}
 impl CanApplyDirectly for Parametric {}
 impl CanApplyDirectly for Hybrid {}
 
-/// Reflection effect type (convolution, parametric, hybrid, TrueAudioNext).
+/// Reflection effect type. Can be:
+/// - [`Convolution`]: Multi-channel convolution reverb
+/// - [`Parametric`]: Parametric (or artificial) reverb, using feedback delay networks
+/// - [`Hybrid`]: A hybrid of convolution and parametric reverb
+/// - [`TrueAudioNext`]: Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration
 pub trait ReflectionEffectType: sealed::Sealed {
     /// Returns the FFI enum value for this reflection effect type.
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType;
