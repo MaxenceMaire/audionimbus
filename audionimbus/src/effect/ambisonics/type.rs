@@ -9,7 +9,7 @@ pub enum AmbisonicsType {
     SN3D,
 
     /// Furse-Malham (B-format).
-    FUMA,
+    FuMa,
 }
 
 impl From<AmbisonicsType> for audionimbus_sys::IPLAmbisonicsType {
@@ -17,7 +17,7 @@ impl From<AmbisonicsType> for audionimbus_sys::IPLAmbisonicsType {
         match ambisonics_type {
             AmbisonicsType::N3D => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_N3D,
             AmbisonicsType::SN3D => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_SN3D,
-            AmbisonicsType::FUMA => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_FUMA,
+            AmbisonicsType::FuMa => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_FUMA,
         }
     }
 }

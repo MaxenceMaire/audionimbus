@@ -84,6 +84,7 @@
 - `ImpulseResponse::channel` now returns an `ImpulseResponseError` instead of panicking when the channel index is out of bounds.
 - Methods `interleave`, `deinterleave`, `mix`, `downmix`, `convert_ambisonics_into` of `AudioBuffer` now return an `AudioBufferOperationError` when invariants are not satisfied.
 - Renamed `OpenClDeviceList::new` to `try_new` for consistency.
+- Rename `AmbisonicsType::FUMA` variant to `AmbisonicsType::FuMa`.
 
 ### Added
 

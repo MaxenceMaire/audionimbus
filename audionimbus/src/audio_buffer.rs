@@ -823,49 +823,52 @@ mod tests {
         use super::*;
 
         #[test]
-        fn test_mix_mismatched_channels() {
-            let context = Context::default();
-
-            let source = vec![0.5; 100];
-            let source_buffer = AudioBuffer::try_with_data(&source).unwrap();
-
-            let mut mix = vec![0.5; 200];
-            let mut mix_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut mix,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
-
-            assert_eq!(
-                mix_buffer.mix(&context, &source_buffer),
-                Err(AudioBufferOperationError::ChannelCountMismatch {
-                    self_num_channels: 2,
-                    other_num_channels: 1
-                }),
-            );
+        fn test_valid() {
+            let mut data = vec![0.5f32; 2048];
+            let (left, right) = data.split_at_mut(1024);
+            let mut channel_ptrs: Vec<*mut f32> = vec![left.as_mut_ptr(), right.as_mut_ptr()];
+            let result =
+                unsafe { AudioBuffer::<f32, &mut Vec<*mut f32>>::try_new(&mut channel_ptrs, 1024) };
+            assert!(result.is_ok());
         }
 
         #[test]
-        fn test_downmix_mismatched_samples() {
-            let context = Context::default();
+        fn test_invalid_num_samples() {
+            let channel_ptrs = vec![std::ptr::null_mut(); 2];
+            let result = unsafe { AudioBuffer::<(), _>::try_new(channel_ptrs, 0) };
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidNumSamples { num_samples: 0 }),
+            ));
+        }
 
-            let input = vec![0.5; 200];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &input,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+        #[test]
+        fn test_invalid_num_channels() {
+            let channel_ptrs: Vec<*mut f32> = vec![];
+            let result = unsafe { AudioBuffer::<(), _>::try_new(channel_ptrs, 1024) };
+            assert!(matches!(
+                result,
+                Err(AudioBufferError::InvalidNumChannels { num_channels: 0 }),
+            ));
+        }
+    }
 
-            let mut output = vec![0.5; 50];
-            let mut output_buffer = AudioBuffer::try_with_data(&mut output).unwrap();
+    mod try_with_data {
+        use super::*;
 
-            assert_eq!(
-                output_buffer.downmix(&context, &input_buffer),
-                Err(AudioBufferOperationError::SampleCountMismatch {
-                    self_num_samples: 50,
-                    other_num_samples: 100
-                }),
-            );
+        #[test]
+        fn test_valid() {
+            let empty_data: Vec<f32> = vec![0.5; 1024];
+            assert!(AudioBuffer::try_with_data(&empty_data).is_ok());
+        }
+
+        #[test]
+        fn test_empty_data() {
+            let empty_data: Vec<f32> = vec![];
+            assert!(matches!(
+                AudioBuffer::try_with_data(&empty_data),
+                Err(AudioBufferError::EmptyData),
+            ));
         }
     }
 
@@ -1239,11 +1242,11 @@ mod tests {
         }
     }
 
-    mod allocate_channel_ptrs_tests {
+    mod allocate_channel_ptrs {
         use super::*;
 
         #[test]
-        fn test_allocate_channel_ptrs_valid() {
+        fn test_valid() {
             let data = vec![0.0; 12];
             let settings = AudioBufferSettings::with_num_channels(3);
             let ptrs = allocate_channel_ptrs(&data, settings).unwrap();
@@ -1253,7 +1256,7 @@ mod tests {
         }
 
         #[test]
-        fn test_allocate_channel_ptrs_invalid() {
+        fn test_invalid() {
             let data = vec![0.0; 10];
             let settings = AudioBufferSettings {
                 num_channels: Some(3),
@@ -1277,6 +1280,229 @@ mod tests {
             assert!(!ChannelRequirement::AtLeast(2).is_satisfied_by(1));
             assert!(ChannelRequirement::Range { min: 1, max: 4 }.is_satisfied_by(3));
             assert!(!ChannelRequirement::Range { min: 1, max: 4 }.is_satisfied_by(5));
+        }
+    }
+
+    mod mix {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let source = vec![0.5; 100];
+            let source_buffer = AudioBuffer::try_with_data(&source).unwrap();
+
+            let mut mix = vec![0.5; 100];
+            let mut mix_buffer = AudioBuffer::try_with_data(&mut mix).unwrap();
+
+            assert!(mix_buffer.mix(&context, &source_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_mismatched_channels() {
+            let context = Context::default();
+
+            let source = vec![0.5; 100];
+            let source_buffer = AudioBuffer::try_with_data(&source).unwrap();
+
+            let mut mix = vec![0.5; 200];
+            let mut mix_buffer = AudioBuffer::try_with_data_and_settings(
+                &mut mix,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            assert_eq!(
+                mix_buffer.mix(&context, &source_buffer),
+                Err(AudioBufferOperationError::ChannelCountMismatch {
+                    self_num_channels: 2,
+                    other_num_channels: 1
+                }),
+            );
+        }
+
+        #[test]
+        fn test_sample_count_mismatch() {
+            let context = Context::default();
+
+            let source = vec![0.0; 512];
+            let source_buffer = AudioBuffer::try_with_data(&source).unwrap();
+
+            let mix = vec![0.0; 1024];
+            let mut mix_buffer = AudioBuffer::try_with_data(&mix).unwrap();
+
+            assert_eq!(
+                mix_buffer.mix(&context, &source_buffer),
+                Err(AudioBufferOperationError::SampleCountMismatch {
+                    self_num_samples: 1024,
+                    other_num_samples: 512,
+                }),
+            );
+        }
+    }
+
+    mod downmix {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let input = vec![0.5; 200];
+            let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+
+            let mut output = vec![0.5; 200];
+            let mut output_buffer = AudioBuffer::try_with_data(&mut output).unwrap();
+
+            assert!(output_buffer.downmix(&context, &input_buffer).is_ok());
+        }
+
+        #[test]
+        fn test_mismatched_samples() {
+            let context = Context::default();
+
+            let input = vec![0.5; 200];
+            let input_buffer = AudioBuffer::try_with_data_and_settings(
+                &input,
+                AudioBufferSettings::with_num_channels(2),
+            )
+            .unwrap();
+
+            let mut output = vec![0.5; 50];
+            let mut output_buffer = AudioBuffer::try_with_data(&mut output).unwrap();
+
+            assert_eq!(
+                output_buffer.downmix(&context, &input_buffer),
+                Err(AudioBufferOperationError::SampleCountMismatch {
+                    self_num_samples: 50,
+                    other_num_samples: 100
+                }),
+            );
+        }
+    }
+
+    mod interleave {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+            let samples = vec![0.0; 1024];
+            let buffer = AudioBuffer::try_with_data(&samples).unwrap();
+
+            let mut dst = vec![0.0; 1024];
+            assert!(buffer.interleave(&context, &mut dst).is_ok());
+        }
+
+        #[test]
+        fn test_length_mismatch() {
+            let context = Context::default();
+            let samples = vec![0.0; 1024];
+            let buffer = AudioBuffer::try_with_data(&samples).unwrap();
+
+            let mut dst = vec![0.0; 512];
+            assert_eq!(
+                buffer.interleave(&context, &mut dst),
+                Err(AudioBufferOperationError::InterleaveLengthMismatch {
+                    dst_len: 512,
+                    expected_len: 1024,
+                }),
+            );
+        }
+    }
+
+    mod deinterleave {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+            let samples = vec![0.0; 1024];
+            let mut buffer = AudioBuffer::try_with_data(&samples).unwrap();
+
+            let src = vec![0.0; 1024];
+            assert!(buffer.deinterleave(&context, &src).is_ok());
+        }
+
+        #[test]
+        fn test_length_mismatch() {
+            let context = Context::default();
+            let samples = vec![0.0; 1024];
+            let mut buffer = AudioBuffer::try_with_data(&samples).unwrap();
+
+            let src = vec![0.0; 2048];
+            assert_eq!(
+                buffer.deinterleave(&context, &src),
+                Err(AudioBufferOperationError::DeinterleaveLengthMismatch {
+                    src_len: 2048,
+                    expected_len: 1024,
+                }),
+            );
+        }
+    }
+
+    mod convert_ambisonics {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let samples1 = vec![0.0; 1024];
+            let mut buffer1 = AudioBuffer::try_with_data_and_settings(
+                &samples1,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let samples2 = vec![0.0; 1024];
+            let mut buffer2 = AudioBuffer::try_with_data_and_settings(
+                &samples2,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            assert!(buffer1
+                .convert_ambisonics_into(
+                    &context,
+                    AmbisonicsType::N3D,
+                    AmbisonicsType::FuMa,
+                    &mut buffer2,
+                )
+                .is_ok());
+        }
+
+        #[test]
+        fn test_total_sample_mismatch() {
+            let context = Context::default();
+
+            let samples1 = vec![0.0; 1024];
+            let mut buffer1 = AudioBuffer::try_with_data_and_settings(
+                &samples1,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            let samples2 = vec![0.0; 512];
+            let mut buffer2 = AudioBuffer::try_with_data_and_settings(
+                &samples2,
+                AudioBufferSettings::with_num_channels(4),
+            )
+            .unwrap();
+
+            assert_eq!(
+                buffer1.convert_ambisonics_into(
+                    &context,
+                    AmbisonicsType::N3D,
+                    AmbisonicsType::FuMa,
+                    &mut buffer2,
+                ),
+                Err(AudioBufferOperationError::TotalSampleMismatch {
+                    self_count: 1024,
+                    other_count: 512,
+                }),
+            );
         }
     }
 }
