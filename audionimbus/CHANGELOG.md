@@ -84,6 +84,9 @@
 - Methods `interleave`, `deinterleave`, `mix`, `downmix`, `convert_ambisonics_into` of `AudioBuffer` now return an `AudioBufferOperationError` when invariants are not satisfied.
 - Renamed `OpenClDeviceList::new` to `try_new` for consistency.
 - Renamed `AmbisonicsType::FUMA` variant to `AmbisonicsType::FuMa`.
+- Fields of `scene` and `probe_batch` of `ReflectionsBakeParams` have been removed following the introduction of `ReflectionsBaker`.
+- `SimulatorBuilder` and `Simulator` are now generic over the ray tracer implementation.
+- `BakedDataIdentifier` and `BakedDataVariation` are now part of the new `baking` module instead of `simulation`.
 
 ### Added
 
@@ -100,15 +103,18 @@
 - `SteamAudioError` implements `PartialEq`, `Copy` and `Clone`.
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
-- `SceneParams` implements the `Default` trait.
 - Add `ProbeArrayError`, `ProbeBatchError`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError`, `AudioBufferOperationError` errors.
 - `OpenClDeviceType` and `OpenClDeviceDescriptor` implement `PartialEq` trait.
+- Add `ReflectionsBaker` object to precompute reflections. It enforces the use of the correct scene type via generics. Its methods replace `bake_reflections` and `cancel_bake_reflections`.
 
 ### Removed
 
 - Removed the `From<&HrtfSettings>` trait implementation for `audionimbus_sys::IPLHRTFSettings` in favor of the new `to_ffi` method on `HrtfSettings`, which allows the optional filename variable to be kept alive for FFI calls.
 - Make the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` only public to the crate.
 - Removed the `Default` trait implementation for `SimulationOutputs`.
+- Removed functions `bake_reflections` and `cancel_bake_reflections`. They are superseded by methods `bake` and `cancel_bake` of `ReflectionsBaker`.
+- Removed `SceneParams`.
+- Removed `SimulationSettings`.
 
 ## [0.11.0] - 2026-01-14
 

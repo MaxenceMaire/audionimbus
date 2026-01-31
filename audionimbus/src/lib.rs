@@ -256,6 +256,9 @@ pub use audio_buffer::*;
 pub mod audio_settings;
 pub use audio_settings::*;
 
+pub mod baking;
+pub use baking::*;
+
 pub mod callback;
 pub use callback::*;
 

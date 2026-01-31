@@ -2,7 +2,6 @@ use super::{InstancedMesh, Matrix, StaticMesh};
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
-use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Direction, Point};
@@ -63,11 +62,34 @@ impl SaveableAsObj for Embree {}
 /// - [`Embree`]: The Intel Embree ray tracer
 /// - [`RadeonRays`]: The AMD Radeon Rays ray tracer
 /// - [`CustomRayTracer`]: Allows you to specify callbacks to your own ray tracer
-pub trait RayTracer: sealed::Sealed {}
-impl RayTracer for DefaultRayTracer {}
-impl RayTracer for Embree {}
-impl RayTracer for RadeonRays {}
-impl RayTracer for CustomRayTracer {}
+pub trait RayTracer: sealed::Sealed {
+    /// Returns the FFI scene type for this ray tracer implementation.
+    fn scene_type() -> audionimbus_sys::IPLSceneType;
+}
+
+impl RayTracer for DefaultRayTracer {
+    fn scene_type() -> audionimbus_sys::IPLSceneType {
+        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT
+    }
+}
+
+impl RayTracer for Embree {
+    fn scene_type() -> audionimbus_sys::IPLSceneType {
+        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE
+    }
+}
+
+impl RayTracer for RadeonRays {
+    fn scene_type() -> audionimbus_sys::IPLSceneType {
+        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS
+    }
+}
+
+impl RayTracer for CustomRayTracer {
+    fn scene_type() -> audionimbus_sys::IPLSceneType {
+        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM
+    }
+}
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///
@@ -194,7 +216,7 @@ impl Scene<DefaultRayTracer> {
     /// Returns FFI scene settings for the default ray tracer implementation.
     fn ffi_settings() -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
-            type_: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
+            type_: DefaultRayTracer::scene_type(),
             closestHitCallback: None,
             anyHitCallback: None,
             batchedClosestHitCallback: None,
@@ -311,7 +333,7 @@ impl Scene<Embree> {
     /// Returns FFI scene settings with the Embree ray tracer.
     fn ffi_settings(device: EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
-            type_: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE,
+            type_: Embree::scene_type(),
             closestHitCallback: None,
             anyHitCallback: None,
             batchedClosestHitCallback: None,
@@ -428,7 +450,7 @@ impl Scene<RadeonRays> {
     /// Returns FFI scene settings with the Radeon Rays ray tracer.
     fn ffi_settings(device: RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
-            type_: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS,
+            type_: RadeonRays::scene_type(),
             closestHitCallback: None,
             anyHitCallback: None,
             batchedClosestHitCallback: None,
@@ -548,7 +570,7 @@ impl Scene<CustomRayTracer> {
     /// Returns FFI scene settings with custom callbacks.
     fn ffi_settings(callbacks: &CustomCallbacks) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
-            type_: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM,
+            type_: CustomRayTracer::scene_type(),
             closestHitCallback: Some(callbacks.closest_hit_callback),
             anyHitCallback: Some(callbacks.any_hit_callback),
             batchedClosestHitCallback: Some(callbacks.batched_closest_hit_callback),
@@ -999,32 +1021,6 @@ pub struct CustomCallbacks {
 
     /// Arbitrary user-provided data for use by ray tracing callbacks.
     pub user_data: *mut std::ffi::c_void,
-}
-
-/// The scene parameters.
-#[derive(Default, Copy, Clone, Debug)]
-pub enum SceneParams<'a> {
-    /// Steam Audio’s built-in ray tracer.
-    #[default]
-    Default,
-
-    /// The Intel Embree ray tracer.
-    Embree,
-
-    /// The AMD Radeon Rays ray tracer.
-    RadeonRays {
-        /// The OpenCL device being used.
-        open_cl_device: &'a OpenClDevice,
-
-        /// The Radeon Rays device being used.
-        radeon_rays_device: &'a RadeonRaysDevice,
-    },
-
-    /// Custom ray tracer.
-    Custom {
-        /// The number of rays that will be passed to the callbacks every time rays need to be traced.
-        ray_batch_size: u32,
-    },
 }
 
 /// Calculates the relative direction from the listener to a sound source.

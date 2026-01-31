@@ -2,6 +2,7 @@ use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
+use crate::baking::BakedDataIdentifier;
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
@@ -10,7 +11,6 @@ use crate::geometry::{CoordinateSystem, Scene};
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
 use crate::probe::ProbeBatch;
-use crate::simulation::BakedDataIdentifier;
 use crate::{ChannelPointers, ChannelRequirement};
 
 #[cfg(doc)]

@@ -1,11 +1,11 @@
 //! Sound probe generation and storage.
 
+use crate::baking::BakedDataIdentifier;
 use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
-use crate::simulation::BakedDataIdentifier;
 
 /// An array of sound probes.
 ///
