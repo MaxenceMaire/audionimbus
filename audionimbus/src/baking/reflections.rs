@@ -3,8 +3,9 @@ use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
-use crate::geometry::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer, Scene};
+use crate::geometry::Scene;
 use crate::probe::ProbeBatch;
+use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
 use std::marker::PhantomData;
 
 #[cfg(doc)]

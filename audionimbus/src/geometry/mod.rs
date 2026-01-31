@@ -86,8 +86,8 @@ pub use material::Material;
 
 mod scene;
 pub use scene::{
-    relative_direction, CustomRayTracer, DefaultRayTracer, Embree, InstancedMeshHandle, RadeonRays,
-    RayTracer, SaveableAsObj, SaveableAsSerialized, Scene, StaticMeshHandle,
+    relative_direction, InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, Scene,
+    StaticMeshHandle,
 };
 
 mod static_mesh;

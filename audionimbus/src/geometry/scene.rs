@@ -5,91 +5,20 @@ use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Direction, Point};
+use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
 use crate::serialized_object::SerializedObject;
+use crate::Sealed;
 use slotmap::{DefaultKey, SlotMap};
 use std::marker::PhantomData;
 
-/// Steam Audio’s built-in ray tracer.
-///
-/// Supports multi-threading. Runs on all platforms that Steam Audio supports.
-#[derive(Debug)]
-pub struct DefaultRayTracer;
-
-/// The Intel Embree ray tracer.
-///
-/// Supports multi-threading.
-/// This is a highly optimized implementation, and is likely to be faster than the default ray tracer.
-/// However, Embree requires Windows, Linux, or macOS, and a 32-bit x86 or 64-bit x86_64 CPU.
-#[derive(Debug)]
-pub struct Embree;
-
-/// The AMD Radeon Rays ray tracer.
-///
-/// This is an OpenCL implementation, and can use either the CPU or any GPU that supports OpenCL 1.2 or later.
-/// If using the GPU, it is likely to be significantly faster than the default ray tracer.
-/// However, with heavy real-time simulation workloads, it may impact your application’s frame rate.
-/// On supported AMD GPUs, you can use the Resource Reservation feature to mitigate this issue.
-#[derive(Debug)]
-pub struct RadeonRays;
-
-/// Allows you to specify callbacks to your own ray tracer.
-///
-/// Useful if your application already uses a high-performance ray tracer.
-/// This option uses the least amount of memory at run-time, since it does not have to build any ray tracing data structures of its own.
-#[derive(Debug)]
-pub struct CustomRayTracer;
-
-mod sealed {
-    pub trait Sealed {}
-}
-
-impl sealed::Sealed for DefaultRayTracer {}
-impl sealed::Sealed for Embree {}
-impl sealed::Sealed for RadeonRays {}
-impl sealed::Sealed for CustomRayTracer {}
-
 /// Marker trait for scenes that can use `save()`.
-pub trait SaveableAsSerialized: sealed::Sealed {}
+pub trait SaveableAsSerialized: Sealed {}
 impl SaveableAsSerialized for DefaultRayTracer {}
 
 /// Marker trait for scenes that can use `save_obj()`.
-pub trait SaveableAsObj: sealed::Sealed {}
+pub trait SaveableAsObj: Sealed {}
 impl SaveableAsObj for DefaultRayTracer {}
 impl SaveableAsObj for Embree {}
-
-/// Ray tracer implementation. Can be:
-/// - [`DefaultRayTracer`]: Steam Audio’s built-in ray tracer
-/// - [`Embree`]: The Intel Embree ray tracer
-/// - [`RadeonRays`]: The AMD Radeon Rays ray tracer
-/// - [`CustomRayTracer`]: Allows you to specify callbacks to your own ray tracer
-pub trait RayTracer: sealed::Sealed {
-    /// Returns the FFI scene type for this ray tracer implementation.
-    fn scene_type() -> audionimbus_sys::IPLSceneType;
-}
-
-impl RayTracer for DefaultRayTracer {
-    fn scene_type() -> audionimbus_sys::IPLSceneType {
-        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT
-    }
-}
-
-impl RayTracer for Embree {
-    fn scene_type() -> audionimbus_sys::IPLSceneType {
-        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE
-    }
-}
-
-impl RayTracer for RadeonRays {
-    fn scene_type() -> audionimbus_sys::IPLSceneType {
-        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS
-    }
-}
-
-impl RayTracer for CustomRayTracer {
-    fn scene_type() -> audionimbus_sys::IPLSceneType {
-        audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM
-    }
-}
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///

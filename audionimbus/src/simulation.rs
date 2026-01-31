@@ -14,9 +14,9 @@ use crate::effect::reflection::ReflectionEffectType;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::geometry;
-use crate::geometry::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer, Scene};
+use crate::geometry::{CoordinateSystem, Scene};
 use crate::probe::ProbeBatch;
+use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -883,7 +883,7 @@ impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
 #[derive(Debug, Copy, Clone)]
 pub struct SimulationInputs<'a> {
     /// The position and orientation of this source.
-    pub source: geometry::CoordinateSystem,
+    pub source: CoordinateSystem,
 
     /// If `Some`, enables direct simulation. This includes distance attenuation, air absorption, directivity, occlusion, and transmission.
     pub direct_simulation: Option<DirectSimulationParameters>,
@@ -1315,7 +1315,7 @@ pub enum OcclusionAlgorithm {
 #[derive(Debug)]
 pub struct SimulationSharedInputs {
     /// The position and orientation of the listener.
-    pub listener: geometry::CoordinateSystem,
+    pub listener: CoordinateSystem,
 
     /// The number of rays to trace from the listener.
     /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.

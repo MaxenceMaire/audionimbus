@@ -303,8 +303,14 @@ pub use energy_field::*;
 pub mod impulse_response;
 pub use impulse_response::*;
 
+pub mod ray_tracing;
+pub use ray_tracing::*;
+
 pub mod reconstructor;
 pub use reconstructor::*;
+
+mod sealed;
+use sealed::Sealed;
 
 #[cfg(feature = "fmod")]
 pub mod fmod;
