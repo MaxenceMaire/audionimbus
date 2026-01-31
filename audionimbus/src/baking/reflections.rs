@@ -20,6 +20,7 @@ use super::BakedDataVariation;
 /// Each of these points is called a probe and belong to a [`ProbeBatch`].
 ///
 /// Just like game engines use light probes to store the variation of lighting throughout a scene, Steam Audio uses acoustic probes to store the variation of acoustic data (in this case, reflections) throughout a scene.
+#[derive(Default)]
 pub struct ReflectionsBaker<'a, T: RayTracer> {
     ray_batch_size: i32,
     open_cl_device: Option<&'a OpenClDevice>,
@@ -133,7 +134,7 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
             scene: scene.raw_ptr(),
             probeBatch: probe_batch.raw_ptr(),
             sceneType: T::scene_type(),
-            identifier: (*params.identifier).into(),
+            identifier: params.identifier.into(),
             bakeFlags: params.bake_flags.into(),
             numRays: params.num_rays as i32,
             numDiffuseSamples: params.num_diffuse_samples as i32,
@@ -169,19 +170,13 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
     }
 }
 
-impl<'a> Default for ReflectionsBaker<'a, DefaultRayTracer> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Parameters used to control how reflections data is baked.
 #[derive(Debug, Copy, Clone)]
-pub struct ReflectionsBakeParams<'a> {
+pub struct ReflectionsBakeParams {
     /// An identifier for the data layer that should be baked.
     /// The identifier determines what data is simulated and stored at each probe.
     /// If the probe batch already contains data with this identifier, it will be overwritten.
-    pub identifier: &'a BakedDataIdentifier,
+    pub identifier: BakedDataIdentifier,
 
     /// The types of data to save for each probe.
     pub bake_flags: ReflectionsBakeFlags,

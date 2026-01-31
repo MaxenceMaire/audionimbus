@@ -2,15 +2,12 @@ use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
-use crate::baking::BakedDataIdentifier;
-use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::geometry::{CoordinateSystem, Scene};
+use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
-use crate::probe::ProbeBatch;
 use crate::{ChannelPointers, ChannelRequirement};
 
 #[cfg(doc)]
@@ -474,100 +471,6 @@ impl PathEffectParams {
         };
 
         FFIWrapper::new(path_effect_params)
-    }
-}
-
-/// Bakes a single layer of pathing data in a probe batch.
-///
-/// Only one bake can be in progress at any point in time.
-pub fn bake_path(
-    context: &Context,
-    path_bake_params: &PathBakeParams,
-    progress_callback: Option<CallbackInformation<ProgressCallback>>,
-) {
-    // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplPathBakerBake`.
-    // We pass a no-op callback instead until the fix is released.
-    // See: https://github.com/ValveSoftware/steam-audio/issues/523
-    // TODO: Remove this workaround when fix is released.
-    unsafe extern "C" fn noop_progress_callback(_progress: f32, _user_data: *mut std::ffi::c_void) {
-    }
-
-    let (callback, user_data) = if let Some(callback_information) = progress_callback {
-        (
-            callback_information.callback,
-            callback_information.user_data,
-        )
-    } else {
-        (
-            noop_progress_callback as ProgressCallback,
-            std::ptr::null_mut(),
-        )
-    };
-
-    unsafe {
-        audionimbus_sys::iplPathBakerBake(
-            context.raw_ptr(),
-            &mut audionimbus_sys::IPLPathBakeParams::from(path_bake_params),
-            Some(callback),
-            user_data,
-        );
-    }
-}
-
-/// Cancels any running bakes of pathing data.
-pub fn cancel_bake_path(context: &Context) {
-    unsafe { audionimbus_sys::iplPathBakerCancelBake(context.raw_ptr()) }
-}
-
-/// Parameters used to control how pathing data is baked.
-#[derive(Debug)]
-pub struct PathBakeParams<'a> {
-    /// The scene in which the probes exist.
-    pub scene: &'a Scene,
-
-    /// A probe batch containing the probes for which pathing data should be baked.
-    pub probe_batch: &'a ProbeBatch,
-
-    /// An identifier for the data layer that should be baked.
-    /// The identifier determines what data is simulated and stored at each probe.
-    /// If the probe batch already contains data with this identifier, it will be overwritten.
-    pub identifier: &'a BakedDataIdentifier,
-
-    /// Number of point samples to use around each probe when testing whether one probe can see another.
-    /// To determine if two probes are mutually visible, numSamples * numSamples rays are traced, from each point sample of the first probe, to every other point sample of the second probe.
-    pub num_samples: u32,
-
-    /// When testing for mutual visibility between a pair of probes, each probe is treated as a sphere of this radius (in meters), and point samples are generated within this sphere.
-    pub radius: f32,
-
-    /// When tracing rays to test for mutual visibility between a pair of probes, the fraction of rays that are unoccluded must be greater than this threshold for the pair of probes to be considered mutually visible.
-    pub threshold: f32,
-
-    /// If the distance between two probes is greater than this value, the probes are not considered mutually visible.
-    /// Increasing this value can result in simpler paths, at the cost of increased bake times.
-    pub visibility_range: f32,
-
-    /// If the length of the path between two probes is greater than this value, the probes are considered to not have any path between them.
-    /// Increasing this value allows sound to propagate over greater distances, at the cost of increased bake times and memory usage.
-    pub path_range: f32,
-
-    /// Number of threads to use for baking.
-    pub num_threads: u32,
-}
-
-impl From<&PathBakeParams<'_>> for audionimbus_sys::IPLPathBakeParams {
-    fn from(params: &PathBakeParams) -> Self {
-        Self {
-            scene: params.scene.raw_ptr(),
-            probeBatch: params.probe_batch.raw_ptr(),
-            identifier: (*params.identifier).into(),
-            numSamples: params.num_samples as i32,
-            radius: params.radius,
-            threshold: params.threshold,
-            visRange: params.visibility_range,
-            pathRange: params.path_range,
-            numThreads: params.num_threads as i32,
-        }
     }
 }
 

@@ -24,8 +24,11 @@ use crate::probe::ProbeBatch;
 #[cfg(doc)]
 use crate::simulation::Simulator;
 
-pub mod reflections;
-pub use reflections::*;
-
 pub mod baked_data;
 pub use baked_data::*;
+
+pub mod pathing;
+pub use pathing::*;
+
+pub mod reflections;
+pub use reflections::*;

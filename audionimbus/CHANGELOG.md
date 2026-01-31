@@ -106,6 +106,7 @@
 - Add `ProbeArrayError`, `ProbeBatchError`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError`, `AudioBufferOperationError` errors.
 - `OpenClDeviceType` and `OpenClDeviceDescriptor` implement `PartialEq` trait.
 - Add `ReflectionsBaker` object to precompute reflections. It enforces the use of the correct scene type via generics. Its methods replace `bake_reflections` and `cancel_bake_reflections`.
+- Add `PathBaker` object to precompute pathing data. It enforces the use of the correct scene type via generics. Its methods replace `bake_path` and `cancel_bake_path`.
 
 ### Removed
 
@@ -113,6 +114,7 @@
 - Make the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` only public to the crate.
 - Removed the `Default` trait implementation for `SimulationOutputs`.
 - Removed functions `bake_reflections` and `cancel_bake_reflections`. They are superseded by methods `bake` and `cancel_bake` of `ReflectionsBaker`.
+- Removed functions `bake_path` and `cancel_bake_path`. They are superseded by methods `bake` and `cancel_bake` of `PathBaker`.
 - Removed `SceneParams`.
 - Removed `SimulationSettings`.
 
