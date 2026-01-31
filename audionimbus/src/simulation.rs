@@ -81,6 +81,7 @@ impl Simulator<DefaultRayTracer, (), (), ()> {
         max_order: u32,
     ) -> SimulatorBuilder<DefaultRayTracer, (), (), ()> {
         let mut settings = default_ffi_simulation_settings();
+        settings.sceneType = DefaultRayTracer::scene_type();
         settings.samplingRate = sampling_rate as i32;
         settings.frameSize = frame_size as i32;
         settings.maxOrder = max_order as i32;
@@ -111,6 +112,7 @@ impl Simulator<Embree, (), (), ()> {
         max_order: u32,
     ) -> SimulatorBuilder<Embree, (), (), ()> {
         let mut settings = default_ffi_simulation_settings();
+        settings.sceneType = Embree::scene_type();
         settings.samplingRate = sampling_rate as i32;
         settings.frameSize = frame_size as i32;
         settings.maxOrder = max_order as i32;
@@ -145,6 +147,7 @@ impl Simulator<RadeonRays, (), (), ()> {
         radeon_rays_device: &RadeonRaysDevice,
     ) -> SimulatorBuilder<RadeonRays, (), (), ()> {
         let mut settings = default_ffi_simulation_settings();
+        settings.sceneType = RadeonRays::scene_type();
         settings.samplingRate = sampling_rate as i32;
         settings.frameSize = frame_size as i32;
         settings.maxOrder = max_order as i32;
@@ -179,6 +182,7 @@ impl Simulator<CustomRayTracer, (), (), ()> {
         ray_batch_size: u32,
     ) -> SimulatorBuilder<CustomRayTracer, (), (), ()> {
         let mut settings = default_ffi_simulation_settings();
+        settings.sceneType = CustomRayTracer::scene_type();
         settings.samplingRate = sampling_rate as i32;
         settings.frameSize = frame_size as i32;
         settings.maxOrder = max_order as i32;
