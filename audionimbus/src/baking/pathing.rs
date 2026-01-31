@@ -1,4 +1,5 @@
 use super::BakedDataIdentifier;
+use super::{BakeError, BAKE_LOCK};
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::geometry::Scene;
@@ -40,19 +41,27 @@ impl<T: RayTracer> PathBaker<T> {
     /// Bakes a single layer of pathing data in a probe batch.
     ///
     /// Only one bake can be in progress at any point in time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BakeError`] if another bake operation is already in progress.
     pub fn bake(
         &self,
         context: &Context,
         probe_batch: &mut ProbeBatch,
         scene: &Scene<T>,
         params: PathBakeParams,
-    ) {
-        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None);
+    ) -> Result<(), BakeError> {
+        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None)
     }
 
     /// Bakes a single layer of pathing data in a probe batch, with a progress callback.
     ///
     /// Only one bake can be in progress at any point in time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BakeError`] if another bake operation is already in progress.
     pub fn bake_with_progress_callback(
         &self,
         context: &Context,
@@ -60,19 +69,23 @@ impl<T: RayTracer> PathBaker<T> {
         scene: &Scene<T>,
         params: PathBakeParams,
         progress_callback: CallbackInformation<ProgressCallback>,
-    ) {
+    ) -> Result<(), BakeError> {
         self.bake_with_optional_progress_callback(
             context,
             probe_batch,
             scene,
             params,
             Some(progress_callback),
-        );
+        )
     }
 
     /// Bakes a single layer of pathing data in a probe batch, with an optional progress callback.
     ///
     /// Only one bake can be in progress at any point in time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BakeError`] if another bake operation is already in progress.
     fn bake_with_optional_progress_callback(
         &self,
         context: &Context,
@@ -80,7 +93,11 @@ impl<T: RayTracer> PathBaker<T> {
         scene: &Scene<T>,
         params: PathBakeParams,
         progress_callback: Option<CallbackInformation<ProgressCallback>>,
-    ) {
+    ) -> Result<(), BakeError> {
+        let _guard = BAKE_LOCK
+            .try_lock()
+            .map_err(|_| BakeError::BakeInProgress)?;
+
         // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplPathBakerBake`.
         // We pass a no-op callback instead until the fix is released.
         // See: https://github.com/ValveSoftware/steam-audio/issues/523
@@ -123,6 +140,8 @@ impl<T: RayTracer> PathBaker<T> {
                 user_data,
             );
         }
+
+        Ok(())
     }
 
     /// Cancels any running bakes of pathing data.

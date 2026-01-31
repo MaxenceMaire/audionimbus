@@ -87,6 +87,7 @@
 - Fields of `scene` and `probe_batch` of `ReflectionsBakeParams` have been removed following the introduction of `ReflectionsBaker`.
 - `SimulatorBuilder` and `Simulator` are now generic over the ray tracer implementation.
 - `BakedDataIdentifier` and `BakedDataVariation` are now part of the new `baking` module instead of `simulation`.
+- Bake operations now return a `BakeError` error if another bake operation is already in progress.
 
 ### Added
 

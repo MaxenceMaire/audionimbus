@@ -15,6 +15,8 @@
 //!   the shortest unoccluded paths from sources to listeners by traveling between probes.
 //!   Pathing requires probe generation (see [`PathEffect`]) and is typically baked offline.
 
+use std::sync::Mutex;
+
 #[cfg(doc)]
 use crate::effect::path::PathEffect;
 #[cfg(doc)]
@@ -24,8 +26,13 @@ use crate::probe::ProbeBatch;
 #[cfg(doc)]
 use crate::simulation::Simulator;
 
+static BAKE_LOCK: Mutex<()> = Mutex::new(());
+
 pub mod baked_data;
 pub use baked_data::*;
+
+mod error;
+pub use error::*;
 
 pub mod pathing;
 pub use pathing::*;

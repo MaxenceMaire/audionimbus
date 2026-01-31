@@ -1,4 +1,5 @@
 use super::BakedDataIdentifier;
+use super::{BakeError, BAKE_LOCK};
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
@@ -80,19 +81,27 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
     /// Bakes a single layer of reflections data in a probe batch.
     ///
     /// Only one bake can be in progress at any point in time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BakeError`] if another bake operation is already in progress.
     pub fn bake(
         &self,
         context: &Context,
         probe_batch: &mut ProbeBatch,
         scene: &Scene<T>,
         params: ReflectionsBakeParams,
-    ) {
-        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None);
+    ) -> Result<(), BakeError> {
+        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None)
     }
 
     /// Bakes a single layer of reflections data in a probe batch, with a progress callback.
     ///
     /// Only one bake can be in progress at any point in time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BakeError`] if another bake operation is already in progress.
     pub fn bake_with_progress_callback(
         &self,
         context: &Context,
@@ -100,19 +109,23 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
         scene: &Scene<T>,
         params: ReflectionsBakeParams,
         progress_callback: CallbackInformation<ProgressCallback>,
-    ) {
+    ) -> Result<(), BakeError> {
         self.bake_with_optional_progress_callback(
             context,
             probe_batch,
             scene,
             params,
             Some(progress_callback),
-        );
+        )
     }
 
     /// Bakes a single layer of reflections data in a probe batch, with an optional progress callback.
     ///
     /// Only one bake can be in progress at any point in time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BakeError`] if another bake operation is already in progress.
     fn bake_with_optional_progress_callback(
         &self,
         context: &Context,
@@ -120,7 +133,11 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
         scene: &Scene<T>,
         params: ReflectionsBakeParams,
         progress_callback: Option<CallbackInformation<ProgressCallback>>,
-    ) {
+    ) -> Result<(), BakeError> {
+        let _guard = BAKE_LOCK
+            .try_lock()
+            .map_err(|_| BakeError::BakeInProgress)?;
+
         let (callback, user_data) = if let Some(callback_information) = progress_callback {
             (
                 Some(callback_information.callback),
@@ -162,6 +179,8 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
                 user_data,
             );
         }
+
+        Ok(())
     }
 
     /// Cancels any running bakes of reflections data.
