@@ -225,19 +225,19 @@ fn default_ffi_simulation_settings() -> audionimbus_sys::IPLSimulationSettings {
 impl<T: RayTracer, D, R, P> SimulatorBuilder<T, D, R, P> {
     /// Enables direct simulation.
     pub fn with_direct(
-        mut self,
+        self,
         direct_settings: DirectSimulationSettings,
     ) -> SimulatorBuilder<T, Direct, R, P> {
         let SimulatorBuilder {
-            settings,
+            mut settings,
             _ray_tracer,
             _reflections,
             _pathing,
             ..
         } = self;
 
-        self.settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
-        self.settings.maxNumOcclusionSamples = direct_settings.max_num_occlusion_samples as i32;
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
+        settings.maxNumOcclusionSamples = direct_settings.max_num_occlusion_samples as i32;
 
         SimulatorBuilder {
             settings,
@@ -250,18 +250,18 @@ impl<T: RayTracer, D, R, P> SimulatorBuilder<T, D, R, P> {
 
     /// Enables reflections simulation.
     pub fn with_reflections(
-        mut self,
+        self,
         reflections_settings: ReflectionsSimulationSettings<'static>,
     ) -> SimulatorBuilder<T, D, Reflections, P> {
         let SimulatorBuilder {
-            settings,
+            mut settings,
             _ray_tracer,
             _direct,
             _pathing,
             ..
         } = self;
 
-        self.settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
 
         let (
             reflection_effect_type,
@@ -322,8 +322,8 @@ impl<T: RayTracer, D, R, P> SimulatorBuilder<T, D, R, P> {
                 open_cl_device,
                 true_audio_next_device,
             } => {
-                self.settings.openCLDevice = open_cl_device.raw_ptr();
-                self.settings.tanDevice = true_audio_next_device.raw_ptr();
+                settings.openCLDevice = open_cl_device.raw_ptr();
+                settings.tanDevice = true_audio_next_device.raw_ptr();
 
                 (
                     audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN,
@@ -336,12 +336,12 @@ impl<T: RayTracer, D, R, P> SimulatorBuilder<T, D, R, P> {
             }
         };
 
-        self.settings.reflectionType = reflection_effect_type;
-        self.settings.maxNumRays = max_num_rays as i32;
-        self.settings.numDiffuseSamples = num_diffuse_samples as i32;
-        self.settings.maxDuration = max_duration;
-        self.settings.maxNumSources = max_num_sources as i32;
-        self.settings.numThreads = num_threads as i32;
+        settings.reflectionType = reflection_effect_type;
+        settings.maxNumRays = max_num_rays as i32;
+        settings.numDiffuseSamples = num_diffuse_samples as i32;
+        settings.maxDuration = max_duration;
+        settings.maxNumSources = max_num_sources as i32;
+        settings.numThreads = num_threads as i32;
 
         SimulatorBuilder {
             settings,
@@ -354,19 +354,19 @@ impl<T: RayTracer, D, R, P> SimulatorBuilder<T, D, R, P> {
 
     /// Enables pathing simulation.
     pub fn with_pathing(
-        mut self,
+        self,
         pathing_settings: PathingSimulationSettings,
     ) -> SimulatorBuilder<T, D, R, Pathing> {
         let SimulatorBuilder {
-            settings,
+            mut settings,
             _ray_tracer,
             _direct,
             _reflections,
             ..
         } = self;
 
-        self.settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
-        self.settings.numVisSamples = pathing_settings.num_visibility_samples as i32;
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
+        settings.numVisSamples = pathing_settings.num_visibility_samples as i32;
 
         SimulatorBuilder {
             settings,
