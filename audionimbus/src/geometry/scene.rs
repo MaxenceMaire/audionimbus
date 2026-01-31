@@ -882,7 +882,7 @@ impl<T: RayTracer + SaveableAsObj> Scene<T> {
     }
 }
 
-impl Clone for Scene {
+impl<T: RayTracer> Clone for Scene<T> {
     fn clone(&self) -> Self {
         unsafe {
             audionimbus_sys::iplSceneRetain(self.inner);
@@ -905,8 +905,8 @@ impl<T: RayTracer> Drop for Scene<T> {
     }
 }
 
-unsafe impl Send for Scene {}
-unsafe impl Sync for Scene {}
+unsafe impl<T: RayTracer> Send for Scene<T> {}
+unsafe impl<T: RayTracer> Sync for Scene<T> {}
 
 /// Callbacks used for a custom ray tracer.
 pub struct CustomCallbacks {
