@@ -9,6 +9,9 @@ use std::marker::PhantomData;
 ///
 /// The unchanging portions of a scene should typically be collected into a single static mesh object.
 /// In addition to the geometry, a static mesh also contains acoustic material information for each triangle.
+///
+/// [`StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
+/// belongs to.
 #[derive(Debug)]
 pub struct StaticMesh<T> {
     inner: audionimbus_sys::IPLStaticMesh,
