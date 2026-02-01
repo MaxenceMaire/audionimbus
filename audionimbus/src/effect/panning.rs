@@ -1,3 +1,5 @@
+//! Panning effects for positioning point sources in multi-channel speaker layouts.
+
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};

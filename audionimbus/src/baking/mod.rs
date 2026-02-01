@@ -28,7 +28,7 @@ use crate::simulation::Simulator;
 
 static BAKE_LOCK: Mutex<()> = Mutex::new(());
 
-pub mod baked_data;
+mod baked_data;
 pub use baked_data::*;
 
 mod error;

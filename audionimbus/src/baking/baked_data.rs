@@ -1,3 +1,5 @@
+//! Baked data types.
+
 use crate::geometry::Sphere;
 
 /// Identifies a “layer” of data stored in a probe batch.

@@ -1,3 +1,5 @@
+//! Ambisonics encoding, decoding, and processing effects.
+
 pub mod encode;
 pub use encode::*;
 

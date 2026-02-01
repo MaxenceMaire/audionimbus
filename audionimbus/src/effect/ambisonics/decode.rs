@@ -1,3 +1,5 @@
+//! Decoding Ambisonics to speakers or headphones.
+
 use super::super::{AudioEffectState, EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;

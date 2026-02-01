@@ -20,11 +20,15 @@ use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, 
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-// Marker types for capabilities.
+/// Marker type indicating that direct sound simulation is enabled.
 #[derive(Debug)]
 pub struct Direct;
+
+/// Marker type indicating that reflection simulation is enabled.
 #[derive(Debug)]
 pub struct Reflections;
+
+/// Marker type indicating that pathing simulation is enabled.
 #[derive(Debug)]
 pub struct Pathing;
 
@@ -1392,9 +1396,21 @@ impl Drop for SimulationOutputs {
     }
 }
 
+/// Errors that can occur during simulation operations.
 #[derive(Eq, PartialEq, Debug)]
 pub enum SimulationError {
+    /// Attempted to run pathing simulation without any probe batches committed.
+    ///
+    /// Pathing requires at least one probe batch to be added to the simulator
+    /// via [`Simulator::add_probe_batch`] and committed via [`Simulator::commit`]
+    /// before running simulations.
     PathingWithoutProbes,
+
+    /// Attempted to run reflection simulation without a scene set.
+    ///
+    /// Reflection simulation requires a [`Scene`] to be set on the simulator via
+    /// [`Simulator::set_scene`] and committed via [`Simulator::commit`] before
+    /// running simulations.
     ReflectionsWithoutScene,
 }
 

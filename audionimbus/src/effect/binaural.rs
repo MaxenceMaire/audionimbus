@@ -1,3 +1,5 @@
+//! Binaural rendering using Head-Related Transfer Functions (HRTF).
+
 use super::audio_effect_state::AudioEffectState;
 use super::EffectError;
 use crate::audio_buffer::{AudioBuffer, Sample};

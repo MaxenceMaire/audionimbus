@@ -1,3 +1,5 @@
+//! Directivity patterns for modeling sound intensity as a function of the source's orientation.
+
 use crate::context::Context;
 use crate::geometry;
 

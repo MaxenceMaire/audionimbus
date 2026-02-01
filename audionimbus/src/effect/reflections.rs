@@ -1,3 +1,5 @@
+//! Room acoustics and reverberation effects.
+
 use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
 use super::EffectError;

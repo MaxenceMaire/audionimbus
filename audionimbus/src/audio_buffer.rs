@@ -4,8 +4,20 @@ use crate::context::Context;
 use crate::effect::ambisonics::AmbisonicsType;
 use crate::ffi_wrapper::FFIWrapper;
 
+/// Trait for types that can provide access to channel pointers.
+///
+/// This trait abstracts over different storage backends for channel pointers,
+/// allowing [`AudioBuffer`] to work with both owned (`Vec<*mut Sample>`) and
+/// borrowed (`&[*mut Sample]`, `&mut [*mut Sample]`) pointer storage.
 pub trait ChannelPointers {
+    /// Returns an immutable slice of channel pointers.
+    ///
+    /// Each pointer in the slice points to the sample data for one audio channel.
     fn as_slice(&self) -> &[*mut Sample];
+
+    /// Returns a mutable slice of channel pointers.
+    ///
+    /// Each pointer in the slice points to the sample data for one audio channel.
     fn as_mut_slice(&mut self) -> &mut [*mut Sample];
 }
 

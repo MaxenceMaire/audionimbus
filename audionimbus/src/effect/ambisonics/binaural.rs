@@ -1,3 +1,5 @@
+//! Binaural decoding of Ambisonics using HRTF rendering.
+
 use super::super::{AudioEffectState, EffectError};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;

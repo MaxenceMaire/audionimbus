@@ -1,3 +1,5 @@
+//! OpenCL backend.
+
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 

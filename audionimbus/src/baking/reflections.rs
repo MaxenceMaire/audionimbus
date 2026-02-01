@@ -1,3 +1,5 @@
+//! Reflections backing.
+
 use super::BakedDataIdentifier;
 use super::{BakeError, BAKE_LOCK};
 use crate::callback::{CallbackInformation, ProgressCallback};

@@ -1,3 +1,5 @@
+//! Direct sound path effects including distance attenuation, air absorption, occlusion, and transmission.
+
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, Equalizer};
 use crate::audio_buffer::{AudioBuffer, Sample};

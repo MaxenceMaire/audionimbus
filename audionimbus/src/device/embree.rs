@@ -1,3 +1,5 @@
+//! Embree ray tracing.
+
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
 

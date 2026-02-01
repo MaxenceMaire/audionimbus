@@ -1,3 +1,5 @@
+//! Rotation of Ambisonics sound fields to match listener orientation.
+
 use super::super::{AudioEffectState, EffectError};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;

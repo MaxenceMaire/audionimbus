@@ -1,3 +1,5 @@
+//! Sound propagation path effects for navigating around obstacles.
+
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};

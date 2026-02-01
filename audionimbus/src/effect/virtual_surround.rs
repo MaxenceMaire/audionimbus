@@ -1,3 +1,5 @@
+//! Virtual surround sound rendering for headphones using HRTF.
+
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};

@@ -1,3 +1,5 @@
+//! Frequency-dependent attenuation of sound over distance.
+
 use crate::context::Context;
 use crate::{geometry, Equalizer};
 

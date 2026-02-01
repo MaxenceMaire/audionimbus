@@ -1,3 +1,4 @@
+/// Errors that can occur during baking operations.
 #[derive(Debug, PartialEq)]
 pub enum BakeError {
     /// Another bake operation is already in progress.

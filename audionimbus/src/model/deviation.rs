@@ -1,3 +1,5 @@
+//! Frequency-dependent attenuation of sound as it bends along the path from the source to the listener.
+
 /// A deviation model that can be used for modeling frequency-dependent attenuation of sound as it bends along the path from the source to the listener.
 #[derive(Debug, Copy, Clone, Default)]
 pub enum DeviationModel {

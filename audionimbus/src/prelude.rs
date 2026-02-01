@@ -4,10 +4,9 @@ use crate::*;
 
 pub use audio_buffer::*;
 pub use audio_settings::*;
-pub use baking::baked_data::*;
 pub use baking::pathing::*;
 pub use baking::reflections::*;
-pub use baking::BakeError;
+pub use baking::{BakeError, BakedDataIdentifier, BakedDataVariation};
 pub use callback::*;
 pub use context::*;
 pub use device::embree::*;

@@ -1,3 +1,5 @@
+//! Panning-based decoding of Ambisonics to speaker layouts.
+
 use super::super::{AudioEffectState, EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
