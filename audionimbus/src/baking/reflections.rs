@@ -255,3 +255,256 @@ impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
         Self(reflections_bake_flags.bits() as _)
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use crate::*;
+
+    fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
+        let mut scene = Scene::try_new(context).unwrap();
+
+        // Create a simple room mesh.
+        let vertices = vec![
+            // Floor
+            Vector3::new(-5.0, 0.0, -5.0),
+            Vector3::new(5.0, 0.0, -5.0),
+            Vector3::new(5.0, 0.0, 5.0),
+            Vector3::new(-5.0, 0.0, 5.0),
+            // Ceiling
+            Vector3::new(-5.0, 3.0, -5.0),
+            Vector3::new(5.0, 3.0, -5.0),
+            Vector3::new(5.0, 3.0, 5.0),
+            Vector3::new(-5.0, 3.0, 5.0),
+        ];
+
+        let triangles = [
+            // Floor
+            [0, 1, 2],
+            [0, 2, 3],
+            // Ceiling
+            [4, 6, 5],
+            [4, 7, 6],
+            // Walls
+            [0, 4, 5],
+            [0, 5, 1],
+            [1, 5, 6],
+            [1, 6, 2],
+            [2, 6, 7],
+            [2, 7, 3],
+            [3, 7, 4],
+            [3, 4, 0],
+        ]
+        .iter()
+        .map(|indices| Triangle::new(indices[0], indices[1], indices[2]))
+        .collect::<Vec<_>>();
+
+        let material_indices = vec![0; triangles.len()];
+        let materials = vec![Material::default()];
+
+        let settings = StaticMeshSettings {
+            vertices: &vertices,
+            triangles: &triangles,
+            material_indices: &material_indices,
+            materials: &materials,
+        };
+        let static_mesh = StaticMesh::try_new(&scene, &settings).unwrap();
+        scene.add_static_mesh(static_mesh);
+        scene.commit();
+
+        scene
+    }
+
+    fn test_probe_batch(context: &Context, scene: &Scene) -> ProbeBatch {
+        let mut probe_batch = ProbeBatch::try_new(context).unwrap();
+
+        let params = ProbeGenerationParams::Centroid {
+            transform: Matrix4::new([
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]),
+        };
+        let mut probe_array = ProbeArray::try_new(context).unwrap();
+        probe_array.generate_probes(scene, &params);
+
+        probe_batch.add_probe_array(&probe_array);
+        probe_batch.commit();
+
+        probe_batch
+    }
+
+    // This test runs at the module level to avoid concurrent execution
+    // with other bake tests, which would cause BakeError::BakeInProgress.
+    pub fn test_bake() {
+        // Run test cases sequentially to avoid BakeError::BakeInProgress.
+
+        // Convolution
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+            let params = ReflectionsBakeParams {
+                identifier: BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+                bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
+                num_rays: 1024,
+                num_diffuse_samples: 32,
+                num_bounces: 8,
+                simulated_duration: 2.0,
+                saved_duration: 2.0,
+                order: 1,
+                num_threads: 2,
+                irradiance_min_distance: 1.0,
+                bake_batch_size: 8,
+            };
+
+            assert!(baker
+                .bake(&context, &mut probe_batch, &scene, params)
+                .is_ok());
+        }
+
+        // Parametric
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+            let params = ReflectionsBakeParams {
+                identifier: BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+                bake_flags: ReflectionsBakeFlags::BAKE_PARAMETRIC,
+                num_rays: 512,
+                num_diffuse_samples: 16,
+                num_bounces: 4,
+                simulated_duration: 1.0,
+                saved_duration: 1.0,
+                order: 1,
+                num_threads: 1,
+                irradiance_min_distance: 0.5,
+                bake_batch_size: 4,
+            };
+
+            assert!(baker
+                .bake(&context, &mut probe_batch, &scene, params)
+                .is_ok());
+        }
+
+        // Both flags
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+            let params = ReflectionsBakeParams {
+                identifier: BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+                bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION
+                    | ReflectionsBakeFlags::BAKE_PARAMETRIC,
+                num_rays: 512,
+                num_diffuse_samples: 16,
+                num_bounces: 4,
+                simulated_duration: 1.0,
+                saved_duration: 1.0,
+                order: 1,
+                num_threads: 1,
+                irradiance_min_distance: 0.5,
+                bake_batch_size: 4,
+            };
+
+            assert!(baker
+                .bake(&context, &mut probe_batch, &scene, params)
+                .is_ok());
+        }
+
+        // Static source
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+            let params = ReflectionsBakeParams {
+                identifier: BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::StaticSource {
+                        endpoint_influence: Sphere {
+                            center: Vector3::new(0.0, 1.5, 0.0),
+                            radius: 1.0,
+                        },
+                    },
+                },
+                bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
+                num_rays: 512,
+                num_diffuse_samples: 16,
+                num_bounces: 4,
+                simulated_duration: 1.0,
+                saved_duration: 1.0,
+                order: 1,
+                num_threads: 1,
+                irradiance_min_distance: 0.5,
+                bake_batch_size: 4,
+            };
+
+            assert!(baker
+                .bake(&context, &mut probe_batch, &scene, params)
+                .is_ok());
+        }
+
+        // With progress callback
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+            unsafe extern "C" fn progress_callback(
+                progress: f32,
+                _user_data: *mut std::ffi::c_void,
+            ) {
+                println!("baking progress: {:.1}%", progress * 100.0);
+            }
+
+            let callback_info = CallbackInformation {
+                callback: progress_callback as ProgressCallback,
+                user_data: std::ptr::null_mut(),
+            };
+
+            let params = ReflectionsBakeParams {
+                identifier: BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+                bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
+                num_rays: 512,
+                num_diffuse_samples: 16,
+                num_bounces: 4,
+                simulated_duration: 1.0,
+                saved_duration: 1.0,
+                order: 1,
+                num_threads: 1,
+                irradiance_min_distance: 0.5,
+                bake_batch_size: 4,
+            };
+
+            assert!(baker
+                .bake_with_progress_callback(
+                    &context,
+                    &mut probe_batch,
+                    &scene,
+                    params,
+                    callback_info,
+                )
+                .is_ok());
+        }
+    }
+}

@@ -181,3 +181,156 @@ pub struct PathBakeParams {
     /// Number of threads to use for baking.
     pub num_threads: u32,
 }
+
+#[cfg(test)]
+pub mod tests {
+    use crate::*;
+
+    fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
+        let mut scene = Scene::try_new(context).unwrap();
+
+        // Create a simple room mesh.
+        let vertices = vec![
+            // Floor
+            Vector3::new(-5.0, 0.0, -5.0),
+            Vector3::new(5.0, 0.0, -5.0),
+            Vector3::new(5.0, 0.0, 5.0),
+            Vector3::new(-5.0, 0.0, 5.0),
+            // Ceiling
+            Vector3::new(-5.0, 3.0, -5.0),
+            Vector3::new(5.0, 3.0, -5.0),
+            Vector3::new(5.0, 3.0, 5.0),
+            Vector3::new(-5.0, 3.0, 5.0),
+        ];
+
+        let triangles = [
+            // Floor
+            [0, 1, 2],
+            [0, 2, 3],
+            // Ceiling
+            [4, 6, 5],
+            [4, 7, 6],
+            // Walls
+            [0, 4, 5],
+            [0, 5, 1],
+            [1, 5, 6],
+            [1, 6, 2],
+            [2, 6, 7],
+            [2, 7, 3],
+            [3, 7, 4],
+            [3, 4, 0],
+        ]
+        .iter()
+        .map(|indices| Triangle::new(indices[0], indices[1], indices[2]))
+        .collect::<Vec<_>>();
+
+        let material_indices = vec![0; triangles.len()];
+        let materials = vec![Material::default()];
+
+        let settings = StaticMeshSettings {
+            vertices: &vertices,
+            triangles: &triangles,
+            material_indices: &material_indices,
+            materials: &materials,
+        };
+        let static_mesh = StaticMesh::try_new(&scene, &settings).unwrap();
+        scene.add_static_mesh(static_mesh);
+        scene.commit();
+
+        scene
+    }
+
+    fn test_probe_batch(context: &Context, scene: &Scene) -> ProbeBatch {
+        let mut probe_batch = ProbeBatch::try_new(context).unwrap();
+
+        let params = ProbeGenerationParams::Centroid {
+            transform: Matrix4::new([
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]),
+        };
+        let mut probe_array = ProbeArray::try_new(context).unwrap();
+        probe_array.generate_probes(scene, &params);
+
+        probe_batch.add_probe_array(&probe_array);
+        probe_batch.commit();
+
+        probe_batch
+    }
+
+    // This test runs at the module level to avoid concurrent execution
+    // with other bake tests, which would cause BakeError::BakeInProgress.
+    pub fn test_bake() {
+        // Run test cases sequentially to avoid BakeError::BakeInProgress.
+
+        // Simple bake
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = PathBaker::<DefaultRayTracer>::new();
+
+            let params = PathBakeParams {
+                identifier: BakedDataIdentifier::Pathing {
+                    variation: BakedDataVariation::Dynamic,
+                },
+                num_samples: 4,
+                radius: 0.5,
+                threshold: 0.3,
+                visibility_range: 5.0,
+                path_range: 10.0,
+                num_threads: 1,
+            };
+
+            assert!(baker
+                .bake(&context, &mut probe_batch, &scene, params)
+                .is_ok());
+        }
+
+        // With progress callback
+        {
+            let context = Context::default();
+            let scene = test_scene(&context);
+            let mut probe_batch = test_probe_batch(&context, &scene);
+
+            let baker = PathBaker::<DefaultRayTracer>::new();
+
+            unsafe extern "C" fn progress_callback(
+                progress: f32,
+                _user_data: *mut std::ffi::c_void,
+            ) {
+                println!("pathing bake progress: {:.1}%", progress * 100.0);
+            }
+
+            let callback_info = CallbackInformation {
+                callback: progress_callback as ProgressCallback,
+                user_data: std::ptr::null_mut(),
+            };
+
+            let params = PathBakeParams {
+                identifier: BakedDataIdentifier::Pathing {
+                    variation: BakedDataVariation::Dynamic,
+                },
+                num_samples: 4,
+                radius: 0.5,
+                threshold: 0.3,
+                visibility_range: 5.0,
+                path_range: 10.0,
+                num_threads: 1,
+            };
+
+            assert!(baker
+                .bake_with_progress_callback(
+                    &context,
+                    &mut probe_batch,
+                    &scene,
+                    params,
+                    callback_info,
+                )
+                .is_ok());
+        }
+    }
+}

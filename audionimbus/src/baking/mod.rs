@@ -35,7 +35,19 @@ mod error;
 pub use error::*;
 
 pub mod pathing;
-pub use pathing::*;
+pub use pathing::{PathBakeParams, PathBaker};
 
 pub mod reflections;
-pub use reflections::*;
+pub use reflections::{ReflectionsBakeFlags, ReflectionsBakeParams, ReflectionsBaker};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bakers() {
+        // Run test cases sequentially to avoid BakeError::BakeInProgress.
+        pathing::tests::test_bake();
+        reflections::tests::test_bake();
+    }
+}
