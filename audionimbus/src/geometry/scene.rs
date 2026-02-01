@@ -23,6 +23,8 @@ impl SaveableAsObj for Embree {}
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///
 /// The scene object itself doesn’t contain any geometry, but is a container for [`StaticMesh`] and [`InstancedMesh`] objects, which do contain geometry.
+///
+/// [`Scene`] is generic over the [`RayTracer`] implementation.
 #[derive(Debug)]
 pub struct Scene<T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
