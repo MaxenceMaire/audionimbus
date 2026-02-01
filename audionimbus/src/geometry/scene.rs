@@ -209,7 +209,7 @@ impl Scene<Embree> {
     /// Loads a scene from a serialized object using Embree with a progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load_embre_with_progress(
+    pub fn load_embree_with_progress(
         context: &Context,
         device: EmbreeDevice,
         serialized_object: &SerializedObject,
