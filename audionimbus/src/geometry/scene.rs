@@ -931,9 +931,7 @@ mod tests {
     #[test]
     fn test_default_scene() {
         let context = Context::default();
-        let scene_settings = SceneSettings::default();
-        let scene_result = Scene::try_new(&context, &scene_settings);
-        assert!(scene_result.is_ok());
+        assert!(Scene::try_new(&context).is_ok());
     }
 
     #[test]

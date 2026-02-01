@@ -982,20 +982,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1062,20 +1060,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1154,20 +1150,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1245,20 +1239,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1337,20 +1329,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1437,20 +1427,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1700,20 +1688,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1777,20 +1763,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Convolution {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Convolution {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1858,20 +1842,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Parametric {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Parametric {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
@@ -1935,20 +1917,18 @@ mod tests {
 
                 let audio_settings = AudioSettings::default();
 
-                let mut simulator =
-                    Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-                        .with_reflections(ReflectionsSimulationSettings::Parametric {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        })
-                        .try_build(&context)
-                        .unwrap();
+                let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+                    .with_reflections(ReflectionsSimulationSettings::Parametric {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                    })
+                    .try_build(&context)
+                    .unwrap();
 
-                let scene_settings = SceneSettings::default();
-                let scene = Scene::try_new(&context, &scene_settings).unwrap();
+                let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
 
                 let source_settings = SourceSettings {
