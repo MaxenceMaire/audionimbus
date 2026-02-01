@@ -42,26 +42,57 @@ pub struct Scene<T: RayTracer = DefaultRayTracer> {
     _marker: PhantomData<T>,
 }
 
-impl Scene<DefaultRayTracer> {
-    /// Creates a new scene.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
+impl<T: RayTracer> Scene<T> {
+    /// Creates an empty scene.
+    fn empty() -> Self {
+        Self {
             inner: std::ptr::null_mut(),
             static_meshes: SlotMap::new(),
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
             _marker: PhantomData,
-        };
+        }
+    }
+
+    /// Creates a scene from FFI settings.
+    fn from_ffi_create(
+        context: &Context,
+        settings: &mut audionimbus_sys::IPLSceneSettings,
+    ) -> Result<Self, SteamAudioError> {
+        let mut scene = Self::empty();
 
         let status = unsafe {
-            audionimbus_sys::iplSceneCreate(
+            audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, scene.raw_ptr_mut())
+        };
+
+        if let Some(error) = to_option_error(status) {
+            return Err(error);
+        }
+
+        Ok(scene)
+    }
+
+    /// Loads a scene from FFI settings and serialized object.
+    fn from_ffi_load(
+        context: &Context,
+        settings: &mut audionimbus_sys::IPLSceneSettings,
+        serialized_object: &SerializedObject,
+        progress_callback: Option<CallbackInformation<ProgressCallback>>,
+    ) -> Result<Self, SteamAudioError> {
+        let mut scene = Self::empty();
+
+        let (callback, user_data) = progress_callback
+            .map(|cb| (Some(cb.callback), cb.user_data))
+            .unwrap_or((None, std::ptr::null_mut()));
+
+        let status = unsafe {
+            audionimbus_sys::iplSceneLoad(
                 context.raw_ptr(),
-                &mut Self::ffi_settings(),
+                settings,
+                serialized_object.raw_ptr(),
+                callback,
+                user_data,
                 scene.raw_ptr_mut(),
             )
         };
@@ -71,6 +102,17 @@ impl Scene<DefaultRayTracer> {
         }
 
         Ok(scene)
+    }
+}
+
+impl Scene<DefaultRayTracer> {
+    /// Creates a new scene.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
+    pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
+        Self::from_ffi_create(context, &mut Self::ffi_settings())
     }
 
     /// Loads a scene from a serialized object.
@@ -80,66 +122,23 @@ impl Scene<DefaultRayTracer> {
         context: &Context,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(),
-                serialized_object.raw_ptr(),
-                None,
-                std::ptr::null_mut(),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(context, &mut Self::ffi_settings(), serialized_object, None)
     }
 
     /// Loads a scene from a serialized object.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load_with_callback(
+    pub fn load_with_progress(
         context: &Context,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(),
-                serialized_object.raw_ptr(),
-                Some(progress_callback.callback),
-                progress_callback.user_data,
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(),
+            serialized_object,
+            Some(progress_callback),
+        )
     }
 
     /// Returns FFI scene settings for the default ray tracer implementation.
@@ -158,40 +157,22 @@ impl Scene<DefaultRayTracer> {
 }
 
 impl Scene<Embree> {
-    /// Creates a new scene.
+    /// Creates a new scene with the Embree ray tracer.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new(context: &Context, device: EmbreeDevice) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneCreate(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(device),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+    pub fn try_with_embree(
+        context: &Context,
+        device: EmbreeDevice,
+    ) -> Result<Self, SteamAudioError> {
+        Self::from_ffi_create(context, &mut Self::ffi_settings(device))
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object using Embree.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load(
+    pub fn load_embree(
         context: &Context,
         device: EmbreeDevice,
         serialized_object: &SerializedObject,
@@ -223,40 +204,21 @@ impl Scene<Embree> {
         Ok(scene)
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object using Embree with a progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load_with_callback(
+    pub fn load_embre_with_progress(
         context: &Context,
         device: EmbreeDevice,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(device),
-                serialized_object.raw_ptr(),
-                Some(progress_callback.callback),
-                progress_callback.user_data,
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(device),
+            serialized_object,
+            Some(progress_callback),
+        )
     }
 
     /// Returns FFI scene settings with the Embree ray tracer.
@@ -275,105 +237,49 @@ impl Scene<Embree> {
 }
 
 impl Scene<RadeonRays> {
-    /// Creates a new scene.
+    /// Creates a new scene with the Radeon Rays ray tracer.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new(context: &Context, device: RadeonRaysDevice) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneCreate(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(device),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+    pub fn try_with_radeon_rays(
+        context: &Context,
+        device: RadeonRaysDevice,
+    ) -> Result<Self, SteamAudioError> {
+        Self::from_ffi_create(context, &mut Self::ffi_settings(device))
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object using Radeon Rays.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load(
+    pub fn load_radeon_rays(
         context: &Context,
         device: RadeonRaysDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(device),
-                serialized_object.raw_ptr(),
-                None,
-                std::ptr::null_mut(),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(device),
+            serialized_object,
+            None,
+        )
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object using Radeon Rays with a progerss callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load_with_callback(
+    pub fn load_radeon_rays_with_progress(
         context: &Context,
         device: RadeonRaysDevice,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(device),
-                serialized_object.raw_ptr(),
-                Some(progress_callback.callback),
-                progress_callback.user_data,
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(device),
+            serialized_object,
+            Some(progress_callback),
+        )
     }
 
     /// Returns FFI scene settings with the Radeon Rays ray tracer.
@@ -392,108 +298,49 @@ impl Scene<RadeonRays> {
 }
 
 impl Scene<CustomRayTracer> {
-    /// Creates a new scene.
+    /// Creates a new scene with a custom ray tracer.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new(
+    pub fn try_with_custom(
         context: &Context,
         callbacks: &CustomCallbacks,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneCreate(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(callbacks),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_create(context, &mut Self::ffi_settings(callbacks))
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object using a custom ray tracer.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load(
+    pub fn load_custom(
         context: &Context,
         callbacks: &CustomCallbacks,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(callbacks),
-                serialized_object.raw_ptr(),
-                None,
-                std::ptr::null_mut(),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(callbacks),
+            serialized_object,
+            None,
+        )
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    pub fn load_with_callback(
+    pub fn load_custom_with_progress(
         context: &Context,
         callbacks: &CustomCallbacks,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(callbacks),
-                serialized_object.raw_ptr(),
-                Some(progress_callback.callback),
-                progress_callback.user_data,
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
-        Ok(scene)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(callbacks),
+            serialized_object,
+            Some(progress_callback),
+        )
     }
 
     /// Returns FFI scene settings with custom callbacks.
