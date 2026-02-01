@@ -14,7 +14,8 @@ use std::marker::PhantomData;
 ///
 /// Reflections reaching the listener are encoded in an Impulse Response (IR), which is a filter that records each reflection as it arrives.
 /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
-/// Using a reflection mixer with this algorithm provides a reduction in CPU usage.
+///
+/// Using a [`ReflectionMixer`] with this algorithm provides a reduction in CPU usage.
 #[derive(Debug)]
 pub struct Convolution;
 
@@ -23,6 +24,7 @@ pub struct Convolution;
 /// The reflected sound field is reduced to a few numbers that describe how reflected energy decays over time.
 /// This is then used to drive an approximate model of reverberation in an indoor space.
 /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
+///
 /// A reflection mixer cannot be used with this algorithm.
 #[derive(Debug)]
 pub struct Parametric;
@@ -32,14 +34,16 @@ pub struct Parametric;
 /// The initial portion of the IR is rendered using convolution reverb, but the later part is used to estimate a parametric reverb.
 /// The point in the IR where this transition occurs can be controlled.
 /// This algorithm allows a trade-off between rendering quality and CPU usage.
-/// An reflection mixer cannot be used with this algorithm.
+///
+/// A reflection mixer cannot be used with this algorithm.
 #[derive(Debug)]
 pub struct Hybrid;
 
 /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
 ///
 /// This algorithm is similar to [`Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
-/// A reflection mixer must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
+///
+/// A [`ReflectionMixer`] must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
 #[derive(Debug)]
 pub struct TrueAudioNext;
 
@@ -57,6 +61,11 @@ pub trait CanApplyDirectly: sealed::Sealed {}
 impl CanApplyDirectly for Convolution {}
 impl CanApplyDirectly for Parametric {}
 impl CanApplyDirectly for Hybrid {}
+
+/// Marker trait for effects that can use `apply_into_mixer() and `tail_into_mixer()``.
+pub trait CanUseReflectionMixer: sealed::Sealed {}
+impl CanUseReflectionMixer for Convolution {}
+impl CanUseReflectionMixer for TrueAudioNext {}
 
 /// Reflection effect type. Can be:
 /// - [`Convolution`]: Multi-channel convolution reverb
@@ -149,7 +158,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// 1. Setting up a [`Simulator`] with a [`Scene`]
 /// 2. Adding [`Source`]s to the scene (don't forget to commit the changes using [`Simulator::commit`]!)
 /// 3. Running the simulation ([`Simulator::run_reflections`]) and retrieving the output for the source ([`Source::get_outputs`])
-/// 4. Applying the reflection effect to the audio buffer using the simulation output ([`SimulationOutputs::reflections`]) as params
+/// 4. Applying the reflection effect to the audio buffer (or to a [`ReflectionMixer`] for better performance with supported reflection algorithms) using the simulation output ([`SimulationOutputs::reflections`]) as params
 ///
 /// ```
 /// # use audionimbus::*;
@@ -383,116 +392,6 @@ impl<T: ReflectionEffectType> ReflectionEffect<T> {
         Ok(reflection_effect)
     }
 
-    /// Applies a reflection effect to an audio buffer.
-    ///
-    /// The output of this effect will be mixed into the given mixer.
-    ///
-    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
-    /// This can have a performance benefit if using convolution.
-    ///
-    /// The input audio buffer must have one channel, and the output audio buffer must have as many
-    /// channels as the impulse response specified when creating the effect (for convolution,
-    /// hybrid, and TrueAudioNext) or at least one channel (for parametric).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`EffectError`] if:
-    /// - The input buffer has more than one channel
-    /// - The output audio buffer does not have as many channels as the impulse response specified
-    ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel
-    ///   (for parametric)
-    pub fn apply_into_mixer<I, O, PI: ChannelPointers, PO: ChannelPointers>(
-        &mut self,
-        reflection_effect_params: &ReflectionEffectParams<T>,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
-        mixer: &ReflectionMixer<T>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
-        if num_input_channels != 1 {
-            return Err(EffectError::InvalidInputChannels {
-                expected: ChannelRequirement::Exactly(1),
-                actual: num_input_channels,
-            });
-        }
-
-        let num_output_channels = output_buffer.num_channels();
-        if !self
-            .num_output_channels
-            .is_satisfied_by(num_output_channels)
-        {
-            return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_output_channels,
-                actual: num_output_channels,
-            });
-        }
-
-        let state = unsafe {
-            audionimbus_sys::iplReflectionEffectApply(
-                self.raw_ptr(),
-                &mut *reflection_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
-                mixer.raw_ptr(),
-            )
-        }
-        .into();
-
-        Ok(state)
-    }
-
-    /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
-    ///
-    /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
-    ///
-    /// The tail samples will be mixed into the given mixer.
-    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
-    /// This can have a performance benefit if using convolution.
-    /// If using TAN, specifying a mixer is required.
-    ///
-    /// The output audio buffer must have as many channels as the impulse response specified when
-    /// creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one
-    /// channel (for parametric).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
-    /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
-    pub fn tail_into_mixer<O>(
-        &self,
-        output_buffer: &AudioBuffer<O>,
-        mixer: &ReflectionMixer<T>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
-        if !self
-            .num_output_channels
-            .is_satisfied_by(num_output_channels)
-        {
-            return Err(EffectError::InvalidOutputChannels {
-                expected: self.num_output_channels,
-                actual: num_output_channels,
-            });
-        }
-
-        let state = unsafe {
-            audionimbus_sys::iplReflectionEffectGetTail(
-                self.raw_ptr(),
-                &mut *output_buffer.as_ffi(),
-                mixer.raw_ptr(),
-            )
-        }
-        .into();
-
-        Ok(state)
-    }
-
     /// Returns the number of tail samples remaining in a reflection effect’s internal buffers.
     ///
     /// Tail samples are audio samples that should be played even after the input to the effect has stopped playing and no further input samples are available.
@@ -611,6 +510,118 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
                 self.raw_ptr(),
                 &mut *output_buffer.as_ffi(),
                 std::ptr::null_mut(),
+            )
+        }
+        .into();
+
+        Ok(state)
+    }
+}
+
+impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
+    /// Applies a reflection effect to an audio buffer.
+    ///
+    /// The output of this effect will be mixed into the given mixer.
+    ///
+    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
+    /// This can have a performance benefit if using convolution.
+    ///
+    /// The input audio buffer must have one channel, and the output audio buffer must have as many
+    /// channels as the impulse response specified when creating the effect (for convolution,
+    /// hybrid, and TrueAudioNext) or at least one channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if:
+    /// - The input buffer has more than one channel
+    /// - The output audio buffer does not have as many channels as the impulse response specified
+    ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel
+    ///   (for parametric)
+    pub fn apply_into_mixer<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+        &mut self,
+        reflection_effect_params: &ReflectionEffectParams<T>,
+        input_buffer: &AudioBuffer<I, PI>,
+        output_buffer: &AudioBuffer<O, PO>,
+        mixer: &ReflectionMixer<T>,
+    ) -> Result<AudioEffectState, EffectError>
+    where
+        I: AsRef<[Sample]>,
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        let num_input_channels = input_buffer.num_channels();
+        if num_input_channels != 1 {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(1),
+                actual: num_input_channels,
+            });
+        }
+
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
+            audionimbus_sys::iplReflectionEffectApply(
+                self.raw_ptr(),
+                &mut *reflection_effect_params.as_ffi(),
+                &mut *input_buffer.as_ffi(),
+                &mut *output_buffer.as_ffi(),
+                mixer.raw_ptr(),
+            )
+        }
+        .into();
+
+        Ok(state)
+    }
+
+    /// Retrieves a single frame of tail samples from a reflection effect’s internal buffers.
+    ///
+    /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
+    ///
+    /// The tail samples will be mixed into the given mixer.
+    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`].
+    /// This can have a performance benefit if using convolution.
+    /// If using TAN, specifying a mixer is required.
+    ///
+    /// The output audio buffer must have as many channels as the impulse response specified when
+    /// creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one
+    /// channel (for parametric).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
+    /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
+    pub fn tail_into_mixer<O>(
+        &self,
+        output_buffer: &AudioBuffer<O>,
+        mixer: &ReflectionMixer<T>,
+    ) -> Result<AudioEffectState, EffectError>
+    where
+        O: AsRef<[Sample]> + AsMut<[Sample]>,
+    {
+        let num_output_channels = output_buffer.num_channels();
+        if !self
+            .num_output_channels
+            .is_satisfied_by(num_output_channels)
+        {
+            return Err(EffectError::InvalidOutputChannels {
+                expected: self.num_output_channels,
+                actual: num_output_channels,
+            });
+        }
+
+        let state = unsafe {
+            audionimbus_sys::iplReflectionEffectGetTail(
+                self.raw_ptr(),
+                &mut *output_buffer.as_ffi(),
+                mixer.raw_ptr(),
             )
         }
         .into();
