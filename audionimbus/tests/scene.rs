@@ -5,8 +5,7 @@ fn test_static_mesh() {
     let context_settings = ContextSettings::default();
     let context = Context::try_new(&context_settings).unwrap();
 
-    let scene_settings = SceneSettings::default();
-    let mut scene = Scene::try_new(&context, &scene_settings).unwrap();
+    let mut scene = Scene::try_new(&context).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
     let vertices = vec![
@@ -49,9 +48,8 @@ fn test_instanced_mesh() {
     let context_settings = ContextSettings::default();
     let context = Context::try_new(&context_settings).unwrap();
 
-    let scene_settings = SceneSettings::default();
-    let mut main_scene = Scene::try_new(&context, &scene_settings).unwrap();
-    let mut sub_scene = Scene::try_new(&context, &scene_settings).unwrap();
+    let mut main_scene = Scene::try_new(&context).unwrap();
+    let mut sub_scene = Scene::try_new(&context).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
     let vertices = vec![
@@ -118,8 +116,7 @@ fn test_scene_serialization() {
     let context_settings = ContextSettings::default();
     let context = Context::try_new(&context_settings).unwrap();
 
-    let scene_settings = SceneSettings::default();
-    let scene = Scene::try_new(&context, &scene_settings).unwrap();
+    let scene = Scene::try_new(&context).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
     let vertices = vec![
@@ -165,8 +162,7 @@ fn test_probe_generation() {
     let context_settings = ContextSettings::default();
     let context = Context::try_new(&context_settings).unwrap();
 
-    let scene_settings = SceneSettings::default();
-    let scene = Scene::try_new(&context, &scene_settings).unwrap();
+    let scene = Scene::try_new(&context).unwrap();
 
     // This specifies a 100x100x100 axis-aligned box.
     let box_transform = Matrix::new([
@@ -200,26 +196,24 @@ pub fn test_baking() {
     let frame_size = 1024;
     let max_order = 1;
 
-    let mut simulator =
-        Simulator::builder(SceneParams::Default, sampling_rate, frame_size, max_order)
-            .with_direct(DirectSimulationSettings {
-                max_num_occlusion_samples: 4,
-            })
-            .with_reflections(ReflectionsSimulationSettings::Convolution {
-                max_num_rays: 4096,
-                num_diffuse_samples: 32,
-                max_duration: 2.0,
-                max_num_sources: 8,
-                num_threads: 2,
-            })
-            .with_pathing(PathingSimulationSettings {
-                num_visibility_samples: 4,
-            })
-            .try_build(&context)
-            .unwrap();
+    let mut simulator = Simulator::builder(sampling_rate, frame_size, max_order)
+        .with_direct(DirectSimulationSettings {
+            max_num_occlusion_samples: 4,
+        })
+        .with_reflections(ReflectionsSimulationSettings::Convolution {
+            max_num_rays: 4096,
+            num_diffuse_samples: 32,
+            max_duration: 2.0,
+            max_num_sources: 8,
+            num_threads: 2,
+        })
+        .with_pathing(PathingSimulationSettings {
+            num_visibility_samples: 4,
+        })
+        .try_build(&context)
+        .unwrap();
 
-    let scene_settings = SceneSettings::default();
-    let scene = Scene::try_new(&context, &scene_settings).unwrap();
+    let scene = Scene::try_new(&context).unwrap();
     simulator.set_scene(&scene);
 
     // This specifies a 100x100x100 axis-aligned box.
@@ -254,10 +248,7 @@ pub fn test_baking() {
     };
 
     let reflections_bake_params = ReflectionsBakeParams {
-        scene: &scene,
-        probe_batch: &probe_batch,
-        scene_params: SceneParams::Default,
-        identifier: &identifier,
+        identifier,
         bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
         num_rays: 32768,
         num_diffuse_samples: 1024,
@@ -269,7 +260,9 @@ pub fn test_baking() {
         irradiance_min_distance: 1.0,
         bake_batch_size: 0,
     };
-    bake_reflections(&context, reflections_bake_params, None);
+    ReflectionsBaker::<DefaultRayTracer>::new()
+        .bake(&context, &mut probe_batch, &scene, reflections_bake_params)
+        .unwrap();
 
     simulator.add_probe_batch(&probe_batch);
     simulator.commit();
