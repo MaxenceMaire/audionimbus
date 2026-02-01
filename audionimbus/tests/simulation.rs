@@ -14,26 +14,24 @@ fn test_simulation() {
     let frame_size = 1024;
     let max_order = 1;
 
-    let mut simulator =
-        Simulator::builder(SceneParams::Default, sampling_rate, frame_size, max_order)
-            .with_direct(DirectSimulationSettings {
-                max_num_occlusion_samples: 4,
-            })
-            .with_reflections(ReflectionsSimulationSettings::Convolution {
-                max_num_rays: 4096,
-                num_diffuse_samples: 32,
-                max_duration: 2.0,
-                max_num_sources: 8,
-                num_threads: 2,
-            })
-            .with_pathing(PathingSimulationSettings {
-                num_visibility_samples: 4,
-            })
-            .try_build(&context)
-            .unwrap();
+    let mut simulator = Simulator::builder(sampling_rate, frame_size, max_order)
+        .with_direct(DirectSimulationSettings {
+            max_num_occlusion_samples: 4,
+        })
+        .with_reflections(ReflectionsSimulationSettings::Convolution {
+            max_num_rays: 4096,
+            num_diffuse_samples: 32,
+            max_duration: 2.0,
+            max_num_sources: 8,
+            num_threads: 2,
+        })
+        .with_pathing(PathingSimulationSettings {
+            num_visibility_samples: 4,
+        })
+        .try_build(&context)
+        .unwrap();
 
-    let scene_settings = SceneSettings::default();
-    let scene = Scene::try_new(&context, &scene_settings).unwrap();
+    let scene = Scene::try_new(&context).unwrap();
     simulator.set_scene(&scene);
 
     let source_settings = SourceSettings {
@@ -140,15 +138,14 @@ fn test_pathing_without_probes() {
     const FRAME_SIZE: u32 = 1024;
     const MAX_ORDER: u32 = 1;
 
-    let mut simulator =
-        Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-            .with_pathing(PathingSimulationSettings {
-                num_visibility_samples: 4,
-            })
-            .try_build(&context)
-            .unwrap();
+    let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+        .with_pathing(PathingSimulationSettings {
+            num_visibility_samples: 4,
+        })
+        .try_build(&context)
+        .unwrap();
 
-    let mut scene = Scene::try_new(&context, &SceneSettings::default()).unwrap();
+    let mut scene = Scene::try_new(&context).unwrap();
     let vertices = vec![
         Point::new(-50.0, 0.0, -50.0),
         Point::new(50.0, 0.0, -50.0),
@@ -199,9 +196,7 @@ fn test_pathing_without_probes() {
     simulator.add_probe_batch(&probe_batch);
 
     let path_bake_params = PathBakeParams {
-        scene: &scene,
-        probe_batch: &probe_batch,
-        identifier: &identifier,
+        identifier,
         num_samples: 1, // Trace a single ray to test if one probe can see another probe.
         visibility_range: 50.0, // Don't check visibility between probes that are > 50m apart.
         path_range: 100.0, // Don't store paths between probes that are > 100m apart.
@@ -209,7 +204,9 @@ fn test_pathing_without_probes() {
         radius: 1.0,
         threshold: 0.5,
     };
-    bake_path(&context, &path_bake_params, None);
+    PathBaker::new()
+        .bake(&context, &mut probe_batch, &scene, path_bake_params)
+        .unwrap();
 
     let source_settings = SourceSettings {
         flags: SimulationFlags::PATHING,
@@ -261,17 +258,16 @@ fn test_reflections_without_scene() {
     let frame_size = 1024;
     let max_order = 1;
 
-    let mut simulator =
-        Simulator::builder(SceneParams::Default, sampling_rate, frame_size, max_order)
-            .with_reflections(ReflectionsSimulationSettings::Convolution {
-                max_num_rays: 4096,
-                num_diffuse_samples: 32,
-                max_duration: 2.0,
-                max_num_sources: 8,
-                num_threads: 2,
-            })
-            .try_build(&context)
-            .unwrap();
+    let mut simulator = Simulator::builder(sampling_rate, frame_size, max_order)
+        .with_reflections(ReflectionsSimulationSettings::Convolution {
+            max_num_rays: 4096,
+            num_diffuse_samples: 32,
+            max_duration: 2.0,
+            max_num_sources: 8,
+            num_threads: 2,
+        })
+        .try_build(&context)
+        .unwrap();
 
     let simulation_shared_inputs = SimulationSharedInputs {
         listener: CoordinateSystem::default(),

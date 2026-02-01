@@ -151,7 +151,7 @@ impl<T: RayTracer> PathBaker<T> {
 }
 
 /// Parameters used to control how pathing data is baked.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct PathBakeParams {
     /// An identifier for the data layer that should be baked.
     /// The identifier determines what data is simulated and stored at each probe.

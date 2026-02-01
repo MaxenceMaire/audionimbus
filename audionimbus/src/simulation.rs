@@ -65,7 +65,7 @@ pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
     _pathing: PhantomData<P>,
 }
 
-impl<T: RayTracer> Simulator<T, (), (), ()> {
+impl Simulator<DefaultRayTracer, (), (), ()> {
     /// Creates a new simulator builder with required parameters.
     ///
     /// # Arguments

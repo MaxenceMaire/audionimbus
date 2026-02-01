@@ -111,6 +111,7 @@
 - Add `PathBaker` object to precompute pathing data. It enforces the use of the correct scene type via generics. Its methods replace `bake_path` and `cancel_bake_path`.
 - `Scene` now has different constructors depending on the ray tracer implementation: `try_new`, `load`, `load_with_progress` for the default ray tracer; `try_with_embree`, `load_embree`, `load_embree_with_progress` for Embree; `try_with_radeon_rays`, `load_radeon_rays`, `load_radeon_rays_with_progress` for Radeon Rays; `try_with_custom`, `load_custom`, `load_custom_with_progress` for custom ray tracer implementations.
 - Add `with_embree`, `with_radeon_rays` and `with_custom_ray_tracer` methods to `SimulatorBuilder` to construct a `Simulator` with other ray tracing implementations than the default.
+- Derive `Copy`, `Clone` for `PathBakeParams`.
 
 ### Removed
 
