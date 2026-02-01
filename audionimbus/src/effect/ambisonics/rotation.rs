@@ -270,7 +270,6 @@ impl AmbisonicsRotationEffectParams {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::*;
 
     mod apply {

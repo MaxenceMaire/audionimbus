@@ -89,6 +89,7 @@
 - `Simulator::builder` no longer takes `SceneParams` argument. The ray tracer information is now provided by the new `with_embree`, `with_radeon_rays` and `with_custom_ray_tracer` methods.
 - `BakedDataIdentifier` and `BakedDataVariation` are now part of the new `baking` module instead of `simulation`.
 - Bake operations now return a `BakeError` error if another bake operation is already in progress.
+- Renamed `path` and `reflection` submodules of `effect` to `pathing` and `reflections` for consistency.
 
 ### Added
 
@@ -112,6 +113,7 @@
 - `Scene` now has different constructors depending on the ray tracer implementation: `try_new`, `load`, `load_with_progress` for the default ray tracer; `try_with_embree`, `load_embree`, `load_embree_with_progress` for Embree; `try_with_radeon_rays`, `load_radeon_rays`, `load_radeon_rays_with_progress` for Radeon Rays; `try_with_custom`, `load_custom`, `load_custom_with_progress` for custom ray tracer implementations.
 - Add `with_embree`, `with_radeon_rays` and `with_custom_ray_tracer` methods to `SimulatorBuilder` to construct a `Simulator` with other ray tracing implementations than the default.
 - Derive `Copy`, `Clone` for `PathBakeParams`.
+- Add a `prelude` module to re-export commonly used types and traits.
 
 ### Removed
 

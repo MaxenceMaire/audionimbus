@@ -18,9 +18,9 @@
 use std::sync::Mutex;
 
 #[cfg(doc)]
-use crate::effect::path::PathEffect;
+use crate::effect::pathing::PathEffect;
 #[cfg(doc)]
-use crate::effect::reflection::ReflectionEffect;
+use crate::effect::reflections::ReflectionEffect;
 #[cfg(doc)]
 use crate::probe::ProbeBatch;
 #[cfg(doc)]

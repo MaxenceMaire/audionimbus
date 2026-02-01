@@ -1,20 +1,20 @@
 //! Spatial audio simulation (direct simulation, reflections, pathing).
 
-use crate::air_absorption::AirAbsorptionModel;
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
 use crate::callback::CallbackInformation;
 use crate::context::Context;
-use crate::deviation::DeviationModel;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::device::true_audio_next::TrueAudioNextDevice;
-use crate::directivity::Directivity;
-use crate::distance_attenuation::DistanceAttenuationModel;
-use crate::effect::reflection::ReflectionEffectType;
+use crate::effect::reflections::ReflectionEffectType;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{CoordinateSystem, Scene};
+use crate::model::air_absorption::AirAbsorptionModel;
+use crate::model::deviation::DeviationModel;
+use crate::model::directivity::Directivity;
+use crate::model::distance_attenuation::DistanceAttenuationModel;
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
 use std::collections::HashMap;

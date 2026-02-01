@@ -67,14 +67,14 @@ pub use direct::*;
 mod error;
 pub use error::EffectError;
 
-pub mod reflection;
-pub use reflection::*;
+pub mod reflections;
+pub use reflections::*;
 
 pub mod panning;
 pub use panning::*;
 
-pub mod path;
-pub use path::*;
+pub mod pathing;
+pub use pathing::*;
 
 pub mod virtual_surround;
 pub use virtual_surround::*;
