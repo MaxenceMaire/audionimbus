@@ -11,6 +11,12 @@ use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
 
 #[cfg(doc)]
+use crate::baking::PathBaker;
+#[cfg(doc)]
+use crate::geometry::Scene;
+#[cfg(doc)]
+use crate::probe::ProbeBatch;
+#[cfg(doc)]
 use crate::simulation::{SimulationOutputs, Simulator, Source};
 
 /// Applies the result of simulating sound paths from the source to the listener.
@@ -20,7 +26,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// # Examples
 ///
 /// Applying pathing involves:
-/// 1. Baking path data between probes using [`bake_path`]
+/// 1. Baking path data between probes using [`PathBaker::bake`]
 /// 2. Setting up a [`Simulator`] with a [`Scene`] and [`ProbeBatch`]
 /// 3. Adding [`Source`]s with pathing enabled (don't forget to commit using [`Simulator::commit`]!)
 /// 4. Running the simulation ([`Simulator::run_pathing`]) and retrieving the output for the source ([`Source::get_outputs`])
