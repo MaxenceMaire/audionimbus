@@ -372,7 +372,7 @@ impl<T: RayTracer> Scene<T> {
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut scene = Scene::try_new(&context)?;
     /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
@@ -413,7 +413,7 @@ impl<T: RayTracer> Scene<T> {
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut scene = Scene::try_new(&context)?;
     /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
@@ -462,7 +462,7 @@ impl<T: RayTracer> Scene<T> {
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut sub_scene = Scene::try_new(&context)?;
     /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
@@ -478,7 +478,7 @@ impl<T: RayTracer> Scene<T> {
     /// # )?;
     /// # let _ = sub_scene.add_static_mesh(static_mesh);
     /// # sub_scene.commit();
-    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut scene = Scene::try_new(&context)?;
     /// # let transform = Matrix4::IDENTITY;
     /// let instanced_mesh = InstancedMesh::try_new(
     ///     &scene,
@@ -514,7 +514,7 @@ impl<T: RayTracer> Scene<T> {
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut sub_scene = Scene::try_new(&context)?;
     /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
@@ -530,7 +530,7 @@ impl<T: RayTracer> Scene<T> {
     /// # )?;
     /// # let _ = sub_scene.add_static_mesh(static_mesh);
     /// # sub_scene.commit();
-    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut scene = Scene::try_new(&context)?;
     /// # let transform = Matrix4::IDENTITY;
     /// # let instanced_mesh = InstancedMesh::try_new(
     /// #     &scene,
@@ -577,7 +577,7 @@ impl<T: RayTracer> Scene<T> {
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut sub_scene = Scene::try_new(&context)?;
     /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
@@ -593,7 +593,7 @@ impl<T: RayTracer> Scene<T> {
     /// # )?;
     /// # let _ = sub_scene.add_static_mesh(static_mesh);
     /// # sub_scene.commit();
-    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut scene = Scene::try_new(&context)?;
     /// # let transform = Matrix4::IDENTITY;
     /// # let instanced_mesh = InstancedMesh::try_new(
     /// #     &scene,
@@ -652,7 +652,7 @@ impl<T: RayTracer> Scene<T> {
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+    /// # let mut scene = Scene::try_new(&context)?;
     /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
@@ -844,7 +844,7 @@ pub fn relative_direction(
 /// ```
 /// # use audionimbus::*;
 /// # let context = Context::default();
-/// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// # let mut scene = Scene::try_new(&context)?;
 /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
 /// # let triangles = vec![Triangle::new(0, 1, 2)];
 /// # let materials = vec![Material::default()];
@@ -880,7 +880,7 @@ pub struct StaticMeshHandle(DefaultKey);
 /// ```
 /// # use audionimbus::*;
 /// # let context = Context::default();
-/// # let mut sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// # let mut sub_scene = Scene::try_new(&context)?;
 /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
 /// # let triangles = vec![Triangle::new(0, 1, 2)];
 /// # let materials = vec![Material::default()];
@@ -896,7 +896,7 @@ pub struct StaticMeshHandle(DefaultKey);
 /// # )?;
 /// # let _ = sub_scene.add_static_mesh(static_mesh);
 /// # sub_scene.commit();
-/// # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// # let mut scene = Scene::try_new(&context)?;
 /// # let transform = Matrix4::IDENTITY;
 /// let instanced_mesh = InstancedMesh::try_new(
 ///     &scene,

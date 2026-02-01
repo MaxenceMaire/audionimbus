@@ -152,8 +152,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// 4. Applying the reflection effect to the audio buffer using the simulation output ([`SimulationOutputs::reflections`]) as params
 ///
 /// ```
-/// use audionimbus::*;
-///
+/// # use audionimbus::*;
 /// let context = Context::default();
 ///
 /// const SAMPLING_RATE: u32 = 48_000;
@@ -164,7 +163,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// };
 ///
 /// // Create a simulator with reflections.
-/// let mut simulator = Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, 1)
+/// let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, 1)
 ///     .with_reflections(ReflectionsSimulationSettings::Convolution {
 ///         max_num_rays: 4096,
 ///         num_diffuse_samples: 32,
@@ -174,7 +173,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     })
 ///     .try_build(&context)?;
 ///
-/// let scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
 ///
 /// let mut source = Source::try_new(&simulator, &SourceSettings {
@@ -234,15 +233,14 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// by placing a source at the listener's position:
 ///
 /// ```
-/// use audionimbus::*;
-///
+/// # use audionimbus::*;
 /// let context = Context::default();
 /// const SAMPLING_RATE: u32 = 48_000;
 /// const FRAME_SIZE: u32 = 1024;
 /// let audio_settings = AudioSettings { sampling_rate: SAMPLING_RATE, frame_size: FRAME_SIZE };
 ///
 /// // Create simulator with reflections
-/// let mut simulator = Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, 1)
+/// let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, 1)
 ///     .with_reflections(ReflectionsSimulationSettings::Convolution {
 ///         max_num_rays: 2048,
 ///         num_diffuse_samples: 32,
@@ -252,7 +250,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     })
 ///     .try_build(&context)?;
 ///
-/// let scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
 ///
 /// // Create a reverb source positioned at the listener.

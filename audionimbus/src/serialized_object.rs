@@ -117,7 +117,7 @@ impl SerializedObject {
     /// # Examples
     ///
     /// ```
-    /// # use audionimbus::{Context, SerializedObject, Scene, SceneSettings};
+    /// # use audionimbus::{Context, SerializedObject, Scene};
     /// # let context = Context::default();
     /// # let serialized_object = SerializedObject::try_new(&context)?;
     /// // After serializing some object into serialized_object...

@@ -36,13 +36,13 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// const MAX_ORDER: u32 = 1;
 ///
 /// let mut simulator =
-///     Simulator::builder(SceneParams::Default, SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+///     Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
 ///         .with_pathing(PathingSimulationSettings {
 ///             num_visibility_samples: 4,
 ///         })
 ///         .try_build(&context)?;
 ///
-/// let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+/// let mut scene = Scene::try_new(&context)?;
 /// let vertices = vec![
 ///     Point::new(-50.0, 0.0, -50.0),
 ///     Point::new(50.0, 0.0, -50.0),
@@ -91,9 +91,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// simulator.add_probe_batch(&probe_batch);
 ///
 /// let path_bake_params = PathBakeParams {
-///     scene: &scene,
-///     probe_batch: &probe_batch,
-///     identifier: &identifier,
+///     identifier,
 ///     num_samples: 1, // Trace a single ray to test if one probe can see another probe.
 ///     visibility_range: 50.0, // Don't check visibility between probes that are > 50m apart.
 ///     path_range: 100.0, // Don't store paths between probes that are > 100m apart.
@@ -101,8 +99,9 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     radius: 1.0,
 ///     threshold: 0.5,
 /// };
-///
-/// bake_path(&context, &path_bake_params, None);
+/// PathBaker::new()
+///     .bake(&context, &mut probe_batch, &scene, path_bake_params)
+///     .unwrap();
 ///
 /// let source_settings = SourceSettings {
 ///     flags: SimulationFlags::PATHING,

@@ -338,10 +338,9 @@ impl<T: RayTracer, D, R, P> SimulatorBuilder<T, D, R, P> {
     /// # Examples
     ///
     /// ```no_run
-    /// # use audionimbus::{Context, Simulator, SceneParams, DirectSimulationSettings};
+    /// # use audionimbus::{Context, Simulator, DirectSimulationSettings};
     /// # let context = Context::default();
-    /// # let scene_params = SceneParams::default();
-    /// let simulator = Simulator::builder(scene_params, 48000, 1024, 2)
+    /// let simulator = Simulator::builder(48000, 1024, 2)
     ///     .with_direct(DirectSimulationSettings {
     ///         max_num_occlusion_samples: 4,
     ///     })

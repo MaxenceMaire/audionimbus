@@ -11,7 +11,7 @@
 //! use audionimbus::*;
 //!
 //! let context = Context::default();
-//! let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
+//! let mut scene = Scene::try_new(&context)?;
 //!
 //! // Define geometry.
 //! let vertices = vec![
@@ -46,8 +46,8 @@
 //! ```
 //! # use audionimbus::*;
 //! # let context = Context::default();
-//! # let mut scene = Scene::try_new(&context, &SceneSettings::default())?;
-//! # let sub_scene = Scene::try_new(&context, &SceneSettings::default())?;
+//! # let mut scene = Scene::try_new(&context)?;
+//! # let sub_scene = Scene::try_new(&context)?;
 //! let transform = Matrix::new([
 //!     [1.0, 0.0, 0.0, 5.0],
 //!     [0.0, 1.0, 0.0, 0.0],
