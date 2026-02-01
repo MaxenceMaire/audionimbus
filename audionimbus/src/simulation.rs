@@ -33,6 +33,29 @@ pub struct Reflections;
 pub struct Pathing;
 
 /// Builder for creating a [`Simulator`].
+///
+/// # Examples
+///
+/// ```
+/// # use audionimbus::{Context, Simulator, DirectSimulationSettings, ReflectionsSimulationSettings, PathingSimulationSettings};
+/// # let context = Context::default();
+/// let simulator = Simulator::builder(48000, 1024, 2)
+///     .with_direct(DirectSimulationSettings {
+///         max_num_occlusion_samples: 4,
+///     })
+///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///         max_num_rays: 4096,
+///         num_diffuse_samples: 32,
+///         max_duration: 2.0,
+///         max_num_sources: 8,
+///         num_threads: 2,
+///     })
+///     .with_pathing(PathingSimulationSettings {
+///         num_visibility_samples: 4,
+///     })
+///     .try_build(&context)?;
+/// # Ok::<(), audionimbus::SteamAudioError>(())
+/// ```
 #[derive(Debug)]
 pub struct SimulatorBuilder<T: RayTracer, D = (), R = (), P = ()> {
     settings: audionimbus_sys::IPLSimulationSettings,
@@ -46,6 +69,74 @@ pub struct SimulatorBuilder<T: RayTracer, D = (), R = (), P = ()> {
 ///
 /// Your application will typically create one simulator object and use it to run simulations with different source and listener parameters between consecutive simulation runs.
 /// The simulator can also be reused across scene changes.
+///
+/// # Examples
+///
+/// Basic simulation workflow (shown with direct sound; reflections and pathing follow a similar pattern):
+///
+/// ```
+/// # use audionimbus::{
+/// #     Context, Simulator, Scene, Source, SourceSettings, SimulationFlags,
+/// #     DirectSimulationSettings, SimulationInputs, SimulationSharedInputs,
+/// #     CoordinateSystem, DirectSimulationParameters, DistanceAttenuationModel,
+/// # };
+/// # let context = Context::default();
+/// // Create a simulator.
+/// let mut simulator = Simulator::builder(48000, 1024, 2)
+///     .with_direct(DirectSimulationSettings {
+///         max_num_occlusion_samples: 4,
+///     })
+///     .try_build(&context)?;
+///
+/// // Set up a scene.
+/// let scene = Scene::try_new(&context)?;
+///
+/// // ... add and commit geometry to the scene ...
+///
+/// simulator.set_scene(&scene);
+/// simulator.commit();
+///
+/// // Create and add a source.
+/// let source_settings = SourceSettings {
+///     flags: SimulationFlags::DIRECT,
+/// };
+/// let mut source = Source::try_new(&simulator, &source_settings)?;
+///
+/// simulator.add_source(&source);
+///
+/// // Configure simulation parameters.
+/// let simulation_inputs = SimulationInputs {
+///     source: CoordinateSystem::default(),
+///     direct_simulation: Some(DirectSimulationParameters {
+///         distance_attenuation: Some(DistanceAttenuationModel::default()),
+///         air_absorption: None,
+///         directivity: None,
+///         occlusion: None,
+///     }),
+///     reflections_simulation: None,
+///     pathing_simulation: None,
+/// };
+/// source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
+///
+/// // Set shared parameters.
+/// let shared_inputs = SimulationSharedInputs {
+///     listener: CoordinateSystem::default(),
+///     num_rays: 4096,
+///     num_bounces: 16,
+///     duration: 2.0,
+///     order: 1,
+///     irradiance_min_distance: 1.0,
+///     pathing_visualization_callback: None,
+/// };
+/// simulator.set_shared_inputs(SimulationFlags::DIRECT, &shared_inputs);
+///
+/// // Run the simulation.
+/// simulator.run_direct();
+///
+/// // Get results.
+/// let outputs = source.get_outputs(SimulationFlags::DIRECT)?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
 pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSimulator,
