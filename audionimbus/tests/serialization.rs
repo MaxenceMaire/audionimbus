@@ -1,10 +1,5 @@
 use audionimbus::*;
 
-fn scene(context: &Context) -> Scene {
-    let scene_settings = SceneSettings::default();
-    Scene::try_new(context, &scene_settings).expect("failed to create scene")
-}
-
 fn static_mesh(scene: &Scene) -> StaticMesh {
     let vertices = vec![
         Point::new(0.0, 0.0, 0.0),
@@ -34,7 +29,7 @@ fn static_mesh(scene: &Scene) -> StaticMesh {
 #[test]
 fn test_static_mesh_save_load() {
     let context = Context::default();
-    let scene = scene(&context);
+    let scene = Scene::try_new(&context).unwrap();
     let static_mesh = static_mesh(&scene);
 
     let mut serialized = SerializedObject::try_new(&context).unwrap();
@@ -47,7 +42,7 @@ fn test_static_mesh_save_load() {
 #[test]
 fn test_static_mesh_to_vec() {
     let context = Context::default();
-    let scene = scene(&context);
+    let scene = Scene::try_new(&context).unwrap();
     let static_mesh = static_mesh(&scene);
 
     let mut serialized = SerializedObject::try_new(&context).unwrap();
@@ -60,7 +55,7 @@ fn test_static_mesh_to_vec() {
 #[test]
 fn test_scene_save_obj() {
     let context = Context::default();
-    let mut scene = scene(&context);
+    let mut scene = Scene::try_new(&context).unwrap();
     let static_mesh = static_mesh(&scene);
 
     scene.add_static_mesh(static_mesh);
