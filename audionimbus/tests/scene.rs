@@ -153,7 +153,8 @@ fn test_scene_serialization() {
 
     static_mesh.save(&mut serialized_object);
 
-    let loaded_static_mesh_result = StaticMesh::load(&scene, &mut serialized_object);
+    let loaded_static_mesh_result =
+        StaticMesh::<DefaultRayTracer>::load(&scene, &mut serialized_object);
     assert!(loaded_static_mesh_result.is_ok());
 }
 

@@ -1,6 +1,6 @@
 use audionimbus::*;
 
-fn static_mesh(scene: &Scene) -> StaticMesh {
+fn static_mesh(scene: &Scene) -> StaticMesh<DefaultRayTracer> {
     let vertices = vec![
         Point::new(0.0, 0.0, 0.0),
         Point::new(1.0, 0.0, 0.0),
@@ -35,7 +35,7 @@ fn test_static_mesh_save_load() {
     let mut serialized = SerializedObject::try_new(&context).unwrap();
     static_mesh.save(&mut serialized);
 
-    let loaded = StaticMesh::load(&scene, &mut serialized);
+    let loaded = StaticMesh::<DefaultRayTracer>::load(&scene, &mut serialized);
     assert!(loaded.is_ok());
 }
 

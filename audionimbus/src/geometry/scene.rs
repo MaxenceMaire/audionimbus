@@ -28,13 +28,13 @@ pub struct Scene<T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
 
     /// Used to keep static meshes alive for the lifetime of the scene.
-    static_meshes: SlotMap<DefaultKey, StaticMesh>,
+    static_meshes: SlotMap<DefaultKey, StaticMesh<T>>,
 
     /// Used to keep instanced meshes alive for the lifetime of the scene.
     instanced_meshes: SlotMap<DefaultKey, InstancedMesh>,
 
     /// Static meshes to be dropped by the next call to [`Self::commit`].
-    static_meshes_to_remove: Vec<StaticMesh>,
+    static_meshes_to_remove: Vec<StaticMesh<T>>,
 
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh>,
@@ -391,7 +391,7 @@ impl<T: RayTracer> Scene<T> {
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn add_static_mesh(&mut self, static_mesh: StaticMesh) -> StaticMeshHandle {
+    pub fn add_static_mesh(&mut self, static_mesh: StaticMesh<T>) -> StaticMeshHandle {
         unsafe {
             audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
         }
