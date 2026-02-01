@@ -25,7 +25,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let mut effect = BinauralEffect::try_new(
 ///     &context,
 ///     &audio_settings,
-///     &BinauralEffectSettings { hrtf: &hrtf }
+///     &BinauralEffectSettings { hrtf: &hrtf },
 /// )?;
 ///
 /// let params = BinauralEffectParams {

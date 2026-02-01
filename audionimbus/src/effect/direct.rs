@@ -21,7 +21,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let mut effect = DirectEffect::try_new(
 ///     &context,
 ///     &audio_settings,
-///     &DirectEffectSettings { num_channels: 1 }
+///     &DirectEffectSettings { num_channels: 1 },
 /// )?;
 ///
 /// let params = DirectEffectParams {

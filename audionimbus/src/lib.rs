@@ -202,7 +202,7 @@
 //! // Create another audio buffer over the output container.
 //! let output_buffer = AudioBuffer::try_with_data_and_settings(
 //!     &mut output,
-//!    AudioBufferSettings::with_num_channels(num_channels),
+//!     AudioBufferSettings::with_num_channels(num_channels),
 //! )?;
 //!
 //! // Apply a binaural audio effect.

@@ -41,7 +41,7 @@ where
 /// let stereo_samples = vec![0.0; 2048];
 /// let buffer = AudioBuffer::try_with_data_and_settings(
 ///     &stereo_samples,
-///     AudioBufferSettings::with_num_channels(2)
+///     AudioBufferSettings::with_num_channels(2),
 /// )?;
 /// # Ok::<(), audionimbus::AudioBufferError>(())
 /// ```

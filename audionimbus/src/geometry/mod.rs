@@ -20,20 +20,20 @@
 //!     Point::new(10.0, 10.0, 0.0),
 //!     Point::new(0.0, 10.0, 0.0),
 //! ];
-//! let triangles = vec![
-//!     Triangle::new(0, 1, 2),
-//!     Triangle::new(0, 2, 3),
-//! ];
+//! let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
 //! let materials = vec![Material::CONCRETE];
 //! let material_indices = vec![0, 0];
 //!
 //! // Create and add the mesh.
-//! let mesh = StaticMesh::try_new(&scene, &StaticMeshSettings {
-//!     vertices: &vertices,
-//!     triangles: &triangles,
-//!     material_indices: &material_indices,
-//!     materials: &materials,
-//! })?;
+//! let mesh = StaticMesh::try_new(
+//!     &scene,
+//!     &StaticMeshSettings {
+//!         vertices: &vertices,
+//!         triangles: &triangles,
+//!         material_indices: &material_indices,
+//!         materials: &materials,
+//!     },
+//! )?;
 //! scene.add_static_mesh(mesh);
 //! scene.commit();
 //! # Ok::<(), SteamAudioError>(())
@@ -55,10 +55,13 @@
 //!     [0.0, 0.0, 0.0, 1.0],
 //! ]);
 //!
-//! let instanced = InstancedMesh::try_new(&scene, InstancedMeshSettings {
-//!     sub_scene: &sub_scene,
-//!     transform,
-//! })?;
+//! let instanced = InstancedMesh::try_new(
+//!     &scene,
+//!     InstancedMeshSettings {
+//!         sub_scene: &sub_scene,
+//!         transform,
+//!     },
+//! )?;
 //! scene.add_instanced_mesh(instanced);
 //! # Ok::<(), SteamAudioError>(())
 //! ```

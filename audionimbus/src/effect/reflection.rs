@@ -159,7 +159,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// const FRAME_SIZE: u32 = 1024;
 /// let audio_settings = AudioSettings {
 ///     sampling_rate: SAMPLING_RATE,
-///     frame_size: FRAME_SIZE
+///     frame_size: FRAME_SIZE,
 /// };
 ///
 /// // Create a simulator with reflections.
@@ -176,29 +176,38 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
 ///
-/// let mut source = Source::try_new(&simulator, &SourceSettings {
-///     flags: SimulationFlags::REFLECTIONS,
-/// })?;
+/// let mut source = Source::try_new(
+///     &simulator,
+///     &SourceSettings {
+///         flags: SimulationFlags::REFLECTIONS,
+///     },
+/// )?;
 ///
-/// source.set_inputs(SimulationFlags::REFLECTIONS, SimulationInputs {
-///     source: CoordinateSystem::default(),
-///     direct_simulation: None,
-///     reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
-///         baked_data_identifier: None,
-///     }),
-///     pathing_simulation: None,
-/// });
+/// source.set_inputs(
+///     SimulationFlags::REFLECTIONS,
+///     SimulationInputs {
+///         source: CoordinateSystem::default(),
+///         direct_simulation: None,
+///         reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+///             baked_data_identifier: None,
+///         }),
+///         pathing_simulation: None,
+///     },
+/// );
 ///
 /// simulator.add_source(&source);
-/// simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &SimulationSharedInputs {
-///     listener: CoordinateSystem::default(),
-///     num_rays: 4096,
-///     num_bounces: 16,
-///     duration: 2.0,
-///     order: 1,
-///     irradiance_min_distance: 1.0,
-///     pathing_visualization_callback: None,
-/// });
+/// simulator.set_shared_inputs(
+///     SimulationFlags::REFLECTIONS,
+///     &SimulationSharedInputs {
+///         listener: CoordinateSystem::default(),
+///         num_rays: 4096,
+///         num_bounces: 16,
+///         duration: 2.0,
+///         order: 1,
+///         irradiance_min_distance: 1.0,
+///         pathing_visualization_callback: None,
+///     },
+/// );
 /// simulator.commit();
 ///
 /// simulator.run_reflections();
@@ -211,7 +220,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     &ReflectionEffectSettings {
 ///         impulse_response_size: 2 * SAMPLING_RATE, // 2 seconds
 ///         num_channels: NUM_CHANNELS,
-///     }
+///     },
 /// )?;
 ///
 /// let input = vec![0.5; FRAME_SIZE as usize];
@@ -219,7 +228,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let mut output = vec![0.0; (NUM_CHANNELS * FRAME_SIZE) as usize]; // 4 channels
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
-///     AudioBufferSettings::with_num_channels(NUM_CHANNELS)
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
 /// )?;
 ///
 /// let params = outputs.reflections();
@@ -237,7 +246,10 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let context = Context::default();
 /// const SAMPLING_RATE: u32 = 48_000;
 /// const FRAME_SIZE: u32 = 1024;
-/// let audio_settings = AudioSettings { sampling_rate: SAMPLING_RATE, frame_size: FRAME_SIZE };
+/// let audio_settings = AudioSettings {
+///     sampling_rate: SAMPLING_RATE,
+///     frame_size: FRAME_SIZE,
+/// };
 ///
 /// // Create simulator with reflections
 /// let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, 1)
@@ -254,9 +266,12 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// simulator.set_scene(&scene);
 ///
 /// // Create a reverb source positioned at the listener.
-/// let mut reverb_source = Source::try_new(&simulator, &SourceSettings {
-///     flags: SimulationFlags::REFLECTIONS,
-/// })?;
+/// let mut reverb_source = Source::try_new(
+///     &simulator,
+///     &SourceSettings {
+///         flags: SimulationFlags::REFLECTIONS,
+///     },
+/// )?;
 ///
 /// let listener_position = CoordinateSystem {
 ///     origin: Vector3::new(0.0, 1.5, 0.0), // Listener at head height
@@ -264,25 +279,31 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// };
 ///
 /// // Set source position to match listener position.
-/// reverb_source.set_inputs(SimulationFlags::REFLECTIONS, SimulationInputs {
-///     source: listener_position, // Source at listener = reverb
-///     direct_simulation: None,
-///     reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
-///         baked_data_identifier: None,
-///     }),
-///     pathing_simulation: None,
-/// });
+/// reverb_source.set_inputs(
+///     SimulationFlags::REFLECTIONS,
+///     SimulationInputs {
+///         source: listener_position, // Source at listener = reverb
+///         direct_simulation: None,
+///         reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+///             baked_data_identifier: None,
+///         }),
+///         pathing_simulation: None,
+///     },
+/// );
 ///
 /// simulator.add_source(&reverb_source);
-/// simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &SimulationSharedInputs {
-///     listener: listener_position,
-///     num_rays: 2048,
-///     num_bounces: 8,
-///     duration: 2.0,
-///     order: 1,
-///     irradiance_min_distance: 1.0,
-///     pathing_visualization_callback: None,
-/// });
+/// simulator.set_shared_inputs(
+///     SimulationFlags::REFLECTIONS,
+///     &SimulationSharedInputs {
+///         listener: listener_position,
+///         num_rays: 2048,
+///         num_bounces: 8,
+///         duration: 2.0,
+///         order: 1,
+///         irradiance_min_distance: 1.0,
+///         pathing_visualization_callback: None,
+///     },
+/// );
 /// simulator.commit();
 ///
 /// // Run simulation.
@@ -297,7 +318,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     &ReflectionEffectSettings {
 ///         impulse_response_size: 2 * SAMPLING_RATE,
 ///         num_channels: NUM_CHANNELS,
-///     }
+///     },
 /// )?;
 ///
 /// let input = vec![0.5; FRAME_SIZE as usize];
@@ -305,7 +326,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let mut reverb_output = vec![0.0; (NUM_CHANNELS * FRAME_SIZE) as usize];
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut reverb_output,
-///     AudioBufferSettings::with_num_channels(NUM_CHANNELS)
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
 /// )?;
 ///
 /// let _ = reverb_effect.apply(&reverb_params, &input_buffer, &output_buffer);

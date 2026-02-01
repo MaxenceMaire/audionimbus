@@ -35,12 +35,11 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// const FRAME_SIZE: u32 = 1024;
 /// const MAX_ORDER: u32 = 1;
 ///
-/// let mut simulator =
-///     Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
-///         .with_pathing(PathingSimulationSettings {
-///             num_visibility_samples: 4,
-///         })
-///         .try_build(&context)?;
+/// let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+///     .with_pathing(PathingSimulationSettings {
+///         num_visibility_samples: 4,
+///     })
+///     .try_build(&context)?;
 ///
 /// let mut scene = Scene::try_new(&context)?;
 /// let vertices = vec![
