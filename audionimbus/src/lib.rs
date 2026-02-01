@@ -186,7 +186,7 @@
 //!     &BinauralEffectSettings { hrtf: &hrtf },
 //! )?;
 //!
-//! // Generate an input frame (in thise case, a single-channel sine wave).
+//! // Generate an input frame (in this case, a single-channel sine wave).
 //! let input: Vec<Sample> = (0..audio_settings.frame_size)
 //!     .map(|i| {
 //!         (i as f32 * 2.0 * std::f32::consts::PI * 440.0 / audio_settings.sampling_rate as f32)
@@ -202,7 +202,7 @@
 //! // Create another audio buffer over the output container.
 //! let output_buffer = AudioBuffer::try_with_data_and_settings(
 //!     &mut output,
-//!    AudioBufferSettings::with_num_channels(num_channels),
+//!     AudioBufferSettings::with_num_channels(num_channels),
 //! )?;
 //!
 //! // Apply a binaural audio effect.
@@ -256,6 +256,9 @@ pub use audio_buffer::*;
 pub mod audio_settings;
 pub use audio_settings::*;
 
+pub mod baking;
+pub use baking::*;
+
 pub mod callback;
 pub use callback::*;
 
@@ -300,8 +303,14 @@ pub use energy_field::*;
 pub mod impulse_response;
 pub use impulse_response::*;
 
+pub mod ray_tracing;
+pub use ray_tracing::*;
+
 pub mod reconstructor;
 pub use reconstructor::*;
+
+mod sealed;
+use sealed::Sealed;
 
 #[cfg(feature = "fmod")]
 pub mod fmod;

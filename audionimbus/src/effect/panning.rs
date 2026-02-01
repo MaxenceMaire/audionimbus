@@ -23,7 +23,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///     &audio_settings,
 ///     &PanningEffectSettings {
 ///         speaker_layout: SpeakerLayout::Stereo,
-///     }
+///     },
 /// )?;
 ///
 /// let params = PanningEffectParams {

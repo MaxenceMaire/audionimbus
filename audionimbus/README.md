@@ -188,7 +188,7 @@ let mut binaural_effect = BinauralEffect::try_new(
     &BinauralEffectSettings { hrtf: &hrtf },
 )?;
 
-// Generate an input frame (in thise case, a single-channel sine wave).
+// Generate an input frame (in this case, a single-channel sine wave).
 let input: Vec<Sample> = (0..audio_settings.frame_size)
     .map(|i| {
         (i as f32 * 2.0 * std::f32::consts::PI * 440.0 / audio_settings.sampling_rate as f32)

@@ -27,7 +27,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///     &AmbisonicsBinauralEffectSettings {
 ///         hrtf: &hrtf,
 ///         max_order: 1,
-///     }
+///     },
 /// )?;
 ///
 /// let params = AmbisonicsBinauralEffectParams {
@@ -37,14 +37,12 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///
 /// const FRAME_SIZE: usize = 1024;
 /// let input = vec![0.5; 4 * FRAME_SIZE]; // 4 channels
-/// let input_buffer = AudioBuffer::try_with_data_and_settings(
-///     &input,
-///     AudioBufferSettings::with_num_channels(4)
-/// )?;
+/// let input_buffer =
+///     AudioBuffer::try_with_data_and_settings(&input, AudioBufferSettings::with_num_channels(4))?;
 /// let mut output = vec![0.0; 2 * FRAME_SIZE]; // Stereo
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
-///     AudioBufferSettings::with_num_channels(2)
+///     AudioBufferSettings::with_num_channels(2),
 /// )?;
 ///
 /// let _ = effect.apply(&params, &input_buffer, &output_buffer);

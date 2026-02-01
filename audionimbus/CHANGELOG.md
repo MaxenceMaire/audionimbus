@@ -84,6 +84,11 @@
 - Methods `interleave`, `deinterleave`, `mix`, `downmix`, `convert_ambisonics_into` of `AudioBuffer` now return an `AudioBufferOperationError` when invariants are not satisfied.
 - Renamed `OpenClDeviceList::new` to `try_new` for consistency.
 - Renamed `AmbisonicsType::FUMA` variant to `AmbisonicsType::FuMa`.
+- Fields of `scene` and `probe_batch` of `ReflectionsBakeParams` have been removed following the introduction of `ReflectionsBaker`.
+- `SimulatorBuilder`, `Simulator` and `StaticMesh` are now generic over the ray tracer implementation.
+- `Simulator::builder` no longer takes `SceneParams` argument. The ray tracer information is now provided by the new `with_embree`, `with_radeon_rays` and `with_custom_ray_tracer` methods.
+- `BakedDataIdentifier` and `BakedDataVariation` are now part of the new `baking` module instead of `simulation`.
+- Bake operations now return a `BakeError` error if another bake operation is already in progress.
 
 ### Added
 
@@ -100,15 +105,23 @@
 - `SteamAudioError` implements `PartialEq`, `Copy` and `Clone`.
 - Add `ChannelRequirement` to specify the channel count requirement for an audio buffer.
 - Add `Rendering` enum to choose between decoding ambisonics using binaural rendering or panning.
-- `SceneParams` implements the `Default` trait.
 - Add `ProbeArrayError`, `ProbeBatchError`, `OpenClDeviceListError`, `EnergyFieldError`, `ReconstructorError`, `ImpulseResponseError`, `AudioBufferOperationError` errors.
 - `OpenClDeviceType` and `OpenClDeviceDescriptor` implement `PartialEq` trait.
+- Add `ReflectionsBaker` object to precompute reflections. It enforces the use of the correct scene type via generics. Its methods replace `bake_reflections` and `cancel_bake_reflections`.
+- Add `PathBaker` object to precompute pathing data. It enforces the use of the correct scene type via generics. Its methods replace `bake_path` and `cancel_bake_path`.
+- `Scene` now has different constructors depending on the ray tracer implementation: `try_new`, `load`, `load_with_progress` for the default ray tracer; `try_with_embree`, `load_embree`, `load_embree_with_progress` for Embree; `try_with_radeon_rays`, `load_radeon_rays`, `load_radeon_rays_with_progress` for Radeon Rays; `try_with_custom`, `load_custom`, `load_custom_with_progress` for custom ray tracer implementations.
+- Add `with_embree`, `with_radeon_rays` and `with_custom_ray_tracer` methods to `SimulatorBuilder` to construct a `Simulator` with other ray tracing implementations than the default.
+- Derive `Copy`, `Clone` for `PathBakeParams`.
 
 ### Removed
 
 - Removed the `From<&HrtfSettings>` trait implementation for `audionimbus_sys::IPLHRTFSettings` in favor of the new `to_ffi` method on `HrtfSettings`, which allows the optional filename variable to be kept alive for FFI calls.
 - Make the `null` methods of `EmbreeDevice`, `OpenClDevice`, `RadeonRaysDevice` and `TrueAudioNextDevice` only public to the crate.
 - Removed the `Default` trait implementation for `SimulationOutputs`.
+- Removed functions `bake_reflections` and `cancel_bake_reflections`. They are superseded by methods `bake` and `cancel_bake` of `ReflectionsBaker`.
+- Removed functions `bake_path` and `cancel_bake_path`. They are superseded by methods `bake` and `cancel_bake` of `PathBaker`.
+- Removed `SceneParams`.
+- Removed `SimulationSettings`.
 
 ## [0.11.0] - 2026-01-14
 

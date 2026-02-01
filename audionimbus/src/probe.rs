@@ -1,11 +1,11 @@
 //! Sound probe generation and storage.
 
+use crate::baking::BakedDataIdentifier;
 use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
-use crate::simulation::BakedDataIdentifier;
 
 /// An array of sound probes.
 ///
@@ -477,7 +477,7 @@ impl std::fmt::Display for ProbeBatchError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Material, Point, SceneSettings, StaticMesh, StaticMeshSettings, Triangle};
+    use crate::{Material, Point, StaticMesh, StaticMeshSettings, Triangle};
 
     mod probe_array {
         use super::*;
@@ -492,8 +492,7 @@ mod tests {
         #[test]
         fn test_generation_centroid() {
             let context = Context::default();
-            let scene_settings = SceneSettings::default();
-            let scene = Scene::try_new(&context, &scene_settings).expect("failed to create scene");
+            let scene = Scene::try_new(&context).expect("failed to create scene");
             let mut probe_array = ProbeArray::try_new(&context).unwrap();
 
             let transform = Matrix::new([
@@ -512,9 +511,7 @@ mod tests {
         #[test]
         fn test_generation_uniform_floor() {
             let context = Context::default();
-            let scene_settings = SceneSettings::default();
-            let mut scene =
-                Scene::try_new(&context, &scene_settings).expect("failed to create scene");
+            let mut scene = Scene::try_new(&context).expect("failed to create scene");
 
             // Add a floor mesh.
             let vertices = vec![
@@ -588,8 +585,7 @@ mod tests {
         #[test]
         fn test_add_array() {
             let context = Context::default();
-            let scene_settings = SceneSettings::default();
-            let scene = Scene::try_new(&context, &scene_settings).expect("failed to create scene");
+            let scene = Scene::try_new(&context).expect("failed to create scene");
 
             let mut probe_array = ProbeArray::try_new(&context).unwrap();
             let transform = Matrix::new([

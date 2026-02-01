@@ -24,7 +24,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let mut effect = AmbisonicsEncodeEffect::try_new(
 ///     &context,
 ///     &audio_settings,
-///     &AmbisonicsEncodeEffectSettings { max_order: 1 }
+///     &AmbisonicsEncodeEffectSettings { max_order: 1 },
 /// )?;
 ///
 /// let params = AmbisonicsEncodeEffectParams {
@@ -39,7 +39,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let mut output = vec![0.0; NUM_CHANNELS as usize * FRAME_SIZE];
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
-///     AudioBufferSettings::with_num_channels(NUM_CHANNELS)
+///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
 /// )?;
 ///
 /// let _ = effect.apply(&params, &input_buffer, &output_buffer);

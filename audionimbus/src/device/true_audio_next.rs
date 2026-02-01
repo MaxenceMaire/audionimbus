@@ -34,11 +34,6 @@ impl TrueAudioNextDevice {
         Ok(true_audio_next_device)
     }
 
-    /// Creates a null TrueAudio Next device.
-    pub(crate) fn null() -> Self {
-        Self(std::ptr::null_mut())
-    }
-
     /// Returns the raw FFI pointer to the underlying TrueAudio Next device.
     ///
     /// This is intended for internal use and advanced scenarios.

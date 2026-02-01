@@ -1,26 +1,31 @@
 use super::{Material, Point, Scene, Triangle};
 use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::error::{to_option_error, SteamAudioError};
+use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;
-
-#[cfg(doc)]
-use crate::SceneSettings;
+use std::marker::PhantomData;
 
 /// A triangle mesh that doesn’t move or deform in any way.
 ///
 /// The unchanging portions of a scene should typically be collected into a single static mesh object.
 /// In addition to the geometry, a static mesh also contains acoustic material information for each triangle.
+///
+/// [`StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
+/// belongs to.
 #[derive(Debug)]
-pub struct StaticMesh(audionimbus_sys::IPLStaticMesh);
+pub struct StaticMesh<T> {
+    inner: audionimbus_sys::IPLStaticMesh,
+    _marker: PhantomData<T>,
+}
 
-impl StaticMesh {
+impl<T: RayTracer> StaticMesh<T> {
     /// Creates a new static mesh.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(scene: &Scene, settings: &StaticMeshSettings) -> Result<Self, SteamAudioError> {
-        let mut static_mesh = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let mut vertices: Vec<audionimbus_sys::IPLVector3> = settings
             .vertices
@@ -60,7 +65,7 @@ impl StaticMesh {
             audionimbus_sys::iplStaticMeshCreate(
                 scene.raw_ptr(),
                 &mut static_mesh_settings_ffi,
-                static_mesh.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
@@ -68,32 +73,12 @@ impl StaticMesh {
             return Err(error);
         }
 
+        let static_mesh = Self {
+            inner,
+            _marker: PhantomData,
+        };
+
         Ok(static_mesh)
-    }
-
-    /// Returns the raw FFI pointer to the underlying static mesh.
-    ///
-    /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
-        self.0
-    }
-
-    /// Returns a mutable reference to the raw FFI pointer.
-    ///
-    /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLStaticMesh {
-        &mut self.0
-    }
-
-    /// Saves a static mesh to a serialized object.
-    ///
-    /// Typically, the serialized object will then be saved to disk.
-    ///
-    /// This function can only be called on a static mesh that is part of a scene created with [`SceneSettings::Default`].
-    pub fn save(&self, serialized_object: &mut SerializedObject) {
-        unsafe {
-            audionimbus_sys::iplStaticMeshSave(self.raw_ptr(), serialized_object.raw_ptr());
-        }
     }
 
     /// Loads a static mesh from a serialized object.
@@ -139,7 +124,7 @@ impl StaticMesh {
             (None, std::ptr::null_mut())
         };
 
-        let mut static_mesh = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let status = unsafe {
             audionimbus_sys::iplStaticMeshLoad(
@@ -147,7 +132,7 @@ impl StaticMesh {
                 serialized_object.raw_ptr(),
                 progress_callback,
                 progress_callback_user_data,
-                static_mesh.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
@@ -155,27 +140,63 @@ impl StaticMesh {
             return Err(error);
         }
 
+        let static_mesh = Self {
+            inner,
+            _marker: PhantomData,
+        };
+
         Ok(static_mesh)
     }
+
+    /// Returns the raw FFI pointer to the underlying static mesh.
+    ///
+    /// This is intended for internal use and advanced scenarios.
+    pub fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
+        self.inner
+    }
+
+    /// Returns a mutable reference to the raw FFI pointer.
+    ///
+    /// This is intended for internal use and advanced scenarios.
+    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLStaticMesh {
+        &mut self.inner
+    }
 }
 
-impl Clone for StaticMesh {
+impl StaticMesh<DefaultRayTracer> {
+    /// Saves a static mesh to a serialized object.
+    ///
+    /// Typically, the serialized object will then be saved to disk.
+    ///
+    /// This function can only be called on a static mesh that is part of a scene created with the [`DefaultRayTracer`] ray tracer.
+    pub fn save(&self, serialized_object: &mut SerializedObject) {
+        unsafe {
+            audionimbus_sys::iplStaticMeshSave(self.raw_ptr(), serialized_object.raw_ptr());
+        }
+    }
+}
+
+impl<T: RayTracer> Clone for StaticMesh<T> {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplStaticMeshRetain(self.0);
+            audionimbus_sys::iplStaticMeshRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            _marker: PhantomData,
+        }
     }
 }
 
-impl Drop for StaticMesh {
+impl<T> Drop for StaticMesh<T> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplStaticMeshRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplStaticMeshRelease(&mut self.inner) }
     }
 }
 
-unsafe impl Send for StaticMesh {}
-unsafe impl Sync for StaticMesh {}
+unsafe impl<T: RayTracer> Send for StaticMesh<T> {}
+unsafe impl<T: RayTracer> Sync for StaticMesh<T> {}
 
 /// Settings used to create a static mesh.
 #[derive(Default, Debug)]
