@@ -214,12 +214,11 @@ fn test_pathing() {
     const FRAME_SIZE: u32 = 1024;
     const MAX_ORDER: u32 = 1;
 
-    let mut simulator = Simulator::builder(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+    let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
-        })
-        .try_build(&context)
-        .unwrap();
+        });
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let mut scene = Scene::try_new(&context).unwrap();
     let vertices = vec![
