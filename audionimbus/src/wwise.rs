@@ -1,5 +1,6 @@
 use crate::context::Context;
 use crate::hrtf::Hrtf;
+use crate::ray_tracing::RayTracer;
 use crate::simulation::{SimulationSettings, Source};
 
 #[derive(Debug, Copy, Clone)]
@@ -35,12 +36,8 @@ pub fn terminate() {
 /// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
 ///
 /// This function must be called once during initialization, after [`initialize`].
-pub fn set_simulation_settings(simulation_settings: SimulationSettings) {
-    unsafe {
-        audionimbus_sys::wwise::iplWwiseSetSimulationSettings(
-            audionimbus_sys::IPLSimulationSettings::from(simulation_settings),
-        )
-    }
+pub fn set_simulation_settings<T: RayTracer>(simulation_settings: SimulationSettings<T>) {
+    unsafe { audionimbus_sys::wwise::iplWwiseSetSimulationSettings(simulation_settings.to_ffi()) }
 }
 
 /// Specifies the HRTF to use for spatialization in subsequent audio frames.
