@@ -47,8 +47,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     .with_pathing(PathingSimulationSettings {
 ///         num_visibility_samples: 4,
 ///     });
-/// let mut simulator = Simulator
-///     ::try_new(&context, &simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
 /// let mut scene = Scene::try_new(&context)?;
 /// let vertices = vec![

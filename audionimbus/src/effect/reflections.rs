@@ -182,8 +182,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_num_sources: 8,
 ///         num_threads: 2,
 ///     });
-/// let mut simulator = Simulator
-///     ::try_new(&context, &simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
@@ -272,8 +271,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_num_sources: 8,
 ///         num_threads: 2,
 ///     });
-/// let mut simulator = Simulator
-///     ::try_new(&context, &simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
