@@ -197,7 +197,7 @@ pub fn test_baking() {
     let frame_size = 1024;
     let max_order = 1;
 
-    let mut simulator = Simulator::builder(sampling_rate, frame_size, max_order)
+    let simulation_settings = SimulationSettings::new(sampling_rate, frame_size, max_order)
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
@@ -210,9 +210,8 @@ pub fn test_baking() {
         })
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
-        })
-        .try_build(&context)
-        .unwrap();
+        });
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let scene = Scene::try_new(&context).unwrap();
     simulator.set_scene(&scene);
