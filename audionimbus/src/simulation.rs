@@ -105,7 +105,7 @@ pub struct Pathing;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
+pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSimulator,
 
     /// Number of probes after the last commit.
@@ -125,9 +125,10 @@ pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
+    _lifetime: PhantomData<&'a ()>,
 }
 
-impl<T: RayTracer, D, R, P> Simulator<T, D, R, P> {
+impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
     /// Creates a new [`Simulator`].
     ///
     /// # Errors
@@ -158,7 +159,7 @@ impl<T: RayTracer, D, R, P> Simulator<T, D, R, P> {
     /// ```
     pub fn try_new(
         context: &Context,
-        settings: &SimulationSettings<T, D, R, P>,
+        settings: &SimulationSettings<'a, T, D, R, P>,
     ) -> Result<Self, SteamAudioError> {
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
@@ -170,6 +171,7 @@ impl<T: RayTracer, D, R, P> Simulator<T, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _lifetime: PhantomData,
         };
 
         let status = unsafe {
@@ -299,7 +301,7 @@ impl<T: RayTracer, D, R, P> Simulator<T, D, R, P> {
     }
 }
 
-impl<T: RayTracer, R, P> Simulator<T, Direct, R, P> {
+impl<T: RayTracer, R, P> Simulator<'_, T, Direct, R, P> {
     /// Runs a direct simulation for all sources added to the simulator.
     /// This may include distance attenuation, air absorption, directivity, occlusion, and transmission.
     ///
@@ -311,7 +313,7 @@ impl<T: RayTracer, R, P> Simulator<T, Direct, R, P> {
     }
 }
 
-impl<T: RayTracer, D, P> Simulator<T, D, Reflections, P> {
+impl<T: RayTracer, D, P> Simulator<'_, T, D, Reflections, P> {
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
@@ -328,7 +330,7 @@ impl<T: RayTracer, D, P> Simulator<T, D, Reflections, P> {
     }
 }
 
-impl<T: RayTracer, D, R> Simulator<T, D, R, Pathing> {
+impl<T: RayTracer, D, R> Simulator<'_, T, D, R, Pathing> {
     /// Runs a pathing simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
@@ -345,7 +347,7 @@ impl<T: RayTracer, D, R> Simulator<T, D, R, Pathing> {
     }
 }
 
-impl<T: RayTracer, D, R, P> Clone for Simulator<T, D, R, P> {
+impl<T: RayTracer, D, R, P> Clone for Simulator<'_, T, D, R, P> {
     fn clone(&self) -> Self {
         unsafe {
             audionimbus_sys::iplSimulatorRetain(self.inner);
@@ -361,18 +363,19 @@ impl<T: RayTracer, D, R, P> Clone for Simulator<T, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
 
-impl<T: RayTracer, D, R, P> Drop for Simulator<T, D, R, P> {
+impl<T: RayTracer, D, R, P> Drop for Simulator<'_, T, D, R, P> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSimulatorRelease(&mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer, D, R, P> Send for Simulator<T, D, R, P> {}
-unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<T, D, R, P> {}
+unsafe impl<T: RayTracer, D, R, P> Send for Simulator<'_, T, D, R, P> {}
+unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<'_, T, D, R, P> {}
 
 /// Settings used to create a [`Simulator`].
 ///
@@ -397,15 +400,16 @@ unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<T, D, R, P> {}
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 #[derive(Debug)]
-pub struct SimulationSettings<T: RayTracer, D = (), R = (), P = ()> {
+pub struct SimulationSettings<'a, T: RayTracer, D = (), R = (), P = ()> {
     settings: audionimbus_sys::IPLSimulationSettings,
     _ray_tracer: PhantomData<T>,
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
+    _lifetime: PhantomData<&'a ()>,
 }
 
-impl SimulationSettings<DefaultRayTracer, (), (), ()> {
+impl<'a> SimulationSettings<'a, DefaultRayTracer, (), (), ()> {
     /// Creates new simulation settings with all simulations disabled by default.
     pub fn new(sampling_rate: u32, frame_size: u32, max_order: u32) -> Self {
         let settings = audionimbus_sys::IPLSimulationSettings {
@@ -435,13 +439,14 @@ impl SimulationSettings<DefaultRayTracer, (), (), ()> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
 
-impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
+impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
     /// Switches to the Embree ray tracer.
-    pub fn with_embree(self) -> SimulationSettings<Embree, (), (), ()> {
+    pub fn with_embree(self) -> SimulationSettings<'a, Embree, (), (), ()> {
         let Self { mut settings, .. } = self;
         settings.sceneType = Embree::scene_type();
 
@@ -451,6 +456,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 
@@ -462,9 +468,9 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
     /// - `radeon_rays_device`: The Radeon Rays device to use.
     pub fn with_radeon_rays(
         self,
-        open_cl_device: &OpenClDevice,
-        radeon_rays_device: &RadeonRaysDevice,
-    ) -> SimulationSettings<RadeonRays, (), (), ()> {
+        open_cl_device: &'a OpenClDevice,
+        radeon_rays_device: &'a RadeonRaysDevice,
+    ) -> SimulationSettings<'a, RadeonRays, (), (), ()> {
         let Self { mut settings, .. } = self;
         settings.sceneType = RadeonRays::scene_type();
         settings.openCLDevice = open_cl_device.raw_ptr();
@@ -476,6 +482,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 
@@ -487,7 +494,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
     pub fn with_custom_ray_tracer(
         self,
         ray_batch_size: u32,
-    ) -> SimulationSettings<CustomRayTracer, (), (), ()> {
+    ) -> SimulationSettings<'a, CustomRayTracer, (), (), ()> {
         let Self { mut settings, .. } = self;
         settings.sceneType = CustomRayTracer::scene_type();
         settings.rayBatchSize = ray_batch_size as i32;
@@ -498,21 +505,23 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
 
-impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
+impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     /// Enables direct simulation.
     pub fn with_direct(
         self,
         direct_settings: DirectSimulationSettings,
-    ) -> SimulationSettings<T, Direct, R, P> {
+    ) -> SimulationSettings<'a, T, Direct, R, P> {
         let Self {
             mut settings,
             _ray_tracer,
             _reflections,
             _pathing,
+            _lifetime,
             ..
         } = self;
 
@@ -525,6 +534,7 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _direct: PhantomData,
             _reflections,
             _pathing,
+            _lifetime,
         }
     }
 
@@ -532,12 +542,13 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
     pub fn with_reflections(
         self,
         reflections_settings: ReflectionsSimulationSettings<'static>,
-    ) -> SimulationSettings<T, D, Reflections, P> {
+    ) -> SimulationSettings<'a, T, D, Reflections, P> {
         let Self {
             mut settings,
             _ray_tracer,
             _direct,
             _pathing,
+            _lifetime,
             ..
         } = self;
 
@@ -629,6 +640,7 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _direct,
             _reflections: PhantomData,
             _pathing,
+            _lifetime,
         }
     }
 
@@ -636,12 +648,13 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
     pub fn with_pathing(
         self,
         pathing_settings: PathingSimulationSettings,
-    ) -> SimulationSettings<T, D, R, Pathing> {
+    ) -> SimulationSettings<'a, T, D, R, Pathing> {
         let Self {
             mut settings,
             _ray_tracer,
             _direct,
             _reflections,
+            _lifetime,
             ..
         } = self;
 
@@ -654,6 +667,7 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _direct,
             _reflections,
             _pathing: PhantomData,
+            _lifetime,
         }
     }
 

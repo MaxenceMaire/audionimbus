@@ -20,7 +20,7 @@ pub fn terminate() {
 /// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
 ///
 /// This function must be called once during initialization, after [`initialize`].
-pub fn set_simulation_settings<T: RayTracer>(simulation_settings: SimulationSettings<T>) {
+pub fn set_simulation_settings<T: RayTracer>(simulation_settings: &SimulationSettings<'static, T>) {
     unsafe { audionimbus_sys::fmod::iplFMODSetSimulationSettings(simulation_settings.to_ffi()) }
 }
 
