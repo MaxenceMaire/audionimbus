@@ -1,3 +1,5 @@
+use std::string::ToString;
+
 #[cfg(feature = "auto-install")]
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -676,7 +678,7 @@ fn version() -> Version {
 fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> TemporaryFileGuard {
     let packed_version = (version.major << 16) | (version.minor << 8) | version.patch;
     let version_header = format!(
-        r#"
+        r"
 #ifndef IPL_PHONON_VERSION_H
 #define IPL_PHONON_VERSION_H
 
@@ -686,7 +688,7 @@ fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> Tem
 #define {prefix}_VERSION       {packed_version}
 
 #endif
-"#,
+",
         version.major, version.minor, version.patch,
     );
     std::fs::write(path, version_header).unwrap();
@@ -743,5 +745,5 @@ fn system_flags() -> Vec<String> {
         flags.push("-DIPL_CPU_ARMV7");
     }
 
-    flags.into_iter().map(|s| s.to_string()).collect()
+    flags.into_iter().map(ToString::to_string).collect()
 }
