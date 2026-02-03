@@ -5,9 +5,7 @@ use common::sine_wave;
 
 #[test]
 fn test_simulation() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let audio_settings = AudioSettings::default();
 
     let sampling_rate = 48000;
@@ -249,9 +247,7 @@ fn test_pathing_without_probes() {
 
 #[test]
 fn test_reflections_without_scene() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let sampling_rate = 48000;
     let frame_size = 1024;
     let max_order = 1;

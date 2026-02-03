@@ -364,8 +364,7 @@ mod tests {
             let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
             let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
-            let context_settings = ContextSettings::default();
-            let context = Context::try_new(&context_settings).unwrap();
+            let context = Context::default();
 
             let audio_settings = AudioSettings {
                 frame_size: input_buffer.num_samples(),
@@ -406,8 +405,7 @@ mod tests {
             let mut output_container = vec![0.0; FRAME_SIZE];
             let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
-            let context_settings = ContextSettings::default();
-            let context = Context::try_new(&context_settings).unwrap();
+            let context = Context::default();
 
             let audio_settings = AudioSettings {
                 frame_size: FRAME_SIZE as u32,
@@ -452,8 +450,7 @@ mod tests {
             )
             .unwrap();
 
-            let context_settings = ContextSettings::default();
-            let context = Context::try_new(&context_settings).unwrap();
+            let context = Context::default();
 
             let audio_settings = AudioSettings {
                 frame_size: FRAME_SIZE as u32,
@@ -495,8 +492,7 @@ mod tests {
             let mut output_container = vec![0.0; FRAME_SIZE];
             let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
-            let context_settings = ContextSettings::default();
-            let context = Context::try_new(&context_settings).unwrap();
+            let context = Context::default();
 
             let audio_settings = AudioSettings::default();
             let direct_effect_settings = DirectEffectSettings { num_channels: 1 };
@@ -518,8 +514,7 @@ mod tests {
             )
             .unwrap();
 
-            let context_settings = ContextSettings::default();
-            let context = Context::try_new(&context_settings).unwrap();
+            let context = Context::default();
 
             let audio_settings = AudioSettings::default();
             let direct_effect_settings = DirectEffectSettings { num_channels: 1 };

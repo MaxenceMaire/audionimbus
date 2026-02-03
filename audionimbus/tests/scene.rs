@@ -2,9 +2,7 @@ use audionimbus::*;
 
 #[test]
 fn test_static_mesh() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let mut scene = Scene::try_new(&context).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
@@ -45,9 +43,7 @@ fn test_static_mesh() {
 
 #[test]
 fn test_instanced_mesh() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let mut main_scene = Scene::try_new(&context).unwrap();
     let mut sub_scene = Scene::try_new(&context).unwrap();
 
@@ -112,9 +108,7 @@ fn test_instanced_mesh() {
 
 #[test]
 fn test_scene_serialization() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let scene = Scene::try_new(&context).unwrap();
 
     // Four vertices of a unit square in the x-y plane.
@@ -159,9 +153,7 @@ fn test_scene_serialization() {
 
 #[test]
 fn test_probe_generation() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let scene = Scene::try_new(&context).unwrap();
 
     // This specifies a 100x100x100 axis-aligned box.
@@ -189,9 +181,7 @@ fn test_probe_generation() {
 
 #[test]
 pub fn test_baking() {
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
-
+    let context = Context::default();
     let sampling_rate = 48000;
     let frame_size = 1024;
     let max_order = 1;

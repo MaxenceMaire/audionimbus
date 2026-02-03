@@ -1002,8 +1002,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1081,8 +1080,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1172,8 +1170,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1262,8 +1259,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1353,8 +1349,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1452,8 +1447,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1549,8 +1543,7 @@ mod tests {
                 const FRAME_SIZE: u32 = 1024;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1582,8 +1575,7 @@ mod tests {
                 const FRAME_SIZE: u32 = 1024;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1621,8 +1613,7 @@ mod tests {
                 const FRAME_SIZE: u32 = 1024;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1663,8 +1654,7 @@ mod tests {
                 const FRAME_SIZE: u32 = 1024;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1714,8 +1704,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1790,8 +1779,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1870,8 +1858,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -1946,8 +1933,7 @@ mod tests {
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
                 const MAX_ORDER: u32 = 1;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 
@@ -2021,8 +2007,7 @@ mod tests {
                 const SAMPLING_RATE: u32 = 48000;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 
-                let context_settings = ContextSettings::default();
-                let context = Context::try_new(&context_settings).unwrap();
+                let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
 

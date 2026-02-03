@@ -20,8 +20,7 @@ fn test_binaural_effect() {
     )
     .unwrap();
 
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
+    let context = Context::default();
 
     let audio_settings = AudioSettings {
         frame_size,
@@ -66,8 +65,7 @@ fn test_ambisonics_encode_effect() {
     let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
     let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
+    let context = Context::default();
 
     let audio_settings = AudioSettings {
         frame_size,
@@ -116,8 +114,7 @@ fn test_ambisonics_decode_effect() {
     )
     .unwrap();
 
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
+    let context = Context::default();
 
     let audio_settings = AudioSettings {
         frame_size,
@@ -176,8 +173,7 @@ fn test_direct_effect() {
     )
     .unwrap();
 
-    let context_settings = ContextSettings::default();
-    let context = Context::try_new(&context_settings).unwrap();
+    let context = Context::default();
 
     let audio_settings = AudioSettings {
         frame_size,
