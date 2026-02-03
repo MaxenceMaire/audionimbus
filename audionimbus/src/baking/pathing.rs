@@ -34,7 +34,7 @@ pub struct PathBaker<T: RayTracer> {
 
 impl<T: RayTracer> PathBaker<T> {
     /// Creates a new [`PathBaker`].
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             _marker: PhantomData,
         }
@@ -96,31 +96,32 @@ impl<T: RayTracer> PathBaker<T> {
         params: PathBakeParams,
         progress_callback: Option<CallbackInformation<ProgressCallback>>,
     ) -> Result<(), BakeError> {
-        let _guard = BAKE_LOCK
-            .try_lock()
-            .map_err(|_| BakeError::BakeInProgress)?;
-
         // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplPathBakerBake`.
         // We pass a no-op callback instead until the fix is released.
         // See: https://github.com/ValveSoftware/steam-audio/issues/523
         // TODO: Remove this workaround when fix is released.
-        unsafe extern "C" fn noop_progress_callback(
+        const unsafe extern "C" fn noop_progress_callback(
             _progress: f32,
             _user_data: *mut std::ffi::c_void,
         ) {
         }
 
-        let (callback, user_data) = if let Some(callback_information) = progress_callback {
-            (
-                callback_information.callback,
-                callback_information.user_data,
-            )
-        } else {
+        let _guard = BAKE_LOCK
+            .try_lock()
+            .map_err(|_| BakeError::BakeInProgress)?;
+
+        let (callback, user_data) = progress_callback.map_or(
             (
                 noop_progress_callback as ProgressCallback,
                 std::ptr::null_mut(),
-            )
-        };
+            ),
+            |callback_information| {
+                (
+                    callback_information.callback,
+                    callback_information.user_data,
+                )
+            },
+        );
 
         let mut ffi_params = audionimbus_sys::IPLPathBakeParams {
             scene: scene.raw_ptr(),
@@ -137,7 +138,7 @@ impl<T: RayTracer> PathBaker<T> {
         unsafe {
             audionimbus_sys::iplPathBakerBake(
                 context.raw_ptr(),
-                &mut ffi_params,
+                &raw mut ffi_params,
                 Some(callback),
                 user_data,
             );
