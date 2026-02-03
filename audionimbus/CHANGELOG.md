@@ -115,6 +115,7 @@
 - Derive `Copy`, `Clone` for `PathBakeParams`.
 - Add a `prelude` module to re-export commonly used types and traits.
 - Add `SimulationSettings`, which replaces `SimulatorBuilder`. `Simulator` is now created using `Simulator::try_new` instead of `SimulatorBuilder::build`.
+- Add builder-pattern constructors for `SimulationInputs`, `DirectSimulationParameters`, and `Occlusion` with `new()` and `with_*()`.
 
 ### Removed
 

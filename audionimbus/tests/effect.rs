@@ -286,23 +286,24 @@ fn test_pathing() {
         flags: SimulationFlags::PATHING,
     };
     let mut source = Source::try_new(&simulator, &source_settings).unwrap();
-    let simulation_inputs = SimulationInputs {
-        source: CoordinateSystem::default(),
-        direct_simulation: Some(DirectSimulationParameters {
-            distance_attenuation: Some(DistanceAttenuationModel::default()),
-            air_absorption: Some(AirAbsorptionModel::default()),
-            directivity: Some(Directivity::default()),
-            occlusion: Some(Occlusion {
-                transmission: Some(TransmissionParameters {
-                    num_transmission_rays: 1,
-                }),
-                algorithm: OcclusionAlgorithm::Raycast,
-            }),
-        }),
-        reflections_simulation: Some(ReflectionsSimulationParameters::Convolution {
+    let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
+        .with_direct(
+            DirectSimulationParameters::new()
+                .with_distance_attenuation(DistanceAttenuationModel::default())
+                .with_air_absorption(AirAbsorptionModel::default())
+                .with_directivity(Directivity::default())
+                .with_occlusion(
+                    Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
+                        TransmissionParameters {
+                            num_transmission_rays: 1,
+                        },
+                    ),
+                ),
+        )
+        .with_reflections(ReflectionsSimulationParameters::Convolution {
             baked_data_identifier: None,
-        }),
-        pathing_simulation: Some(PathingSimulationParameters {
+        })
+        .with_pathing(PathingSimulationParameters {
             pathing_probes: &probe_batch,
             visibility_radius: 1.0,
             visibility_threshold: 10.0,
@@ -311,8 +312,7 @@ fn test_pathing() {
             enable_validation: true,
             find_alternate_paths: true,
             deviation: DeviationModel::default(),
-        }),
-    };
+        });
     source.set_inputs(SimulationFlags::PATHING, simulation_inputs);
     simulator.add_source(&source);
 

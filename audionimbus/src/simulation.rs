@@ -72,17 +72,9 @@ pub struct Pathing;
 /// simulator.add_source(&source);
 ///
 /// // Configure simulation parameters.
-/// let simulation_inputs = SimulationInputs {
-///     source: CoordinateSystem::default(),
-///     direct_simulation: Some(DirectSimulationParameters {
-///         distance_attenuation: Some(DistanceAttenuationModel::default()),
-///         air_absorption: None,
-///         directivity: None,
-///         occlusion: None,
-///     }),
-///     reflections_simulation: None,
-///     pathing_simulation: None,
-/// };
+/// let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
+///     .with_direct(DirectSimulationParameters::new()
+///         .with_distance_attenuation(DistanceAttenuationModel::default()));
 /// source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
 ///
 /// // Set shared parameters.
@@ -976,8 +968,38 @@ pub struct SimulationInputs<'a> {
     pub pathing_simulation: Option<PathingSimulationParameters<'a>>,
 }
 
+impl<'a> SimulationInputs<'a> {
+    /// Crates new [`SimulationInputs`] with all simulations disabled by default.
+    pub fn new(source: CoordinateSystem) -> Self {
+        Self {
+            source,
+            direct_simulation: None,
+            reflections_simulation: None,
+            pathing_simulation: None,
+        }
+    }
+
+    /// Enables direct simulation with the specified parameters.
+    pub fn with_direct(mut self, params: DirectSimulationParameters) -> Self {
+        self.direct_simulation = Some(params);
+        self
+    }
+
+    /// Enables reflections simulation with the specified parameters.
+    pub fn with_reflections(mut self, params: ReflectionsSimulationParameters) -> Self {
+        self.reflections_simulation = Some(params);
+        self
+    }
+
+    /// Enables pathing simulation with the specified parameters.
+    pub fn with_pathing(mut self, params: PathingSimulationParameters<'a>) -> Self {
+        self.pathing_simulation = Some(params);
+        self
+    }
+}
+
 /// Direct simulation parameters for a source.
-#[derive(Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct DirectSimulationParameters {
     /// If `Some`, enables distance attenuation calculations with the specified model.
     pub distance_attenuation: Option<DistanceAttenuationModel>,
@@ -992,6 +1014,42 @@ pub struct DirectSimulationParameters {
     pub occlusion: Option<Occlusion>,
 }
 
+impl DirectSimulationParameters {
+    /// Creates new [`DirectSimulationParameters`] with all calculations disabled by default.
+    pub fn new() -> Self {
+        Self {
+            distance_attenuation: None,
+            air_absorption: None,
+            directivity: None,
+            occlusion: None,
+        }
+    }
+
+    /// Enables distance attenuation with the specified model.
+    pub fn with_distance_attenuation(mut self, model: DistanceAttenuationModel) -> Self {
+        self.distance_attenuation = Some(model);
+        self
+    }
+
+    /// Enables air absorption with the specified model.
+    pub fn with_air_absorption(mut self, model: AirAbsorptionModel) -> Self {
+        self.air_absorption = Some(model);
+        self
+    }
+
+    /// Enables directivity with the specified pattern.
+    pub fn with_directivity(mut self, directivity: Directivity) -> Self {
+        self.directivity = Some(directivity);
+        self
+    }
+
+    /// Enables occlusion with the specified parameters.
+    pub fn with_occlusion(mut self, occlusion: Occlusion) -> Self {
+        self.occlusion = Some(occlusion);
+        self
+    }
+}
+
 /// Occlusion parameters.
 #[derive(Debug, Copy, Clone)]
 pub struct Occlusion {
@@ -1000,6 +1058,22 @@ pub struct Occlusion {
 
     /// The occlusion algorithm to use.
     pub algorithm: OcclusionAlgorithm,
+}
+
+impl Occlusion {
+    /// Creates a new [`Occlusion`] with transmission simulation disabled by default.
+    pub fn new(algorithm: OcclusionAlgorithm) -> Self {
+        Self {
+            transmission: None,
+            algorithm,
+        }
+    }
+
+    /// Enables transmission simulation with the specified parameters.
+    pub fn with_transmission(mut self, params: TransmissionParameters) -> Self {
+        self.transmission = Some(params);
+        self
+    }
 }
 
 /// Transmission parameters.
