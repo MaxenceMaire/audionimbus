@@ -289,14 +289,14 @@ impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
     /// Returns the raw FFI pointer to the underlying simulator.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLSimulator {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSimulator {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSimulator {
         &mut self.inner
     }
 }
@@ -317,6 +317,14 @@ impl<T: RayTracer, D, P> Simulator<'_, T, D, Reflections, P> {
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimulationError::ReflectionsWithoutScene`] if no scene was set.
+    ///
+    /// Reflection simulation requires a [`Scene`] to be set on the simulator via
+    /// [`Simulator::set_scene`] and committed via [`Simulator::commit`] before
+    /// running simulations.
     pub fn run_reflections(&self) -> Result<(), SimulationError> {
         if !self.has_committed_scene {
             return Err(SimulationError::ReflectionsWithoutScene);
@@ -334,6 +342,14 @@ impl<T: RayTracer, D, R> Simulator<'_, T, D, R, Pathing> {
     /// Runs a pathing simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError::PathingWithoutProbes`] if no probes were committed.
+    ///
+    /// Pathing requires at least one probe batch to be added to the simulator
+    /// via [`Simulator::add_probe_batch`] and committed via [`Simulator::commit`] before running
+    /// simulations.
     pub fn run_pathing(&self) -> Result<(), SimulationError> {
         if self.committed_num_probes == 0 {
             return Err(SimulationError::PathingWithoutProbes);
@@ -370,7 +386,7 @@ impl<T: RayTracer, D, R, P> Clone for Simulator<'_, T, D, R, P> {
 
 impl<T: RayTracer, D, R, P> Drop for Simulator<'_, T, D, R, P> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSimulatorRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplSimulatorRelease(&raw mut self.inner) }
     }
 }
 
@@ -409,9 +425,9 @@ pub struct SimulationSettings<'a, T: RayTracer, D = (), R = (), P = ()> {
     _lifetime: PhantomData<&'a ()>,
 }
 
-impl<'a> SimulationSettings<'a, DefaultRayTracer, (), (), ()> {
+impl SimulationSettings<'_, DefaultRayTracer, (), (), ()> {
     /// Creates new simulation settings with all simulations disabled by default.
-    pub fn new(sampling_rate: u32, frame_size: u32, max_order: u32) -> Self {
+    pub const fn new(sampling_rate: u32, frame_size: u32, max_order: u32) -> Self {
         let settings = audionimbus_sys::IPLSimulationSettings {
             flags: audionimbus_sys::IPLSimulationFlags(0),
             sceneType: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
@@ -672,7 +688,7 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     }
 
     /// Converts the settings to the FFI representation.
-    pub fn to_ffi(&self) -> audionimbus_sys::IPLSimulationSettings {
+    pub const fn to_ffi(&self) -> audionimbus_sys::IPLSimulationSettings {
         self.settings
     }
 }
@@ -899,14 +915,14 @@ impl Source {
     /// Returns the raw FFI pointer to the underlying source.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSource {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLSource {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSource {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSource {
         &mut self.0
     }
 }
@@ -922,7 +938,7 @@ impl Clone for Source {
 
 impl Drop for Source {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSourceRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.0) }
     }
 }
 
@@ -1212,6 +1228,9 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
             ) = match reflections_simulation_parameters {
                 ReflectionsSimulationParameters::Convolution {
                     baked_data_identifier,
+                }
+                | ReflectionsSimulationParameters::TrueAudioNext {
+                    baked_data_identifier,
                 } => (
                     baked_data_identifier,
                     <[f32; 3]>::default(),
@@ -1238,27 +1257,17 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
                     hybrid_reverb_transition_time,
                     hybrid_reverb_overlap_percent,
                 ),
-                ReflectionsSimulationParameters::TrueAudioNext {
-                    baked_data_identifier,
-                } => (
-                    baked_data_identifier,
-                    <[f32; 3]>::default(),
-                    f32::default(),
-                    f32::default(),
-                ),
             };
 
-            let (baked, baked_data_identifier) =
-                if let Some(baked_data_identifier) = baked_data_identifier {
-                    (audionimbus_sys::IPLbool::IPL_TRUE, baked_data_identifier)
-                } else {
-                    (
-                        audionimbus_sys::IPLbool::IPL_FALSE,
-                        BakedDataIdentifier::Reflections {
-                            variation: BakedDataVariation::Reverb,
-                        },
-                    )
-                };
+            let (baked, baked_data_identifier) = baked_data_identifier.map_or(
+                (
+                    audionimbus_sys::IPLbool::IPL_FALSE,
+                    BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::Reverb,
+                    },
+                ),
+                |baked_data_identifier| (audionimbus_sys::IPLbool::IPL_TRUE, baked_data_identifier),
+            );
 
             (
                 baked,
@@ -1407,17 +1416,15 @@ pub struct SimulationSharedInputs {
 
 impl From<&SimulationSharedInputs> for audionimbus_sys::IPLSimulationSharedInputs {
     fn from(simulation_shared_inputs: &SimulationSharedInputs) -> Self {
-        let (pathing_visualization_callback, pathing_user_data) =
-            if let Some(callback_information) =
-                &simulation_shared_inputs.pathing_visualization_callback
-            {
+        let (pathing_visualization_callback, pathing_user_data) = simulation_shared_inputs
+            .pathing_visualization_callback
+            .as_ref()
+            .map_or((None, std::ptr::null_mut()), |callback_information| {
                 (
                     Some(callback_information.callback),
                     callback_information.user_data,
                 )
-            } else {
-                (None, std::ptr::null_mut())
-            };
+            });
 
         Self {
             listener: simulation_shared_inputs.listener.into(),
@@ -1459,7 +1466,7 @@ impl SimulationOutputs {
     fn try_allocate() -> Result<Self, SteamAudioError> {
         let ptr = unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
-            let ptr = std::alloc::alloc(layout) as *mut audionimbus_sys::IPLSimulationOutputs;
+            let ptr = std::alloc::alloc(layout).cast::<audionimbus_sys::IPLSimulationOutputs>();
             if ptr.is_null() {
                 return Err(SteamAudioError::OutOfMemory);
             }
@@ -1467,7 +1474,7 @@ impl SimulationOutputs {
             ptr
         };
 
-        Ok(SimulationOutputs(ptr))
+        Ok(Self(ptr))
     }
 
     pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
@@ -1484,11 +1491,11 @@ impl SimulationOutputs {
         unsafe { FFIWrapper::new((*self.0).pathing.into()) }
     }
 
-    pub fn raw_ptr(&self) -> *mut audionimbus_sys::IPLSimulationOutputs {
+    pub const fn raw_ptr(&self) -> *mut audionimbus_sys::IPLSimulationOutputs {
         self.0
     }
 
-    pub fn raw_ptr_mut(&mut self) -> &mut *mut audionimbus_sys::IPLSimulationOutputs {
+    pub const fn raw_ptr_mut(&mut self) -> &mut *mut audionimbus_sys::IPLSimulationOutputs {
         &mut self.0
     }
 }
@@ -1497,7 +1504,7 @@ impl Drop for SimulationOutputs {
     fn drop(&mut self) {
         unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
-            std::alloc::dealloc(self.0 as *mut u8, layout);
+            std::alloc::dealloc(self.0.cast::<u8>(), layout);
         }
     }
 }

@@ -67,7 +67,7 @@ pub fn version() -> FmodStudioIntegrationVersion {
     let mut patch: c_uint = 0;
 
     unsafe {
-        audionimbus_sys::fmod::iplFMODGetVersion(&mut major, &mut minor, &mut patch);
+        audionimbus_sys::fmod::iplFMODGetVersion(&raw mut major, &raw mut minor, &raw mut patch);
     }
 
     FmodStudioIntegrationVersion {

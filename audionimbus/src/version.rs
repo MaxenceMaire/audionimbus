@@ -15,7 +15,7 @@ pub struct SteamAudioVersion {
 
 impl From<SteamAudioVersion> for u32 {
     fn from(version: SteamAudioVersion) -> Self {
-        ((version.major << 16) + (version.minor << 8) + version.patch) as u32
+        ((version.major << 16) + (version.minor << 8) + version.patch) as Self
     }
 }
 
