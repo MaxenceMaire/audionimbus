@@ -43,6 +43,6 @@ mod tests {
 
         let version_u32: u32 = version.into();
 
-        assert_eq!(version_u32, 264192);
+        assert_eq!(version_u32, 264_192);
     }
 }
