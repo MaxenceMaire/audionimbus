@@ -28,7 +28,7 @@ pub enum SpeakerLayout {
 
 impl SpeakerLayout {
     /// Returns the name of this speaker layout.
-    fn name(&self) -> &'static str {
+    const fn name(&self) -> &'static str {
         match self {
             Self::Mono => "mono",
             Self::Stereo => "stereo",

@@ -129,9 +129,9 @@ impl AmbisonicsBinauralEffect {
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsBinauralEffectApply(
                 self.raw_ptr(),
-                &mut *ambisonics_binaural_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *ambisonics_binaural_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -163,7 +163,7 @@ impl AmbisonicsBinauralEffect {
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsBinauralEffectGetTail(
                 self.raw_ptr(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -186,14 +186,14 @@ impl AmbisonicsBinauralEffect {
     /// Returns the raw FFI pointer to the underlying ambisonics binaural effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsBinauralEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsBinauralEffect {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsBinauralEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsBinauralEffect {
         &mut self.0
     }
 }
@@ -209,7 +209,7 @@ impl Clone for AmbisonicsBinauralEffect {
 
 impl Drop for AmbisonicsBinauralEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplAmbisonicsBinauralEffectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplAmbisonicsBinauralEffectRelease(&raw mut self.0) }
     }
 }
 

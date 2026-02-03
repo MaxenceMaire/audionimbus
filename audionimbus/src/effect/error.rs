@@ -1,7 +1,7 @@
 use crate::ChannelRequirement;
 
 /// Errors that can occur when applying audio effects.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum EffectError {
     /// Input buffer has wrong number of channels.
     InvalidInputChannels {
@@ -24,15 +24,13 @@ impl std::fmt::Display for EffectError {
             Self::InvalidInputChannels { expected, actual } => {
                 write!(
                     f,
-                    "invalid number of input channels: expected {}, got {}",
-                    expected, actual
+                    "invalid number of input channels: expected {expected}, got {actual}",
                 )
             }
             Self::InvalidOutputChannels { expected, actual } => {
                 write!(
                     f,
-                    "invalid number of output channels: expected {}, got {}",
-                    expected, actual
+                    "invalid number of output channels: expected {expected}, got {actual}",
                 )
             }
         }

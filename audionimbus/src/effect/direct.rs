@@ -68,7 +68,7 @@ impl DirectEffect {
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLDirectEffectSettings::from(direct_effect_settings),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -124,9 +124,9 @@ impl DirectEffect {
         let state = unsafe {
             audionimbus_sys::iplDirectEffectApply(
                 self.raw_ptr(),
-                &mut *direct_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *direct_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -157,7 +157,10 @@ impl DirectEffect {
         }
 
         let state = unsafe {
-            audionimbus_sys::iplDirectEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
+            audionimbus_sys::iplDirectEffectGetTail(
+                self.raw_ptr(),
+                &raw mut *output_buffer.as_ffi(),
+            )
         }
         .into();
 
@@ -179,14 +182,14 @@ impl DirectEffect {
     /// Returns the raw FFI pointer to the underlying direct effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLDirectEffect {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLDirectEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLDirectEffect {
         &mut self.inner
     }
 }
@@ -206,7 +209,7 @@ impl Clone for DirectEffect {
 
 impl Drop for DirectEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplDirectEffectRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplDirectEffectRelease(&raw mut self.inner) }
     }
 }
 
@@ -281,7 +284,7 @@ impl DirectEffectParams {
             flags |= audionimbus_sys::IPLDirectEffectFlags::IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION;
         }
 
-        let default_air_absorption = Default::default();
+        let default_air_absorption = Equalizer::default();
         let air_absorption = self
             .air_absorption
             .as_ref()
@@ -317,7 +320,7 @@ impl DirectEffectParams {
         } else {
             (
                 audionimbus_sys::IPLTransmissionType::IPL_TRANSMISSIONTYPE_FREQINDEPENDENT,
-                &Default::default(),
+                &Equalizer::default(),
             )
         };
 

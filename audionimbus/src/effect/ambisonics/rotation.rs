@@ -77,7 +77,7 @@ impl AmbisonicsRotationEffect {
                 &mut audionimbus_sys::IPLAmbisonicsRotationEffectSettings::from(
                     ambisonics_rotation_effect_settings,
                 ),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -135,9 +135,9 @@ impl AmbisonicsRotationEffect {
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsRotationEffectApply(
                 self.raw_ptr(),
-                &mut *ambisonics_rotation_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *ambisonics_rotation_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -193,14 +193,14 @@ impl AmbisonicsRotationEffect {
     /// Returns the raw FFI pointer to the underlying ambisonics rotation effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsRotationEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsRotationEffect {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsRotationEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsRotationEffect {
         &mut self.inner
     }
 }
@@ -220,7 +220,7 @@ impl Clone for AmbisonicsRotationEffect {
 
 impl Drop for AmbisonicsRotationEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplAmbisonicsRotationEffectRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplAmbisonicsRotationEffectRelease(&raw mut self.inner) }
     }
 }
 

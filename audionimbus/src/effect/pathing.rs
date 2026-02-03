@@ -197,7 +197,7 @@ impl PathEffect {
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLPathEffectSettings::from(path_effect_settings),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -256,9 +256,9 @@ impl PathEffect {
         let state = unsafe {
             audionimbus_sys::iplPathEffectApply(
                 self.raw_ptr(),
-                &mut *path_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *path_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -289,7 +289,7 @@ impl PathEffect {
         }
 
         let state = unsafe {
-            audionimbus_sys::iplPathEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
+            audionimbus_sys::iplPathEffectGetTail(self.raw_ptr(), &raw mut *output_buffer.as_ffi())
         }
         .into();
 
@@ -311,14 +311,14 @@ impl PathEffect {
     /// Returns the raw FFI pointer to the underlying path effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLPathEffect {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPathEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPathEffect {
         &mut self.inner
     }
 }
@@ -338,7 +338,7 @@ impl Clone for PathEffect {
 
 impl Drop for PathEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplPathEffectRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplPathEffectRelease(&raw mut self.inner) }
     }
 }
 
@@ -438,7 +438,7 @@ pub struct ShCoeffs(pub *mut f32);
 unsafe impl Send for ShCoeffs {}
 
 impl ShCoeffs {
-    pub fn raw_ptr(&self) -> *mut f32 {
+    pub const fn raw_ptr(&self) -> *mut f32 {
         self.0
     }
 }
