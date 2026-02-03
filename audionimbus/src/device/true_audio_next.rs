@@ -39,14 +39,14 @@ impl TrueAudioNextDevice {
     /// Returns the raw FFI pointer to the underlying TrueAudio Next device.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLTrueAudioNextDevice {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLTrueAudioNextDevice {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLTrueAudioNextDevice {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLTrueAudioNextDevice {
         &mut self.0
     }
 }
@@ -68,7 +68,7 @@ impl Clone for TrueAudioNextDevice {
 
 impl Drop for TrueAudioNextDevice {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplTrueAudioNextDeviceRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplTrueAudioNextDeviceRelease(&raw mut self.0) }
     }
 }
 

@@ -95,8 +95,7 @@ fn test_instanced_mesh() {
         sub_scene: &sub_scene,
         transform,
     };
-
-    let mut instanced_mesh = InstancedMesh::try_new(&main_scene, instanced_mesh_settings).unwrap();
+    let mut instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
     main_scene.add_instanced_mesh(instanced_mesh.clone());
     main_scene.commit();
 

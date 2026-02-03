@@ -57,7 +57,7 @@ impl SerializedObject {
         buffer: &mut Vec<u8>,
     ) -> Result<Self, SteamAudioError> {
         let serialized_object_settings = audionimbus_sys::IPLSerializedObjectSettings {
-            data: buffer.as_mut_ptr() as *mut audionimbus_sys::IPLbyte,
+            data: buffer.as_mut_ptr().cast::<audionimbus_sys::IPLbyte>(),
             size: buffer.len(),
         };
 
@@ -78,7 +78,7 @@ impl SerializedObject {
         let status = unsafe {
             audionimbus_sys::iplSerializedObjectCreate(
                 context.raw_ptr(),
-                &mut serialized_object_settings,
+                &raw mut serialized_object_settings,
                 serialized_object.raw_ptr_mut(),
             )
         };
@@ -93,14 +93,14 @@ impl SerializedObject {
     /// Returns the raw FFI pointer to the underlying object.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSerializedObject {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSerializedObject {
         &mut self.0
     }
 
@@ -152,7 +152,7 @@ impl Clone for SerializedObject {
 
 impl Drop for SerializedObject {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSerializedObjectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplSerializedObjectRelease(&raw mut self.0) }
     }
 }
 

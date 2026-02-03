@@ -72,14 +72,14 @@ impl ProbeArray {
     /// Returns the raw FFI pointer to the underlying probe array.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLProbeArray {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeArray {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeArray {
         &mut self.0
     }
 }
@@ -95,7 +95,7 @@ impl Clone for ProbeArray {
 
 impl Drop for ProbeArray {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplProbeArrayRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplProbeArrayRelease(&raw mut self.0) }
     }
 }
 
@@ -103,7 +103,7 @@ unsafe impl Send for ProbeArray {}
 unsafe impl Sync for ProbeArray {}
 
 /// [`ProbeArray`] errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ProbeArrayError {
     /// Probe index is out of bounds.
     ProbeIndexOutOfBounds {
@@ -230,7 +230,7 @@ impl ProbeBatch {
     }
 
     /// Returns the number of committed probes in the probe batch.
-    pub fn committed_num_probes(&self) -> usize {
+    pub const fn committed_num_probes(&self) -> usize {
         self.committed_num_probes
     }
 
@@ -239,7 +239,7 @@ impl ProbeBatch {
         let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
 
         unsafe {
-            audionimbus_sys::iplProbeBatchGetDataSize(self.raw_ptr(), &mut ffi_identifier as *mut _)
+            audionimbus_sys::iplProbeBatchGetDataSize(self.raw_ptr(), &raw mut ffi_identifier)
                 as usize
         }
     }
@@ -248,7 +248,7 @@ impl ProbeBatch {
         let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
 
         unsafe {
-            audionimbus_sys::iplProbeBatchRemoveData(self.raw_ptr(), &mut ffi_identifier as *mut _)
+            audionimbus_sys::iplProbeBatchRemoveData(self.raw_ptr(), &raw mut ffi_identifier);
         }
     }
 
@@ -321,7 +321,7 @@ impl ProbeBatch {
         unsafe {
             audionimbus_sys::iplProbeBatchGetReverb(
                 self.raw_ptr(),
-                &mut ffi_identifier as *mut _,
+                &raw mut ffi_identifier,
                 probe_index as i32,
                 reverb_times.as_mut_ptr(),
             );
@@ -354,7 +354,7 @@ impl ProbeBatch {
         unsafe {
             audionimbus_sys::iplProbeBatchGetEnergyField(
                 self.raw_ptr(),
-                &mut ffi_identifier as *mut _,
+                &raw mut ffi_identifier,
                 probe_index as i32,
                 energy_field.raw_ptr(),
             );
@@ -364,6 +364,7 @@ impl ProbeBatch {
     }
 
     /// Commits all changes made to a probe batch since this function was last called (or since the probe batch was first created, if this function was never called).
+    ///
     /// This function must be called after adding, removing, or updating any probes in the batch, for the changes to take effect.
     pub fn commit(&mut self) {
         unsafe { audionimbus_sys::iplProbeBatchCommit(self.raw_ptr()) }
@@ -374,6 +375,7 @@ impl ProbeBatch {
     }
 
     /// Saves a probe batch to a serialized object.
+    ///
     /// Typically, the serialized object will then be saved to disk.
     pub fn save(&self, serialized_object: &mut SerializedObject) {
         unsafe {
@@ -382,7 +384,12 @@ impl ProbeBatch {
     }
 
     /// Loads a probe batch from a serialized object.
+    ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load(
         context: &Context,
         serialized_object: &mut SerializedObject,
@@ -413,14 +420,14 @@ impl ProbeBatch {
     /// Returns the raw FFI pointer to the underlying probe batch.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLProbeBatch {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeBatch {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLProbeBatch {
         &mut self.inner
     }
 }
@@ -441,7 +448,7 @@ impl Clone for ProbeBatch {
 
 impl Drop for ProbeBatch {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplProbeBatchRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplProbeBatchRelease(&raw mut self.inner) }
     }
 }
 
@@ -449,7 +456,7 @@ unsafe impl Send for ProbeBatch {}
 unsafe impl Sync for ProbeBatch {}
 
 /// [`ProbeBatch`] errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ProbeBatchError {
     /// Probe index is out of bounds.
     ProbeIndexOutOfBounds {

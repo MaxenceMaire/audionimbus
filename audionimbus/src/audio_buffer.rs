@@ -121,7 +121,7 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
     }
 
     /// Returns the number of samples per channel in the audio buffer.
-    pub fn num_samples(&self) -> u32 {
+    pub const fn num_samples(&self) -> u32 {
         self.num_samples
     }
 
@@ -149,7 +149,7 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         unsafe {
             audionimbus_sys::iplAudioBufferInterleave(
                 context.raw_ptr(),
-                &mut *audio_buffer_ffi,
+                &raw mut *audio_buffer_ffi,
                 dst.as_mut_ptr(),
             );
         }
@@ -181,9 +181,9 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         unsafe {
             audionimbus_sys::iplAudioBufferDeinterleave(
                 context.raw_ptr(),
-                src.as_ptr() as *mut Sample,
-                &mut *audio_buffer_ffi,
-            )
+                src.as_ptr().cast_mut(),
+                &raw mut *audio_buffer_ffi,
+            );
         };
 
         Ok(())
@@ -224,8 +224,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         unsafe {
             audionimbus_sys::iplAudioBufferMix(
                 context.raw_ptr(),
-                &mut *source.as_ffi(),
-                &mut *self.as_ffi(),
+                &raw mut *source.as_ffi(),
+                &raw mut *self.as_ffi(),
             );
         }
 
@@ -259,8 +259,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         unsafe {
             audionimbus_sys::iplAudioBufferDownmix(
                 context.raw_ptr(),
-                &mut *source.as_ffi(),
-                &mut *self.as_ffi(),
+                &raw mut *source.as_ffi(),
+                &raw mut *self.as_ffi(),
             );
         }
 
@@ -296,9 +296,9 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
                 context.raw_ptr(),
                 in_type.into(),
                 out_type.into(),
-                &mut *self.as_ffi(),
-                &mut *self.as_ffi(),
-            )
+                &raw mut *self.as_ffi(),
+                &raw mut *self.as_ffi(),
+            );
         }
     }
 
@@ -332,9 +332,9 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
                 context.raw_ptr(),
                 in_type.into(),
                 out_type.into(),
-                &mut *self.as_ffi(),
-                &mut *out.as_ffi(),
-            )
+                &raw mut *self.as_ffi(),
+                &raw mut *out.as_ffi(),
+            );
         }
 
         Ok(())
@@ -344,7 +344,7 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         let audio_buffer = audionimbus_sys::IPLAudioBuffer {
             numChannels: self.num_channels() as i32,
             numSamples: self.num_samples() as i32,
-            data: self.channel_ptrs.as_slice().as_ptr() as *mut *mut Sample,
+            data: self.channel_ptrs.as_slice().as_ptr().cast_mut(),
         };
 
         FFIWrapper::new(audio_buffer)
@@ -353,6 +353,13 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
 
 impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
     /// Constructs an `AudioBuffer` over `data` with one channel spanning the entire data provided.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::EmptyData`] if the `data` slice is empty.
+    /// - [`AudioBufferError::InvalidNumSamples`] if `num_samples` is 0 or the data length is not divisible by `num_samples`.
+    /// - [`AudioBufferError::InvalidNumChannels`] if `num_channels` is 0 or the data length is not divisible by `num_channels`.
+    /// - [`AudioBufferError::FrameOutOfBounds`] if the frame is out of channel bounds.
     pub fn try_with_data(data: T) -> Result<Self, AudioBufferError> {
         Self::try_with_data_and_settings(data, AudioBufferSettings::default())
     }
@@ -389,11 +396,11 @@ impl<T: AsRef<[Sample]>> AudioBuffer<T, Vec<*mut Sample>> {
         let channel_ptrs = (0..num_channels)
             .map(|channel| {
                 let index = (channel * num_samples + frame_index * frame_size) as usize;
-                data[index..].as_ptr() as *mut Sample
+                data[index..].as_ptr().cast_mut()
             })
             .collect();
 
-        Ok(AudioBuffer {
+        Ok(Self {
             num_samples: frame_size,
             channel_ptrs,
             _marker: std::marker::PhantomData,
@@ -467,7 +474,7 @@ impl<'a, T: AsRef<[Sample]>> AudioBuffer<T, &'a mut [*mut Sample]> {
             .enumerate()
             .for_each(|(i, channel)| {
                 let index = i as u32 * num_samples + frame_index * frame_size;
-                *channel = data[index as usize..].as_ptr() as *mut Sample;
+                *channel = data[index as usize..].as_ptr().cast_mut();
             });
 
         let channel_ptrs = null_channel_ptrs;
@@ -511,7 +518,7 @@ impl<'a> AudioBuffer<(), &'a mut [*mut Sample]> {
         }
 
         for (ptr, channel) in null_channel_ptrs.iter_mut().zip(channels.iter()) {
-            *ptr = channel.as_ptr() as *mut Sample;
+            *ptr = channel.as_ptr().cast_mut();
         }
 
         Ok(AudioBuffer {
@@ -646,7 +653,7 @@ pub fn allocate_channel_ptrs<T: AsRef<[Sample]>>(
 }
 
 /// [`AudioBuffer`] construction errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum AudioBufferError {
     /// Error when trying to construct an [`AudioBuffer`] with empty data.
     EmptyData,
@@ -697,7 +704,7 @@ impl std::fmt::Display for AudioBufferError {
 }
 
 /// [`AudioBuffer`] operation errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum AudioBufferOperationError {
     /// Destination slice length does not match audio buffer length.
     InterleaveLengthMismatch { dst_len: usize, expected_len: u32 },
@@ -788,7 +795,7 @@ pub const fn num_ambisonics_channels(order: u32) -> u32 {
 }
 
 /// Describes the channel count requirement for an audio buffer.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ChannelRequirement {
     /// The buffer must have exactly this many channels.
     Exactly(u32),
@@ -804,9 +811,9 @@ impl ChannelRequirement {
     /// Returns whether a number of channels satisfies this requirement.
     pub fn is_satisfied_by(&self, actual: u32) -> bool {
         match *self {
-            ChannelRequirement::Exactly(num_channels) => actual == num_channels,
-            ChannelRequirement::AtLeast(num_channels) => actual >= num_channels,
-            ChannelRequirement::Range { min, max } => (min..=max).contains(&actual),
+            Self::Exactly(num_channels) => actual == num_channels,
+            Self::AtLeast(num_channels) => actual >= num_channels,
+            Self::Range { min, max } => (min..=max).contains(&actual),
         }
     }
 }
@@ -815,13 +822,13 @@ impl std::fmt::Display for ChannelRequirement {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Exactly(num_channels) => {
-                write!(f, "exactly {}", num_channels)
+                write!(f, "exactly {num_channels}")
             }
             Self::AtLeast(num_channels) => {
-                write!(f, "at least {}", num_channels)
+                write!(f, "at least {num_channels}")
             }
             Self::Range { min, max } => {
-                write!(f, "between {} and {} (inclusive)", min, max)
+                write!(f, "between {min} and {max} (inclusive)")
             }
         }
     }

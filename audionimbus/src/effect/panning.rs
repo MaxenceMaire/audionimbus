@@ -69,7 +69,7 @@ impl PanningEffect {
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut audionimbus_sys::IPLPanningEffectSettings::from(panning_effect_settings),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -134,9 +134,9 @@ impl PanningEffect {
         let state = unsafe {
             audionimbus_sys::iplPanningEffectApply(
                 self.raw_ptr(),
-                &mut *panning_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *panning_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -167,7 +167,10 @@ impl PanningEffect {
         }
 
         let state = unsafe {
-            audionimbus_sys::iplPanningEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
+            audionimbus_sys::iplPanningEffectGetTail(
+                self.raw_ptr(),
+                &raw mut *output_buffer.as_ffi(),
+            )
         }
         .into();
 
@@ -189,14 +192,14 @@ impl PanningEffect {
     /// Returns the raw FFI pointer to the underlying panning effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLPanningEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLPanningEffect {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPanningEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLPanningEffect {
         &mut self.inner
     }
 }
@@ -216,7 +219,7 @@ impl Clone for PanningEffect {
 
 impl Drop for PanningEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplPanningEffectRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplPanningEffectRelease(&raw mut self.inner) }
     }
 }
 

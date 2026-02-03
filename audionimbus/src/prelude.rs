@@ -1,11 +1,15 @@
 //! Convenient re-exports of commonly used types and traits.
 
-use crate::*;
+use crate::{
+    audio_buffer, audio_settings, baking, callback, context, device, effect, energy_field, error,
+    geometry, hrtf, impulse_response, model, probe, ray_tracing, reconstructor, serialized_object,
+    simulation, version,
+};
 
 pub use audio_buffer::*;
 pub use audio_settings::*;
-pub use baking::pathing::*;
-pub use baking::reflections::*;
+pub use baking::pathing::{PathBakeParams, PathBaker};
+pub use baking::reflections::{ReflectionsBakeFlags, ReflectionsBakeParams, ReflectionsBaker};
 pub use baking::{BakeError, BakedDataIdentifier, BakedDataVariation};
 pub use callback::*;
 pub use context::*;

@@ -31,9 +31,9 @@ pub struct ReflectionsBaker<'a, T: RayTracer> {
     _marker: PhantomData<T>,
 }
 
-impl<'a> ReflectionsBaker<'a, DefaultRayTracer> {
+impl ReflectionsBaker<'_, DefaultRayTracer> {
     /// Creates a new [`ReflectionsBaker`].
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             ray_batch_size: 0,
             open_cl_device: None,
@@ -43,9 +43,9 @@ impl<'a> ReflectionsBaker<'a, DefaultRayTracer> {
     }
 }
 
-impl<'a> ReflectionsBaker<'a, Embree> {
+impl ReflectionsBaker<'_, Embree> {
     /// Creates a new [`ReflectionsBaker`].
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             ray_batch_size: 0,
             open_cl_device: None,
@@ -57,7 +57,10 @@ impl<'a> ReflectionsBaker<'a, Embree> {
 
 impl<'a> ReflectionsBaker<'a, RadeonRays> {
     /// Creates a new [`ReflectionsBaker`].
-    pub fn new(open_cl_device: &'a OpenClDevice, radeon_rays_device: &'a RadeonRaysDevice) -> Self {
+    pub const fn new(
+        open_cl_device: &'a OpenClDevice,
+        radeon_rays_device: &'a RadeonRaysDevice,
+    ) -> Self {
         Self {
             ray_batch_size: 0,
             open_cl_device: Some(open_cl_device),
@@ -67,9 +70,9 @@ impl<'a> ReflectionsBaker<'a, RadeonRays> {
     }
 }
 
-impl<'a> ReflectionsBaker<'a, CustomRayTracer> {
+impl ReflectionsBaker<'_, CustomRayTracer> {
     /// Creates a new [`ReflectionsBaker`].
-    pub fn new(ray_batch_size: u32) -> Self {
+    pub const fn new(ray_batch_size: u32) -> Self {
         Self {
             ray_batch_size: ray_batch_size as i32,
             open_cl_device: None,
@@ -79,7 +82,7 @@ impl<'a> ReflectionsBaker<'a, CustomRayTracer> {
     }
 }
 
-impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
+impl<T: RayTracer> ReflectionsBaker<'_, T> {
     /// Bakes a single layer of reflections data in a probe batch.
     ///
     /// Only one bake can be in progress at any point in time.
@@ -140,14 +143,13 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
             .try_lock()
             .map_err(|_| BakeError::BakeInProgress)?;
 
-        let (callback, user_data) = if let Some(callback_information) = progress_callback {
-            (
-                Some(callback_information.callback),
-                callback_information.user_data,
-            )
-        } else {
-            (None, std::ptr::null_mut())
-        };
+        let (callback, user_data) =
+            progress_callback.map_or((None, std::ptr::null_mut()), |callback_information| {
+                (
+                    Some(callback_information.callback),
+                    callback_information.user_data,
+                )
+            });
 
         let mut ffi_params = audionimbus_sys::IPLReflectionsBakeParams {
             scene: scene.raw_ptr(),
@@ -176,7 +178,7 @@ impl<'a, T: RayTracer> ReflectionsBaker<'a, T> {
         unsafe {
             audionimbus_sys::iplReflectionsBakerBake(
                 context.raw_ptr(),
-                &mut ffi_params,
+                &raw mut ffi_params,
                 callback,
                 user_data,
             );

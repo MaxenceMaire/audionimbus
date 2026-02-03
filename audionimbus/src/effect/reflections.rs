@@ -64,7 +64,7 @@ impl CanApplyDirectly for Convolution {}
 impl CanApplyDirectly for Parametric {}
 impl CanApplyDirectly for Hybrid {}
 
-/// Marker trait for effects that can use `apply_into_mixer() and `tail_into_mixer()``.
+/// Marker trait for effects that can use `apply_into_mixer() and `tail_into_mixer()`.
 pub trait CanUseReflectionMixer: sealed::Sealed {}
 impl CanUseReflectionMixer for Convolution {}
 impl CanUseReflectionMixer for TrueAudioNext {}
@@ -375,7 +375,7 @@ impl<T: ReflectionEffectType> ReflectionEffect<T> {
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut T::ffi_settings(reflection_effect_settings),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -409,14 +409,14 @@ impl<T: ReflectionEffectType> ReflectionEffect<T> {
     /// Returns the raw FFI pointer to the underlying reflection effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionEffect {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionEffect {
         &mut self.inner
     }
 }
@@ -469,9 +469,9 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
-                &mut *reflection_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *reflection_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
                 std::ptr::null_mut(),
             )
         }
@@ -510,7 +510,7 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectGetTail(
                 self.raw_ptr(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
                 std::ptr::null_mut(),
             )
         }
@@ -622,7 +622,7 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectGetTail(
                 self.raw_ptr(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
                 mixer.raw_ptr(),
             )
         }
@@ -648,7 +648,7 @@ impl<T: ReflectionEffectType> Clone for ReflectionEffect<T> {
 
 impl<T: ReflectionEffectType> Drop for ReflectionEffect<T> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplReflectionEffectRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplReflectionEffectRelease(&raw mut self.inner) }
     }
 }
 
@@ -759,7 +759,7 @@ impl ReflectionEffectParams<Hybrid> {
     /// - `delay`: samples after which parametric part starts.
     /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub fn new(
+    pub const fn new(
         impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         reverb_times: [f32; 3],
         equalizer: Equalizer<3>,
@@ -888,7 +888,7 @@ impl<T: ReflectionEffectType> ReflectionMixer<T> {
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
                 &mut T::ffi_settings(reflection_effect_settings),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -940,8 +940,8 @@ impl<T: ReflectionEffectType> ReflectionMixer<T> {
         let audio_effect_state = unsafe {
             audionimbus_sys::iplReflectionMixerApply(
                 self.raw_ptr(),
-                &mut *reflection_effect_params.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *reflection_effect_params.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         };
         let state = audio_effect_state.into();
@@ -957,14 +957,14 @@ impl<T: ReflectionEffectType> ReflectionMixer<T> {
     /// Returns the raw FFI pointer to the underlying reflection mixer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionMixer {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLReflectionMixer {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionMixer {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReflectionMixer {
         &mut self.inner
     }
 }
@@ -985,7 +985,7 @@ impl<T: ReflectionEffectType> Clone for ReflectionMixer<T> {
 
 impl<T: ReflectionEffectType> Drop for ReflectionMixer<T> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplReflectionMixerRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplReflectionMixerRelease(&raw mut self.inner) }
     }
 }
 

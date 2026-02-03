@@ -2,6 +2,7 @@
 
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
+use std::string::ToString;
 
 /// Application-wide state for OpenCL.
 ///
@@ -87,14 +88,14 @@ impl OpenClDevice {
     /// Returns the raw FFI pointer to the underlying OpenCL device.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDevice {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDevice {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDevice {
         &mut self.0
     }
 }
@@ -110,7 +111,7 @@ impl Clone for OpenClDevice {
 
 impl Drop for OpenClDevice {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplOpenCLDeviceRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplOpenCLDeviceRelease(&raw mut self.0) }
     }
 }
 
@@ -123,6 +124,11 @@ unsafe impl Sync for OpenClDevice {}
 pub struct OpenClDeviceList(audionimbus_sys::IPLOpenCLDeviceList);
 
 impl OpenClDeviceList {
+    /// Creates a new [`OpenClDeviceList`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         context: &Context,
         open_cl_device_settings: &OpenClDeviceSettings,
@@ -133,8 +139,8 @@ impl OpenClDeviceList {
         let status = unsafe {
             audionimbus_sys::iplOpenCLDeviceListCreate(
                 context.raw_ptr(),
-                &mut settings,
-                &mut open_cl_device_list,
+                &raw mut settings,
+                &raw mut open_cl_device_list,
             )
         };
 
@@ -182,11 +188,11 @@ impl OpenClDeviceList {
         }
     }
 
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDeviceList {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLOpenCLDeviceList {
         self.0
     }
 
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDeviceList {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLOpenCLDeviceList {
         &mut self.0
     }
 }
@@ -216,7 +222,7 @@ impl Clone for OpenClDeviceList {
 
 impl Drop for OpenClDeviceList {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplOpenCLDeviceListRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplOpenCLDeviceListRelease(&raw mut self.0) }
     }
 }
 
@@ -224,7 +230,7 @@ unsafe impl Send for OpenClDeviceList {}
 unsafe impl Sync for OpenClDeviceList {}
 
 /// [`OpenClDeviceList`] errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum OpenClDeviceListError {
     /// Device index is out of bounds.
     DeviceIndexOutOfBounds {
@@ -294,7 +300,7 @@ impl Default for OpenClDeviceSettings {
 
 impl From<&OpenClDeviceSettings> for audionimbus_sys::IPLOpenCLDeviceSettings {
     fn from(settings: &OpenClDeviceSettings) -> Self {
-        audionimbus_sys::IPLOpenCLDeviceSettings {
+        Self {
             type_: settings.device_type.into(),
             numCUsToReserve: settings.num_compute_units_to_reserve,
             fractionCUsForIRUpdate: settings.fraction_of_compute_units_for_impulse_response_update,
@@ -308,7 +314,7 @@ impl From<&OpenClDeviceSettings> for audionimbus_sys::IPLOpenCLDeviceSettings {
 }
 
 /// The type of device.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OpenClDeviceType {
     /// List both CPU and GPU devices.
     Any,
@@ -323,9 +329,9 @@ pub enum OpenClDeviceType {
 impl From<OpenClDeviceType> for audionimbus_sys::IPLOpenCLDeviceType {
     fn from(device_type: OpenClDeviceType) -> Self {
         match device_type {
-            OpenClDeviceType::Any => audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_ANY,
-            OpenClDeviceType::Cpu => audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_CPU,
-            OpenClDeviceType::Gpu => audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_GPU,
+            OpenClDeviceType::Any => Self::IPL_OPENCLDEVICETYPE_ANY,
+            OpenClDeviceType::Cpu => Self::IPL_OPENCLDEVICETYPE_CPU,
+            OpenClDeviceType::Gpu => Self::IPL_OPENCLDEVICETYPE_GPU,
         }
     }
 }
@@ -333,9 +339,9 @@ impl From<OpenClDeviceType> for audionimbus_sys::IPLOpenCLDeviceType {
 impl From<audionimbus_sys::IPLOpenCLDeviceType> for OpenClDeviceType {
     fn from(device_type: audionimbus_sys::IPLOpenCLDeviceType) -> Self {
         match device_type {
-            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_ANY => OpenClDeviceType::Any,
-            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_CPU => OpenClDeviceType::Cpu,
-            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_GPU => OpenClDeviceType::Gpu,
+            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_ANY => Self::Any,
+            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_CPU => Self::Cpu,
+            audionimbus_sys::IPLOpenCLDeviceType::IPL_OPENCLDEVICETYPE_GPU => Self::Gpu,
         }
     }
 }
@@ -398,7 +404,7 @@ unsafe fn cstr_to_string(ptr: *const std::ffi::c_char) -> Result<String, std::st
     }
 
     let c_str = std::ffi::CStr::from_ptr(ptr);
-    c_str.to_str().map(|s| s.to_string())
+    c_str.to_str().map(ToString::to_string)
 }
 
 impl TryFrom<&audionimbus_sys::IPLOpenCLDeviceDesc> for OpenClDeviceDescriptor {

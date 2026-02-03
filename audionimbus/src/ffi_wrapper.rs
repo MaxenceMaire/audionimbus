@@ -7,7 +7,7 @@ pub struct FFIWrapper<'a, T, Owner> {
 
 impl<T, Owner> FFIWrapper<'_, T, Owner> {
     /// Creates a new FFI wrapper around the given object.
-    pub fn new(ffi_object: T) -> Self {
+    pub const fn new(ffi_object: T) -> Self {
         FFIWrapper {
             ffi_object,
             _marker: std::marker::PhantomData,

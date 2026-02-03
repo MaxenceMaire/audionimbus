@@ -120,9 +120,9 @@ impl BinauralEffect {
         let state = unsafe {
             audionimbus_sys::iplBinauralEffectApply(
                 self.raw_ptr(),
-                &mut *binaural_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *binaural_effect_params.as_ffi(),
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -152,7 +152,10 @@ impl BinauralEffect {
         }
 
         let state = unsafe {
-            audionimbus_sys::iplBinauralEffectGetTail(self.raw_ptr(), &mut *output_buffer.as_ffi())
+            audionimbus_sys::iplBinauralEffectGetTail(
+                self.raw_ptr(),
+                &raw mut *output_buffer.as_ffi(),
+            )
         }
         .into();
 
@@ -174,14 +177,14 @@ impl BinauralEffect {
     /// Returns the raw FFI pointer to the underlying binaural effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLBinauralEffect {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLBinauralEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLBinauralEffect {
         &mut self.0
     }
 }
@@ -197,7 +200,7 @@ impl Clone for BinauralEffect {
 
 impl Drop for BinauralEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplBinauralEffectRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplBinauralEffectRelease(&raw mut self.0) }
     }
 }
 
@@ -247,8 +250,9 @@ impl BinauralEffectParams<'_> {
         let peak_delays_ptr = self
             .peak_delays
             .as_ref()
-            .map(|peak_delays| peak_delays.as_ptr() as *mut f32)
-            .unwrap_or(std::ptr::null_mut());
+            .map_or(std::ptr::null_mut(), |peak_delays| {
+                peak_delays.as_ptr().cast_mut()
+            });
 
         let binaural_effect_params = audionimbus_sys::IPLBinauralEffectParams {
             direction: self.direction.into(),

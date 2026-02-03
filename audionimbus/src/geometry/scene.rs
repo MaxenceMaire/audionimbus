@@ -76,6 +76,10 @@ impl<T: RayTracer> Scene<T> {
     }
 
     /// Loads a scene from FFI settings and serialized object.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     fn from_ffi_load(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
@@ -84,9 +88,9 @@ impl<T: RayTracer> Scene<T> {
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
 
-        let (callback, user_data) = progress_callback
-            .map(|cb| (Some(cb.callback), cb.user_data))
-            .unwrap_or((None, std::ptr::null_mut()));
+        let (callback, user_data) = progress_callback.map_or((None, std::ptr::null_mut()), |cb| {
+            (Some(cb.callback), cb.user_data)
+        });
 
         let status = unsafe {
             audionimbus_sys::iplSceneLoad(
@@ -120,6 +124,10 @@ impl Scene<DefaultRayTracer> {
     /// Loads a scene from a serialized object.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load(
         context: &Context,
         serialized_object: &SerializedObject,
@@ -130,6 +138,10 @@ impl Scene<DefaultRayTracer> {
     /// Loads a scene from a serialized object.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_with_progress(
         context: &Context,
         serialized_object: &SerializedObject,
@@ -166,7 +178,7 @@ impl Scene<Embree> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_embree(
         context: &Context,
-        device: EmbreeDevice,
+        device: &EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(device))
     }
@@ -174,9 +186,13 @@ impl Scene<Embree> {
     /// Loads a scene from a serialized object using Embree.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_embree(
         context: &Context,
-        device: EmbreeDevice,
+        device: &EmbreeDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self {
@@ -209,9 +225,13 @@ impl Scene<Embree> {
     /// Loads a scene from a serialized object using Embree with a progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_embree_with_progress(
         context: &Context,
-        device: EmbreeDevice,
+        device: &EmbreeDevice,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
@@ -224,7 +244,7 @@ impl Scene<Embree> {
     }
 
     /// Returns FFI scene settings with the Embree ray tracer.
-    fn ffi_settings(device: EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(device: &EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: Embree::scene_type(),
             closestHitCallback: None,
@@ -246,7 +266,7 @@ impl Scene<RadeonRays> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_radeon_rays(
         context: &Context,
-        device: RadeonRaysDevice,
+        device: &RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(device))
     }
@@ -254,9 +274,13 @@ impl Scene<RadeonRays> {
     /// Loads a scene from a serialized object using Radeon Rays.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_radeon_rays(
         context: &Context,
-        device: RadeonRaysDevice,
+        device: &RadeonRaysDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
@@ -270,9 +294,13 @@ impl Scene<RadeonRays> {
     /// Loads a scene from a serialized object using Radeon Rays with a progerss callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_radeon_rays_with_progress(
         context: &Context,
-        device: RadeonRaysDevice,
+        device: &RadeonRaysDevice,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
@@ -285,7 +313,7 @@ impl Scene<RadeonRays> {
     }
 
     /// Returns FFI scene settings with the Radeon Rays ray tracer.
-    fn ffi_settings(device: RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(device: &RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: RadeonRays::scene_type(),
             closestHitCallback: None,
@@ -315,6 +343,10 @@ impl Scene<CustomRayTracer> {
     /// Loads a scene from a serialized object using a custom ray tracer.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom(
         context: &Context,
         callbacks: &CustomCallbacks,
@@ -331,6 +363,10 @@ impl Scene<CustomRayTracer> {
     /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom_with_progress(
         context: &Context,
         callbacks: &CustomCallbacks,
@@ -484,7 +520,7 @@ impl<T: RayTracer> Scene<T> {
     /// # let transform = Matrix4::IDENTITY;
     /// let instanced_mesh = InstancedMesh::try_new(
     ///     &scene,
-    ///     InstancedMeshSettings {
+    ///     &InstancedMeshSettings {
     ///         sub_scene: &sub_scene,
     ///         transform: Matrix4::IDENTITY,
     ///     },
@@ -536,7 +572,7 @@ impl<T: RayTracer> Scene<T> {
     /// # let transform = Matrix4::IDENTITY;
     /// # let instanced_mesh = InstancedMesh::try_new(
     /// #     &scene,
-    /// #     InstancedMeshSettings {
+    /// #     &InstancedMeshSettings {
     /// #        sub_scene: &sub_scene,
     /// #         transform: Matrix4::IDENTITY,
     /// #     },
@@ -599,7 +635,7 @@ impl<T: RayTracer> Scene<T> {
     /// # let transform = Matrix4::IDENTITY;
     /// # let instanced_mesh = InstancedMesh::try_new(
     /// #     &scene,
-    /// #     InstancedMeshSettings {
+    /// #     &InstancedMeshSettings {
     /// #         sub_scene: &sub_scene,
     /// #         transform: Matrix4::IDENTITY,
     /// #     },
@@ -685,14 +721,14 @@ impl<T: RayTracer> Scene<T> {
     /// Returns the raw FFI pointer to the underlying scene.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLScene {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLScene {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLScene {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLScene {
         &mut self.inner
     }
 }
@@ -750,7 +786,7 @@ impl<T: RayTracer> Clone for Scene<T> {
 
 impl<T: RayTracer> Drop for Scene<T> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSceneRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplSceneRelease(&raw mut self.inner) }
     }
 }
 
@@ -902,7 +938,7 @@ pub struct StaticMeshHandle(DefaultKey);
 /// # let transform = Matrix4::IDENTITY;
 /// let instanced_mesh = InstancedMesh::try_new(
 ///     &scene,
-///     InstancedMeshSettings {
+///     &InstancedMeshSettings {
 ///         sub_scene: &sub_scene,
 ///         transform: Matrix4::IDENTITY,
 ///     },

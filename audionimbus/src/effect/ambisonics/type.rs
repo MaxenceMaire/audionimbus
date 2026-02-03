@@ -15,9 +15,9 @@ pub enum AmbisonicsType {
 impl From<AmbisonicsType> for audionimbus_sys::IPLAmbisonicsType {
     fn from(ambisonics_type: AmbisonicsType) -> Self {
         match ambisonics_type {
-            AmbisonicsType::N3D => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_N3D,
-            AmbisonicsType::SN3D => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_SN3D,
-            AmbisonicsType::FuMa => audionimbus_sys::IPLAmbisonicsType::IPL_AMBISONICSTYPE_FUMA,
+            AmbisonicsType::N3D => Self::IPL_AMBISONICSTYPE_N3D,
+            AmbisonicsType::SN3D => Self::IPL_AMBISONICSTYPE_SN3D,
+            AmbisonicsType::FuMa => Self::IPL_AMBISONICSTYPE_FUMA,
         }
     }
 }

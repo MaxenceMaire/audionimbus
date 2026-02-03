@@ -15,7 +15,7 @@ pub struct SteamAudioVersion {
 
 impl From<SteamAudioVersion> for u32 {
     fn from(version: SteamAudioVersion) -> Self {
-        ((version.major << 16) + (version.minor << 8) + version.patch) as u32
+        ((version.major << 16) + (version.minor << 8) + version.patch) as Self
     }
 }
 
@@ -43,6 +43,6 @@ mod tests {
 
         let version_u32: u32 = version.into();
 
-        assert_eq!(version_u32, 264192);
+        assert_eq!(version_u32, 264_192);
     }
 }

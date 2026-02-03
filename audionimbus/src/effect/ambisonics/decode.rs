@@ -88,7 +88,7 @@ impl AmbisonicsDecodeEffect {
                 &mut audionimbus_sys::IPLAmbisonicsDecodeEffectSettings::from(
                     ambisonics_decode_effect_settings,
                 ),
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -177,9 +177,9 @@ impl AmbisonicsDecodeEffect {
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectApply(
                 self.raw_ptr(),
-                &mut ambisonics_decode_effect_params_ffi,
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut ambisonics_decode_effect_params_ffi,
+                &raw mut *input_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -212,7 +212,7 @@ impl AmbisonicsDecodeEffect {
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectGetTail(
                 self.raw_ptr(),
-                &mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer.as_ffi(),
             )
         }
         .into();
@@ -235,14 +235,14 @@ impl AmbisonicsDecodeEffect {
     /// Returns the raw FFI pointer to the underlying ambisonics decode effect.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLAmbisonicsDecodeEffect {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsDecodeEffect {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLAmbisonicsDecodeEffect {
         &mut self.inner
     }
 }
@@ -264,7 +264,7 @@ impl Clone for AmbisonicsDecodeEffect {
 
 impl Drop for AmbisonicsDecodeEffect {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplAmbisonicsDecodeEffectRelease(&raw mut self.inner) }
     }
 }
 
@@ -315,7 +315,7 @@ pub struct AmbisonicsDecodeEffectParams<'a> {
 }
 
 /// Rendering for the ambisonics decode effect.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Rendering {
     /// Binaural rendering
     Binaural,

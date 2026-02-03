@@ -88,14 +88,14 @@ impl ImpulseResponse {
     /// If the source and destination impulse responses have different numbers of channels, only the smaller of the two numbers of channels will be copied.
     ///
     /// If the source and destination impulse responses have different numbers of samples, only the smaller of the two numbers of samples will be copied.
-    pub fn copy_into(&self, dst: &mut ImpulseResponse) {
+    pub fn copy_into(&self, dst: &mut Self) {
         unsafe { audionimbus_sys::iplImpulseResponseCopy(self.raw_ptr(), dst.raw_ptr()) }
     }
 
     /// Swaps the data contained in one impulse response with the data contained in another impulse response.
     ///
     /// The two impulse responses may contain different numbers of channels or samples.
-    pub fn swap(&mut self, other: &mut ImpulseResponse) {
+    pub fn swap(&mut self, other: &mut Self) {
         unsafe { audionimbus_sys::iplImpulseResponseSwap(self.raw_ptr(), other.raw_ptr()) }
     }
 
@@ -104,9 +104,9 @@ impl ImpulseResponse {
     /// If the impulse responses have different numbers of channels, only the smallest of the three numbers of channels will be added.
     ///
     /// If the impulse responses have different numbers of samples, only the smallest of the three numbers of samples will be added.
-    pub fn add(&mut self, other: &ImpulseResponse) {
+    pub fn add(&mut self, other: &Self) {
         unsafe {
-            audionimbus_sys::iplImpulseResponseAdd(self.raw_ptr(), other.raw_ptr(), self.raw_ptr())
+            audionimbus_sys::iplImpulseResponseAdd(self.raw_ptr(), other.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -118,14 +118,14 @@ impl ImpulseResponse {
     /// Returns the raw FFI pointer to the underlying impulse response.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLImpulseResponse {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLImpulseResponse {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLImpulseResponse {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLImpulseResponse {
         &mut self.0
     }
 }
@@ -141,7 +141,7 @@ impl Clone for ImpulseResponse {
 
 impl Drop for ImpulseResponse {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplImpulseResponseRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplImpulseResponseRelease(&raw mut self.0) }
     }
 }
 
@@ -178,7 +178,7 @@ impl From<&ImpulseResponseSettings> for audionimbus_sys::IPLImpulseResponseSetti
 }
 
 /// [`ImpulseResponse`] errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ImpulseResponseError {
     /// Channel index is out of bounds.
     ChannelIndexOutOfBounds {
@@ -227,7 +227,7 @@ pub fn scale_impulse_response(
     out: &mut ImpulseResponse,
 ) {
     unsafe {
-        audionimbus_sys::iplImpulseResponseScale(impulse_response.raw_ptr(), scalar, out.raw_ptr())
+        audionimbus_sys::iplImpulseResponseScale(impulse_response.raw_ptr(), scalar, out.raw_ptr());
     }
 }
 

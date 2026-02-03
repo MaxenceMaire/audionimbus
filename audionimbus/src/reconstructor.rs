@@ -103,11 +103,11 @@ impl Reconstructor {
             audionimbus_sys::iplReconstructorReconstruct(
                 self.raw_ptr(),
                 inputs.len() as i32,
-                c_inputs.as_ptr() as *mut audionimbus_sys::IPLReconstructorInputs,
+                c_inputs.as_ptr().cast_mut(),
                 &c_shared_inputs as *const audionimbus_sys::IPLReconstructorSharedInputs
                     as *mut audionimbus_sys::IPLReconstructorSharedInputs,
-                c_outputs.as_ptr() as *mut audionimbus_sys::IPLReconstructorOutputs,
-            )
+                c_outputs.as_ptr().cast_mut(),
+            );
         }
 
         Ok(())
@@ -116,14 +116,14 @@ impl Reconstructor {
     /// Returns the raw FFI pointer to the underlying reconstructor.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLReconstructor {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLReconstructor {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReconstructor {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLReconstructor {
         &mut self.inner
     }
 }
@@ -143,7 +143,7 @@ impl Clone for Reconstructor {
 
 impl Drop for Reconstructor {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplReconstructorRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplReconstructorRelease(&raw mut self.inner) }
     }
 }
 

@@ -1,3 +1,5 @@
+use std::string::ToString;
+
 #[cfg(feature = "auto-install")]
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,7 +18,7 @@ fn main() {
     #[cfg(feature = "auto-install")]
     {
         if let Err(e) = handle_auto_install() {
-            panic!("auto-install failed: {}", e);
+            panic!("auto-install failed: {e}");
         }
     }
 
@@ -69,7 +71,7 @@ struct TargetInfo {
 fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
     let target = std::env::var("TARGET")?;
 
-    let (platform, arch, lib_dir, lib_names, _is_static) = match target.as_str() {
+    let (platform, arch, lib_dir, lib_names, is_static) = match target.as_str() {
         t if t.contains("windows") && t.contains("i686") => (
             "windows".to_string(),
             "x86".to_string(),
@@ -140,7 +142,7 @@ fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
             vec!["libphonon.a".to_string()],
             true,
         ),
-        _ => return Err(format!("Unsupported target: {}", target).into()),
+        _ => return Err(format!("Unsupported target: {target}").into()),
     };
 
     Ok(TargetInfo {
@@ -148,7 +150,7 @@ fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
         arch,
         lib_dir,
         lib_names,
-        _is_static,
+        _is_static: is_static,
     })
 }
 
@@ -166,7 +168,7 @@ fn install_steam_audio(
     target_info: &TargetInfo,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let version = version().to_string();
-    let zip_name = format!("steamaudio_{}.zip", version);
+    let zip_name = format!("steamaudio_{version}.zip");
     let zip_path = cache_dir.join(&zip_name);
     let extract_dir = cache_dir.join("steamaudio_core");
 
@@ -178,17 +180,13 @@ fn install_steam_audio(
             .trim()
             == version
     {
-        println!(
-            "cargo:warning=Steam Audio {} already installed, skipping download",
-            version
-        );
+        println!("cargo:warning=Steam Audio {version} already installed, skipping download");
     } else {
         // Download if not cached
         if !zip_path.exists() {
-            println!("cargo:warning=Downloading Steam Audio {}...", version);
+            println!("cargo:warning=Downloading Steam Audio {version}...");
             download_file(
-                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{}/steamaudio_{}.zip",
-                         version, version),
+                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_{version}.zip"),
                 &zip_path
             )?;
         }
@@ -217,7 +215,7 @@ fn install_fmod_integration(
     target_info: &TargetInfo,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let version = version().to_string();
-    let zip_name = format!("steamaudio_fmod_{}.zip", version);
+    let zip_name = format!("steamaudio_fmod_{version}.zip");
     let zip_path = cache_dir.join(&zip_name);
     let extract_dir = cache_dir.join("steamaudio_fmod");
 
@@ -229,20 +227,13 @@ fn install_fmod_integration(
             .trim()
             == version
     {
-        println!(
-            "cargo:warning=Steam Audio FMOD {} already installed, skipping download",
-            version
-        );
+        println!("cargo:warning=Steam Audio FMOD {version} already installed, skipping download");
     } else {
         // Download if not cached
         if !zip_path.exists() {
-            println!(
-                "cargo:warning=Downloading Steam Audio FMOD integration {}...",
-                version
-            );
+            println!("cargo:warning=Downloading Steam Audio FMOD integration {version}...");
             download_file(
-                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{}/steamaudio_fmod_{}.zip",
-                         version, version),
+                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_fmod_{version}.zip"),
                 &zip_path
             )?;
         }
@@ -279,7 +270,7 @@ fn install_wwise_integration(
     target_info: &TargetInfo,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let version = version().to_string();
-    let zip_name = format!("steamaudio_wwise_{}.zip", version);
+    let zip_name = format!("steamaudio_wwise_{version}.zip");
     let zip_path = cache_dir.join(&zip_name);
     let extract_dir = cache_dir.join("steamaudio_wwise");
 
@@ -291,20 +282,13 @@ fn install_wwise_integration(
             .trim()
             == version
     {
-        println!(
-            "cargo:warning=Steam Audio Wwise {} already installed, skipping download",
-            version
-        );
+        println!("cargo:warning=Steam Audio Wwise {version} already installed, skipping download");
     } else {
         // Download if not cached
         if !zip_path.exists() {
-            println!(
-                "cargo:warning=Downloading Steam Audio Wwise integration {}...",
-                version
-            );
+            println!("cargo:warning=Downloading Steam Audio Wwise integration {version}...");
             download_file(
-                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{}/steamaudio_wwise_{}.zip",
-                         version, version),
+                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_wwise_{version}.zip"),
                 &zip_path
             )?;
         }
@@ -356,7 +340,7 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
 
     // Try to use curl first with progress bar
     let curl_result = Command::new("curl")
-        .args(&[
+        .args([
             "-L",             // Follow redirects
             "--progress-bar", // Show progress bar
             "-f",             // Fail on HTTP errors
@@ -383,7 +367,7 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
             // Try wget as fallback with progress
             println!("cargo:warning=curl failed, trying wget...");
             let wget_result = Command::new("wget")
-                .args(&[
+                .args([
                     "--tries=3",     // Retry on failure
                     "--waitretry=1", // Wait between retries
                     "-O",
@@ -398,7 +382,7 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
                     Ok(())
                 }
                 Ok(_) => Err("wget failed to download file".into()),
-                Err(e) => Err(format!("Neither curl nor wget available: {}", e).into()),
+                Err(e) => Err(format!("Neither curl nor wget available: {e}").into()),
             }
         }
     }
@@ -445,7 +429,7 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
 
     // Full CRC test before extracting
     if let Err(e) = test_zip(zip_path) {
-        return Err(format!("Zip file is corrupted: {}", e).into());
+        return Err(format!("Zip file is corrupted: {e}").into());
     }
 
     // Remove existing directory if it exists
@@ -676,7 +660,7 @@ fn version() -> Version {
 fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> TemporaryFileGuard {
     let packed_version = (version.major << 16) | (version.minor << 8) | version.patch;
     let version_header = format!(
-        r#"
+        r"
 #ifndef IPL_PHONON_VERSION_H
 #define IPL_PHONON_VERSION_H
 
@@ -686,7 +670,7 @@ fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> Tem
 #define {prefix}_VERSION       {packed_version}
 
 #endif
-"#,
+",
         version.major, version.minor, version.patch,
     );
     std::fs::write(path, version_header).unwrap();
@@ -743,5 +727,5 @@ fn system_flags() -> Vec<String> {
         flags.push("-DIPL_CPU_ARMV7");
     }
 
-    flags.into_iter().map(|s| s.to_string()).collect()
+    flags.into_iter().map(ToString::to_string).collect()
 }

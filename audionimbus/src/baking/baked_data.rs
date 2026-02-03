@@ -3,18 +3,21 @@
 use crate::geometry::Sphere;
 
 /// Identifies a “layer” of data stored in a probe batch.
+///
 /// Each probe batch may store multiple layers of data, such as reverb, static source reflections, or pathing.
 /// Each layer can be accessed using an identifier.
 #[derive(Copy, Clone, Debug)]
 pub enum BakedDataIdentifier {
     /// Reflections.
-    /// The source and listener positions used to compute the reflections data stored at each probe depends on the \c IPLBakedDataVariation selected.
+    ///
+    /// The source and listener positions used to compute the reflections data stored at each probe depends on the [`BakedDataVariation`] selected.
     Reflections {
         /// The way in which source and listener positions depend on probe position.
         variation: BakedDataVariation,
     },
 
     /// Pathing.
+    ///
     /// The probe batch stores data about the shortest paths between any pair of probes in the batch.
     Pathing {
         /// The way in which source and listener positions depend on probe position.

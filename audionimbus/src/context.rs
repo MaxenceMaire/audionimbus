@@ -58,7 +58,7 @@ impl Context {
     ///
     /// This is intended for internal use and advanced scenarios. The returned pointer
     /// must not outlive the `Context` object.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLContext {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLContext {
         self.0
     }
 
@@ -68,7 +68,7 @@ impl Context {
     ///
     /// This is intended for internal use and advanced scenarios. The returned pointer
     /// must not outlive the `Context` object.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLContext {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLContext {
         &mut self.0
     }
 }
@@ -91,7 +91,7 @@ impl Clone for Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplContextRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplContextRelease(&raw mut self.0) }
     }
 }
 
@@ -125,7 +125,7 @@ pub struct ContextSettings {
     ///
     /// Steam Audio automatically chooses the best instruction set to use based on the user’s CPU, but you can prevent it from using certain newer instruction sets using this parameter.
     /// For example, with some workloads, AVX512 instructions consume enough power that the CPU clock speed will be throttled, resulting in lower performance than expected.
-    /// If you observe this in your application, set this parameter to IPL_SIMDLEVEL_AVX2 or lower.
+    /// If you observe this in your application, set this parameter to [`SimdLevel::AVX2`] or lower.
     pub simd_level: SimdLevel,
 
     /// Additional flags for modifying the behavior of the created context.

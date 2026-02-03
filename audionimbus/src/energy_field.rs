@@ -128,14 +128,14 @@ impl EnergyField {
     /// If the source and destination energy fields have different numbers of channels, only the smaller of the two numbers of channels will be copied.
     ///
     /// If the source and destination energy fields have different numbers of bins, only the smaller of the two numbers of bins will be copied.
-    pub fn copy_into(&self, dst: &mut EnergyField) {
+    pub fn copy_into(&self, dst: &mut Self) {
         unsafe { audionimbus_sys::iplEnergyFieldCopy(self.raw_ptr(), dst.raw_ptr()) }
     }
 
     /// Swaps the data contained in one energy field with the data contained in another energy field.
     ///
     /// The two energy fields may contain different numbers of channels or bins.
-    pub fn swap(&mut self, other: &mut EnergyField) {
+    pub fn swap(&mut self, other: &mut Self) {
         unsafe { audionimbus_sys::iplEnergyFieldSwap(self.raw_ptr(), other.raw_ptr()) }
     }
 
@@ -144,9 +144,9 @@ impl EnergyField {
     /// If the energy fields have different numbers of channels, only the smallest of the three numbers of channels will be added.
     ///
     /// If the energy fields have different numbers of bins, only the smallest of the three numbers of bins will be added.
-    pub fn add(&mut self, other: &EnergyField) {
+    pub fn add(&mut self, other: &Self) {
         unsafe {
-            audionimbus_sys::iplEnergyFieldAdd(self.raw_ptr(), other.raw_ptr(), self.raw_ptr())
+            audionimbus_sys::iplEnergyFieldAdd(self.raw_ptr(), other.raw_ptr(), self.raw_ptr());
         }
     }
 
@@ -158,14 +158,14 @@ impl EnergyField {
     /// Returns the raw FFI pointer to the underlying energy field.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLEnergyField {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLEnergyField {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLEnergyField {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLEnergyField {
         &mut self.0
     }
 }
@@ -181,7 +181,7 @@ impl Clone for EnergyField {
 
 impl Drop for EnergyField {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplEnergyFieldRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplEnergyFieldRelease(&raw mut self.0) }
     }
 }
 
@@ -212,7 +212,7 @@ impl From<&EnergyFieldSettings> for audionimbus_sys::IPLEnergyFieldSettings {
 }
 
 /// [`EnergyField`] errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum EnergyFieldError {
     /// Channel index is out of bounds.
     ChannelIndexOutOfBounds {
@@ -271,7 +271,7 @@ pub fn scale_energy_field(energy_field: &EnergyField, scalar: f32, out: &mut Ene
 /// If the energy fields have different numbers of bins, only the smallest of the two numbers of bins will be added.
 pub fn scale_accum_energy_field(energy_field: &EnergyField, scalar: f32, out: &mut EnergyField) {
     unsafe {
-        audionimbus_sys::iplEnergyFieldScaleAccum(energy_field.raw_ptr(), scalar, out.raw_ptr())
+        audionimbus_sys::iplEnergyFieldScaleAccum(energy_field.raw_ptr(), scalar, out.raw_ptr());
     }
 }
 

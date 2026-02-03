@@ -64,8 +64,8 @@ impl<T: RayTracer> StaticMesh<T> {
         let status = unsafe {
             audionimbus_sys::iplStaticMeshCreate(
                 scene.raw_ptr(),
-                &mut static_mesh_settings_ffi,
-                &mut inner,
+                &raw mut static_mesh_settings_ffi,
+                &raw mut inner,
             )
         };
 
@@ -84,6 +84,10 @@ impl<T: RayTracer> StaticMesh<T> {
     /// Loads a static mesh from a serialized object.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load(
         scene: &Scene,
         serialized_object: &mut SerializedObject,
@@ -94,6 +98,10 @@ impl<T: RayTracer> StaticMesh<T> {
     /// Loads a static mesh from a serialized object, with a progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_with_progress_callback(
         scene: &Scene,
         serialized_object: &SerializedObject,
@@ -109,6 +117,10 @@ impl<T: RayTracer> StaticMesh<T> {
     /// Loads a static mesh from a serialized object, with an optional progress callback.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
     fn load_with_optional_progress_callback(
         scene: &Scene,
         serialized_object: &SerializedObject,
@@ -132,7 +144,7 @@ impl<T: RayTracer> StaticMesh<T> {
                 serialized_object.raw_ptr(),
                 progress_callback,
                 progress_callback_user_data,
-                &mut inner,
+                &raw mut inner,
             )
         };
 
@@ -151,14 +163,14 @@ impl<T: RayTracer> StaticMesh<T> {
     /// Returns the raw FFI pointer to the underlying static mesh.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLStaticMesh {
         self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLStaticMesh {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLStaticMesh {
         &mut self.inner
     }
 }
@@ -191,7 +203,7 @@ impl<T: RayTracer> Clone for StaticMesh<T> {
 
 impl<T> Drop for StaticMesh<T> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplStaticMeshRelease(&mut self.inner) }
+        unsafe { audionimbus_sys::iplStaticMeshRelease(&raw mut self.inner) }
     }
 }
 

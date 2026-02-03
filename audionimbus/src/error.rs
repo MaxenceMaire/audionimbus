@@ -1,5 +1,5 @@
 /// A Steam Audio error.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum SteamAudioError {
     /// An unspecified error occurred.
     Unspecified,
@@ -23,7 +23,7 @@ impl std::fmt::Display for SteamAudioError {
     }
 }
 
-pub fn to_option_error(status: audionimbus_sys::IPLerror) -> Option<SteamAudioError> {
+pub const fn to_option_error(status: audionimbus_sys::IPLerror) -> Option<SteamAudioError> {
     match status {
         audionimbus_sys::IPLerror::IPL_STATUS_SUCCESS => None,
         audionimbus_sys::IPLerror::IPL_STATUS_FAILURE => Some(SteamAudioError::Unspecified),

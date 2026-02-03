@@ -20,8 +20,7 @@ pub fn initialize(context: &Context, settings: Option<WwiseSettings>) {
 
     let ipl_settings = ffi_settings
         .as_mut()
-        .map(|s| s as *mut _)
-        .unwrap_or(std::ptr::null_mut());
+        .map_or(std::ptr::null_mut(), std::ptr::from_mut);
 
     unsafe { audionimbus_sys::wwise::iplWwiseInitialize(context.raw_ptr(), ipl_settings) }
 }
@@ -80,7 +79,7 @@ pub fn version() -> WwiseIntegrationVersion {
     let mut patch: c_uint = 0;
 
     unsafe {
-        audionimbus_sys::wwise::iplWwiseGetVersion(&mut major, &mut minor, &mut patch);
+        audionimbus_sys::wwise::iplWwiseGetVersion(&raw mut major, &raw mut minor, &raw mut patch);
     }
 
     WwiseIntegrationVersion {
