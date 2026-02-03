@@ -96,7 +96,7 @@ fn main() {
 
                 // Samples are currently deinterleaved (i.e., [L0, L1, ..., R0, R1, ...]), but CPAL
                 // requires an interleaved format (i.e., [L0, R0, L1, R1, ...]) as output.
-                staging_buffer.interleave(&context, output);
+                staging_buffer.interleave(&context, output).unwrap();
             },
             move |err| eprintln!("an error occurred on the output audio stream: {}", err),
             None,

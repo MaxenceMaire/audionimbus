@@ -19,6 +19,7 @@ use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Marker type indicating that direct sound simulation is enabled.
 #[derive(Debug)]
@@ -113,6 +114,15 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     /// Whether a scene is pending commit.
     has_pending_scene: bool,
 
+    /// Synchronization lock for direct simulation operations.
+    direct_lock: Option<Arc<Mutex<()>>>,
+
+    /// Synchronization lock for reflections simulation operations.
+    reflections_lock: Option<Arc<Mutex<()>>>,
+
+    /// Synchronization lock for pathing simulation operations.
+    pathing_lock: Option<Arc<Mutex<()>>>,
+
     _ray_tracer: PhantomData<T>,
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -120,7 +130,13 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     _lifetime: PhantomData<&'a ()>,
 }
 
-impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
+impl<'a, T, D, R, P> Simulator<'a, T, D, R, P>
+where
+    T: RayTracer,
+    D: 'static,
+    R: 'static,
+    P: 'static,
+{
     /// Creates a new [`Simulator`].
     ///
     /// # Errors
@@ -153,12 +169,34 @@ impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
         context: &Context,
         settings: &SimulationSettings<'a, T, D, R, P>,
     ) -> Result<Self, SteamAudioError> {
+        let direct_lock = if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
+            Some(Arc::new(Mutex::new(())))
+        } else {
+            None
+        };
+
+        let reflections_lock =
+            if std::any::TypeId::of::<R>() == std::any::TypeId::of::<Reflections>() {
+                Some(Arc::new(Mutex::new(())))
+            } else {
+                None
+            };
+
+        let pathing_lock = if std::any::TypeId::of::<P>() == std::any::TypeId::of::<Pathing>() {
+            Some(Arc::new(Mutex::new(())))
+        } else {
+            None
+        };
+
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
             committed_num_probes: 0,
             pending_probe_batches: HashMap::new(),
             has_committed_scene: false,
             has_pending_scene: false,
+            direct_lock,
+            reflections_lock,
+            pathing_lock,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -248,6 +286,15 @@ impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
     ///
     /// This function cannot be called while any simulation is running.
     pub fn commit(&mut self) {
+        let _guards: Vec<_> = [
+            self.direct_lock.as_ref(),
+            self.reflections_lock.as_ref(),
+            self.pathing_lock.as_ref(),
+        ]
+        .iter()
+        .filter_map(|lock| lock.as_ref().map(|l| l.lock().unwrap()))
+        .collect();
+
         unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
 
         self.committed_num_probes = self.pending_probe_batches.values().sum();
@@ -269,6 +316,8 @@ impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
         simulation_flags: SimulationFlags,
         shared_inputs: &SimulationSharedInputs,
     ) {
+        let _guards = self.acquire_locks_for_flags(simulation_flags);
+
         unsafe {
             audionimbus_sys::iplSimulatorSetSharedInputs(
                 self.raw_ptr(),
@@ -276,6 +325,31 @@ impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
                 &mut audionimbus_sys::IPLSimulationSharedInputs::from(shared_inputs),
             );
         }
+    }
+
+    /// Acquires locks for the simulation types specified in the given flags.
+    fn acquire_locks_for_flags(&self, flags: SimulationFlags) -> Vec<MutexGuard<'_, ()>> {
+        let mut guards = Vec::new();
+
+        if flags.contains(SimulationFlags::DIRECT) {
+            if let Some(lock) = &self.direct_lock {
+                guards.push(lock.lock().unwrap());
+            }
+        }
+
+        if flags.contains(SimulationFlags::REFLECTIONS) {
+            if let Some(lock) = &self.reflections_lock {
+                guards.push(lock.lock().unwrap());
+            }
+        }
+
+        if flags.contains(SimulationFlags::PATHING) {
+            if let Some(lock) = &self.pathing_lock {
+                guards.push(lock.lock().unwrap());
+            }
+        }
+
+        guards
     }
 
     /// Returns the raw FFI pointer to the underlying simulator.
@@ -293,19 +367,36 @@ impl<'a, T: RayTracer, D, R, P> Simulator<'a, T, D, R, P> {
     }
 }
 
-impl<T: RayTracer, R, P> Simulator<'_, T, Direct, R, P> {
+impl<T, R, P> Simulator<'_, T, Direct, R, P>
+where
+    T: RayTracer,
+    R: 'static,
+    P: 'static,
+{
     /// Runs a direct simulation for all sources added to the simulator.
     /// This may include distance attenuation, air absorption, directivity, occlusion, and transmission.
     ///
     /// This function should not be called from the audio processing thread if occlusion and/or transmission are enabled.
     pub fn run_direct(&self) {
+        let _guard = self
+            .direct_lock
+            .as_ref()
+            .expect("direct_lock must exist when direct simulation is enabled")
+            .lock()
+            .unwrap();
+
         unsafe {
             audionimbus_sys::iplSimulatorRunDirect(self.raw_ptr());
         }
     }
 }
 
-impl<T: RayTracer, D, P> Simulator<'_, T, D, Reflections, P> {
+impl<T, D, P> Simulator<'_, T, D, Reflections, P>
+where
+    T: RayTracer,
+    D: 'static,
+    P: 'static,
+{
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
@@ -318,6 +409,13 @@ impl<T: RayTracer, D, P> Simulator<'_, T, D, Reflections, P> {
     /// [`Simulator::set_scene`] and committed via [`Simulator::commit`] before
     /// running simulations.
     pub fn run_reflections(&self) -> Result<(), SimulationError> {
+        let _guard = self
+            .reflections_lock
+            .as_ref()
+            .expect("reflections_lock must exist when reflections simulation is enabled")
+            .lock()
+            .unwrap();
+
         if !self.has_committed_scene {
             return Err(SimulationError::ReflectionsWithoutScene);
         }
@@ -330,19 +428,31 @@ impl<T: RayTracer, D, P> Simulator<'_, T, D, Reflections, P> {
     }
 }
 
-impl<T: RayTracer, D, R> Simulator<'_, T, D, R, Pathing> {
+impl<T, D, R> Simulator<'_, T, D, R, Pathing>
+where
+    T: RayTracer,
+    D: 'static,
+    R: 'static,
+{
     /// Runs a pathing simulation for all sources added to the simulator.
     ///
     /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
     ///
     /// # Errors
     ///
-    /// Returns [`SteamAudioError::PathingWithoutProbes`] if no probes were committed.
+    /// Returns [`SimulationError::PathingWithoutProbes`] if no probes were committed.
     ///
     /// Pathing requires at least one probe batch to be added to the simulator
     /// via [`Simulator::add_probe_batch`] and committed via [`Simulator::commit`] before running
     /// simulations.
     pub fn run_pathing(&self) -> Result<(), SimulationError> {
+        let _guard = self
+            .pathing_lock
+            .as_ref()
+            .expect("pathing_lock must exist when pathing simulation is enabled")
+            .lock()
+            .unwrap();
+
         if self.committed_num_probes == 0 {
             return Err(SimulationError::PathingWithoutProbes);
         }
@@ -367,6 +477,9 @@ impl<T: RayTracer, D, R, P> Clone for Simulator<'_, T, D, R, P> {
             pending_probe_batches: self.pending_probe_batches.clone(),
             has_committed_scene: self.has_committed_scene,
             has_pending_scene: self.has_pending_scene,
+            direct_lock: self.direct_lock.clone(),
+            reflections_lock: self.reflections_lock.clone(),
+            pathing_lock: self.pathing_lock.clone(),
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -832,7 +945,21 @@ impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
 ///
 /// This object is used to specify various parameters for direct and indirect sound propagation simulation, and to retrieve the simulation results.
 #[derive(Debug)]
-pub struct Source(audionimbus_sys::IPLSource);
+pub struct Source {
+    inner: audionimbus_sys::IPLSource,
+
+    /// Reference to the simulator's direct simulation lock.
+    /// Used to synchronize access to direct simulation data.
+    direct_lock: Option<Arc<Mutex<()>>>,
+
+    /// Reference to the simulator's reflections simulation lock.
+    /// Used to synchronize access to reflections simulation data.
+    reflections_lock: Option<Arc<Mutex<()>>>,
+
+    /// Reference to the simulator's pathing simulation lock.
+    /// Used to synchronize access to pathing simulation data.
+    pathing_lock: Option<Arc<Mutex<()>>>,
+}
 
 impl Source {
     /// Creates a new source.
@@ -840,23 +967,40 @@ impl Source {
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new<T: RayTracer, D, R, P>(
+    pub fn try_new<T, D, R, P>(
         simulator: &Simulator<T, D, R, P>,
         source_settings: &SourceSettings,
-    ) -> Result<Self, SteamAudioError> {
-        let mut source = Self(std::ptr::null_mut());
+    ) -> Result<Self, SteamAudioError>
+    where
+        T: RayTracer,
+        D: 'static,
+        R: 'static,
+        P: 'static,
+    {
+        let mut inner = std::ptr::null_mut();
 
         let status = unsafe {
             audionimbus_sys::iplSourceCreate(
                 simulator.raw_ptr(),
                 &mut audionimbus_sys::IPLSourceSettings::from(source_settings),
-                source.raw_ptr_mut(),
+                &mut inner,
             )
         };
 
         if let Some(error) = to_option_error(status) {
             return Err(error);
         }
+
+        let direct_lock = simulator.direct_lock.clone();
+        let reflections_lock = simulator.reflections_lock.clone();
+        let pathing_lock = simulator.pathing_lock.clone();
+
+        let source = Self {
+            inner,
+            direct_lock,
+            reflections_lock,
+            pathing_lock,
+        };
 
         Ok(source)
     }
@@ -868,6 +1012,8 @@ impl Source {
     /// - `flags`: the types of simulation for which to specify inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `inputs`: the input parameters to set.
     pub fn set_inputs(&mut self, simulation_flags: SimulationFlags, inputs: SimulationInputs) {
+        let _guards = self.acquire_locks_for_flags(simulation_flags);
+
         unsafe {
             audionimbus_sys::iplSourceSetInputs(
                 self.raw_ptr(),
@@ -891,6 +1037,8 @@ impl Source {
         &mut self,
         simulation_flags: SimulationFlags,
     ) -> Result<SimulationOutputs, SteamAudioError> {
+        let _guards = self.acquire_locks_for_flags(simulation_flags);
+
         let simulation_outputs = SimulationOutputs::try_allocate()?;
 
         unsafe {
@@ -904,33 +1052,64 @@ impl Source {
         Ok(simulation_outputs)
     }
 
+    /// Acquires locks for the simulation types specified in the given flags.
+    fn acquire_locks_for_flags(&self, flags: SimulationFlags) -> Vec<MutexGuard<'_, ()>> {
+        let mut guards = Vec::new();
+
+        if flags.contains(SimulationFlags::DIRECT) {
+            if let Some(lock) = &self.direct_lock {
+                guards.push(lock.lock().unwrap());
+            }
+        }
+
+        if flags.contains(SimulationFlags::REFLECTIONS) {
+            if let Some(lock) = &self.reflections_lock {
+                guards.push(lock.lock().unwrap());
+            }
+        }
+
+        if flags.contains(SimulationFlags::PATHING) {
+            if let Some(lock) = &self.pathing_lock {
+                guards.push(lock.lock().unwrap());
+            }
+        }
+
+        guards
+    }
+
     /// Returns the raw FFI pointer to the underlying source.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr(&self) -> audionimbus_sys::IPLSource {
-        self.0
+        self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSource {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl Clone for Source {
     fn clone(&self) -> Self {
         unsafe {
-            audionimbus_sys::iplSourceRetain(self.0);
+            audionimbus_sys::iplSourceRetain(self.inner);
         }
-        Self(self.0)
+
+        Self {
+            inner: self.inner,
+            direct_lock: self.direct_lock.clone(),
+            reflections_lock: self.reflections_lock.clone(),
+            pathing_lock: self.pathing_lock.clone(),
+        }
     }
 }
 
 impl Drop for Source {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.0) }
+        unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.inner) }
     }
 }
 
