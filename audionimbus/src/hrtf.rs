@@ -8,7 +8,7 @@ use crate::error::{to_option_error, SteamAudioError};
 ///
 /// HRTFs describe how sound from different directions is perceived by a each of a listener’s ears, and are a crucial component of spatial audio.
 /// Steam Audio includes a built-in HRTF, while also allowing developers and users to import their own custom HRTFs.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Hrtf(pub(crate) audionimbus_sys::IPLHRTF);
 
 impl Hrtf {
@@ -36,7 +36,7 @@ impl Hrtf {
             audionimbus_sys::iplHRTFCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut settings_ffi,
+                &raw mut settings_ffi,
                 hrtf.raw_ptr_mut(),
             )
         };
@@ -51,14 +51,14 @@ impl Hrtf {
     /// Returns the raw FFI pointer to the underlying HRTF.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLHRTF {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLHRTF {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLHRTF {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLHRTF {
         &mut self.0
     }
 }
@@ -80,7 +80,7 @@ impl Clone for Hrtf {
 
 impl Drop for Hrtf {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplHRTFRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplHRTFRelease(&raw mut self.0) }
     }
 }
 
@@ -140,8 +140,7 @@ impl HrtfSettings {
 
         let sofa_filename = filename_cstring
             .as_ref()
-            .map(|c| c.as_ptr())
-            .unwrap_or(std::ptr::null());
+            .map_or(std::ptr::null(), |c| c.as_ptr());
 
         let settings = audionimbus_sys::IPLHRTFSettings {
             type_,
@@ -191,10 +190,8 @@ pub enum VolumeNormalization {
 impl From<VolumeNormalization> for audionimbus_sys::IPLHRTFNormType {
     fn from(volume_normalization: VolumeNormalization) -> Self {
         match volume_normalization {
-            VolumeNormalization::None => audionimbus_sys::IPLHRTFNormType::IPL_HRTFNORMTYPE_NONE,
-            VolumeNormalization::RootMeanSquared => {
-                audionimbus_sys::IPLHRTFNormType::IPL_HRTFNORMTYPE_RMS
-            }
+            VolumeNormalization::None => Self::IPL_HRTFNORMTYPE_NONE,
+            VolumeNormalization::RootMeanSquared => Self::IPL_HRTFNORMTYPE_RMS,
         }
     }
 }
@@ -219,12 +216,8 @@ pub enum HrtfInterpolation {
 impl From<HrtfInterpolation> for audionimbus_sys::IPLHRTFInterpolation {
     fn from(hrtf_interpolation: HrtfInterpolation) -> Self {
         match hrtf_interpolation {
-            HrtfInterpolation::Nearest => {
-                audionimbus_sys::IPLHRTFInterpolation::IPL_HRTFINTERPOLATION_NEAREST
-            }
-            HrtfInterpolation::Bilinear => {
-                audionimbus_sys::IPLHRTFInterpolation::IPL_HRTFINTERPOLATION_BILINEAR
-            }
+            HrtfInterpolation::Nearest => Self::IPL_HRTFINTERPOLATION_NEAREST,
+            HrtfInterpolation::Bilinear => Self::IPL_HRTFINTERPOLATION_BILINEAR,
         }
     }
 }
