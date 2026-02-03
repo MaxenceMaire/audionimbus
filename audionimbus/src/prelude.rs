@@ -1,6 +1,10 @@
 //! Convenient re-exports of commonly used types and traits.
 
-use crate::*;
+use crate::{
+    audio_buffer, audio_settings, baking, callback, context, device, effect, energy_field, error,
+    geometry, hrtf, impulse_response, model, probe, ray_tracing, reconstructor, serialized_object,
+    simulation, version,
+};
 
 pub use audio_buffer::*;
 pub use audio_settings::*;
