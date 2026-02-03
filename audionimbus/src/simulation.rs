@@ -1087,6 +1087,284 @@ pub struct PathingSimulationParameters<'a> {
     pub deviation: DeviationModel,
 }
 
+/// Intermediate representation of direct simulation parameters for FFI conversion.
+struct DirectSimulationData {
+    flags: audionimbus_sys::IPLDirectSimulationFlags,
+    distance_attenuation_model: DistanceAttenuationModel,
+    air_absorption_model: AirAbsorptionModel,
+    directivity: Directivity,
+    occlusion_type: audionimbus_sys::IPLOcclusionType,
+    occlusion_radius: f32,
+    num_occlusion_samples: i32,
+    num_transmission_rays: i32,
+}
+
+impl DirectSimulationData {
+    /// Converts optional direct simulation parameters into concrete FFI-compatible data.
+    fn from_params(params: Option<DirectSimulationParameters>) -> Self {
+        let Some(params) = params else {
+            return Self::default();
+        };
+
+        let mut flags = audionimbus_sys::IPLDirectSimulationFlags(0);
+
+        let distance_attenuation_model =
+            Self::process_distance_attenuation(params.distance_attenuation, &mut flags);
+
+        let air_absorption_model = Self::process_air_absorption(params.air_absorption, &mut flags);
+
+        let directivity = Self::process_directivity(params.directivity, &mut flags);
+
+        let (occlusion_type, occlusion_radius, num_occlusion_samples, num_transmission_rays) =
+            Self::process_occlusion(params.occlusion, &mut flags);
+
+        Self {
+            flags,
+            distance_attenuation_model,
+            air_absorption_model,
+            directivity,
+            occlusion_type,
+            occlusion_radius,
+            num_occlusion_samples,
+            num_transmission_rays,
+        }
+    }
+
+    /// Processes optional distance attenuation settings and updates flags accordingly.
+    fn process_distance_attenuation(
+        distance_attenuation: Option<DistanceAttenuationModel>,
+        flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
+    ) -> DistanceAttenuationModel {
+        if let Some(model) = distance_attenuation {
+            *flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION;
+            model
+        } else {
+            DistanceAttenuationModel::default()
+        }
+    }
+
+    /// Processes optional air absorption settings and updates flags accordingly.
+    fn process_air_absorption(
+        air_absorption: Option<AirAbsorptionModel>,
+        flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
+    ) -> AirAbsorptionModel {
+        if let Some(model) = air_absorption {
+            *flags |=
+                audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION;
+            model
+        } else {
+            AirAbsorptionModel::default()
+        }
+    }
+
+    /// Processes optional directivity settings and updates flags accordingly.
+    fn process_directivity(
+        directivity: Option<Directivity>,
+        flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
+    ) -> Directivity {
+        if let Some(directivity) = directivity {
+            *flags |=
+                audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY;
+            directivity
+        } else {
+            Directivity::default()
+        }
+    }
+
+    /// Processes optional occlusion settings and updates flags accordingly.
+    fn process_occlusion(
+        occlusion: Option<Occlusion>,
+        flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
+    ) -> (audionimbus_sys::IPLOcclusionType, f32, i32, i32) {
+        let Some(occlusion) = occlusion else {
+            return (
+                audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
+                0.0,
+                0,
+                0,
+            );
+        };
+
+        *flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_OCCLUSION;
+
+        let (occlusion_type, occlusion_radius, num_occlusion_samples) = match occlusion.algorithm {
+            OcclusionAlgorithm::Raycast => (
+                audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
+                0.0,
+                0,
+            ),
+            OcclusionAlgorithm::Volumetric {
+                radius,
+                num_occlusion_samples,
+            } => (
+                audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_VOLUMETRIC,
+                radius,
+                num_occlusion_samples,
+            ),
+        };
+
+        let num_transmission_rays = if let Some(transmission) = occlusion.transmission {
+            *flags |=
+                audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION;
+            transmission.num_transmission_rays
+        } else {
+            0
+        };
+
+        (
+            occlusion_type,
+            occlusion_radius,
+            num_occlusion_samples as i32,
+            num_transmission_rays as i32,
+        )
+    }
+}
+
+impl Default for DirectSimulationData {
+    fn default() -> Self {
+        Self {
+            flags: audionimbus_sys::IPLDirectSimulationFlags(0),
+            distance_attenuation_model: DistanceAttenuationModel::default(),
+            air_absorption_model: AirAbsorptionModel::default(),
+            directivity: Directivity::default(),
+            occlusion_type: audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
+            occlusion_radius: 0.0,
+            num_occlusion_samples: 0,
+            num_transmission_rays: 0,
+        }
+    }
+}
+
+/// Intermediate representation of reflections simulation parameters for FFI conversion.
+struct ReflectionsSimulationData {
+    baked: audionimbus_sys::IPLbool,
+    baked_data_identifier: BakedDataIdentifier,
+    reverb_scale: [f32; 3],
+    hybrid_reverb_transition_time: f32,
+    hybrid_reverb_overlap_percent: f32,
+}
+
+impl ReflectionsSimulationData {
+    /// Converts optional reflections simulation parameters into concrete FFI-compatible data.
+    fn from_params(params: Option<ReflectionsSimulationParameters>) -> Self {
+        let Some(params) = params else {
+            return Self::default();
+        };
+
+        let (baked_data_id_opt, reverb_scale, transition_time, overlap_percent) = match params {
+            ReflectionsSimulationParameters::Convolution {
+                baked_data_identifier,
+            }
+            | ReflectionsSimulationParameters::TrueAudioNext {
+                baked_data_identifier,
+            } => (baked_data_identifier, [0.0; 3], 0.0, 0.0),
+            ReflectionsSimulationParameters::Parametric {
+                reverb_scale,
+                baked_data_identifier,
+            } => (baked_data_identifier, reverb_scale, 0.0, 0.0),
+            ReflectionsSimulationParameters::Hybrid {
+                reverb_scale,
+                hybrid_reverb_transition_time,
+                hybrid_reverb_overlap_percent,
+                baked_data_identifier,
+            } => (
+                baked_data_identifier,
+                reverb_scale,
+                hybrid_reverb_transition_time,
+                hybrid_reverb_overlap_percent,
+            ),
+        };
+
+        let (baked, baked_data_identifier) = baked_data_id_opt.map_or(
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+            ),
+            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+        );
+
+        Self {
+            baked,
+            baked_data_identifier,
+            reverb_scale,
+            hybrid_reverb_transition_time: transition_time,
+            hybrid_reverb_overlap_percent: overlap_percent,
+        }
+    }
+}
+
+impl Default for ReflectionsSimulationData {
+    fn default() -> Self {
+        Self {
+            baked: audionimbus_sys::IPLbool::IPL_FALSE,
+            baked_data_identifier: BakedDataIdentifier::Reflections {
+                variation: BakedDataVariation::Reverb,
+            },
+            reverb_scale: [0.0; 3],
+            hybrid_reverb_transition_time: 0.0,
+            hybrid_reverb_overlap_percent: 0.0,
+        }
+    }
+}
+
+/// Intermediate representation of pathing simulation parameters for FFI conversion.
+struct PathingSimulationData {
+    pathing_probes: audionimbus_sys::IPLProbeBatch,
+    visibility_radius: f32,
+    visibility_threshold: f32,
+    visibility_range: f32,
+    pathing_order: i32,
+    enable_validation: audionimbus_sys::IPLbool,
+    find_alternate_paths: audionimbus_sys::IPLbool,
+    deviation_model: *mut audionimbus_sys::IPLDeviationModel,
+}
+
+impl PathingSimulationData {
+    /// Converts optional pathing simulation parameters into concrete FFI-compatible data.
+    fn from_params(params: Option<PathingSimulationParameters>) -> Self {
+        let Some(params) = params else {
+            return Self::default();
+        };
+
+        Self {
+            pathing_probes: params.pathing_probes.raw_ptr(),
+            visibility_radius: params.visibility_radius,
+            visibility_threshold: params.visibility_threshold,
+            visibility_range: params.visibility_range,
+            pathing_order: params.pathing_order as i32,
+            enable_validation: if params.enable_validation {
+                audionimbus_sys::IPLbool::IPL_TRUE
+            } else {
+                audionimbus_sys::IPLbool::IPL_FALSE
+            },
+            find_alternate_paths: if params.find_alternate_paths {
+                audionimbus_sys::IPLbool::IPL_TRUE
+            } else {
+                audionimbus_sys::IPLbool::IPL_FALSE
+            },
+            // FIXME: Potential memory leak: this prevents dangling pointers, but there is no guarantee it will be freed by the C library.
+            deviation_model: Box::into_raw(Box::new((&params.deviation).into())),
+        }
+    }
+}
+
+impl Default for PathingSimulationData {
+    fn default() -> Self {
+        Self {
+            pathing_probes: std::ptr::null_mut(),
+            visibility_radius: 0.0,
+            visibility_threshold: 0.0,
+            visibility_range: 0.0,
+            pathing_order: 0,
+            enable_validation: audionimbus_sys::IPLbool::IPL_FALSE,
+            find_alternate_paths: audionimbus_sys::IPLbool::IPL_FALSE,
+            deviation_model: std::ptr::null_mut(),
+        }
+    }
+}
+
 impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
     fn from(simulation_inputs: SimulationInputs) -> Self {
         let SimulationInputs {
@@ -1098,264 +1376,45 @@ impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
 
         let mut flags = audionimbus_sys::IPLSimulationFlags(0);
 
-        let (
-            direct_flags,
-            distance_attenuation_model,
-            air_absorption_model,
-            directivity,
-            occlusion_type,
-            occlusion_radius,
-            num_occlusion_samples,
-            num_transmission_rays,
-        ) = if let Some(direct_simulation_parameters) = direct_simulation {
+        if direct_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
+        }
+        let direct_data = DirectSimulationData::from_params(direct_simulation);
 
-            let DirectSimulationParameters {
-                distance_attenuation,
-                air_absorption,
-                directivity,
-                occlusion,
-            } = direct_simulation_parameters;
-
-            let mut direct_flags = audionimbus_sys::IPLDirectSimulationFlags(0);
-
-            let distance_attenuation_model = if let Some(distance_attenuation_model) =
-                distance_attenuation
-            {
-                direct_flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION;
-                distance_attenuation_model
-            } else {
-                DistanceAttenuationModel::default()
-            };
-
-            let air_absorption_model = if let Some(air_absorption_model) = air_absorption {
-                direct_flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION;
-                air_absorption_model
-            } else {
-                AirAbsorptionModel::default()
-            };
-
-            let directivity = if let Some(directivity) = directivity {
-                direct_flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY;
-                directivity
-            } else {
-                Directivity::default()
-            };
-
-            let (occlusion_type, occlusion_radius, num_occlusion_samples, num_transmission_rays) =
-                if let Some(occlusion) = occlusion {
-                    direct_flags |=
-                    audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_OCCLUSION;
-
-                    let (occlusion_type, occlusion_radius, num_occlusion_samples) =
-                        match occlusion.algorithm {
-                            OcclusionAlgorithm::Raycast => (
-                                audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
-                                0.0,
-                                0,
-                            ),
-                            OcclusionAlgorithm::Volumetric {
-                                radius,
-                                num_occlusion_samples,
-                            } => (
-                                audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_VOLUMETRIC,
-                                radius,
-                                num_occlusion_samples,
-                            ),
-                        };
-
-                    let num_transmission_rays = if let Some(transmission_parameters) =
-                        occlusion.transmission
-                    {
-                        direct_flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION;
-                        transmission_parameters.num_transmission_rays
-                    } else {
-                        0
-                    };
-
-                    (
-                        occlusion_type,
-                        occlusion_radius,
-                        num_occlusion_samples,
-                        num_transmission_rays,
-                    )
-                } else {
-                    (
-                        audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
-                        0.0,
-                        0,
-                        0,
-                    )
-                };
-
-            (
-                direct_flags,
-                distance_attenuation_model,
-                air_absorption_model,
-                directivity,
-                occlusion_type,
-                occlusion_radius,
-                num_occlusion_samples,
-                num_transmission_rays,
-            )
-        } else {
-            (
-                audionimbus_sys::IPLDirectSimulationFlags(0),
-                DistanceAttenuationModel::default(),
-                AirAbsorptionModel::default(),
-                Directivity::default(),
-                audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
-                0.0,
-                0,
-                0,
-            )
-        };
-
-        let (
-            baked,
-            baked_data_identifier,
-            reverb_scale,
-            hybrid_reverb_transition_time,
-            hybrid_reverb_overlap_percent,
-        ) = if let Some(reflections_simulation_parameters) = reflections_simulation {
+        if reflections_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        }
+        let reflections_data = ReflectionsSimulationData::from_params(reflections_simulation);
 
-            let (
-                baked_data_identifier,
-                reverb_scale,
-                hybrid_reverb_transition_time,
-                hybrid_reverb_overlap_percent,
-            ) = match reflections_simulation_parameters {
-                ReflectionsSimulationParameters::Convolution {
-                    baked_data_identifier,
-                }
-                | ReflectionsSimulationParameters::TrueAudioNext {
-                    baked_data_identifier,
-                } => (
-                    baked_data_identifier,
-                    <[f32; 3]>::default(),
-                    f32::default(),
-                    f32::default(),
-                ),
-                ReflectionsSimulationParameters::Parametric {
-                    reverb_scale,
-                    baked_data_identifier,
-                } => (
-                    baked_data_identifier,
-                    reverb_scale,
-                    f32::default(),
-                    f32::default(),
-                ),
-                ReflectionsSimulationParameters::Hybrid {
-                    reverb_scale,
-                    hybrid_reverb_transition_time,
-                    hybrid_reverb_overlap_percent,
-                    baked_data_identifier,
-                } => (
-                    baked_data_identifier,
-                    reverb_scale,
-                    hybrid_reverb_transition_time,
-                    hybrid_reverb_overlap_percent,
-                ),
-            };
-
-            let (baked, baked_data_identifier) = baked_data_identifier.map_or(
-                (
-                    audionimbus_sys::IPLbool::IPL_FALSE,
-                    BakedDataIdentifier::Reflections {
-                        variation: BakedDataVariation::Reverb,
-                    },
-                ),
-                |baked_data_identifier| (audionimbus_sys::IPLbool::IPL_TRUE, baked_data_identifier),
-            );
-
-            (
-                baked,
-                baked_data_identifier,
-                reverb_scale,
-                hybrid_reverb_transition_time,
-                hybrid_reverb_overlap_percent,
-            )
-        } else {
-            (
-                audionimbus_sys::IPLbool::IPL_FALSE,
-                BakedDataIdentifier::Reflections {
-                    variation: BakedDataVariation::Reverb,
-                },
-                <[f32; 3]>::default(),
-                f32::default(),
-                f32::default(),
-            )
-        };
-
-        let (
-            pathing_probes,
-            visibility_radius,
-            visibility_threshold,
-            visibility_range,
-            pathing_order,
-            enable_validation,
-            find_alternate_paths,
-            deviation_model,
-        ) = if let Some(pathing_simulation_parameters) = pathing_simulation {
+        if pathing_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
-
-            (
-                pathing_simulation_parameters.pathing_probes.raw_ptr(),
-                pathing_simulation_parameters.visibility_radius,
-                pathing_simulation_parameters.visibility_threshold,
-                pathing_simulation_parameters.visibility_range,
-                pathing_simulation_parameters.pathing_order,
-                pathing_simulation_parameters.enable_validation,
-                pathing_simulation_parameters.find_alternate_paths,
-                // FIXME: Potential memory leak: this prevents dangling pointers, but there is no guarantee it will be freed by the C library.
-                Box::into_raw(Box::new((&pathing_simulation_parameters.deviation).into())),
-            )
-        } else {
-            (
-                std::ptr::null_mut(),
-                0.0,
-                0.0,
-                0.0,
-                0,
-                false,
-                false,
-                std::ptr::null_mut(),
-            )
-        };
+        }
+        let pathing_data = PathingSimulationData::from_params(pathing_simulation);
 
         Self {
             flags,
-            directFlags: direct_flags,
+            directFlags: direct_data.flags,
             source: source.into(),
-            distanceAttenuationModel: (&distance_attenuation_model).into(),
-            airAbsorptionModel: (&air_absorption_model).into(),
-            directivity: (&directivity).into(),
-            occlusionType: occlusion_type,
-            occlusionRadius: occlusion_radius,
-            numOcclusionSamples: num_occlusion_samples as i32,
-            reverbScale: reverb_scale,
-            hybridReverbTransitionTime: hybrid_reverb_transition_time,
-            hybridReverbOverlapPercent: hybrid_reverb_overlap_percent,
-            baked,
-            bakedDataIdentifier: baked_data_identifier.into(),
-            pathingProbes: pathing_probes,
-            visRadius: visibility_radius,
-            visThreshold: visibility_threshold,
-            visRange: visibility_range,
-            pathingOrder: pathing_order as i32,
-            enableValidation: if enable_validation {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
-            findAlternatePaths: if find_alternate_paths {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
-            numTransmissionRays: num_transmission_rays as i32,
-            deviationModel: deviation_model,
+            distanceAttenuationModel: (&direct_data.distance_attenuation_model).into(),
+            airAbsorptionModel: (&direct_data.air_absorption_model).into(),
+            directivity: (&direct_data.directivity).into(),
+            occlusionType: direct_data.occlusion_type,
+            occlusionRadius: direct_data.occlusion_radius,
+            numOcclusionSamples: direct_data.num_occlusion_samples,
+            numTransmissionRays: direct_data.num_transmission_rays,
+            reverbScale: reflections_data.reverb_scale,
+            hybridReverbTransitionTime: reflections_data.hybrid_reverb_transition_time,
+            hybridReverbOverlapPercent: reflections_data.hybrid_reverb_overlap_percent,
+            baked: reflections_data.baked,
+            bakedDataIdentifier: reflections_data.baked_data_identifier.into(),
+            pathingProbes: pathing_data.pathing_probes,
+            visRadius: pathing_data.visibility_radius,
+            visThreshold: pathing_data.visibility_threshold,
+            visRange: pathing_data.visibility_range,
+            pathingOrder: pathing_data.pathing_order,
+            enableValidation: pathing_data.enable_validation,
+            findAlternatePaths: pathing_data.find_alternate_paths,
+            deviationModel: pathing_data.deviation_model,
         }
     }
 }
