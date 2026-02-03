@@ -57,7 +57,7 @@
 //!
 //! let instanced = InstancedMesh::try_new(
 //!     &scene,
-//!     InstancedMeshSettings {
+//!     &InstancedMeshSettings {
 //!         sub_scene: &sub_scene,
 //!         transform,
 //!     },

@@ -97,7 +97,7 @@ impl Material {
 
 impl From<Material> for audionimbus_sys::IPLMaterial {
     fn from(material: Material) -> Self {
-        audionimbus_sys::IPLMaterial {
+        Self {
             absorption: material.absorption,
             scattering: material.scattering,
             transmission: material.transmission,
