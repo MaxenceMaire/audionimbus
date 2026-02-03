@@ -39,14 +39,14 @@ impl RadeonRaysDevice {
     /// Returns the raw FFI pointer to the underlying Radeon Rays device.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr(&self) -> audionimbus_sys::IPLRadeonRaysDevice {
+    pub const fn raw_ptr(&self) -> audionimbus_sys::IPLRadeonRaysDevice {
         self.0
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
-    pub fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLRadeonRaysDevice {
+    pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLRadeonRaysDevice {
         &mut self.0
     }
 }
@@ -62,7 +62,7 @@ impl Clone for RadeonRaysDevice {
 
 impl Drop for RadeonRaysDevice {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplRadeonRaysDeviceRelease(&mut self.0) }
+        unsafe { audionimbus_sys::iplRadeonRaysDeviceRelease(&raw mut self.0) }
     }
 }
 
