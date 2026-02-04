@@ -211,6 +211,16 @@ fn test_pathing() {
     const MAX_ORDER: u32 = 1;
 
     let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+        .with_direct(DirectSimulationSettings {
+            max_num_occlusion_samples: 4,
+        })
+        .with_reflections(ReflectionsSimulationSettings::Convolution {
+            max_num_rays: 4096,
+            num_diffuse_samples: 32,
+            max_duration: 2.0,
+            max_num_sources: 8,
+            num_threads: 2,
+        })
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
         });

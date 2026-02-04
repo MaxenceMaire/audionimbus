@@ -288,7 +288,7 @@ where
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn add_source(&self, source: &Source) {
+    pub fn add_source(&self, source: &Source<'a, D, R, P>) {
         unsafe {
             audionimbus_sys::iplSourceAdd(source.raw_ptr(), self.raw_ptr());
         }
@@ -974,11 +974,29 @@ impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
     }
 }
 
+/// Trait ensuring Source's Direct type is compatible with Simulator's Direct type.
+pub trait DirectCompatible<SimD> {}
+impl DirectCompatible<Direct> for Direct {}
+impl DirectCompatible<Direct> for () {}
+impl DirectCompatible<()> for () {}
+
+/// Trait ensuring Source's Reflections type is compatible with Simulator's Reflections type.
+pub trait ReflectionsCompatible<SimR> {}
+impl ReflectionsCompatible<Reflections> for Reflections {}
+impl ReflectionsCompatible<Reflections> for () {}
+impl ReflectionsCompatible<()> for () {}
+
+/// Trait ensuring Source's Pathing type is compatible with Simulator's Pathing type.
+pub trait PathingCompatible<SimP> {}
+impl PathingCompatible<Pathing> for Pathing {}
+impl PathingCompatible<Pathing> for () {}
+impl PathingCompatible<()> for () {}
+
 /// A sound source, for the purposes of simulation.
 ///
 /// This object is used to specify various parameters for direct and indirect sound propagation simulation, and to retrieve the simulation results.
 #[derive(Debug)]
-pub struct Source {
+pub struct Source<'a, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSource,
 
     /// Reference to the simulator's direct simulation lock.
@@ -992,23 +1010,31 @@ pub struct Source {
     /// Reference to the simulator's pathing simulation lock.
     /// Used to synchronize access to pathing simulation data.
     pathing_lock: Option<Arc<Mutex<()>>>,
+
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
+    _lifetime: PhantomData<&'a ()>,
 }
 
-impl Source {
+impl<'a, D, R, P> Source<'a, D, R, P> {
     /// Creates a new source.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new<T, D, R, P>(
-        simulator: &Simulator<T, D, R, P>,
+    pub fn try_new<T, SimD, SimR, SimP>(
+        simulator: &Simulator<'a, T, SimD, SimR, SimP>,
         source_settings: &SourceSettings,
     ) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
-        D: 'static,
-        R: 'static,
-        P: 'static,
+        SimD: 'static,
+        SimR: 'static,
+        SimP: 'static,
+        D: DirectCompatible<SimD> + 'static,
+        R: ReflectionsCompatible<SimR> + 'static,
+        P: PathingCompatible<SimP> + 'static,
     {
         let mut inner = std::ptr::null_mut();
 
@@ -1033,6 +1059,10 @@ impl Source {
             direct_lock,
             reflections_lock,
             pathing_lock,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+            _lifetime: PhantomData,
         };
 
         Ok(source)
@@ -1054,7 +1084,11 @@ impl Source {
     ///
     /// - `flags`: the types of simulation for which to specify inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `inputs`: the input parameters to set.
-    pub fn set_inputs(&mut self, simulation_flags: SimulationFlags, inputs: SimulationInputs) {
+    pub fn set_inputs(
+        &mut self,
+        simulation_flags: SimulationFlags,
+        inputs: SimulationInputs<'_, D, R, P>,
+    ) {
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
         unsafe {
@@ -1149,7 +1183,7 @@ impl Source {
     }
 }
 
-impl Clone for Source {
+impl<'a, D, R, P> Clone for Source<'a, D, R, P> {
     fn clone(&self) -> Self {
         unsafe {
             audionimbus_sys::iplSourceRetain(self.inner);
@@ -1160,18 +1194,22 @@ impl Clone for Source {
             direct_lock: self.direct_lock.clone(),
             reflections_lock: self.reflections_lock.clone(),
             pathing_lock: self.pathing_lock.clone(),
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
 
-impl Drop for Source {
+impl<D, R, P> Drop for Source<'_, D, R, P> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl Send for Source {}
-unsafe impl Sync for Source {}
+unsafe impl Send for Source<'_> {}
+unsafe impl Sync for Source<'_> {}
 
 /// Settings used to create a source.
 #[derive(Debug)]
@@ -1190,21 +1228,25 @@ impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
 
 /// Simulation parameters for a source.
 #[derive(Debug, Copy, Clone)]
-pub struct SimulationInputs<'a> {
+pub struct SimulationInputs<'a, D = (), R = (), P = ()> {
     /// The position and orientation of this source.
-    pub source: CoordinateSystem,
+    source: CoordinateSystem,
 
     /// If `Some`, enables direct simulation. This includes distance attenuation, air absorption, directivity, occlusion, and transmission.
-    pub direct_simulation: Option<DirectSimulationParameters>,
+    direct_simulation: Option<DirectSimulationParameters>,
 
     /// If `Some`, enables reflections simulation. This includes both real-time and baked simulation.
-    pub reflections_simulation: Option<ReflectionsSimulationParameters>,
+    reflections_simulation: Option<ReflectionsSimulationParameters>,
 
     /// If `Some`, enables pathing simulation.
-    pub pathing_simulation: Option<PathingSimulationParameters<'a>>,
+    pathing_simulation: Option<PathingSimulationParameters<'a>>,
+
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
 }
 
-impl<'a> SimulationInputs<'a> {
+impl SimulationInputs<'_> {
     /// Crates new [`SimulationInputs`] with all simulations disabled by default.
     pub fn new(source: CoordinateSystem) -> Self {
         Self {
@@ -1212,25 +1254,87 @@ impl<'a> SimulationInputs<'a> {
             direct_simulation: None,
             reflections_simulation: None,
             pathing_simulation: None,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+        }
+    }
+}
+
+impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
+    /// Enables direct simulation with the specified parameters.
+    pub fn with_direct(
+        self,
+        params: DirectSimulationParameters,
+    ) -> SimulationInputs<'a, Direct, R, P> {
+        let Self {
+            source,
+            reflections_simulation,
+            pathing_simulation,
+            _reflections,
+            _pathing,
+            ..
+        } = self;
+
+        SimulationInputs {
+            source,
+            direct_simulation: Some(params),
+            reflections_simulation,
+            pathing_simulation,
+            _direct: PhantomData,
+            _reflections,
+            _pathing,
         }
     }
 
-    /// Enables direct simulation with the specified parameters.
-    pub fn with_direct(mut self, params: DirectSimulationParameters) -> Self {
-        self.direct_simulation = Some(params);
-        self
-    }
-
     /// Enables reflections simulation with the specified parameters.
-    pub fn with_reflections(mut self, params: ReflectionsSimulationParameters) -> Self {
-        self.reflections_simulation = Some(params);
-        self
+    pub fn with_reflections(
+        self,
+        params: ReflectionsSimulationParameters,
+    ) -> SimulationInputs<'a, D, Reflections, P> {
+        let Self {
+            source,
+            direct_simulation,
+            pathing_simulation,
+            _direct,
+            _pathing,
+            ..
+        } = self;
+
+        SimulationInputs {
+            source,
+            direct_simulation,
+            reflections_simulation: Some(params),
+            pathing_simulation,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+        }
     }
 
     /// Enables pathing simulation with the specified parameters.
-    pub fn with_pathing(mut self, params: PathingSimulationParameters<'a>) -> Self {
-        self.pathing_simulation = Some(params);
-        self
+    pub fn with_pathing(
+        self,
+        params: PathingSimulationParameters<'a>,
+    ) -> SimulationInputs<'a, D, R, Pathing> {
+        let Self {
+            source,
+            direct_simulation,
+            reflections_simulation,
+            _direct,
+            _reflections,
+            ..
+        } = self;
+
+        SimulationInputs {
+            source,
+            direct_simulation,
+            reflections_simulation,
+            pathing_simulation: Some(params),
+            _direct,
+            _reflections,
+            _pathing: PhantomData,
+        }
     }
 }
 
@@ -1675,13 +1779,14 @@ impl Default for PathingSimulationData {
     }
 }
 
-impl From<SimulationInputs<'_>> for audionimbus_sys::IPLSimulationInputs {
-    fn from(simulation_inputs: SimulationInputs) -> Self {
+impl<D, R, P> From<SimulationInputs<'_, D, R, P>> for audionimbus_sys::IPLSimulationInputs {
+    fn from(simulation_inputs: SimulationInputs<'_, D, R, P>) -> Self {
         let SimulationInputs {
             source,
             direct_simulation,
             reflections_simulation,
             pathing_simulation,
+            ..
         } = simulation_inputs;
 
         let mut flags = audionimbus_sys::IPLSimulationFlags(0);
