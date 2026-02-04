@@ -206,15 +206,15 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// simulator.add_source(&source);
 /// simulator.set_shared_inputs(
 ///     SimulationFlags::REFLECTIONS,
-///     &SimulationSharedInputs {
-///         listener: CoordinateSystem::default(),
-///         num_rays: 4096,
-///         num_bounces: 16,
-///         duration: 2.0,
-///         order: 1,
-///         irradiance_min_distance: 1.0,
-///         pathing_visualization_callback: None,
-///     },
+///     &SimulationSharedInputs::new(CoordinateSystem::default()).with_reflections(
+///         ReflectionsSharedInputs {
+///             num_rays: 4096,
+///             num_bounces: 16,
+///             duration: 2.0,
+///             order: 1,
+///             irradiance_min_distance: 1.0,
+///         },
+///     ),
 /// );
 /// simulator.commit();
 ///
@@ -298,15 +298,15 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// simulator.add_source(&reverb_source);
 /// simulator.set_shared_inputs(
 ///     SimulationFlags::REFLECTIONS,
-///     &SimulationSharedInputs {
-///         listener: listener_position,
-///         num_rays: 2048,
-///         num_bounces: 8,
-///         duration: 2.0,
-///         order: 1,
-///         irradiance_min_distance: 1.0,
-///         pathing_visualization_callback: None,
-///     },
+///     &SimulationSharedInputs::new(CoordinateSystem::default()).with_reflections(
+///         ReflectionsSharedInputs {
+///             num_rays: 4096,
+///             num_bounces: 16,
+///             duration: 2.0,
+///             order: 1,
+///             irradiance_min_distance: 1.0,
+///         },
+///     ),
 /// );
 /// simulator.commit();
 ///
@@ -1027,15 +1027,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1105,15 +1106,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1195,15 +1197,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1284,15 +1287,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1374,15 +1378,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1472,15 +1477,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1729,15 +1735,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1804,15 +1811,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1883,15 +1891,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 
@@ -1958,15 +1967,16 @@ mod tests {
                 let mut source = Source::try_new(&simulator, &source_settings).unwrap();
                 simulator.add_source(&source);
 
-                let simulation_shared_inputs = SimulationSharedInputs {
-                    listener: CoordinateSystem::default(),
+                let simulation_shared_inputs = SimulationSharedInputs::new(
+                    CoordinateSystem::default(),
+                )
+                .with_reflections(ReflectionsSharedInputs {
                     num_rays: 4096,
                     num_bounces: 16,
                     duration: 2.0,
                     order: 1,
                     irradiance_min_distance: 1.0,
-                    pathing_visualization_callback: None,
-                };
+                });
                 simulator
                     .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
 

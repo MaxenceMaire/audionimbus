@@ -69,7 +69,7 @@ pub struct Pathing;
 /// # use audionimbus::{
 /// #     Context, Simulator, Scene, Source, SourceSettings, SimulationFlags,
 /// #     DirectSimulationSettings, SimulationSettings, SimulationInputs, SimulationSharedInputs,
-/// #     CoordinateSystem, DirectSimulationParameters, DistanceAttenuationModel,
+/// #     CoordinateSystem, DirectSimulationParameters, ReflectionsSharedInputs, DistanceAttenuationModel,
 /// # };
 /// # let context = Context::default();
 /// // Create a simulator.
@@ -102,15 +102,7 @@ pub struct Pathing;
 /// source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
 ///
 /// // Set shared parameters.
-/// let shared_inputs = SimulationSharedInputs {
-///     listener: CoordinateSystem::default(),
-///     num_rays: 4096,
-///     num_bounces: 16,
-///     duration: 2.0,
-///     order: 1,
-///     irradiance_min_distance: 1.0,
-///     pathing_visualization_callback: None,
-/// };
+/// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default());
 /// simulator.set_shared_inputs(SimulationFlags::DIRECT, &shared_inputs);
 ///
 /// // Run the simulation.
@@ -334,10 +326,15 @@ where
     ///
     /// - `flags`: the types of simulation for which to specify shared inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `shared_inputs`: the shared input parameters to set.
-    pub fn set_shared_inputs(
+    pub fn set_shared_inputs<_D, _P>(
         &self,
         simulation_flags: SimulationFlags,
-        shared_inputs: &SimulationSharedInputs,
+        // `_D` and `_P` are intentionally unconstrained here.
+        // `SimulationSharedInputs` does not contain any Direct- or Pathing-specific data.
+        // Allowing arbitrary `_D` and `_P` avoids forcing callers to construct a value via
+        // `SimulationSharedInputs::with_direct` and `SimulationSharedInputs::with_pathing`, which
+        // would add unnecessary boilerplate with no semantic benefit.
+        shared_inputs: &SimulationSharedInputs<_D, R, _P>,
     ) {
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
@@ -1861,10 +1858,178 @@ pub enum OcclusionAlgorithm {
 
 /// Simulation parameters that are not specific to any source.
 #[derive(Debug)]
-pub struct SimulationSharedInputs {
+pub struct SimulationSharedInputs<D = (), R = (), P = ()> {
     /// The position and orientation of the listener.
-    pub listener: CoordinateSystem,
+    listener: CoordinateSystem,
 
+    /// Reflections shared inputs.
+    reflections_shared_inputs: Option<ReflectionsSharedInputs>,
+
+    /// Optional callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
+    pathing_visualization_callback: Option<CallbackInformation<PathingVisualizationCallback>>,
+
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
+}
+
+impl SimulationSharedInputs {
+    /// Creates new [`SimulationSharedInputs`].
+    ///
+    /// # Arguments
+    ///
+    /// - `listener`: The position and orientation of the listener.
+    pub fn new(listener: CoordinateSystem) -> Self {
+        Self {
+            listener,
+            reflections_shared_inputs: None,
+            pathing_visualization_callback: None,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+        }
+    }
+}
+
+impl<D, R, P> SimulationSharedInputs<D, R, P> {
+    /// Returns shared simulation inputs with direct simulation.
+    pub fn with_direct(self) -> SimulationSharedInputs<Direct, R, P> {
+        let Self {
+            listener,
+            reflections_shared_inputs,
+            pathing_visualization_callback,
+            _reflections,
+            _pathing,
+            ..
+        } = self;
+
+        SimulationSharedInputs {
+            listener,
+            reflections_shared_inputs,
+            pathing_visualization_callback,
+            _direct: PhantomData,
+            _reflections,
+            _pathing,
+        }
+    }
+
+    /// Sets the reflections simulation values of the shared inputs.
+    pub fn with_reflections(
+        self,
+        inputs: ReflectionsSharedInputs,
+    ) -> SimulationSharedInputs<D, Reflections, P> {
+        let Self {
+            listener,
+            pathing_visualization_callback,
+            _direct,
+            _pathing,
+            ..
+        } = self;
+
+        SimulationSharedInputs {
+            listener,
+            reflections_shared_inputs: Some(inputs),
+            pathing_visualization_callback,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+        }
+    }
+
+    /// Sets the pathing simulation values of the shared inputs.
+    pub fn with_pathing(self) -> SimulationSharedInputs<D, R, Pathing> {
+        let Self {
+            listener,
+            reflections_shared_inputs,
+            pathing_visualization_callback,
+            _direct,
+            _reflections,
+            ..
+        } = self;
+
+        SimulationSharedInputs {
+            listener,
+            reflections_shared_inputs,
+            pathing_visualization_callback,
+            _direct,
+            _reflections,
+            _pathing: PhantomData,
+        }
+    }
+
+    /// Sets the pathing simulation values of the shared inputs, with a pathing visualization
+    /// callback.
+    ///
+    /// # Arguments
+    ///
+    /// - `pathing_visualization_callback`: Callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
+    pub fn with_pathing_visualization_callback(
+        self,
+        pathing_visualization_callback: CallbackInformation<PathingVisualizationCallback>,
+    ) -> SimulationSharedInputs<D, R, Pathing> {
+        let Self {
+            listener,
+            reflections_shared_inputs,
+            _direct,
+            _reflections,
+            ..
+        } = self;
+
+        SimulationSharedInputs {
+            listener,
+            reflections_shared_inputs,
+            pathing_visualization_callback: Some(pathing_visualization_callback),
+            _direct,
+            _reflections,
+            _pathing: PhantomData,
+        }
+    }
+}
+
+impl<D, R, P> From<&SimulationSharedInputs<D, R, P>>
+    for audionimbus_sys::IPLSimulationSharedInputs
+{
+    fn from(simulation_shared_inputs: &SimulationSharedInputs<D, R, P>) -> Self {
+        let (pathing_visualization_callback, pathing_user_data) = simulation_shared_inputs
+            .pathing_visualization_callback
+            .as_ref()
+            .map_or((None, std::ptr::null_mut()), |callback_information| {
+                (
+                    Some(callback_information.callback),
+                    callback_information.user_data,
+                )
+            });
+
+        let (num_rays, num_bounces, duration, order, irradiance_min_distance) =
+            simulation_shared_inputs.reflections_shared_inputs.map_or(
+                (0, 0, 0.0, 0, 0.0),
+                |inputs| {
+                    (
+                        inputs.num_rays as i32,
+                        inputs.num_bounces as i32,
+                        inputs.duration,
+                        inputs.order as i32,
+                        inputs.irradiance_min_distance,
+                    )
+                },
+            );
+
+        Self {
+            listener: simulation_shared_inputs.listener.into(),
+            numRays: num_rays,
+            numBounces: num_bounces,
+            duration,
+            order,
+            irradianceMinDistance: irradiance_min_distance,
+            pathingVisCallback: pathing_visualization_callback,
+            pathingUserData: pathing_user_data,
+        }
+    }
+}
+
+/// Reflections shared inputs, used as an argument to [`SimulationSharedInputs::with_reflections`].
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ReflectionsSharedInputs {
     /// The number of rays to trace from the listener.
     /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
     pub num_rays: u32,
@@ -1883,34 +2048,6 @@ pub struct SimulationSharedInputs {
 
     /// When calculating how much sound energy reaches a surface directly from a source, any source that is closer than [`Self::irradiance_min_distance`] to the surface is assumed to be at a distance of [`Self::irradiance_min_distance`], for the purposes of energy calculations.
     pub irradiance_min_distance: f32,
-
-    /// Optional callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
-    pub pathing_visualization_callback: Option<CallbackInformation<PathingVisualizationCallback>>,
-}
-
-impl From<&SimulationSharedInputs> for audionimbus_sys::IPLSimulationSharedInputs {
-    fn from(simulation_shared_inputs: &SimulationSharedInputs) -> Self {
-        let (pathing_visualization_callback, pathing_user_data) = simulation_shared_inputs
-            .pathing_visualization_callback
-            .as_ref()
-            .map_or((None, std::ptr::null_mut()), |callback_information| {
-                (
-                    Some(callback_information.callback),
-                    callback_information.user_data,
-                )
-            });
-
-        Self {
-            listener: simulation_shared_inputs.listener.into(),
-            numRays: simulation_shared_inputs.num_rays as i32,
-            numBounces: simulation_shared_inputs.num_bounces as i32,
-            duration: simulation_shared_inputs.duration,
-            order: simulation_shared_inputs.order as i32,
-            irradianceMinDistance: simulation_shared_inputs.irradiance_min_distance,
-            pathingVisCallback: pathing_visualization_callback,
-            pathingUserData: pathing_user_data,
-        }
-    }
 }
 
 /// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
