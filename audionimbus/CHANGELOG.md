@@ -35,6 +35,7 @@
 - Fixed a segmentation fault when calling `AmbisonicsBinauralEffect::tail` with an output buffer that does not have exactly two channels.
 - Fixed a segmentation fault when calling `ReflectionEffect::apply()` with TrueAudioNext effects (which require a mixer).
 - `SerializedObject::to_vec()` now safely handles empty objects, returning an empty vector instead of panicking.
+- Fixed data races when running simulations concurrently on multiple threads by adding per-simulation-type locks.
 
 ### Changed
 
