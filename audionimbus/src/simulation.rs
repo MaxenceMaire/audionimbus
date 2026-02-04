@@ -1127,7 +1127,7 @@ impl<'a, D, R, P> Source<'a, D, R, P> {
     pub fn get_outputs(
         &mut self,
         simulation_flags: SimulationFlags,
-    ) -> Result<SimulationOutputs, SteamAudioError> {
+    ) -> Result<SimulationOutputs<'_>, SteamAudioError> {
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
         let simulation_outputs = SimulationOutputs::try_allocate()?;
@@ -1932,11 +1932,15 @@ pub type PathingVisualizationCallback = unsafe extern "C" fn(
 
 /// Simulation results for a source.
 #[derive(Debug)]
-pub struct SimulationOutputs(*mut audionimbus_sys::IPLSimulationOutputs);
+pub struct SimulationOutputs<'src> {
+    inner: *mut audionimbus_sys::IPLSimulationOutputs,
 
-unsafe impl Send for SimulationOutputs {}
+    /// Marker that guarantees that the [`SimulationOutputs`] cannot outlive the [`Source`] it is
+    /// tied to.
+    _marker: PhantomData<&'src ()>,
+}
 
-impl SimulationOutputs {
+impl<'src> SimulationOutputs<'src> {
     fn try_allocate() -> Result<Self, SteamAudioError> {
         let ptr = unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
@@ -1948,37 +1952,42 @@ impl SimulationOutputs {
             ptr
         };
 
-        Ok(Self(ptr))
+        Ok(Self {
+            inner: ptr,
+            _marker: PhantomData,
+        })
     }
 
     pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
-        unsafe { FFIWrapper::new((*self.0).direct.into()) }
+        unsafe { FFIWrapper::new((*self.inner).direct.into()) }
     }
 
     pub fn reflections<T: ReflectionEffectType>(
         &self,
     ) -> FFIWrapper<'_, ReflectionEffectParams<T>, Self> {
-        unsafe { FFIWrapper::new((*self.0).reflections.into()) }
+        unsafe { FFIWrapper::new((*self.inner).reflections.into()) }
     }
 
     pub fn pathing(&self) -> FFIWrapper<'_, PathEffectParams, Self> {
-        unsafe { FFIWrapper::new((*self.0).pathing.into()) }
+        unsafe { FFIWrapper::new((*self.inner).pathing.into()) }
     }
 
     pub const fn raw_ptr(&self) -> *mut audionimbus_sys::IPLSimulationOutputs {
-        self.0
+        self.inner
     }
 
     pub const fn raw_ptr_mut(&mut self) -> &mut *mut audionimbus_sys::IPLSimulationOutputs {
-        &mut self.0
+        &mut self.inner
     }
 }
 
-impl Drop for SimulationOutputs {
+unsafe impl Send for SimulationOutputs<'_> {}
+
+impl Drop for SimulationOutputs<'_> {
     fn drop(&mut self) {
         unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
-            std::alloc::dealloc(self.0.cast::<u8>(), layout);
+            std::alloc::dealloc(self.inner.cast::<u8>(), layout);
         }
     }
 }
