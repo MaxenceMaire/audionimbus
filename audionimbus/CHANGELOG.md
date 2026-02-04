@@ -124,6 +124,7 @@
 - Add builder-pattern constructors for `SimulationInputs`, `DirectSimulationParameters`, and `Occlusion` with `new()` and `with_*()`.
 - Add compatibility traits (`DirectCompatible`, `ReflectionsCompatible`, `PathingCompatible`) to enforce type-safe Source creation.
 - Add assertion to validate simulation flags in `Source::set_inputs` and `Source::get_outputs`.
+- Add mutex serialization to `Hrtf::try_new()` to prevent undefined behavior from concurrent HRTF creation.
 
 ### Removed
 

@@ -3,6 +3,7 @@
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
+use std::sync::{Mutex, OnceLock};
 
 /// A Head-Related Transfer Function (HRTF).
 ///
@@ -14,16 +15,26 @@ pub struct Hrtf(pub(crate) audionimbus_sys::IPLHRTF);
 impl Hrtf {
     /// Creates a new Head-Related Transfer Function (HRTF).
     ///
+    /// Calling this function is expensive; avoid creating HRTFs in your audio thread at all if possible.
+    ///
+    /// **WARNING:** There is a known Steam Audio issue where using sampling rates other than 44,100 Hz or 48,000 Hz with the default HRTF settings results in a [`SteamAudioError::Initialization`] error.
+    ///
+    /// # Thread Safety
+    ///
+    /// This function blocks if called concurrently from multiple threads.
+    ///
+    /// Steam Audio's HRTF creation is not thread-safe, so calls are serialized using a global mutex.
+    ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    ///
-    /// WARNING: There is a known Steam Audio issue where using sampling rates other than 44,100 Hz or 48,000 Hz with the default HRTF settings results in a [`SteamAudioError::Initialization`] error.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
         hrtf_settings: &HrtfSettings,
     ) -> Result<Self, SteamAudioError> {
+        let _guard = hrtf_creation_lock().lock().unwrap();
+
         let mut hrtf = Self(std::ptr::null_mut());
 
         let (mut settings_ffi, _filename_keeper) = hrtf_settings.to_ffi();
@@ -220,6 +231,15 @@ impl From<HrtfInterpolation> for audionimbus_sys::IPLHRTFInterpolation {
             HrtfInterpolation::Bilinear => Self::IPL_HRTFINTERPOLATION_BILINEAR,
         }
     }
+}
+
+/// Returns a static mutex used to serialize HRTF creation across threads.
+///
+/// Steam Audio's `iplHRTFCreate()` function is not thread-safe, so this lock
+/// ensures that only one HRTF can be created at a time across the entire application.
+fn hrtf_creation_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
 }
 
 #[cfg(test)]
