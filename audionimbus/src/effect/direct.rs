@@ -351,7 +351,7 @@ pub enum Transmission {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AudioBufferSettings, ContextSettings};
+    use crate::AudioBufferSettings;
 
     mod apply {
         use super::*;
