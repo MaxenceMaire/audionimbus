@@ -9,6 +9,7 @@ use crate::context::Context;
 use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
+use crate::Sealed;
 use crate::{ChannelPointers, ChannelRequirement};
 use std::marker::PhantomData;
 
@@ -49,23 +50,19 @@ pub struct Hybrid;
 #[derive(Debug)]
 pub struct TrueAudioNext;
 
-mod sealed {
-    pub trait Sealed {}
-}
-
-impl sealed::Sealed for Convolution {}
-impl sealed::Sealed for Parametric {}
-impl sealed::Sealed for Hybrid {}
-impl sealed::Sealed for TrueAudioNext {}
+impl Sealed for Convolution {}
+impl Sealed for Parametric {}
+impl Sealed for Hybrid {}
+impl Sealed for TrueAudioNext {}
 
 /// Marker trait for effects that can use `apply()`.
-pub trait CanApplyDirectly: sealed::Sealed {}
+pub trait CanApplyDirectly: Sealed {}
 impl CanApplyDirectly for Convolution {}
 impl CanApplyDirectly for Parametric {}
 impl CanApplyDirectly for Hybrid {}
 
 /// Marker trait for effects that can use `apply_into_mixer() and `tail_into_mixer()`.
-pub trait CanUseReflectionMixer: sealed::Sealed {}
+pub trait CanUseReflectionMixer: Sealed {}
 impl CanUseReflectionMixer for Convolution {}
 impl CanUseReflectionMixer for TrueAudioNext {}
 
@@ -74,7 +71,7 @@ impl CanUseReflectionMixer for TrueAudioNext {}
 /// - [`Parametric`]: Parametric (or artificial) reverb, using feedback delay networks
 /// - [`Hybrid`]: A hybrid of convolution and parametric reverb
 /// - [`TrueAudioNext`]: Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration
-pub trait ReflectionEffectType: sealed::Sealed {
+pub trait ReflectionEffectType: Sealed {
     /// Returns the FFI enum value for this reflection effect type.
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType;
 

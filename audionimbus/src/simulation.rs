@@ -40,6 +40,7 @@ use crate::model::directivity::Directivity;
 use crate::model::distance_attenuation::DistanceAttenuationModel;
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
+use crate::Sealed;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -971,6 +972,31 @@ impl From<SimulationFlags> for audionimbus_sys::IPLSimulationFlags {
     }
 }
 
+/// Trait used to validate simulation flags in [`Source::set_inputs`] and [`Source::get_outputs`].
+pub trait SimulationType: Sealed {
+    const FLAG: SimulationFlags;
+}
+
+impl Sealed for Direct {}
+impl SimulationType for Direct {
+    const FLAG: SimulationFlags = SimulationFlags::DIRECT;
+}
+
+impl Sealed for Reflections {}
+impl SimulationType for Reflections {
+    const FLAG: SimulationFlags = SimulationFlags::REFLECTIONS;
+}
+
+impl Sealed for Pathing {}
+impl SimulationType for Pathing {
+    const FLAG: SimulationFlags = SimulationFlags::PATHING;
+}
+
+impl Sealed for () {}
+impl SimulationType for () {
+    const FLAG: SimulationFlags = SimulationFlags::empty();
+}
+
 /// Trait ensuring Source's Direct type is compatible with Simulator's Direct type.
 pub trait DirectCompatible<SimD> {}
 impl DirectCompatible<Direct> for Direct {}
@@ -1014,7 +1040,12 @@ pub struct Source<'a, D = (), R = (), P = ()> {
     _lifetime: PhantomData<&'a ()>,
 }
 
-impl<'a, D, R, P> Source<'a, D, R, P> {
+impl<'a, D, R, P> Source<'a, D, R, P>
+where
+    D: 'static,
+    R: 'static,
+    P: 'static,
+{
     /// Creates a new source.
     ///
     /// # Errors
@@ -1081,11 +1112,17 @@ impl<'a, D, R, P> Source<'a, D, R, P> {
     ///
     /// - `flags`: the types of simulation for which to specify inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `inputs`: the input parameters to set.
+    ///
+    /// # Panics
+    ///
+    /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
     pub fn set_inputs(
         &mut self,
         simulation_flags: SimulationFlags,
         inputs: SimulationInputs<'_, D, R, P>,
     ) {
+        Self::validate_flags(simulation_flags);
+
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
         unsafe {
@@ -1121,10 +1158,16 @@ impl<'a, D, R, P> Source<'a, D, R, P> {
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
     pub fn get_outputs(
         &mut self,
         simulation_flags: SimulationFlags,
     ) -> Result<SimulationOutputs<'_, D, R, P>, SteamAudioError> {
+        Self::validate_flags(simulation_flags);
+
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
         let simulation_outputs = SimulationOutputs::try_allocate()?;
@@ -1163,6 +1206,32 @@ impl<'a, D, R, P> Source<'a, D, R, P> {
         }
 
         guards
+    }
+
+    /// Asserts whether flags are enabled on this [`Source`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if some `flags` are disabled on this [`Source`].
+    fn validate_flags(flags: SimulationFlags) {
+        let mut valid_flags = SimulationFlags::empty();
+
+        if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
+            valid_flags |= SimulationFlags::DIRECT;
+        }
+        if std::any::TypeId::of::<R>() == std::any::TypeId::of::<Reflections>() {
+            valid_flags |= SimulationFlags::REFLECTIONS;
+        }
+        if std::any::TypeId::of::<P>() == std::any::TypeId::of::<Pathing>() {
+            valid_flags |= SimulationFlags::PATHING;
+        }
+
+        assert!(
+            valid_flags.contains(flags),
+            "requested simulation flags {:?} are not enabled on this source (valid flags: {:?})",
+            flags,
+            valid_flags
+        );
     }
 
     /// Returns the raw FFI pointer to the underlying source.
@@ -2170,6 +2239,124 @@ impl std::fmt::Display for SimulationError {
             }
             Self::ReflectionsWithoutScene => {
                 write!(f, "running reflections on a simulator with no scene set")
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    mod source {
+        use super::*;
+
+        mod set_inputs {
+            use super::*;
+
+            #[test]
+            #[should_panic(
+                expected = "requested simulation flags SimulationFlags(REFLECTIONS) are not enabled on this source (valid flags: SimulationFlags(DIRECT))"
+            )]
+            fn panic_on_invalid_flags() {
+                let context = Context::default();
+
+                const SAMPLING_RATE: u32 = 48_000;
+                const FRAME_SIZE: u32 = 1024;
+                const MAX_ORDER: u32 = 1;
+
+                let simulation_settings =
+                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_direct(
+                        DirectSimulationSettings {
+                            max_num_occlusion_samples: 4,
+                        },
+                    );
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+                let scene = Scene::try_new(&context).unwrap();
+                simulator.set_scene(&scene);
+
+                let source_settings = SourceSettings {
+                    flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
+                };
+                let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+
+                let simulation_inputs = SimulationInputs::new(CoordinateSystem {
+                    right: Vector3::new(1.0, 0.0, 0.0),
+                    up: Vector3::new(0.0, 1.0, 0.0),
+                    ahead: Vector3::new(0.0, 0.0, 1.0),
+                    origin: Vector3::new(0.0, 0.0, 0.0),
+                })
+                .with_direct(
+                    DirectSimulationParameters::new()
+                        .with_distance_attenuation(DistanceAttenuationModel::default())
+                        .with_air_absorption(AirAbsorptionModel::default())
+                        .with_directivity(Directivity::default())
+                        .with_occlusion(
+                            Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
+                                TransmissionParameters {
+                                    num_transmission_rays: 1,
+                                },
+                            ),
+                        ),
+                );
+                source.set_inputs(SimulationFlags::REFLECTIONS, simulation_inputs);
+            }
+        }
+
+        mod get_outputs {
+            use super::*;
+
+            #[test]
+            #[should_panic(
+                expected = "requested simulation flags SimulationFlags(REFLECTIONS) are not enabled on this source (valid flags: SimulationFlags(DIRECT))"
+            )]
+            fn panic_on_invalid_flags() {
+                let context = Context::default();
+
+                const SAMPLING_RATE: u32 = 48_000;
+                const FRAME_SIZE: u32 = 1024;
+                const MAX_ORDER: u32 = 1;
+
+                let simulation_settings =
+                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_direct(
+                        DirectSimulationSettings {
+                            max_num_occlusion_samples: 4,
+                        },
+                    );
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+                let scene = Scene::try_new(&context).unwrap();
+                simulator.set_scene(&scene);
+
+                let source_settings = SourceSettings {
+                    flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
+                };
+                let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+
+                let simulation_inputs = SimulationInputs::new(CoordinateSystem {
+                    right: Vector3::new(1.0, 0.0, 0.0),
+                    up: Vector3::new(0.0, 1.0, 0.0),
+                    ahead: Vector3::new(0.0, 0.0, 1.0),
+                    origin: Vector3::new(0.0, 0.0, 0.0),
+                })
+                .with_direct(
+                    DirectSimulationParameters::new()
+                        .with_distance_attenuation(DistanceAttenuationModel::default())
+                        .with_air_absorption(AirAbsorptionModel::default())
+                        .with_directivity(Directivity::default())
+                        .with_occlusion(
+                            Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
+                                TransmissionParameters {
+                                    num_transmission_rays: 1,
+                                },
+                            ),
+                        ),
+                );
+                source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
+
+                simulator.run_direct();
+                let _ = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
             }
         }
     }

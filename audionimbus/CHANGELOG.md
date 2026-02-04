@@ -123,6 +123,7 @@
 - Add `SimulationSettings`, which replaces `SimulatorBuilder`. `Simulator` is now created using `Simulator::try_new` instead of `SimulatorBuilder::build`.
 - Add builder-pattern constructors for `SimulationInputs`, `DirectSimulationParameters`, and `Occlusion` with `new()` and `with_*()`.
 - Add compatibility traits (`DirectCompatible`, `ReflectionsCompatible`, `PathingCompatible`) to enforce type-safe Source creation.
+- Add assertion to validate simulation flags in `Source::set_inputs` and `Source::get_outputs`.
 
 ### Removed
 
