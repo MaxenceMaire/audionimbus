@@ -36,6 +36,7 @@
 - Fixed a segmentation fault when calling `ReflectionEffect::apply()` with TrueAudioNext effects (which require a mixer).
 - `SerializedObject::to_vec()` now safely handles empty objects, returning an empty vector instead of panicking.
 - Fixed data races when running simulations concurrently on multiple threads by adding per-simulation-type locks.
+- Fixed silent failures when setting/getting simulation inputs for incompatible simulation types by enforcing compatibility at compile-time.
 
 ### Changed
 
@@ -91,6 +92,7 @@
 - `BakedDataIdentifier` and `BakedDataVariation` are now part of the new `baking` module instead of `simulation`.
 - Bake operations now return a `BakeError` error if another bake operation is already in progress.
 - Renamed `path` and `reflection` submodules of `effect` to `pathing` and `reflections` for consistency.
+- `SimulationInputs` fields are now private; use builder methods `with_direct()`, `with_reflections()`, and `with_pathing()` to configure simulation types.
 
 ### Added
 
@@ -117,6 +119,7 @@
 - Add a `prelude` module to re-export commonly used types and traits.
 - Add `SimulationSettings`, which replaces `SimulatorBuilder`. `Simulator` is now created using `Simulator::try_new` instead of `SimulatorBuilder::build`.
 - Add builder-pattern constructors for `SimulationInputs`, `DirectSimulationParameters`, and `Occlusion` with `new()` and `with_*()`.
+- Add compatibility traits (`DirectCompatible`, `ReflectionsCompatible`, `PathingCompatible`) to enforce type-safe Source creation.
 
 ### Removed
 
