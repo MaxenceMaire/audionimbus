@@ -1,4 +1,27 @@
 //! Spatial audio simulation (direct simulation, reflections, pathing).
+//!
+//! # Multi-Threading Architecture
+//!
+//! Simulations are designed to run on separate threads from audio processing:
+//!
+//! ```text
+//! ┌────────────────────────────┐       ┌──────────────────┐       ┌─────────────────┐
+//! │ Simulation thread(s)       │       │ Lock-free        │       │ Audio thread    │
+//! │                            │──────▶│ communication    │──────▶│ (real-time)     │
+//! │                            │       │                  │       │                 │
+//! │ Simulator::run_direct      │       │ Triple buffer    │       │ Apply effects   │
+//! │ Simulator::run_reflections │       │ or               │       │                 │
+//! │ Source::get_outputs        │       │ lock-free queue  │       │                 │
+//! └────────────────────────────┘       └──────────────────┘       └─────────────────┘
+//!  Can take 50-500ms                    Non-blocking               Must complete in
+//!  Can block                                                       a few ms
+//! ```
+//!
+//! ## Important Rules
+//!
+//! - Never call [`Source::get_outputs`] from an audio thread - it will block and cause audio glitches
+//! - Use lock-free communication to pass results from simulation to audio threads
+//! - Different simulation types can run in parallel
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
 use crate::callback::CallbackInformation;
@@ -374,9 +397,13 @@ where
     P: 'static,
 {
     /// Runs a direct simulation for all sources added to the simulator.
+    ///
     /// This may include distance attenuation, air absorption, directivity, occlusion, and transmission.
     ///
-    /// This function should not be called from the audio processing thread if occlusion and/or transmission are enabled.
+    /// # Performance Considerations
+    ///
+    /// This function should not be called from the audio processing thread if occlusion
+    /// and/or transmission are enabled, as these calculations can be CPU-intensive.
     pub fn run_direct(&self) {
         let _guard = self
             .direct_lock
@@ -399,7 +426,10 @@ where
 {
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
-    /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
+    /// # Performance Considerations
+    ///
+    /// This function is CPU-intensive and should be called from a dedicated simulation thread
+    /// to avoid blocking either the audio processing thread or the game's main update thread.
     ///
     /// # Errors
     ///
@@ -436,7 +466,10 @@ where
 {
     /// Runs a pathing simulation for all sources added to the simulator.
     ///
-    /// This function can be CPU intensive, and should be called from a separate thread in order to not block either the audio processing thread or the game’s main update thread.
+    /// # Performance Considerations
+    ///
+    /// This function is CPU-intensive and should be called from a dedicated simulation thread
+    /// to avoid blocking either the audio processing thread or the game's main update thread.
     ///
     /// # Errors
     ///
@@ -1007,6 +1040,16 @@ impl Source {
 
     /// Specifies simulation parameters for a source.
     ///
+    /// # Threading Considerations
+    ///
+    /// This method will block if a simulation is currently running for the
+    /// specified type(s). Call this from the same thread that runs the corresponding
+    /// simulation(s) to avoid blocking.
+    ///
+    /// It is safe to call this method concurrently with simulations of different types.
+    /// For example, setting `DIRECT` inputs while a `REFLECTIONS` simulation is running
+    /// will not block.
+    ///
     /// # Arguments
     ///
     /// - `flags`: the types of simulation for which to specify inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
@@ -1024,6 +1067,20 @@ impl Source {
     }
 
     /// Retrieves simulation results for a source.
+    ///
+    /// # ⚠️ Critical Threading Considerations
+    ///
+    /// This method MUST NOT be called from a real-time audio thread!
+    ///
+    /// This method will block while a simulation is running for the specified type(s).
+    /// Since simulations can take 50-500ms to complete, calling this from an audio thread
+    /// will likely cause audio dropouts, glitches, and severe performance problems.
+    ///
+    /// Recommended multi-threading pattern:
+    /// - Simulation thread: run simulation, then call `get_outputs()` to retrieve results
+    /// - Communication layer: send results to audio thread via non-blocking mechanism (e.g.,
+    ///   triple buffering or lock-free queue)
+    /// - Audio thread: receive results and apply effects
     ///
     /// # Arguments
     ///
