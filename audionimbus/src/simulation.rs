@@ -1127,7 +1127,7 @@ impl<'a, D, R, P> Source<'a, D, R, P> {
     pub fn get_outputs(
         &mut self,
         simulation_flags: SimulationFlags,
-    ) -> Result<SimulationOutputs<'_>, SteamAudioError> {
+    ) -> Result<SimulationOutputs<'_, D, R, P>, SteamAudioError> {
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
         let simulation_outputs = SimulationOutputs::try_allocate()?;
@@ -1932,15 +1932,19 @@ pub type PathingVisualizationCallback = unsafe extern "C" fn(
 
 /// Simulation results for a source.
 #[derive(Debug)]
-pub struct SimulationOutputs<'src> {
+pub struct SimulationOutputs<'src, D, R, P> {
     inner: *mut audionimbus_sys::IPLSimulationOutputs,
+
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
 
     /// Marker that guarantees that the [`SimulationOutputs`] cannot outlive the [`Source`] it is
     /// tied to.
     _marker: PhantomData<&'src ()>,
 }
 
-impl<'src> SimulationOutputs<'src> {
+impl<'src, D, R, P> SimulationOutputs<'src, D, R, P> {
     fn try_allocate() -> Result<Self, SteamAudioError> {
         let ptr = unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
@@ -1954,22 +1958,11 @@ impl<'src> SimulationOutputs<'src> {
 
         Ok(Self {
             inner: ptr,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
             _marker: PhantomData,
         })
-    }
-
-    pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
-        unsafe { FFIWrapper::new((*self.inner).direct.into()) }
-    }
-
-    pub fn reflections<T: ReflectionEffectType>(
-        &self,
-    ) -> FFIWrapper<'_, ReflectionEffectParams<T>, Self> {
-        unsafe { FFIWrapper::new((*self.inner).reflections.into()) }
-    }
-
-    pub fn pathing(&self) -> FFIWrapper<'_, PathEffectParams, Self> {
-        unsafe { FFIWrapper::new((*self.inner).pathing.into()) }
     }
 
     pub const fn raw_ptr(&self) -> *mut audionimbus_sys::IPLSimulationOutputs {
@@ -1981,9 +1974,29 @@ impl<'src> SimulationOutputs<'src> {
     }
 }
 
-unsafe impl Send for SimulationOutputs<'_> {}
+impl<'src, R, P> SimulationOutputs<'src, Direct, R, P> {
+    pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
+        unsafe { FFIWrapper::new((*self.inner).direct.into()) }
+    }
+}
 
-impl Drop for SimulationOutputs<'_> {
+impl<'src, D, P> SimulationOutputs<'src, D, Reflections, P> {
+    pub fn reflections<T: ReflectionEffectType>(
+        &self,
+    ) -> FFIWrapper<'_, ReflectionEffectParams<T>, Self> {
+        unsafe { FFIWrapper::new((*self.inner).reflections.into()) }
+    }
+}
+
+impl<'src, D, R> SimulationOutputs<'src, D, R, Pathing> {
+    pub fn pathing(&self) -> FFIWrapper<'_, PathEffectParams, Self> {
+        unsafe { FFIWrapper::new((*self.inner).pathing.into()) }
+    }
+}
+
+unsafe impl<D, R, P> Send for SimulationOutputs<'_, D, R, P> {}
+
+impl<D, R, P> Drop for SimulationOutputs<'_, D, R, P> {
     fn drop(&mut self) {
         unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();

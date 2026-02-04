@@ -94,6 +94,7 @@
 - Bake operations now return a `BakeError` error if another bake operation is already in progress.
 - Renamed `path` and `reflection` submodules of `effect` to `pathing` and `reflections` for consistency.
 - `SimulationInputs` fields are now private; use builder methods `with_direct()`, `with_reflections()`, and `with_pathing()` to configure simulation types.
+- `SimulationOutputs` is now generic over the same simulation types as the `Source` it originated from, preventing misuse.
 
 ### Added
 
