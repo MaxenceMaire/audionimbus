@@ -194,19 +194,6 @@ impl DirectEffect {
     }
 }
 
-impl Clone for DirectEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplDirectEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_channels: self.num_channels,
-        }
-    }
-}
-
 impl Drop for DirectEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplDirectEffectRelease(&raw mut self.inner) }
@@ -214,7 +201,6 @@ impl Drop for DirectEffect {
 }
 
 unsafe impl Send for DirectEffect {}
-unsafe impl Sync for DirectEffect {}
 
 /// Settings used to create a direct effect.
 #[derive(Debug)]
