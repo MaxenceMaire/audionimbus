@@ -2335,10 +2335,14 @@ impl<'src, R, P> SimulationOutputs<'src, Direct, R, P> {
 }
 
 impl<'src, D, P> SimulationOutputs<'src, D, Reflections, P> {
-    pub fn reflections<T: ReflectionEffectType>(
-        &self,
-    ) -> FFIWrapper<'_, ReflectionEffectParams<T>, Self> {
-        unsafe { FFIWrapper::new((*self.inner).reflections.into()) }
+    pub fn reflections<'a, T: ReflectionEffectType>(
+        &'a self,
+    ) -> FFIWrapper<'a, ReflectionEffectParams<'a, T>, Self> {
+        unsafe {
+            FFIWrapper::new(ReflectionEffectParams::from_ffi_unchecked(
+                (*self.inner).reflections,
+            ))
+        }
     }
 }
 
