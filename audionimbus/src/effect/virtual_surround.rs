@@ -213,19 +213,6 @@ impl VirtualSurroundEffect {
     }
 }
 
-impl Clone for VirtualSurroundEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplVirtualSurroundEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_input_channels: self.num_input_channels,
-        }
-    }
-}
-
 impl Drop for VirtualSurroundEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplVirtualSurroundEffectRelease(&raw mut self.inner) }
@@ -233,7 +220,6 @@ impl Drop for VirtualSurroundEffect {
 }
 
 unsafe impl Send for VirtualSurroundEffect {}
-unsafe impl Sync for VirtualSurroundEffect {}
 
 /// Settings used to create a virtual surround effect.
 #[derive(Debug)]

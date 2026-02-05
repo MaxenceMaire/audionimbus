@@ -130,15 +130,6 @@ impl ImpulseResponse {
     }
 }
 
-impl Clone for ImpulseResponse {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplImpulseResponseRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for ImpulseResponse {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplImpulseResponseRelease(&raw mut self.0) }
@@ -146,7 +137,6 @@ impl Drop for ImpulseResponse {
 }
 
 unsafe impl Send for ImpulseResponse {}
-unsafe impl Sync for ImpulseResponse {}
 
 /// Settings used to create an impulse response.
 #[derive(Debug)]

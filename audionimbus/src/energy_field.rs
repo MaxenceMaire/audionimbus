@@ -170,15 +170,6 @@ impl EnergyField {
     }
 }
 
-impl Clone for EnergyField {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplEnergyFieldRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for EnergyField {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplEnergyFieldRelease(&raw mut self.0) }
@@ -186,7 +177,6 @@ impl Drop for EnergyField {
 }
 
 unsafe impl Send for EnergyField {}
-unsafe impl Sync for EnergyField {}
 
 /// Settings used to create an [`EnergyField`].
 #[derive(Debug)]

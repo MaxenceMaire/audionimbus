@@ -141,15 +141,6 @@ impl SerializedObject {
     }
 }
 
-impl Clone for SerializedObject {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplSerializedObjectRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for SerializedObject {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSerializedObjectRelease(&raw mut self.0) }
@@ -157,7 +148,6 @@ impl Drop for SerializedObject {
 }
 
 unsafe impl Send for SerializedObject {}
-unsafe impl Sync for SerializedObject {}
 
 #[cfg(test)]
 mod tests {

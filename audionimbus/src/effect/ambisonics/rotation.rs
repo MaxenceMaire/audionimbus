@@ -205,19 +205,6 @@ impl AmbisonicsRotationEffect {
     }
 }
 
-impl Clone for AmbisonicsRotationEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplAmbisonicsRotationEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_channels: self.num_channels,
-        }
-    }
-}
-
 impl Drop for AmbisonicsRotationEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsRotationEffectRelease(&raw mut self.inner) }
@@ -225,7 +212,6 @@ impl Drop for AmbisonicsRotationEffect {
 }
 
 unsafe impl Send for AmbisonicsRotationEffect {}
-unsafe impl Sync for AmbisonicsRotationEffect {}
 
 /// Settings used to create an ambisonics rotation effect.
 #[derive(Debug)]

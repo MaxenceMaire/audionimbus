@@ -128,19 +128,6 @@ impl Reconstructor {
     }
 }
 
-impl Clone for Reconstructor {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplReconstructorRetain(self.inner);
-        }
-        Self {
-            inner: self.inner,
-            max_duration: self.max_duration,
-            max_order: self.max_order,
-        }
-    }
-}
-
 impl Drop for Reconstructor {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReconstructorRelease(&raw mut self.inner) }
@@ -148,7 +135,6 @@ impl Drop for Reconstructor {
 }
 
 unsafe impl Send for Reconstructor {}
-unsafe impl Sync for Reconstructor {}
 
 /// Settings used to create a reconstructor.
 #[derive(Debug)]

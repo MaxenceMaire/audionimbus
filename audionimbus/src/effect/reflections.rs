@@ -622,20 +622,6 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
     }
 }
 
-impl<T: ReflectionEffectType> Clone for ReflectionEffect<T> {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplReflectionEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_output_channels: self.num_output_channels,
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<T: ReflectionEffectType> Drop for ReflectionEffect<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReflectionEffectRelease(&raw mut self.inner) }
@@ -643,7 +629,6 @@ impl<T: ReflectionEffectType> Drop for ReflectionEffect<T> {
 }
 
 unsafe impl<T: ReflectionEffectType> Send for ReflectionEffect<T> {}
-unsafe impl<T: ReflectionEffectType> Sync for ReflectionEffect<T> {}
 
 /// Settings used to create a reflection effect.
 #[derive(Copy, Clone, Debug)]
@@ -959,20 +944,6 @@ impl<T: ReflectionEffectType> ReflectionMixer<T> {
     }
 }
 
-impl<T: ReflectionEffectType> Clone for ReflectionMixer<T> {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplReflectionMixerRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_output_channels: self.num_output_channels,
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<T: ReflectionEffectType> Drop for ReflectionMixer<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplReflectionMixerRelease(&raw mut self.inner) }
@@ -980,7 +951,6 @@ impl<T: ReflectionEffectType> Drop for ReflectionMixer<T> {
 }
 
 unsafe impl<T: ReflectionEffectType> Send for ReflectionMixer<T> {}
-unsafe impl<T: ReflectionEffectType> Sync for ReflectionMixer<T> {}
 
 #[cfg(test)]
 mod tests {

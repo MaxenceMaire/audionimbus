@@ -188,19 +188,6 @@ impl StaticMesh<DefaultRayTracer> {
     }
 }
 
-impl<T: RayTracer> Clone for StaticMesh<T> {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplStaticMeshRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<T> Drop for StaticMesh<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplStaticMeshRelease(&raw mut self.inner) }
@@ -208,7 +195,6 @@ impl<T> Drop for StaticMesh<T> {
 }
 
 unsafe impl<T: RayTracer> Send for StaticMesh<T> {}
-unsafe impl<T: RayTracer> Sync for StaticMesh<T> {}
 
 /// Settings used to create a static mesh.
 #[derive(Default, Debug)]

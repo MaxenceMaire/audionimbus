@@ -496,30 +496,6 @@ where
     }
 }
 
-impl<T: RayTracer, D, R, P> Clone for Simulator<'_, T, D, R, P> {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplSimulatorRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            committed_num_probes: self.committed_num_probes,
-            pending_probe_batches: self.pending_probe_batches.clone(),
-            has_committed_scene: self.has_committed_scene,
-            has_pending_scene: self.has_pending_scene,
-            direct_lock: self.direct_lock.clone(),
-            reflections_lock: self.reflections_lock.clone(),
-            pathing_lock: self.pathing_lock.clone(),
-            _ray_tracer: PhantomData,
-            _direct: PhantomData,
-            _reflections: PhantomData,
-            _pathing: PhantomData,
-            _lifetime: PhantomData,
-        }
-    }
-}
-
 impl<T: RayTracer, D, R, P> Drop for Simulator<'_, T, D, R, P> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSimulatorRelease(&raw mut self.inner) }
@@ -527,7 +503,6 @@ impl<T: RayTracer, D, R, P> Drop for Simulator<'_, T, D, R, P> {
 }
 
 unsafe impl<T: RayTracer, D, R, P> Send for Simulator<'_, T, D, R, P> {}
-unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<'_, T, D, R, P> {}
 
 /// Settings used to create a [`Simulator`].
 ///
@@ -1249,25 +1224,6 @@ where
     }
 }
 
-impl<'a, D, R, P> Clone for Source<'a, D, R, P> {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplSourceRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            direct_lock: self.direct_lock.clone(),
-            reflections_lock: self.reflections_lock.clone(),
-            pathing_lock: self.pathing_lock.clone(),
-            _direct: PhantomData,
-            _reflections: PhantomData,
-            _pathing: PhantomData,
-            _lifetime: PhantomData,
-        }
-    }
-}
-
 impl<D, R, P> Drop for Source<'_, D, R, P> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.inner) }
@@ -1275,7 +1231,6 @@ impl<D, R, P> Drop for Source<'_, D, R, P> {
 }
 
 unsafe impl Send for Source<'_> {}
-unsafe impl Sync for Source<'_> {}
 
 /// Settings used to create a source.
 #[derive(Debug)]

@@ -57,15 +57,6 @@ impl From<audionimbus_sys::IPLTrueAudioNextDevice> for TrueAudioNextDevice {
     }
 }
 
-impl Clone for TrueAudioNextDevice {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplTrueAudioNextDeviceRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for TrueAudioNextDevice {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplTrueAudioNextDeviceRelease(&raw mut self.0) }
@@ -73,7 +64,6 @@ impl Drop for TrueAudioNextDevice {
 }
 
 unsafe impl Send for TrueAudioNextDevice {}
-unsafe impl Sync for TrueAudioNextDevice {}
 
 /// Settings used to create a TrueAudio Next device.
 #[derive(Debug)]

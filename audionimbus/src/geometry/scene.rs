@@ -767,23 +767,6 @@ impl<T: RayTracer + SaveableAsObj> Scene<T> {
     }
 }
 
-impl<T: RayTracer> Clone for Scene<T> {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplSceneRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            static_meshes: self.static_meshes.clone(),
-            instanced_meshes: self.instanced_meshes.clone(),
-            static_meshes_to_remove: self.static_meshes_to_remove.clone(),
-            instanced_meshes_to_remove: self.instanced_meshes_to_remove.clone(),
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<T: RayTracer> Drop for Scene<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSceneRelease(&raw mut self.inner) }
@@ -791,7 +774,6 @@ impl<T: RayTracer> Drop for Scene<T> {
 }
 
 unsafe impl<T: RayTracer> Send for Scene<T> {}
-unsafe impl<T: RayTracer> Sync for Scene<T> {}
 
 /// Callbacks used for a custom ray tracer.
 pub struct CustomCallbacks {

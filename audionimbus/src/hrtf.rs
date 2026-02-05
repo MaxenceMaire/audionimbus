@@ -80,15 +80,6 @@ impl From<audionimbus_sys::IPLHRTF> for Hrtf {
     }
 }
 
-impl Clone for Hrtf {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplHRTFRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for Hrtf {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplHRTFRelease(&raw mut self.0) }
@@ -96,7 +87,6 @@ impl Drop for Hrtf {
 }
 
 unsafe impl Send for Hrtf {}
-unsafe impl Sync for Hrtf {}
 
 /// Settings used to create an [`Hrtf`].
 #[derive(Debug)]

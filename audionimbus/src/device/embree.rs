@@ -51,15 +51,6 @@ impl EmbreeDevice {
     }
 }
 
-impl Clone for EmbreeDevice {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplEmbreeDeviceRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for EmbreeDevice {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplEmbreeDeviceRelease(&raw mut self.0) }
@@ -67,4 +58,3 @@ impl Drop for EmbreeDevice {
 }
 
 unsafe impl Send for EmbreeDevice {}
-unsafe impl Sync for EmbreeDevice {}

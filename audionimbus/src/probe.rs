@@ -84,15 +84,6 @@ impl ProbeArray {
     }
 }
 
-impl Clone for ProbeArray {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplProbeArrayRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for ProbeArray {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplProbeArrayRelease(&raw mut self.0) }
@@ -100,7 +91,6 @@ impl Drop for ProbeArray {
 }
 
 unsafe impl Send for ProbeArray {}
-unsafe impl Sync for ProbeArray {}
 
 /// [`ProbeArray`] errors.
 #[derive(Debug, PartialEq, Eq)]
@@ -432,20 +422,6 @@ impl ProbeBatch {
     }
 }
 
-impl Clone for ProbeBatch {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplProbeBatchRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            committed_num_probes: self.committed_num_probes,
-            pending_num_probes: self.pending_num_probes,
-        }
-    }
-}
-
 impl Drop for ProbeBatch {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplProbeBatchRelease(&raw mut self.inner) }
@@ -453,7 +429,6 @@ impl Drop for ProbeBatch {
 }
 
 unsafe impl Send for ProbeBatch {}
-unsafe impl Sync for ProbeBatch {}
 
 /// [`ProbeBatch`] errors.
 #[derive(Debug, PartialEq, Eq)]
