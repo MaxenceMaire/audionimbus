@@ -319,7 +319,9 @@ fn test_pathing() {
             find_alternate_paths: true,
             deviation: DeviationModel::default(),
         });
-    source.set_inputs(SimulationFlags::PATHING, simulation_inputs);
+    source
+        .set_inputs(SimulationFlags::PATHING, simulation_inputs)
+        .unwrap();
     simulator.add_source(&source);
 
     simulator.commit();

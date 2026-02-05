@@ -38,6 +38,7 @@
 - Fixed data races when running simulations concurrently on multiple threads by adding per-simulation-type locks.
 - Fixed silent failures when setting/getting simulation inputs for incompatible simulation types by enforcing compatibility at compile-time.
 - Fixed use-after-free error by ensuring `Source` outlives any `SimulationOutputs` borrowed from it.
+- Added validation to prevent runtime parameters from exceeding maximum values set during simulator initialization.
 
 ### Changed
 
@@ -96,6 +97,7 @@
 - `SimulationInputs` fields are now private; use builder methods `with_direct()`, `with_reflections()`, and `with_pathing()` to configure simulation types.
 - `SimulationOutputs` is now generic over the same simulation types as the `Source` it originated from, preventing misuse.
 - `SimulationSharedInputs` fields are now private; use builder methods `with_direct()`, `with_reflections()`, and `with_pathing()` to configure simulation types.
+- `Simulator::set_shared_inputs` and `Source::set_inputs` now return a `ParameterValidationError` if any parameters exceed that maximums set during simulator initialization.
 
 ### Added
 

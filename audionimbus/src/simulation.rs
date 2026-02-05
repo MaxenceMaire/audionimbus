@@ -130,6 +130,15 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     /// Whether a scene is pending commit.
     has_pending_scene: bool,
 
+    /// The maximum number of occlusion samples specified during creation.
+    max_num_occlusion_samples: Option<u32>,
+
+    /// The maximum number of rays specified during creation.
+    max_num_rays: Option<u32>,
+
+    /// The maximum duration specified during creation.
+    max_duration: Option<f32>,
+
     /// Synchronization lock for direct simulation operations.
     direct_lock: Option<Arc<Mutex<()>>>,
 
@@ -210,6 +219,9 @@ where
             pending_probe_batches: HashMap::new(),
             has_committed_scene: false,
             has_pending_scene: false,
+            max_num_occlusion_samples: settings.max_num_occlusion_samples(),
+            max_num_rays: settings.max_num_rays(),
+            max_duration: settings.max_duration(),
             direct_lock,
             reflections_lock,
             pathing_lock,
@@ -327,6 +339,11 @@ where
     ///
     /// - `flags`: the types of simulation for which to specify shared inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `shared_inputs`: the shared input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
+    /// simulator initialization.
     pub fn set_shared_inputs<_D, _P>(
         &self,
         simulation_flags: SimulationFlags,
@@ -336,7 +353,9 @@ where
         // `SimulationSharedInputs::with_direct` and `SimulationSharedInputs::with_pathing`, which
         // would add unnecessary boilerplate with no semantic benefit.
         shared_inputs: &SimulationSharedInputs<_D, R, _P>,
-    ) {
+    ) -> Result<(), ParameterValidationError> {
+        self.validate_shared_inputs(shared_inputs)?;
+
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
         unsafe {
@@ -346,6 +365,8 @@ where
                 &mut audionimbus_sys::IPLSimulationSharedInputs::from(shared_inputs),
             );
         }
+
+        Ok(())
     }
 
     /// Acquires locks for the simulation types specified in the given flags.
@@ -371,6 +392,38 @@ where
         }
 
         guards
+    }
+
+    /// Validates shared simulation inputs against the limits set during initialization.
+    fn validate_shared_inputs<_D, _P>(
+        &self,
+        shared_inputs: &SimulationSharedInputs<_D, R, _P>,
+    ) -> Result<(), ParameterValidationError> {
+        let Some(reflections_inputs) = &shared_inputs.reflections_shared_inputs else {
+            return Ok(());
+        };
+
+        // Validate num_rays.
+        if let Some(max) = self.max_num_rays {
+            if reflections_inputs.num_rays > max {
+                return Err(ParameterValidationError::NumRaysExceedsMax {
+                    requested: reflections_inputs.num_rays,
+                    max,
+                });
+            }
+        }
+
+        // Validate duration.
+        if let Some(max) = self.max_duration {
+            if reflections_inputs.duration > max {
+                return Err(ParameterValidationError::DurationExceedsMax {
+                    requested: reflections_inputs.duration,
+                    max,
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Returns the raw FFI pointer to the underlying simulator.
@@ -802,6 +855,41 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     pub const fn to_ffi(&self) -> audionimbus_sys::IPLSimulationSettings {
         self.settings
     }
+
+    /// Returns the maximum number of occlusion samples allowed, if direct simulation is enabled.
+    const fn max_num_occlusion_samples(&self) -> Option<u32> {
+        if self.settings.flags.0 & audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT.0
+            != 0
+        {
+            Some(self.settings.maxNumOcclusionSamples as u32)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the maximum number of rays allowed, if reflections simulation is enabled.
+    const fn max_num_rays(&self) -> Option<u32> {
+        if self.settings.flags.0
+            & audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS.0
+            != 0
+        {
+            Some(self.settings.maxNumRays as u32)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the maximum duration allowed, if reflections simulation is enabled.
+    const fn max_duration(&self) -> Option<f32> {
+        if self.settings.flags.0
+            & audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS.0
+            != 0
+        {
+            Some(self.settings.maxDuration)
+        } else {
+            None
+        }
+    }
 }
 
 /// Settings used for direct path simulation.
@@ -997,6 +1085,9 @@ impl PathingCompatible<()> for () {}
 pub struct Source<'a, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSource,
 
+    /// The maximum number of occlusion samples specified during creation of the [Simulator].
+    max_num_occlusion_samples: Option<u32>,
+
     /// Reference to the simulator's direct simulation lock.
     /// Used to synchronize access to direct simulation data.
     direct_lock: Option<Arc<Mutex<()>>>,
@@ -1059,6 +1150,7 @@ where
 
         let source = Self {
             inner,
+            max_num_occlusion_samples: simulator.max_num_occlusion_samples,
             direct_lock,
             reflections_lock,
             pathing_lock,
@@ -1088,6 +1180,11 @@ where
     /// - `flags`: the types of simulation for which to specify inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `inputs`: the input parameters to set.
     ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
+    /// set during simulator initialization.
+    ///
     /// # Panics
     ///
     /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
@@ -1095,8 +1192,10 @@ where
         &mut self,
         simulation_flags: SimulationFlags,
         inputs: SimulationInputs<'_, D, R, P>,
-    ) {
+    ) -> Result<(), ParameterValidationError> {
         Self::validate_flags(simulation_flags);
+
+        self.validate_inputs(&inputs)?;
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
@@ -1107,6 +1206,8 @@ where
                 &mut inputs.into(),
             );
         }
+
+        Ok(())
     }
 
     /// Retrieves simulation results for a source.
@@ -1207,6 +1308,41 @@ where
             flags,
             valid_flags
         );
+    }
+
+    /// Validates simulation parameters against the limits set during simulator initialization.
+    fn validate_inputs(
+        &self,
+        inputs: &SimulationInputs<'_, D, R, P>,
+    ) -> Result<(), ParameterValidationError> {
+        let Some(direct_params) = &inputs.direct_simulation else {
+            return Ok(());
+        };
+
+        let Some(occlusion) = &direct_params.occlusion else {
+            return Ok(());
+        };
+
+        let OcclusionAlgorithm::Volumetric {
+            num_occlusion_samples,
+            ..
+        } = occlusion.algorithm
+        else {
+            return Ok(());
+        };
+
+        let Some(max) = self.max_num_occlusion_samples else {
+            return Ok(());
+        };
+
+        if num_occlusion_samples > max {
+            return Err(ParameterValidationError::OcclusionSamplesExceedsMax {
+                requested: num_occlusion_samples,
+                max,
+            });
+        }
+
+        Ok(())
     }
 
     /// Returns the raw FFI pointer to the underlying source.
@@ -2199,6 +2335,64 @@ impl std::fmt::Display for SimulationError {
     }
 }
 
+/// Errors that can occur during parameter validation.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterValidationError {
+    /// Number of occlusion samples exceeds the maximum set during initialization.
+    OcclusionSamplesExceedsMax {
+        /// The requested number of samples.
+        requested: u32,
+        /// The maximum allowed number of samples.
+        max: u32,
+    },
+
+    /// Number of rays exceeds the maximum set during initialization.
+    NumRaysExceedsMax {
+        /// The requested number of rays.
+        requested: u32,
+        /// The maximum allowed number of rays.
+        max: u32,
+    },
+
+    /// Duration exceeds the maximum set during initialization.
+    DurationExceedsMax {
+        /// The requested duration in seconds.
+        requested: f32,
+        /// The maximum allowed duration in seconds.
+        max: f32,
+    },
+}
+
+impl std::error::Error for ParameterValidationError {}
+
+impl std::fmt::Display for ParameterValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::OcclusionSamplesExceedsMax { requested, max } => {
+                write!(
+                    f,
+                    "requested {} occlusion samples, but maximum is {} (set during simulator initialization)",
+                    requested, max
+                )
+            }
+            Self::NumRaysExceedsMax { requested, max } => {
+                write!(
+                    f,
+                    "requested {} rays, but maximum is {} (set during simulator initialization)",
+                    requested, max
+                )
+            }
+            Self::DurationExceedsMax { requested, max } => {
+                write!(
+                    f,
+                    "requested duration of {}s, but maximum is {}s (set during simulator initialization)",
+                    requested, max
+                )
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -2255,7 +2449,9 @@ mod tests {
                             ),
                         ),
                 );
-                source.set_inputs(SimulationFlags::REFLECTIONS, simulation_inputs);
+                source
+                    .set_inputs(SimulationFlags::REFLECTIONS, simulation_inputs)
+                    .unwrap();
             }
         }
 
@@ -2308,7 +2504,9 @@ mod tests {
                             ),
                         ),
                 );
-                source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
+                source
+                    .set_inputs(SimulationFlags::DIRECT, simulation_inputs)
+                    .unwrap();
 
                 simulator.run_direct();
                 let _ = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
