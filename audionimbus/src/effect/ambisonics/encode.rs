@@ -203,19 +203,6 @@ impl AmbisonicsEncodeEffect {
     }
 }
 
-impl Clone for AmbisonicsEncodeEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplAmbisonicsEncodeEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_output_channels: self.num_output_channels,
-        }
-    }
-}
-
 impl Drop for AmbisonicsEncodeEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsEncodeEffectRelease(&raw mut self.inner) }
@@ -223,7 +210,6 @@ impl Drop for AmbisonicsEncodeEffect {
 }
 
 unsafe impl Send for AmbisonicsEncodeEffect {}
-unsafe impl Sync for AmbisonicsEncodeEffect {}
 
 /// Settings used to create an ambisonics decode effect.
 #[derive(Debug)]

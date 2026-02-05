@@ -213,19 +213,6 @@ impl AmbisonicsPanningEffect {
     }
 }
 
-impl Clone for AmbisonicsPanningEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplAmbisonicsPanningEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_output_channels: self.num_output_channels,
-        }
-    }
-}
-
 impl Drop for AmbisonicsPanningEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsPanningEffectRelease(&raw mut self.inner) }
@@ -233,7 +220,6 @@ impl Drop for AmbisonicsPanningEffect {
 }
 
 unsafe impl Send for AmbisonicsPanningEffect {}
-unsafe impl Sync for AmbisonicsPanningEffect {}
 
 /// Settings used to create an ambisonics panning effect.
 #[derive(Debug)]

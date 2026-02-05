@@ -333,19 +333,6 @@ impl PathEffect {
     }
 }
 
-impl Clone for PathEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplPathEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_output_channels: self.num_output_channels,
-        }
-    }
-}
-
 impl Drop for PathEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplPathEffectRelease(&raw mut self.inner) }
@@ -353,7 +340,6 @@ impl Drop for PathEffect {
 }
 
 unsafe impl Send for PathEffect {}
-unsafe impl Sync for PathEffect {}
 
 /// Settings used to create a path effect.
 #[derive(Debug)]

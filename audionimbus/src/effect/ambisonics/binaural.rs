@@ -198,15 +198,6 @@ impl AmbisonicsBinauralEffect {
     }
 }
 
-impl Clone for AmbisonicsBinauralEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplAmbisonicsBinauralEffectRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for AmbisonicsBinauralEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplAmbisonicsBinauralEffectRelease(&raw mut self.0) }
@@ -214,7 +205,6 @@ impl Drop for AmbisonicsBinauralEffect {
 }
 
 unsafe impl Send for AmbisonicsBinauralEffect {}
-unsafe impl Sync for AmbisonicsBinauralEffect {}
 
 /// Settings used to create an ambisonics binaural effect.
 #[derive(Debug)]

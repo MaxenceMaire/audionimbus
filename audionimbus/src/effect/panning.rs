@@ -204,19 +204,6 @@ impl PanningEffect {
     }
 }
 
-impl Clone for PanningEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplPanningEffectRetain(self.inner);
-        }
-
-        Self {
-            inner: self.inner,
-            num_output_channels: self.num_output_channels,
-        }
-    }
-}
-
 impl Drop for PanningEffect {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplPanningEffectRelease(&raw mut self.inner) }
@@ -224,7 +211,6 @@ impl Drop for PanningEffect {
 }
 
 unsafe impl Send for PanningEffect {}
-unsafe impl Sync for PanningEffect {}
 
 /// Settings used to create a panning effect.
 #[derive(Debug)]
