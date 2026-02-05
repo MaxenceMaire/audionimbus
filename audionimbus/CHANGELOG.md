@@ -39,6 +39,7 @@
 - Fixed silent failures when setting/getting simulation inputs for incompatible simulation types by enforcing compatibility at compile-time.
 - Fixed use-after-free error by ensuring `Source` outlives any `SimulationOutputs` borrowed from it.
 - Added validation to prevent runtime parameters from exceeding maximum values set during simulator initialization.
+- Fixed use-after-free error by ensuring devices outlive [`Simulator`].
 
 ### Changed
 
