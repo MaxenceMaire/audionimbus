@@ -69,7 +69,9 @@ fn test_simulation() {
         find_alternate_paths: true,
         deviation: DeviationModel::default(),
     });
-    source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
+    source
+        .set_inputs(SimulationFlags::DIRECT, simulation_inputs)
+        .unwrap();
 
     simulator.add_source(&source);
 
@@ -81,10 +83,12 @@ fn test_simulation() {
             order: 1,
             irradiance_min_distance: 1.0,
         });
-    simulator.set_shared_inputs(
-        SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
-        &simulation_shared_inputs,
-    );
+    simulator
+        .set_shared_inputs(
+            SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
+            &simulation_shared_inputs,
+        )
+        .unwrap();
 
     simulator.commit();
 
@@ -244,7 +248,9 @@ fn test_pathing_without_probes() {
             find_alternate_paths: true,
             deviation: DeviationModel::default(),
         });
-    source.set_inputs(SimulationFlags::PATHING, simulation_inputs);
+    source
+        .set_inputs(SimulationFlags::PATHING, simulation_inputs)
+        .unwrap();
     simulator.add_source(&source);
 
     simulator.commit();
@@ -279,7 +285,9 @@ fn test_reflections_without_scene() {
             order: 1,
             irradiance_min_distance: 1.0,
         });
-    simulator.set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs);
+    simulator
+        .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+        .unwrap();
 
     simulator.commit();
 
