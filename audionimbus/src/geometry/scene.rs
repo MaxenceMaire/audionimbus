@@ -26,7 +26,7 @@ impl SaveableAsObj for Embree {}
 ///
 /// [`Scene`] is generic over the [`RayTracer`] implementation.
 #[derive(Debug)]
-pub struct Scene<T: RayTracer = DefaultRayTracer> {
+pub struct Scene<'a, T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
 
     /// Used to keep static meshes alive for the lifetime of the scene.
@@ -41,10 +41,11 @@ pub struct Scene<T: RayTracer = DefaultRayTracer> {
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh>,
 
+    _ray_tracing_device: PhantomData<&'a ()>,
     _marker: PhantomData<T>,
 }
 
-impl<T: RayTracer> Scene<T> {
+impl<T: RayTracer> Scene<'_, T> {
     /// Creates an empty scene.
     fn empty() -> Self {
         Self {
@@ -53,6 +54,7 @@ impl<T: RayTracer> Scene<T> {
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
+            _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         }
     }
@@ -111,7 +113,7 @@ impl<T: RayTracer> Scene<T> {
     }
 }
 
-impl Scene<DefaultRayTracer> {
+impl Scene<'_, DefaultRayTracer> {
     /// Creates a new scene.
     ///
     /// # Errors
@@ -170,7 +172,7 @@ impl Scene<DefaultRayTracer> {
     }
 }
 
-impl Scene<Embree> {
+impl<'a> Scene<'a, Embree> {
     /// Creates a new scene with the Embree ray tracer.
     ///
     /// # Errors
@@ -178,7 +180,7 @@ impl Scene<Embree> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_embree(
         context: &Context,
-        device: &EmbreeDevice,
+        device: &'a EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(device))
     }
@@ -192,7 +194,7 @@ impl Scene<Embree> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_embree(
         context: &Context,
-        device: &EmbreeDevice,
+        device: &'a EmbreeDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self {
@@ -201,6 +203,7 @@ impl Scene<Embree> {
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
+            _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         };
 
@@ -231,7 +234,7 @@ impl Scene<Embree> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_embree_with_progress(
         context: &Context,
-        device: &EmbreeDevice,
+        device: &'a EmbreeDevice,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
@@ -244,7 +247,7 @@ impl Scene<Embree> {
     }
 
     /// Returns FFI scene settings with the Embree ray tracer.
-    fn ffi_settings(device: &EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(device: &'a EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: Embree::scene_type(),
             closestHitCallback: None,
@@ -258,7 +261,7 @@ impl Scene<Embree> {
     }
 }
 
-impl Scene<RadeonRays> {
+impl<'a> Scene<'a, RadeonRays> {
     /// Creates a new scene with the Radeon Rays ray tracer.
     ///
     /// # Errors
@@ -266,7 +269,7 @@ impl Scene<RadeonRays> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_radeon_rays(
         context: &Context,
-        device: &RadeonRaysDevice,
+        device: &'a RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(device))
     }
@@ -280,7 +283,7 @@ impl Scene<RadeonRays> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_radeon_rays(
         context: &Context,
-        device: &RadeonRaysDevice,
+        device: &'a RadeonRaysDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
@@ -300,7 +303,7 @@ impl Scene<RadeonRays> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_radeon_rays_with_progress(
         context: &Context,
-        device: &RadeonRaysDevice,
+        device: &'a RadeonRaysDevice,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
@@ -313,7 +316,7 @@ impl Scene<RadeonRays> {
     }
 
     /// Returns FFI scene settings with the Radeon Rays ray tracer.
-    fn ffi_settings(device: &RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(device: &'a RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: RadeonRays::scene_type(),
             closestHitCallback: None,
@@ -327,7 +330,7 @@ impl Scene<RadeonRays> {
     }
 }
 
-impl Scene<CustomRayTracer> {
+impl<'a> Scene<'a, CustomRayTracer> {
     /// Creates a new scene with a custom ray tracer.
     ///
     /// # Errors
@@ -335,7 +338,7 @@ impl Scene<CustomRayTracer> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_custom(
         context: &Context,
-        callbacks: &CustomCallbacks,
+        callbacks: &'a CustomCallbacks,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(callbacks))
     }
@@ -349,7 +352,7 @@ impl Scene<CustomRayTracer> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom(
         context: &Context,
-        callbacks: &CustomCallbacks,
+        callbacks: &'a CustomCallbacks,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
@@ -369,7 +372,7 @@ impl Scene<CustomRayTracer> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom_with_progress(
         context: &Context,
-        callbacks: &CustomCallbacks,
+        callbacks: &'a CustomCallbacks,
         serialized_object: &SerializedObject,
         progress_callback: CallbackInformation<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
@@ -382,7 +385,7 @@ impl Scene<CustomRayTracer> {
     }
 
     /// Returns FFI scene settings with custom callbacks.
-    fn ffi_settings(callbacks: &CustomCallbacks) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(callbacks: &'a CustomCallbacks) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: CustomRayTracer::scene_type(),
             closestHitCallback: Some(callbacks.closest_hit_callback),
@@ -396,7 +399,7 @@ impl Scene<CustomRayTracer> {
     }
 }
 
-impl<T: RayTracer> Scene<T> {
+impl<T: RayTracer> Scene<'_, T> {
     /// Adds a static mesh to a scene and returns a handle to it.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
@@ -733,7 +736,7 @@ impl<T: RayTracer> Scene<T> {
     }
 }
 
-impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
+impl<T: RayTracer + SaveableAsSerialized> Scene<'_, T> {
     /// Saves a scene to a serialized object.
     ///
     /// Typically, the serialized object will then be saved to disk.
@@ -750,7 +753,7 @@ impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
     }
 }
 
-impl<T: RayTracer + SaveableAsObj> Scene<T> {
+impl<T: RayTracer + SaveableAsObj> Scene<'_, T> {
     /// Saves a scene to an OBJ file.
     ///
     /// An OBJ file is a widely-supported 3D model file format, that can be displayed using a variety of software on most PC platforms.
@@ -767,13 +770,13 @@ impl<T: RayTracer + SaveableAsObj> Scene<T> {
     }
 }
 
-impl<T: RayTracer> Drop for Scene<T> {
+impl<T: RayTracer> Drop for Scene<'_, T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSceneRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer> Send for Scene<T> {}
+unsafe impl<T: RayTracer> Send for Scene<'_, T> {}
 
 /// Callbacks used for a custom ray tracer.
 pub struct CustomCallbacks {

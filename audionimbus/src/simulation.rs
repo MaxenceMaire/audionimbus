@@ -148,6 +148,9 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     /// Synchronization lock for pathing simulation operations.
     pathing_lock: Option<Arc<Mutex<()>>>,
 
+    _open_cl_device: Option<&'a OpenClDevice>,
+    _radeon_rays_device: Option<&'a RadeonRaysDevice>,
+    _true_audio_next_device: Option<&'a TrueAudioNextDevice>,
     _ray_tracer: PhantomData<T>,
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -225,6 +228,9 @@ where
             direct_lock,
             reflections_lock,
             pathing_lock,
+            _open_cl_device: settings._open_cl_device,
+            _radeon_rays_device: settings._radeon_rays_device,
+            _true_audio_next_device: settings._true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -582,6 +588,9 @@ unsafe impl<T: RayTracer, D, R, P> Send for Simulator<'_, T, D, R, P> {}
 #[derive(Debug)]
 pub struct SimulationSettings<'a, T: RayTracer, D = (), R = (), P = ()> {
     settings: audionimbus_sys::IPLSimulationSettings,
+    _open_cl_device: Option<&'a OpenClDevice>,
+    _radeon_rays_device: Option<&'a RadeonRaysDevice>,
+    _true_audio_next_device: Option<&'a TrueAudioNextDevice>,
     _ray_tracer: PhantomData<T>,
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -615,6 +624,9 @@ impl SimulationSettings<'_, DefaultRayTracer, (), (), ()> {
 
         Self {
             settings,
+            _open_cl_device: None,
+            _radeon_rays_device: None,
+            _true_audio_next_device: None,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -627,11 +639,20 @@ impl SimulationSettings<'_, DefaultRayTracer, (), (), ()> {
 impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
     /// Switches to the Embree ray tracer.
     pub fn with_embree(self) -> SimulationSettings<'a, Embree, (), (), ()> {
-        let Self { mut settings, .. } = self;
+        let Self {
+            mut settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
+            ..
+        } = self;
         settings.sceneType = Embree::scene_type();
 
         SimulationSettings {
             settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -651,13 +672,20 @@ impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
         open_cl_device: &'a OpenClDevice,
         radeon_rays_device: &'a RadeonRaysDevice,
     ) -> SimulationSettings<'a, RadeonRays, (), (), ()> {
-        let Self { mut settings, .. } = self;
+        let Self {
+            mut settings,
+            _true_audio_next_device,
+            ..
+        } = self;
         settings.sceneType = RadeonRays::scene_type();
         settings.openCLDevice = open_cl_device.raw_ptr();
         settings.radeonRaysDevice = radeon_rays_device.raw_ptr();
 
         SimulationSettings {
             settings,
+            _open_cl_device: Some(open_cl_device),
+            _radeon_rays_device: Some(radeon_rays_device),
+            _true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -675,12 +703,21 @@ impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
         self,
         ray_batch_size: u32,
     ) -> SimulationSettings<'a, CustomRayTracer, (), (), ()> {
-        let Self { mut settings, .. } = self;
+        let Self {
+            mut settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
+            ..
+        } = self;
         settings.sceneType = CustomRayTracer::scene_type();
         settings.rayBatchSize = ray_batch_size as i32;
 
         SimulationSettings {
             settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -698,6 +735,9 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     ) -> SimulationSettings<'a, T, Direct, R, P> {
         let Self {
             mut settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer,
             _reflections,
             _pathing,
@@ -710,6 +750,9 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
 
         SimulationSettings {
             settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer,
             _direct: PhantomData,
             _reflections,
@@ -725,6 +768,9 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     ) -> SimulationSettings<'a, T, D, Reflections, P> {
         let Self {
             mut settings,
+            mut _open_cl_device,
+            _radeon_rays_device,
+            mut _true_audio_next_device,
             _ray_tracer,
             _direct,
             _pathing,
@@ -795,6 +841,8 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
             } => {
                 settings.openCLDevice = open_cl_device.raw_ptr();
                 settings.tanDevice = true_audio_next_device.raw_ptr();
+                _open_cl_device = Some(open_cl_device);
+                _true_audio_next_device = Some(true_audio_next_device);
 
                 (
                     audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN,
@@ -816,6 +864,9 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
 
         SimulationSettings {
             settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer,
             _direct,
             _reflections: PhantomData,
@@ -831,6 +882,9 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     ) -> SimulationSettings<'a, T, D, R, Pathing> {
         let Self {
             mut settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer,
             _direct,
             _reflections,
@@ -843,6 +897,9 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
 
         SimulationSettings {
             settings,
+            _open_cl_device,
+            _radeon_rays_device,
+            _true_audio_next_device,
             _ray_tracer,
             _direct,
             _reflections,
@@ -2278,10 +2335,14 @@ impl<'src, R, P> SimulationOutputs<'src, Direct, R, P> {
 }
 
 impl<'src, D, P> SimulationOutputs<'src, D, Reflections, P> {
-    pub fn reflections<T: ReflectionEffectType>(
-        &self,
-    ) -> FFIWrapper<'_, ReflectionEffectParams<T>, Self> {
-        unsafe { FFIWrapper::new((*self.inner).reflections.into()) }
+    pub fn reflections<'a, T: ReflectionEffectType>(
+        &'a self,
+    ) -> FFIWrapper<'a, ReflectionEffectParams<'a, T>, Self> {
+        unsafe {
+            FFIWrapper::new(ReflectionEffectParams::from_ffi_unchecked(
+                (*self.inner).reflections,
+            ))
+        }
     }
 }
 

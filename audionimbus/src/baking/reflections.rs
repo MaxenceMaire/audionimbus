@@ -262,7 +262,7 @@ impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
 pub mod tests {
     use crate::*;
 
-    fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
+    fn test_scene(context: &Context) -> Scene<'_, DefaultRayTracer> {
         let mut scene = Scene::try_new(context).unwrap();
 
         // Create a simple room mesh.

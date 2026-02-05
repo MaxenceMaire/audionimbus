@@ -642,38 +642,38 @@ pub struct ReflectionEffectSettings {
 
 /// Parameters for applying a reflection effect to an audio buffer.
 #[derive(Debug, PartialEq)]
-pub struct ReflectionEffectParams<T: ReflectionEffectType> {
+pub struct ReflectionEffectParams<'a, T: ReflectionEffectType> {
     /// The impulse response.
-    pub impulse_response: ReflectionEffectIR,
+    impulse_response: ReflectionEffectIR,
 
     /// 3-band reverb decay times (RT60).
-    pub reverb_times: [f32; 3],
+    reverb_times: [f32; 3],
 
     /// 3-band EQ coefficients applied to the parametric part to ensure smooth transition.
-    pub equalizer: Equalizer<3>,
+    equalizer: Equalizer<3>,
 
     /// Samples after which parametric part starts.
-    pub delay: u32,
+    delay: u32,
 
     /// Number of IR channels to process.
     /// May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
-    pub num_channels: u32,
+    num_channels: u32,
 
     /// Number of IR samples per channel to process.
     /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub impulse_response_size: u32,
+    impulse_response_size: u32,
 
     /// The TrueAudio Next device to use for convolution processing.
-    pub true_audio_next_device: TrueAudioNextDevice,
+    true_audio_next_device: Option<&'a TrueAudioNextDevice>,
 
     /// The TrueAudio Next slot index to use for convolution processing.
     /// The slot identifies the IR to use.
-    pub true_audio_next_slot: u32,
+    true_audio_next_slot: u32,
 
     _marker: PhantomData<T>,
 }
 
-impl ReflectionEffectParams<Convolution> {
+impl ReflectionEffectParams<'_, Convolution> {
     /// Constructs multi-channel convolution reverb params.
     ///
     /// # Arguments
@@ -693,14 +693,14 @@ impl ReflectionEffectParams<Convolution> {
             delay: 0,
             num_channels,
             impulse_response_size,
-            true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
+            true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
         }
     }
 }
 
-impl ReflectionEffectParams<Parametric> {
+impl ReflectionEffectParams<'_, Parametric> {
     /// Constructs parametric (or artificial) reverb params.
     ///
     /// # Arguments
@@ -716,14 +716,14 @@ impl ReflectionEffectParams<Parametric> {
             delay: 0,
             num_channels,
             impulse_response_size,
-            true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
+            true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
         }
     }
 }
 
-impl ReflectionEffectParams<Hybrid> {
+impl ReflectionEffectParams<'_, Hybrid> {
     /// Constructs params for a hybrid of convolution and parametric reverb.
     ///
     /// # Arguments
@@ -749,14 +749,14 @@ impl ReflectionEffectParams<Hybrid> {
             delay,
             num_channels,
             impulse_response_size,
-            true_audio_next_device: TrueAudioNextDevice(std::ptr::null_mut()),
+            true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
         }
     }
 }
 
-impl ReflectionEffectParams<TrueAudioNext> {
+impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
     /// Constructs multi-channel convolution reverb (using AMD TrueAudio Next for GPU acceleration)
     /// params.
     ///
@@ -769,7 +769,7 @@ impl ReflectionEffectParams<TrueAudioNext> {
     pub fn new(
         num_channels: u32,
         impulse_response_size: u32,
-        device: TrueAudioNextDevice,
+        device: &'a TrueAudioNextDevice,
         slot: u32,
     ) -> Self {
         Self {
@@ -779,25 +779,32 @@ impl ReflectionEffectParams<TrueAudioNext> {
             delay: 0,
             num_channels,
             impulse_response_size,
-            true_audio_next_device: device,
+            true_audio_next_device: Some(device),
             true_audio_next_slot: slot,
             _marker: PhantomData,
         }
     }
 }
 
-unsafe impl<T: ReflectionEffectType> Send for ReflectionEffectParams<T> {}
+impl<'a, T: ReflectionEffectType> ReflectionEffectParams<'a, T> {
+    /// Constructs params from FFI representation.
+    ///
+    /// # Safety
+    ///
+    /// For `TrueAudioNext` type: The device pointer in `params` must remain valid
+    /// for the lifetime `'a`. The caller is responsible for ensuring the device
+    /// outlives these parameters.
+    ///
+    /// For other types: This is safe as they don't use the device pointer.
+    pub(crate) unsafe fn from_ffi_unchecked(
+        params: audionimbus_sys::IPLReflectionEffectParams,
+    ) -> Self {
+        let device = if params.tanDevice.is_null() {
+            None
+        } else {
+            Some(&*(params.tanDevice as *const TrueAudioNextDevice))
+        };
 
-/// The impulse response of [`ReflectionEffectParams`].
-#[derive(Debug, Eq, PartialEq)]
-pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
-
-unsafe impl Send for ReflectionEffectIR {}
-
-impl<T: ReflectionEffectType> From<audionimbus_sys::IPLReflectionEffectParams>
-    for ReflectionEffectParams<T>
-{
-    fn from(params: audionimbus_sys::IPLReflectionEffectParams) -> Self {
         Self {
             impulse_response: ReflectionEffectIR(params.ir),
             reverb_times: params.reverbTimes,
@@ -805,17 +812,30 @@ impl<T: ReflectionEffectType> From<audionimbus_sys::IPLReflectionEffectParams>
             delay: params.delay as u32,
             num_channels: params.numChannels as u32,
             impulse_response_size: params.irSize as u32,
-            true_audio_next_device: TrueAudioNextDevice(params.tanDevice),
+            true_audio_next_device: device,
             true_audio_next_slot: params.tanSlot as u32,
             _marker: PhantomData,
         }
     }
 }
 
-impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
+unsafe impl<T: ReflectionEffectType> Send for ReflectionEffectParams<'_, T> {}
+
+/// The impulse response of [`ReflectionEffectParams`].
+#[derive(Debug, Eq, PartialEq)]
+pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
+
+unsafe impl Send for ReflectionEffectIR {}
+
+impl<'a, T: ReflectionEffectType> ReflectionEffectParams<'a, T> {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLReflectionEffectParams, Self> {
+        let device_ptr = self
+            .true_audio_next_device
+            .map(|d| d.raw_ptr())
+            .unwrap_or(std::ptr::null_mut());
+
         let reflection_effect_params = audionimbus_sys::IPLReflectionEffectParams {
             type_: T::to_ffi_type(),
             ir: self.impulse_response.0,
@@ -824,7 +844,7 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
             delay: self.delay as i32,
             numChannels: self.num_channels as i32,
             irSize: self.impulse_response_size as i32,
-            tanDevice: self.true_audio_next_device.raw_ptr(),
+            tanDevice: device_ptr,
             tanSlot: self.true_audio_next_slot as i32,
         };
 

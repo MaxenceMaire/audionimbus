@@ -39,6 +39,9 @@
 - Fixed silent failures when setting/getting simulation inputs for incompatible simulation types by enforcing compatibility at compile-time.
 - Fixed use-after-free error by ensuring `Source` outlives any `SimulationOutputs` borrowed from it.
 - Added validation to prevent runtime parameters from exceeding maximum values set during simulator initialization.
+- Fixed use-after-free error by ensuring devices outlive [`Simulator`].
+- Fixed use-after-free error by ensuring [`TrueAudioNextDevice`] outlives [`ReflectionEffectParams`].
+- Fixed use-after-free error by ensuring devices outlive [`Scene`].
 
 ### Changed
 
@@ -98,6 +101,8 @@
 - `SimulationOutputs` is now generic over the same simulation types as the `Source` it originated from, preventing misuse.
 - `SimulationSharedInputs` fields are now private; use builder methods `with_direct()`, `with_reflections()`, and `with_pathing()` to configure simulation types.
 - `Simulator::set_shared_inputs` and `Source::set_inputs` now return a `ParameterValidationError` if any parameters exceed that maximums set during simulator initialization.
+- All fields of `ReflectionEffectParams` are now private. Constructors should be used instead.
+- `ReflectionEffectParams<'_, TrueAudioNext>::new` now takes `TrueAudioNextDevice` by reference instead of value to ensure it outlives methods using it.
 
 ### Added
 
@@ -139,6 +144,7 @@
 - Removed `SimulatorBuilder`, which is superseded by `SimulationSettings`.
 - Removed `InstancedMesh::update_transform`. Use `Scene::update_instanced_mesh_transform` instead.
 - Removed `Clone` and `Sync` implementations from all Steam Audio wrapper types. These types can still be moved between threads (`Send`) but cannot be shared or cloned, as the underlying objects are not thread-safe for concurrent access.
+- Removed `From<IPLReflectionEffectParams>` trait implementation for `ReflectionEffectParams`.
 
 ## [0.11.0] - 2026-01-14
 
