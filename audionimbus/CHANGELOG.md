@@ -136,6 +136,7 @@
 - Removed `SceneParams`.
 - Removed `SimulatorBuilder`, which is superseded by `SimulationSettings`.
 - Removed `InstancedMesh::update_transform`. Use `Scene::update_instanced_mesh_transform` instead.
+- Removed `Clone` and `Sync` implementations from all Steam Audio wrapper types. These types can still be moved between threads (`Send`) but cannot be shared or cloned, as the underlying objects are not thread-safe for concurrent access.
 
 ## [0.11.0] - 2026-01-14
 
