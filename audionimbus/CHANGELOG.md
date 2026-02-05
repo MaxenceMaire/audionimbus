@@ -41,6 +41,7 @@
 - Added validation to prevent runtime parameters from exceeding maximum values set during simulator initialization.
 - Fixed use-after-free error by ensuring devices outlive [`Simulator`].
 - Fixed use-after-free error by ensuring [`TrueAudioNextDevice`] outlives [`ReflectionEffectParams`].
+- Fixed use-after-free error by ensuring devices outlive [`Scene`].
 
 ### Changed
 
