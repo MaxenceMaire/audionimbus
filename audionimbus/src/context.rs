@@ -80,15 +80,6 @@ impl Default for Context {
     }
 }
 
-impl Clone for Context {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplContextRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for Context {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplContextRelease(&raw mut self.0) }
@@ -96,7 +87,6 @@ impl Drop for Context {
 }
 
 unsafe impl Send for Context {}
-unsafe impl Sync for Context {}
 
 /// Settings used to create a [`Context`].
 pub struct ContextSettings {

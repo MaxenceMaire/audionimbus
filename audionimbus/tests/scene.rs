@@ -91,8 +91,8 @@ fn test_instanced_mesh() {
         sub_scene: &sub_scene,
         transform,
     };
-    let mut instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
-    main_scene.add_instanced_mesh(instanced_mesh.clone());
+    let instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
+    let handle = main_scene.add_instanced_mesh(instanced_mesh);
     main_scene.commit();
 
     let new_transform = Matrix::new([
@@ -102,7 +102,7 @@ fn test_instanced_mesh() {
         [0.0, 0.0, 0.0, 1.0],
     ]);
 
-    instanced_mesh.update_transform(&main_scene, new_transform);
+    main_scene.update_instanced_mesh_transform(handle, new_transform);
     main_scene.commit();
 }
 

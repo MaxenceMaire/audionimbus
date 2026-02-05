@@ -100,15 +100,6 @@ impl OpenClDevice {
     }
 }
 
-impl Clone for OpenClDevice {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplOpenCLDeviceRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for OpenClDevice {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplOpenCLDeviceRelease(&raw mut self.0) }
@@ -116,7 +107,6 @@ impl Drop for OpenClDevice {
 }
 
 unsafe impl Send for OpenClDevice {}
-unsafe impl Sync for OpenClDevice {}
 
 /// Provides a list of OpenCL devices available on the user’s system.
 ///
@@ -211,15 +201,6 @@ impl std::ops::DerefMut for OpenClDeviceList {
     }
 }
 
-impl Clone for OpenClDeviceList {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplOpenCLDeviceListRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for OpenClDeviceList {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplOpenCLDeviceListRelease(&raw mut self.0) }
@@ -227,7 +208,6 @@ impl Drop for OpenClDeviceList {
 }
 
 unsafe impl Send for OpenClDeviceList {}
-unsafe impl Sync for OpenClDeviceList {}
 
 /// [`OpenClDeviceList`] errors.
 #[derive(Debug, PartialEq, Eq)]

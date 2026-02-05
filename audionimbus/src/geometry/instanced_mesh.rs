@@ -42,21 +42,6 @@ impl InstancedMesh {
         Ok(instanced_mesh)
     }
 
-    /// Updates the local-to-world transform of the instanced mesh within its parent scene.
-    ///
-    /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
-    ///
-    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
-    pub fn update_transform(&mut self, scene: &Scene, new_transform: Matrix<f32, 4, 4>) {
-        unsafe {
-            audionimbus_sys::iplInstancedMeshUpdateTransform(
-                self.raw_ptr(),
-                scene.raw_ptr(),
-                new_transform.into(),
-            );
-        }
-    }
-
     /// Returns the raw FFI pointer to the underlying instanced mesh.
     ///
     /// This is intended for internal use and advanced scenarios.
@@ -72,15 +57,6 @@ impl InstancedMesh {
     }
 }
 
-impl Clone for InstancedMesh {
-    fn clone(&self) -> Self {
-        unsafe {
-            audionimbus_sys::iplInstancedMeshRetain(self.0);
-        }
-        Self(self.0)
-    }
-}
-
 impl Drop for InstancedMesh {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplInstancedMeshRelease(&raw mut self.0) }
@@ -88,7 +64,6 @@ impl Drop for InstancedMesh {
 }
 
 unsafe impl Send for InstancedMesh {}
-unsafe impl Sync for InstancedMesh {}
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug, Clone)]

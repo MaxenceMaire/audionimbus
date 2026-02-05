@@ -135,6 +135,7 @@
 - Removed functions `bake_path` and `cancel_bake_path`. They are superseded by methods `bake` and `cancel_bake` of `PathBaker`.
 - Removed `SceneParams`.
 - Removed `SimulatorBuilder`, which is superseded by `SimulationSettings`.
+- Removed `InstancedMesh::update_transform`. Use `Scene::update_instanced_mesh_transform` instead.
 
 ## [0.11.0] - 2026-01-14
 
