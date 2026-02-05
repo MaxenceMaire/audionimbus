@@ -1145,6 +1145,10 @@ pub struct Source<'a, D = (), R = (), P = ()> {
     /// The maximum number of occlusion samples specified during creation of the [Simulator].
     max_num_occlusion_samples: Option<u32>,
 
+    /// Stored deviation model to keep `callback` and `user_data` alive.
+    /// Only used when pathing simulation is enabled.
+    deviation_model: Option<DeviationModel>,
+
     /// Reference to the simulator's direct simulation lock.
     /// Used to synchronize access to direct simulation data.
     direct_lock: Option<Arc<Mutex<()>>>,
@@ -1208,6 +1212,7 @@ where
         let source = Self {
             inner,
             max_num_occlusion_samples: simulator.max_num_occlusion_samples,
+            deviation_model: None,
             direct_lock,
             reflections_lock,
             pathing_lock,
@@ -1253,6 +1258,10 @@ where
         Self::validate_flags(simulation_flags);
 
         self.validate_inputs(&inputs)?;
+
+        if let Some(pathing_params) = &inputs.pathing_simulation {
+            self.deviation_model = Some(pathing_params.deviation);
+        }
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
@@ -1946,12 +1955,12 @@ struct PathingSimulationData {
     pathing_order: i32,
     enable_validation: audionimbus_sys::IPLbool,
     find_alternate_paths: audionimbus_sys::IPLbool,
-    deviation_model: *mut audionimbus_sys::IPLDeviationModel,
+    deviation_model: audionimbus_sys::IPLDeviationModel,
 }
 
 impl PathingSimulationData {
     /// Converts optional pathing simulation parameters into concrete FFI-compatible data.
-    fn from_params(params: Option<PathingSimulationParameters>) -> Self {
+    fn from_params(params: Option<&PathingSimulationParameters>) -> Self {
         let Some(params) = params else {
             return Self::default();
         };
@@ -1972,8 +1981,7 @@ impl PathingSimulationData {
             } else {
                 audionimbus_sys::IPLbool::IPL_FALSE
             },
-            // FIXME: Potential memory leak: this prevents dangling pointers, but there is no guarantee it will be freed by the C library.
-            deviation_model: Box::into_raw(Box::new((&params.deviation).into())),
+            deviation_model: (&params.deviation).into(),
         }
     }
 }
@@ -1988,7 +1996,7 @@ impl Default for PathingSimulationData {
             pathing_order: 0,
             enable_validation: audionimbus_sys::IPLbool::IPL_FALSE,
             find_alternate_paths: audionimbus_sys::IPLbool::IPL_FALSE,
-            deviation_model: std::ptr::null_mut(),
+            deviation_model: (&DeviationModel::Default).into(),
         }
     }
 }
@@ -2018,7 +2026,7 @@ impl<D, R, P> From<SimulationInputs<'_, D, R, P>> for audionimbus_sys::IPLSimula
         if pathing_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
         }
-        let pathing_data = PathingSimulationData::from_params(pathing_simulation);
+        let pathing_data = PathingSimulationData::from_params(pathing_simulation.as_ref());
 
         Self {
             flags,
@@ -2043,7 +2051,7 @@ impl<D, R, P> From<SimulationInputs<'_, D, R, P>> for audionimbus_sys::IPLSimula
             pathingOrder: pathing_data.pathing_order,
             enableValidation: pathing_data.enable_validation,
             findAlternatePaths: pathing_data.find_alternate_paths,
-            deviationModel: pathing_data.deviation_model,
+            deviationModel: &pathing_data.deviation_model as *const _ as *mut _,
         }
     }
 }

@@ -42,6 +42,7 @@
 - Fixed use-after-free error by ensuring devices outlive [`Simulator`].
 - Fixed use-after-free error by ensuring [`TrueAudioNextDevice`] outlives [`ReflectionEffectParams`].
 - Fixed use-after-free error by ensuring devices outlive [`Scene`].
+- Fixed memory leak in pathing simulation when using deviation models.
 
 ### Changed
 
@@ -103,6 +104,7 @@
 - `Simulator::set_shared_inputs` and `Source::set_inputs` now return a `ParameterValidationError` if any parameters exceed that maximums set during simulator initialization.
 - All fields of `ReflectionEffectParams` are now private. Constructors should be used instead.
 - `ReflectionEffectParams<'_, TrueAudioNext>::new` now takes `TrueAudioNextDevice` by reference instead of value to ensure it outlives methods using it.
+- `PathingSimulationData::from_params` now takes `Option<&PathingSimulationParameters>` instead of `Option<PathingSimulationParameters>`.
 
 ### Added
 
