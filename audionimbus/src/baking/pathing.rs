@@ -287,18 +287,6 @@ pub mod tests {
 
             let baker = PathBaker::<DefaultRayTracer>::new();
 
-            unsafe extern "C" fn progress_callback(
-                progress: f32,
-                _user_data: *mut std::ffi::c_void,
-            ) {
-                println!("pathing bake progress: {:.1}%", progress * 100.0);
-            }
-
-            let callback_info = CallbackInformation {
-                callback: progress_callback as ProgressCallback,
-                user_data: std::ptr::null_mut(),
-            };
-
             let params = PathBakeParams {
                 identifier: BakedDataIdentifier::Pathing {
                     variation: BakedDataVariation::Dynamic,
@@ -317,7 +305,9 @@ pub mod tests {
                     &mut probe_batch,
                     &scene,
                     params,
-                    callback_info,
+                    ProgressCallback::new(|progress| {
+                        println!("pathing bake progress: {:.1}%", progress * 100.0);
+                    }),
                 )
                 .is_ok());
         }
