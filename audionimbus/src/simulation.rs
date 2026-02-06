@@ -24,6 +24,7 @@
 //! - Different simulation types can run in parallel
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
+use crate::callback::callback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -2273,23 +2274,6 @@ pub struct ReflectionsSharedInputs {
     /// When calculating how much sound energy reaches a surface directly from a source, any source that is closer than [`Self::irradiance_min_distance`] to the surface is assumed to be at a distance of [`Self::irradiance_min_distance`], for the purposes of energy calculations.
     pub irradiance_min_distance: f32,
 }
-
-/// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
-///
-/// You can use this to provide the user with visual feedback, like drawing each segment of a path.
-///
-/// # Arguments
-///
-/// - `from`: position of starting probe.
-/// - `to`: position of ending probe.
-/// - `occluded`: occlusion status of ray segment between `from` to `to`.
-/// - `user_data`: pointer to arbitrary user-specified data provided when calling the function that will call this callback.
-pub type PathingVisualizationCallback = unsafe extern "C" fn(
-    from: audionimbus_sys::IPLVector3,
-    to: audionimbus_sys::IPLVector3,
-    occluded: audionimbus_sys::IPLbool,
-    user_data: *mut std::ffi::c_void,
-);
 
 /// Simulation results for a source.
 #[derive(Debug)]
