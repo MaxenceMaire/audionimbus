@@ -1259,7 +1259,9 @@ where
 
         self.validate_inputs(&inputs)?;
 
-        if let Some(pathing_params) = &inputs.pathing_simulation {
+        let mut ffi_inputs = inputs.to_ffi();
+
+        if let Some(pathing_params) = inputs.pathing_simulation {
             self.deviation_model = Some(pathing_params.deviation);
         }
 
@@ -1269,7 +1271,7 @@ where
             audionimbus_sys::iplSourceSetInputs(
                 self.raw_ptr(),
                 simulation_flags.into(),
-                &mut inputs.into(),
+                &mut ffi_inputs,
             );
         }
 
@@ -1450,7 +1452,7 @@ impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
 }
 
 /// Simulation parameters for a source.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct SimulationInputs<'a, D = (), R = (), P = ()> {
     /// The position and orientation of this source.
     source: CoordinateSystem,
@@ -1557,6 +1559,51 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
             _direct,
             _reflections,
             _pathing: PhantomData,
+        }
+    }
+
+    fn to_ffi(&self) -> audionimbus_sys::IPLSimulationInputs {
+        let mut flags = audionimbus_sys::IPLSimulationFlags(0);
+
+        if self.direct_simulation.is_some() {
+            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
+        }
+        let direct_data = DirectSimulationData::from_params(self.direct_simulation);
+
+        if self.reflections_simulation.is_some() {
+            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        }
+        let reflections_data = ReflectionsSimulationData::from_params(self.reflections_simulation);
+
+        if self.pathing_simulation.is_some() {
+            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
+        }
+        let pathing_data = PathingSimulationData::from_params(self.pathing_simulation.as_ref());
+
+        audionimbus_sys::IPLSimulationInputs {
+            flags,
+            directFlags: direct_data.flags,
+            source: self.source.into(),
+            distanceAttenuationModel: (&direct_data.distance_attenuation_model).into(),
+            airAbsorptionModel: (&direct_data.air_absorption_model).into(),
+            directivity: (&direct_data.directivity).into(),
+            occlusionType: direct_data.occlusion_type,
+            occlusionRadius: direct_data.occlusion_radius,
+            numOcclusionSamples: direct_data.num_occlusion_samples,
+            numTransmissionRays: direct_data.num_transmission_rays,
+            reverbScale: reflections_data.reverb_scale,
+            hybridReverbTransitionTime: reflections_data.hybrid_reverb_transition_time,
+            hybridReverbOverlapPercent: reflections_data.hybrid_reverb_overlap_percent,
+            baked: reflections_data.baked,
+            bakedDataIdentifier: reflections_data.baked_data_identifier.into(),
+            pathingProbes: pathing_data.pathing_probes,
+            visRadius: pathing_data.visibility_radius,
+            visThreshold: pathing_data.visibility_threshold,
+            visRange: pathing_data.visibility_range,
+            pathingOrder: pathing_data.pathing_order,
+            enableValidation: pathing_data.enable_validation,
+            findAlternatePaths: pathing_data.find_alternate_paths,
+            deviationModel: &pathing_data.deviation_model as *const _ as *mut _,
         }
     }
 }
@@ -1694,7 +1741,7 @@ pub enum ReflectionsSimulationParameters {
 }
 
 /// Pathing simulation parameters for a source.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct PathingSimulationParameters<'a> {
     /// The probe batch within which to find paths from this source to the listener.
     pub pathing_probes: &'a ProbeBatch,
@@ -1997,61 +2044,6 @@ impl Default for PathingSimulationData {
             enable_validation: audionimbus_sys::IPLbool::IPL_FALSE,
             find_alternate_paths: audionimbus_sys::IPLbool::IPL_FALSE,
             deviation_model: (&DeviationModel::Default).into(),
-        }
-    }
-}
-
-impl<D, R, P> From<SimulationInputs<'_, D, R, P>> for audionimbus_sys::IPLSimulationInputs {
-    fn from(simulation_inputs: SimulationInputs<'_, D, R, P>) -> Self {
-        let SimulationInputs {
-            source,
-            direct_simulation,
-            reflections_simulation,
-            pathing_simulation,
-            ..
-        } = simulation_inputs;
-
-        let mut flags = audionimbus_sys::IPLSimulationFlags(0);
-
-        if direct_simulation.is_some() {
-            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
-        }
-        let direct_data = DirectSimulationData::from_params(direct_simulation);
-
-        if reflections_simulation.is_some() {
-            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
-        }
-        let reflections_data = ReflectionsSimulationData::from_params(reflections_simulation);
-
-        if pathing_simulation.is_some() {
-            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
-        }
-        let pathing_data = PathingSimulationData::from_params(pathing_simulation.as_ref());
-
-        Self {
-            flags,
-            directFlags: direct_data.flags,
-            source: source.into(),
-            distanceAttenuationModel: (&direct_data.distance_attenuation_model).into(),
-            airAbsorptionModel: (&direct_data.air_absorption_model).into(),
-            directivity: (&direct_data.directivity).into(),
-            occlusionType: direct_data.occlusion_type,
-            occlusionRadius: direct_data.occlusion_radius,
-            numOcclusionSamples: direct_data.num_occlusion_samples,
-            numTransmissionRays: direct_data.num_transmission_rays,
-            reverbScale: reflections_data.reverb_scale,
-            hybridReverbTransitionTime: reflections_data.hybrid_reverb_transition_time,
-            hybridReverbOverlapPercent: reflections_data.hybrid_reverb_overlap_percent,
-            baked: reflections_data.baked,
-            bakedDataIdentifier: reflections_data.baked_data_identifier.into(),
-            pathingProbes: pathing_data.pathing_probes,
-            visRadius: pathing_data.visibility_radius,
-            visThreshold: pathing_data.visibility_threshold,
-            visRange: pathing_data.visibility_range,
-            pathingOrder: pathing_data.pathing_order,
-            enableValidation: pathing_data.enable_validation,
-            findAlternatePaths: pathing_data.find_alternate_paths,
-            deviationModel: &pathing_data.deviation_model as *const _ as *mut _,
         }
     }
 }

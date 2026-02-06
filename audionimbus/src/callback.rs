@@ -89,6 +89,7 @@ impl<T: FfiPassthrough> FfiConvert for T {
 
 impl FfiPassthrough for f32 {}
 impl FfiPassthrough for usize {}
+impl FfiPassthrough for std::ffi::c_int {}
 
 impl FfiConvert for Vector3 {
     type FfiType = audionimbus_sys::IPLVector3;
@@ -153,4 +154,23 @@ callback! {
         to: Vector3,
         occluded: bool,
     )
+}
+
+callback! {
+    /// Callback for calculating how much to attenuate sound in a given frequency band based on the angle of deviation when the sound path bends around a corner as it propagated from the source to the listener.
+    ///
+    /// # Callback arguments
+    ///
+    /// - `angle`: angle (in radians) that the sound path deviates (bends) by.
+    /// - `band`: index of the frequency band for which to calculate air absorption.
+    /// - `user_data`: pointer to the arbitrary data specified.
+    ///
+    /// # Returns
+    ///
+    /// The frequency-dependent attenuation to apply, between 0.0 and 1.0.
+    /// 0.0 = sound in the frequency band is not audible; 1.0 = sound in the frequency band is not attenuated.
+    pub DeviationCallback(
+        angle: f32,
+        band: std::ffi::c_int,
+    ) -> f32
 }
