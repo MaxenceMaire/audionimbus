@@ -1,4 +1,5 @@
 use super::{Material, Point, Scene, Triangle};
+use crate::callback::ProgressCallback;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;
@@ -104,12 +105,12 @@ impl<T: RayTracer> StaticMesh<T> {
     pub fn load_with_progress_callback(
         scene: &Scene,
         serialized_object: &SerializedObject,
-        progress_callback_information: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(
             scene,
             serialized_object,
-            Some(progress_callback_information),
+            Some(progress_callback),
         )
     }
 
@@ -123,17 +124,13 @@ impl<T: RayTracer> StaticMesh<T> {
     fn load_with_optional_progress_callback(
         scene: &Scene,
         serialized_object: &SerializedObject,
-        progress_callback_information: Option<CallbackInformation<ProgressCallback>>,
+        progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let (progress_callback, progress_callback_user_data) = if let Some(CallbackInformation {
-            callback,
-            user_data,
-        }) = progress_callback_information
-        {
-            (Some(callback), user_data)
-        } else {
-            (None, std::ptr::null_mut())
-        };
+        let (callback_fn, user_data) =
+            progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (Some(callback_fn), user_data)
+            });
 
         let mut inner = std::ptr::null_mut();
 
@@ -141,8 +138,8 @@ impl<T: RayTracer> StaticMesh<T> {
             audionimbus_sys::iplStaticMeshLoad(
                 scene.raw_ptr(),
                 serialized_object.raw_ptr(),
-                progress_callback,
-                progress_callback_user_data,
+                callback_fn,
+                user_data,
                 &raw mut inner,
             )
         };
