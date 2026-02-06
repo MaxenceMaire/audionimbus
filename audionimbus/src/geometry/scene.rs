@@ -1,4 +1,5 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
+use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -85,20 +86,22 @@ impl<T: RayTracer> Scene<'_, T> {
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
         serialized_object: &SerializedObject,
-        progress_callback: Option<CallbackInformation<ProgressCallback>>,
+        progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
 
-        let (callback, user_data) = progress_callback.map_or((None, std::ptr::null_mut()), |cb| {
-            (Some(cb.callback), cb.user_data)
-        });
+        let (callback_fn, user_data) =
+            progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (Some(callback_fn), user_data)
+            });
 
         let status = unsafe {
             audionimbus_sys::iplSceneLoad(
                 context.raw_ptr(),
                 settings,
                 serialized_object.raw_ptr(),
-                callback,
+                callback_fn,
                 user_data,
                 scene.raw_ptr_mut(),
             )
@@ -146,7 +149,7 @@ impl Scene<'_, DefaultRayTracer> {
     pub fn load_with_progress(
         context: &Context,
         serialized_object: &SerializedObject,
-        progress_callback: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
             context,
@@ -235,7 +238,7 @@ impl<'a> Scene<'a, Embree> {
         context: &Context,
         device: &'a EmbreeDevice,
         serialized_object: &SerializedObject,
-        progress_callback: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
             context,
@@ -304,7 +307,7 @@ impl<'a> Scene<'a, RadeonRays> {
         context: &Context,
         device: &'a RadeonRaysDevice,
         serialized_object: &SerializedObject,
-        progress_callback: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
             context,
@@ -373,7 +376,7 @@ impl<'a> Scene<'a, CustomRayTracer> {
         context: &Context,
         callbacks: &'a CustomCallbacks,
         serialized_object: &SerializedObject,
-        progress_callback: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
         Self::from_ffi_load(
             context,
