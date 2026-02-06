@@ -1,6 +1,6 @@
 //! Frequency-dependent attenuation of sound as it bends along the path from the source to the listener.
 
-use crate::callback::DeviationCallback;
+pub use crate::callback::DeviationCallback;
 
 /// A deviation model that can be used for modeling frequency-dependent attenuation of sound as it bends along the path from the source to the listener.
 #[derive(Debug, Default)]

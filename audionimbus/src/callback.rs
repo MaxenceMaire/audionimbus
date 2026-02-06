@@ -2,6 +2,9 @@
 
 use crate::geometry::Vector3;
 
+#[cfg(doc)]
+use crate::simulation::Simulator;
+
 /// Internal macro to generate callback wrapper types.
 macro_rules! callback {
     (
@@ -163,7 +166,6 @@ callback! {
     ///
     /// - `angle`: angle (in radians) that the sound path deviates (bends) by.
     /// - `band`: index of the frequency band for which to calculate air absorption.
-    /// - `user_data`: pointer to the arbitrary data specified.
     ///
     /// # Returns
     ///
@@ -173,4 +175,18 @@ callback! {
         angle: f32,
         band: std::ffi::c_int,
     ) -> f32
+}
+
+callback! {
+    /// Callback for calculating how much attenuation should be applied to a sound based on its distance from the listener.
+    ///
+    /// # Callback arguments
+    ///
+    /// - `distance`: the distance (in meters) between the source and the listener.
+    ///
+    /// # Returns
+    ///
+    /// The distance attenuation to apply, between 0.0 and 1.0.
+    /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it were emitted from the listener’s position.
+    pub DistanceAttenuationCallback(distance: f32) -> f32
 }

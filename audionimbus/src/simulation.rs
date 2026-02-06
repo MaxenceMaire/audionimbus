@@ -24,7 +24,7 @@
 //! - Different simulation types can run in parallel
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
-use crate::callback::PathingVisualizationCallback;
+pub use crate::callback::PathingVisualizationCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -1565,10 +1565,12 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
     fn to_ffi(&self) -> audionimbus_sys::IPLSimulationInputs {
         let mut flags = audionimbus_sys::IPLSimulationFlags(0);
 
+        let source = self.source.into();
+
         if self.direct_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
         }
-        let direct_data = DirectSimulationData::from_params(self.direct_simulation);
+        let direct_data = DirectSimulationData::from_params(&self.direct_simulation);
 
         if self.reflections_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
@@ -1583,10 +1585,10 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
         audionimbus_sys::IPLSimulationInputs {
             flags,
             directFlags: direct_data.flags,
-            source: self.source.into(),
-            distanceAttenuationModel: (&direct_data.distance_attenuation_model).into(),
-            airAbsorptionModel: (&direct_data.air_absorption_model).into(),
-            directivity: (&direct_data.directivity).into(),
+            source,
+            distanceAttenuationModel: direct_data.distance_attenuation_model,
+            airAbsorptionModel: direct_data.air_absorption_model,
+            directivity: direct_data.directivity,
             occlusionType: direct_data.occlusion_type,
             occlusionRadius: direct_data.occlusion_radius,
             numOcclusionSamples: direct_data.num_occlusion_samples,
@@ -1609,7 +1611,7 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
 }
 
 /// Direct simulation parameters for a source.
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug)]
 pub struct DirectSimulationParameters {
     /// If `Some`, enables distance attenuation calculations with the specified model.
     pub distance_attenuation: Option<DistanceAttenuationModel>,
@@ -1774,9 +1776,9 @@ pub struct PathingSimulationParameters<'a> {
 /// Intermediate representation of direct simulation parameters for FFI conversion.
 struct DirectSimulationData {
     flags: audionimbus_sys::IPLDirectSimulationFlags,
-    distance_attenuation_model: DistanceAttenuationModel,
-    air_absorption_model: AirAbsorptionModel,
-    directivity: Directivity,
+    distance_attenuation_model: audionimbus_sys::IPLDistanceAttenuationModel,
+    air_absorption_model: audionimbus_sys::IPLAirAbsorptionModel,
+    directivity: audionimbus_sys::IPLDirectivity,
     occlusion_type: audionimbus_sys::IPLOcclusionType,
     occlusion_radius: f32,
     num_occlusion_samples: i32,
@@ -1785,7 +1787,7 @@ struct DirectSimulationData {
 
 impl DirectSimulationData {
     /// Converts optional direct simulation parameters into concrete FFI-compatible data.
-    fn from_params(params: Option<DirectSimulationParameters>) -> Self {
+    fn from_params(params: &Option<DirectSimulationParameters>) -> Self {
         let Some(params) = params else {
             return Self::default();
         };
@@ -1793,11 +1795,11 @@ impl DirectSimulationData {
         let mut flags = audionimbus_sys::IPLDirectSimulationFlags(0);
 
         let distance_attenuation_model =
-            Self::process_distance_attenuation(params.distance_attenuation, &mut flags);
+            Self::process_distance_attenuation(&params.distance_attenuation, &mut flags);
 
-        let air_absorption_model = Self::process_air_absorption(params.air_absorption, &mut flags);
+        let air_absorption_model = Self::process_air_absorption(&params.air_absorption, &mut flags);
 
-        let directivity = Self::process_directivity(params.directivity, &mut flags);
+        let directivity = Self::process_directivity(&params.directivity, &mut flags);
 
         let (occlusion_type, occlusion_radius, num_occlusion_samples, num_transmission_rays) =
             Self::process_occlusion(params.occlusion, &mut flags);
@@ -1816,42 +1818,42 @@ impl DirectSimulationData {
 
     /// Processes optional distance attenuation settings and updates flags accordingly.
     fn process_distance_attenuation(
-        distance_attenuation: Option<DistanceAttenuationModel>,
+        distance_attenuation: &Option<DistanceAttenuationModel>,
         flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
-    ) -> DistanceAttenuationModel {
+    ) -> audionimbus_sys::IPLDistanceAttenuationModel {
         if let Some(model) = distance_attenuation {
             *flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION;
-            model
+            model.into()
         } else {
-            DistanceAttenuationModel::default()
+            (&DistanceAttenuationModel::default()).into()
         }
     }
 
     /// Processes optional air absorption settings and updates flags accordingly.
     fn process_air_absorption(
-        air_absorption: Option<AirAbsorptionModel>,
+        air_absorption: &Option<AirAbsorptionModel>,
         flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
-    ) -> AirAbsorptionModel {
+    ) -> audionimbus_sys::IPLAirAbsorptionModel {
         if let Some(model) = air_absorption {
             *flags |=
                 audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION;
-            model
+            model.into()
         } else {
-            AirAbsorptionModel::default()
+            (&AirAbsorptionModel::default()).into()
         }
     }
 
     /// Processes optional directivity settings and updates flags accordingly.
     fn process_directivity(
-        directivity: Option<Directivity>,
+        directivity: &Option<Directivity>,
         flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
-    ) -> Directivity {
+    ) -> audionimbus_sys::IPLDirectivity {
         if let Some(directivity) = directivity {
             *flags |=
                 audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY;
-            directivity
+            directivity.into()
         } else {
-            Directivity::default()
+            (&Directivity::default()).into()
         }
     }
 
@@ -1908,9 +1910,9 @@ impl Default for DirectSimulationData {
     fn default() -> Self {
         Self {
             flags: audionimbus_sys::IPLDirectSimulationFlags(0),
-            distance_attenuation_model: DistanceAttenuationModel::default(),
-            air_absorption_model: AirAbsorptionModel::default(),
-            directivity: Directivity::default(),
+            distance_attenuation_model: (&DistanceAttenuationModel::default()).into(),
+            air_absorption_model: (&AirAbsorptionModel::default()).into(),
+            directivity: (&Directivity::default()).into(),
             occlusion_type: audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
             occlusion_radius: 0.0,
             num_occlusion_samples: 0,
