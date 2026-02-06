@@ -2,6 +2,7 @@
 
 use super::BakedDataIdentifier;
 use super::{BakeError, BAKE_LOCK};
+use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -112,7 +113,7 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         probe_batch: &mut ProbeBatch,
         scene: &Scene<T>,
         params: ReflectionsBakeParams,
-        progress_callback: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<(), BakeError> {
         self.bake_with_optional_progress_callback(
             context,
@@ -136,18 +137,16 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         probe_batch: &mut ProbeBatch,
         scene: &Scene<T>,
         params: ReflectionsBakeParams,
-        progress_callback: Option<CallbackInformation<ProgressCallback>>,
+        progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
         let _guard = BAKE_LOCK
             .try_lock()
             .map_err(|_| BakeError::BakeInProgress)?;
 
-        let (callback, user_data) =
-            progress_callback.map_or((None, std::ptr::null_mut()), |callback_information| {
-                (
-                    Some(callback_information.callback),
-                    callback_information.user_data,
-                )
+        let (callback_fn, user_data) =
+            progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (Some(callback_fn), user_data)
             });
 
         let mut ffi_params = audionimbus_sys::IPLReflectionsBakeParams {
@@ -178,7 +177,7 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
             audionimbus_sys::iplReflectionsBakerBake(
                 context.raw_ptr(),
                 &raw mut ffi_params,
-                callback,
+                callback_fn,
                 user_data,
             );
         }
@@ -469,17 +468,6 @@ pub mod tests {
             let mut probe_batch = test_probe_batch(&context, &scene);
 
             let baker = ReflectionsBaker::<DefaultRayTracer>::new();
-            unsafe extern "C" fn progress_callback(
-                progress: f32,
-                _user_data: *mut std::ffi::c_void,
-            ) {
-                println!("baking progress: {:.1}%", progress * 100.0);
-            }
-
-            let callback_info = CallbackInformation {
-                callback: progress_callback as ProgressCallback,
-                user_data: std::ptr::null_mut(),
-            };
 
             let params = ReflectionsBakeParams {
                 identifier: BakedDataIdentifier::Reflections {
@@ -503,7 +491,9 @@ pub mod tests {
                     &mut probe_batch,
                     &scene,
                     params,
-                    callback_info,
+                    ProgressCallback::new(|progress| {
+                        println!("baking progress: {:.1}%", progress * 100.0);
+                    }),
                 )
                 .is_ok());
         }
