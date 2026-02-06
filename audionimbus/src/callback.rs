@@ -61,15 +61,18 @@ macro_rules! callback {
 pub(crate) use callback;
 
 /// Trait for types that can be converted to/from FFI representations.
-pub trait FfiConvert {
+pub(crate) trait FfiConvert {
     type FfiType;
 
+    #[allow(dead_code)]
     fn to_ffi(self) -> Self::FfiType;
+
+    #[allow(dead_code)]
     fn from_ffi(ffi: Self::FfiType) -> Self;
 }
 
 /// Marker trait for types that pass through to FFI unchanged.
-pub trait FfiPassthrough: Copy + 'static {}
+pub(crate) trait FfiPassthrough: Copy + 'static {}
 
 impl<T: FfiPassthrough> FfiConvert for T {
     type FfiType = T;
