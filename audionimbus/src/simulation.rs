@@ -24,7 +24,7 @@
 //! - Different simulation types can run in parallel
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
-use crate::callback::callback;
+use crate::callback::PathingVisualizationCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -2091,7 +2091,7 @@ pub struct SimulationSharedInputs<D = (), R = (), P = ()> {
     reflections_shared_inputs: Option<ReflectionsSharedInputs>,
 
     /// Optional callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
-    pathing_visualization_callback: Option<CallbackInformation<PathingVisualizationCallback>>,
+    pathing_visualization_callback: Option<PathingVisualizationCallback>,
 
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -2190,7 +2190,7 @@ impl<D, R, P> SimulationSharedInputs<D, R, P> {
     /// - `pathing_visualization_callback`: Callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
     pub fn with_pathing_visualization_callback(
         self,
-        pathing_visualization_callback: CallbackInformation<PathingVisualizationCallback>,
+        pathing_visualization_callback: PathingVisualizationCallback,
     ) -> SimulationSharedInputs<D, R, Pathing> {
         let Self {
             listener,
@@ -2218,11 +2218,9 @@ impl<D, R, P> From<&SimulationSharedInputs<D, R, P>>
         let (pathing_visualization_callback, pathing_user_data) = simulation_shared_inputs
             .pathing_visualization_callback
             .as_ref()
-            .map_or((None, std::ptr::null_mut()), |callback_information| {
-                (
-                    Some(callback_information.callback),
-                    callback_information.user_data,
-                )
+            .map_or((None, std::ptr::null_mut()), |callback| {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (Some(callback_fn), user_data)
             });
 
         let (num_rays, num_bounces, duration, order, irradiance_min_distance) =
