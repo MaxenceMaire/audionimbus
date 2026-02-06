@@ -1,5 +1,4 @@
 use super::{Material, Point, Scene, Triangle};
-use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;

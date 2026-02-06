@@ -2,7 +2,6 @@
 
 use super::BakedDataIdentifier;
 use super::{BakeError, BAKE_LOCK};
-use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;

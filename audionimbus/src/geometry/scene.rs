@@ -1,5 +1,4 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
-use crate::callback::{CallbackInformation, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;

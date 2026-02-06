@@ -2,7 +2,7 @@
 
 use super::BakedDataIdentifier;
 use super::{BakeError, BAKE_LOCK};
-use crate::callback::{CallbackInformation, ProgressCallback};
+use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::geometry::Scene;
 use crate::probe::ProbeBatch;
@@ -70,7 +70,7 @@ impl<T: RayTracer> PathBaker<T> {
         probe_batch: &mut ProbeBatch,
         scene: &Scene<T>,
         params: PathBakeParams,
-        progress_callback: CallbackInformation<ProgressCallback>,
+        progress_callback: ProgressCallback,
     ) -> Result<(), BakeError> {
         self.bake_with_optional_progress_callback(
             context,
@@ -94,33 +94,21 @@ impl<T: RayTracer> PathBaker<T> {
         probe_batch: &mut ProbeBatch,
         scene: &Scene<T>,
         params: PathBakeParams,
-        progress_callback: Option<CallbackInformation<ProgressCallback>>,
+        progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
         // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplPathBakerBake`.
         // We pass a no-op callback instead until the fix is released.
         // See: https://github.com/ValveSoftware/steam-audio/issues/523
         // TODO: Remove this workaround when fix is released.
-        const unsafe extern "C" fn noop_progress_callback(
-            _progress: f32,
-            _user_data: *mut std::ffi::c_void,
-        ) {
-        }
+        unsafe extern "C" fn noop(_: f32, _: *mut std::ffi::c_void) {}
 
         let _guard = BAKE_LOCK
             .try_lock()
             .map_err(|_| BakeError::BakeInProgress)?;
 
-        let (callback, user_data) = progress_callback.map_or(
-            (
-                noop_progress_callback as ProgressCallback,
-                std::ptr::null_mut(),
-            ),
-            |callback_information| {
-                (
-                    callback_information.callback,
-                    callback_information.user_data,
-                )
-            },
+        let (callback, user_data) = progress_callback.as_ref().map_or(
+            (noop as _, std::ptr::null_mut()),
+            ProgressCallback::as_raw_parts,
         );
 
         let mut ffi_params = audionimbus_sys::IPLPathBakeParams {

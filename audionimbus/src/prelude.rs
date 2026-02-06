@@ -11,7 +11,7 @@ pub use audio_settings::*;
 pub use baking::pathing::{PathBakeParams, PathBaker};
 pub use baking::reflections::{ReflectionsBakeFlags, ReflectionsBakeParams, ReflectionsBaker};
 pub use baking::{BakeError, BakedDataIdentifier, BakedDataVariation};
-pub use callback::*;
+pub use callback::ProgressCallback;
 pub use context::*;
 pub use device::embree::*;
 pub use device::open_cl::*;

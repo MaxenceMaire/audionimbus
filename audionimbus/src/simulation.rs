@@ -24,7 +24,6 @@
 //! - Different simulation types can run in parallel
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
-use crate::callback::CallbackInformation;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
