@@ -31,7 +31,8 @@ macro_rules! callback {
 
                 $(let $arg = <$arg_ty as $crate::callback::FfiConvert>::from_ffi($arg);)*
 
-                callback($($arg),*);
+                #[allow(unused_variables)]
+                let result = callback($($arg),*);
 
                 $(return <$ret as $crate::callback::FfiConvert>::to_ffi(result);)?
             }
@@ -43,7 +44,7 @@ macro_rules! callback {
             ) {
                 (
                     Self::trampoline,
-                    &*self.callback as *const _ as *mut std::ffi::c_void,
+                    &self.callback as *const _ as *mut std::ffi::c_void,
                 )
             }
         }
@@ -87,6 +88,7 @@ impl<T: FfiPassthrough> FfiConvert for T {
 }
 
 impl FfiPassthrough for f32 {}
+impl FfiPassthrough for usize {}
 
 impl FfiConvert for Vector3 {
     type FfiType = audionimbus_sys::IPLVector3;

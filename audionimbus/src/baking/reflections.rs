@@ -139,15 +139,20 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         params: ReflectionsBakeParams,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
+        // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplReflectionsBakerBake`.
+        // We pass a no-op callback instead until the fix is released.
+        // See: https://github.com/ValveSoftware/steam-audio/issues/523
+        // TODO: Remove this workaround when fix is released.
+        unsafe extern "C" fn noop(_: f32, _: *mut std::ffi::c_void) {}
+
         let _guard = BAKE_LOCK
             .try_lock()
             .map_err(|_| BakeError::BakeInProgress)?;
 
-        let (callback_fn, user_data) =
-            progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
-                let (callback_fn, user_data) = callback.as_raw_parts();
-                (Some(callback_fn), user_data)
-            });
+        let (callback, user_data) = progress_callback.as_ref().map_or(
+            (noop as _, std::ptr::null_mut()),
+            ProgressCallback::as_raw_parts,
+        );
 
         let mut ffi_params = audionimbus_sys::IPLReflectionsBakeParams {
             scene: scene.raw_ptr(),
@@ -177,7 +182,7 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
             audionimbus_sys::iplReflectionsBakerBake(
                 context.raw_ptr(),
                 &raw mut ffi_params,
-                callback_fn,
+                Some(callback),
                 user_data,
             );
         }
