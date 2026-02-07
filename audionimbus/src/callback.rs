@@ -1,6 +1,8 @@
 //! Callback definitions.
 
 use crate::geometry::Vector3;
+use std::cell::Cell;
+use std::ffi::c_void;
 
 #[cfg(doc)]
 use crate::simulation::Simulator;
@@ -28,7 +30,7 @@ macro_rules! callback {
 
             unsafe extern "C" fn trampoline(
                 $($arg: <$arg_ty as $crate::callback::FfiConvert>::FfiType,)*
-                user_data: *mut std::ffi::c_void,
+                user_data: *mut c_void,
             ) $(-> <$ret as $crate::callback::FfiConvert>::FfiType)? {
                 let callback = &mut *(user_data as *mut Box<dyn FnMut($($arg_ty),*) $(-> $ret)? + Send>);
 
@@ -42,12 +44,12 @@ macro_rules! callback {
 
             #[allow(dead_code)]
             pub(crate) fn as_raw_parts(&self) -> (
-                unsafe extern "C" fn($(<$arg_ty as $crate::callback::FfiConvert>::FfiType,)* *mut std::ffi::c_void) $(-> <$ret as $crate::callback::FfiConvert>::FfiType)?,
-                *mut std::ffi::c_void,
+                unsafe extern "C" fn($(<$arg_ty as $crate::callback::FfiConvert>::FfiType,)* *mut c_void) $(-> <$ret as $crate::callback::FfiConvert>::FfiType)?,
+                *mut c_void,
             ) {
                 (
                     Self::trampoline,
-                    &self.callback as *const _ as *mut std::ffi::c_void,
+                    &self.callback as *const _ as *mut c_void,
                 )
             }
         }
@@ -191,16 +193,75 @@ callback! {
     pub DistanceAttenuationCallback(distance: f32) -> f32
 }
 
-callback! {
-    /// Callback for calculating how much to attenuate a sound based on its directivity pattern and orientation in world space.
-    ///
-    /// # Callback arguments
-    ///
-    /// - `direction`: unit vector (in world space) pointing forwards from the source. This is the direction that the source is “pointing towards”.
-    ///
-    /// # Returns
-    ///
-    /// The directivity value to apply, between 0.0 and 1.0.
-    /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
-    pub DirectivityCallback(direction: Vector3) -> f32
+// BUG: Steam Audio has a bug where the `userData` pointer passed to directivity callbacks
+// is corrupted and does not match the originally provided pointer. This causes segfaults
+// when attempting to dereference the pointer to access our closure.
+//
+// See: https://github.com/ValveSoftware/steam-audio/issues/526
+//
+// This absolutely unholy hack consists in storing the callback pointer in a static cell local to
+// the thread instead of relying on Steam Audio to pass it back to us. It is safe because only one
+// directivity calculation can execute at a time per thread.
+//
+// TODO: the this workaround and use `callback!` macro once the Steam Audio bug is fixed.
+thread_local! {
+    static DIRECTIVITY_CALLBACK_PTR: Cell<*mut c_void> = const { Cell::new(std::ptr::null_mut()) };
+}
+
+/// Callback for calculating how much to attenuate a sound based on its directivity pattern and orientation in world space.
+///
+/// # Callback arguments
+///
+/// - `direction`: unit vector (in world space) pointing forwards from the source. This is the direction that the source is “pointing towards”.
+///
+/// # Returns
+///
+/// The directivity value to apply, between 0.0 and 1.0.
+/// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
+pub struct DirectivityCallback {
+    callback: Box<dyn FnMut(Vector3) -> f32 + Send>,
+}
+
+impl DirectivityCallback {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnMut(Vector3) -> f32 + Send + 'static,
+    {
+        Self {
+            callback: Box::new(f),
+        }
+    }
+
+    // WORKAROUND: This function ignores the `_user_data` parameter (which Steam Audio
+    // corrupts) and instead retrieves the callback pointer from thread-local storage.
+    unsafe extern "C" fn trampoline(
+        direction: audionimbus_sys::IPLVector3,
+        _user_data: *mut c_void,
+    ) -> f32 {
+        let callback_ptr = DIRECTIVITY_CALLBACK_PTR.get();
+        let callback = &mut *(callback_ptr as *mut Box<dyn FnMut(Vector3) -> f32 + Send>);
+        let direction = Vector3::from_ffi(direction);
+        callback(direction)
+    }
+
+    // WORKAROUND: This stores the callback pointer in thread-local storage rather than
+    // passing it through Steam Audio's userData parameter (which is corrupted by a bug).
+    pub(crate) fn as_raw_parts(
+        &self,
+    ) -> (
+        unsafe extern "C" fn(audionimbus_sys::IPLVector3, *mut c_void) -> f32,
+        *mut c_void,
+    ) {
+        let callback_ptr = &self.callback as *const _ as *mut c_void;
+        DIRECTIVITY_CALLBACK_PTR.set(callback_ptr);
+        (Self::trampoline, callback_ptr)
+    }
+}
+
+impl std::fmt::Debug for DirectivityCallback {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DirectivityCallback")
+            .field("callback", &"<closure>")
+            .finish()
+    }
 }

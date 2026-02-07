@@ -162,7 +162,7 @@ mod tests {
 
         let listener_front = Point::new(0.0, 0.0, 1.0); // In front (along -z in world, which is +z in source local)
 
-        let mut directivity = Directivity::Callback(DirectivityCallback::new(|_direction| 0.5));
+        let directivity = Directivity::Callback(DirectivityCallback::new(|_direction| 0.5));
         let attenuation = directivity_attenuation(&context, source, listener_front, &directivity);
         assert_eq!(attenuation, 0.5);
     }
