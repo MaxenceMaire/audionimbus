@@ -190,3 +190,17 @@ callback! {
     /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it were emitted from the listener’s position.
     pub DistanceAttenuationCallback(distance: f32) -> f32
 }
+
+callback! {
+    /// Callback for calculating how much to attenuate a sound based on its directivity pattern and orientation in world space.
+    ///
+    /// # Callback arguments
+    ///
+    /// - `direction`: unit vector (in world space) pointing forwards from the source. This is the direction that the source is “pointing towards”.
+    ///
+    /// # Returns
+    ///
+    /// The directivity value to apply, between 0.0 and 1.0.
+    /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
+    pub DirectivityCallback(direction: Vector3) -> f32
+}

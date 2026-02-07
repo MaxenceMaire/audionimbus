@@ -1253,7 +1253,7 @@ where
     pub fn set_inputs(
         &mut self,
         simulation_flags: SimulationFlags,
-        inputs: SimulationInputs<'_, D, R, P>,
+        mut inputs: SimulationInputs<'_, D, R, P>,
     ) -> Result<(), ParameterValidationError> {
         Self::validate_flags(simulation_flags);
 
@@ -1562,7 +1562,7 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
         }
     }
 
-    fn to_ffi(&self) -> audionimbus_sys::IPLSimulationInputs {
+    fn to_ffi(&mut self) -> audionimbus_sys::IPLSimulationInputs {
         let mut flags = audionimbus_sys::IPLSimulationFlags(0);
 
         let source = self.source.into();
@@ -1570,7 +1570,7 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
         if self.direct_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
         }
-        let direct_data = DirectSimulationData::from_params(&self.direct_simulation);
+        let direct_data = DirectSimulationData::from_params(&mut self.direct_simulation);
 
         if self.reflections_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
@@ -1787,8 +1787,8 @@ struct DirectSimulationData {
 
 impl DirectSimulationData {
     /// Converts optional direct simulation parameters into concrete FFI-compatible data.
-    fn from_params(params: &Option<DirectSimulationParameters>) -> Self {
-        let Some(params) = params else {
+    fn from_params(params: &mut Option<DirectSimulationParameters>) -> Self {
+        let Some(ref mut params) = params else {
             return Self::default();
         };
 
@@ -1799,7 +1799,7 @@ impl DirectSimulationData {
 
         let air_absorption_model = Self::process_air_absorption(&params.air_absorption, &mut flags);
 
-        let directivity = Self::process_directivity(&params.directivity, &mut flags);
+        let directivity = Self::process_directivity(&mut params.directivity, &mut flags);
 
         let (occlusion_type, occlusion_radius, num_occlusion_samples, num_transmission_rays) =
             Self::process_occlusion(params.occlusion, &mut flags);

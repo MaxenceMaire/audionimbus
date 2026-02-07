@@ -1,11 +1,12 @@
 //! Directivity patterns for modeling sound intensity as a function of the source's orientation.
 
+use crate::callback::DirectivityCallback;
 use crate::context::Context;
 use crate::geometry;
 
 /// A directivity pattern that can be used to model changes in sound intensity as a function of the source’s orientation.
 /// Can be used with both direct and indirect sound propagation.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub enum Directivity {
     /// The default directivity model is a weighted dipole.
     /// This is a linear blend between an omnidirectional source (which emits sound with equal intensity in all directions), and a dipole oriented along the z-axis in the source’s coordinate system (which focuses sound along the +z and -z axes).
@@ -21,26 +22,7 @@ pub enum Directivity {
     },
 
     /// A callback function to implement any other arbitrary directivity pattern.
-    Callback {
-        /// Callback for calculating how much to attenuate a sound based on its directivity pattern and orientation in world space.
-        ///
-        /// # Arguments
-        ///
-        /// - `direction`: unit vector (in world space) pointing forwards from the source. This is the direction that the source is “pointing towards”.
-        /// - `user_data`: pointer to the arbitrary data specified.
-        ///
-        /// # Returns
-        ///
-        /// The directivity value to apply, between 0.0 and 1.0.
-        /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
-        callback: unsafe extern "C" fn(
-            direction: audionimbus_sys::IPLVector3,
-            user_data: *mut std::ffi::c_void,
-        ) -> f32,
-
-        /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-        user_data: *mut std::ffi::c_void,
-    },
+    Callback(DirectivityCallback),
 }
 
 impl Default for Directivity {
@@ -58,10 +40,10 @@ impl From<&Directivity> for audionimbus_sys::IPLDirectivity {
             Directivity::WeightedDipole { weight, power } => {
                 (*weight, *power, None, std::ptr::null_mut())
             }
-            Directivity::Callback {
-                callback,
-                user_data,
-            } => (f32::default(), f32::default(), Some(*callback), *user_data),
+            Directivity::Callback(callback) => {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (f32::default(), f32::default(), Some(callback_fn), user_data)
+            }
         };
 
         Self {
@@ -99,14 +81,15 @@ mod tests {
     fn test_default_model() {
         let context = Context::default();
         let source = CoordinateSystem::default();
-        let directivity = Directivity::default();
 
         let listener = Point::new(0.0, 0.0, 1.0);
-        let attenuation = directivity_attenuation(&context, source, listener, &directivity);
+        let attenuation =
+            directivity_attenuation(&context, source, listener, &Directivity::default());
         assert_eq!(attenuation, 1.0); // No attenuation when listener is in front
 
         let listener = Point::new(0.0, 1.0, 0.0);
-        let attenuation = directivity_attenuation(&context, source, listener, &directivity);
+        let attenuation =
+            directivity_attenuation(&context, source, listener, &Directivity::default());
         assert_eq!(attenuation, 0.70710677);
     }
 
@@ -144,11 +127,6 @@ mod tests {
         let context = Context::default();
         let source = CoordinateSystem::default();
 
-        let directivity = Directivity::WeightedDipole {
-            weight: 0.0, // Omnidirectional
-            power: 1.0,
-        };
-
         // Test multiple directions.
         let directions = [
             Point::new(1.0, 0.0, 0.0),
@@ -156,6 +134,11 @@ mod tests {
             Point::new(0.0, 0.0, 1.0),
             Point::new(-1.0, 0.0, 0.0),
         ];
+
+        let directivity = Directivity::WeightedDipole {
+            weight: 0.0, // Omnidirectional
+            power: 1.0,
+        };
 
         let mut attenuations = Vec::new();
         for &listener in &directions {
@@ -165,8 +148,8 @@ mod tests {
 
         // All directions should have similar attenuation.
         let first = attenuations[0];
-        for &attn in &attenuations {
-            assert!((attn - first).abs() < 0.01);
+        for &attenuation in &attenuations {
+            assert!((attenuation - first).abs() < 0.01);
         }
     }
 
@@ -177,29 +160,10 @@ mod tests {
         // Source at origin, pointing along +z axis (default ahead direction)
         let source = CoordinateSystem::default();
 
-        // Listener at various positions
-        let listener_front = Point::new(0.0, 0.0, -1.0); // In front (along -z in world, which is +z in source local)
-        let listener_side = Point::new(1.0, 0.0, 0.0); // To the side
+        let listener_front = Point::new(0.0, 0.0, 1.0); // In front (along -z in world, which is +z in source local)
 
-        unsafe extern "C" fn custom_directivity(
-            _direction: audionimbus_sys::IPLVector3,
-            _user_data: *mut std::ffi::c_void,
-        ) -> f32 {
-            0.5
-        }
-
-        let directivity = Directivity::Callback {
-            callback: custom_directivity,
-            user_data: std::ptr::null_mut(),
-        };
-
-        let attenuation_front =
-            directivity_attenuation(&context, source, listener_front, &directivity);
-        let attenuation_side =
-            directivity_attenuation(&context, source, listener_side, &directivity);
-
-        // Both should be valid attenuation values
-        assert_eq!(attenuation_front, 0.5);
-        assert_eq!(attenuation_side, 0.5);
+        let mut directivity = Directivity::Callback(DirectivityCallback::new(|_direction| 0.5));
+        let attenuation = directivity_attenuation(&context, source, listener_front, &directivity);
+        assert_eq!(attenuation, 0.5);
     }
 }
