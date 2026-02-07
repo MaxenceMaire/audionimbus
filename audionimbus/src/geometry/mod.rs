@@ -78,6 +78,9 @@ pub use direction::Direction;
 mod coordinate_system;
 pub use coordinate_system::CoordinateSystem;
 
+mod hit;
+pub use hit::Hit;
+
 mod matrix;
 pub use matrix::{Matrix, Matrix3, Matrix4};
 
