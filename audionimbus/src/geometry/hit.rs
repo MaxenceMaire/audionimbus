@@ -7,6 +7,7 @@ use crate::ray_tracing::CustomRayTracer;
 ///
 /// This information should be provided by ray tracer callbacks when using [`CustomRayTracer`].
 /// Not all fields are required.
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Hit {
     /// Distance along the ray from origin to hit point.
     /// Set to [`f32::INFINITY`] if nothing was hit.

@@ -1,5 +1,5 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
-use crate::callback::ProgressCallback;
+use crate::callback::{CustomRayTracingCallbacks, CustomRayTracingUserData, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -41,6 +41,9 @@ pub struct Scene<'a, T: RayTracer = DefaultRayTracer> {
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh>,
 
+    /// Keeps the callback user data alive for custom ray tracers.
+    _callback_user_data: Option<Box<CustomRayTracingUserData>>,
+
     _ray_tracing_device: PhantomData<&'a ()>,
     _marker: PhantomData<T>,
 }
@@ -54,6 +57,7 @@ impl<T: RayTracer> Scene<'_, T> {
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
+            _callback_user_data: None,
             _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         }
@@ -63,8 +67,10 @@ impl<T: RayTracer> Scene<'_, T> {
     fn from_ffi_create(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
+        callback_user_data: Option<Box<CustomRayTracingUserData>>,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
+        scene._callback_user_data = callback_user_data;
 
         let status = unsafe {
             audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, scene.raw_ptr_mut())
@@ -85,10 +91,12 @@ impl<T: RayTracer> Scene<'_, T> {
     fn from_ffi_load(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
+        callback_user_data: Option<Box<CustomRayTracingUserData>>,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
+        scene._callback_user_data = callback_user_data;
 
         let (callback_fn, user_data) =
             progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
@@ -122,7 +130,7 @@ impl Scene<'_, DefaultRayTracer> {
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings())
+        Self::from_ffi_create(context, &mut Self::ffi_settings(), None)
     }
 
     /// Loads a scene from a serialized object.
@@ -136,7 +144,13 @@ impl Scene<'_, DefaultRayTracer> {
         context: &Context,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_load(context, &mut Self::ffi_settings(), serialized_object, None)
+        Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(),
+            None,
+            serialized_object,
+            None,
+        )
     }
 
     /// Loads a scene from a serialized object.
@@ -154,6 +168,7 @@ impl Scene<'_, DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
+            None,
             serialized_object,
             Some(progress_callback),
         )
@@ -184,7 +199,7 @@ impl<'a> Scene<'a, Embree> {
         context: &Context,
         device: &'a EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(device))
+        Self::from_ffi_create(context, &mut Self::ffi_settings(device), None)
     }
 
     /// Loads a scene from a serialized object using Embree.
@@ -205,6 +220,7 @@ impl<'a> Scene<'a, Embree> {
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
+            _callback_user_data: None,
             _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         };
@@ -243,6 +259,7 @@ impl<'a> Scene<'a, Embree> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(device),
+            None,
             serialized_object,
             Some(progress_callback),
         )
@@ -273,7 +290,7 @@ impl<'a> Scene<'a, RadeonRays> {
         context: &Context,
         device: &'a RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(device))
+        Self::from_ffi_create(context, &mut Self::ffi_settings(device), None)
     }
 
     /// Loads a scene from a serialized object using Radeon Rays.
@@ -291,6 +308,7 @@ impl<'a> Scene<'a, RadeonRays> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(device),
+            None,
             serialized_object,
             None,
         )
@@ -312,6 +330,7 @@ impl<'a> Scene<'a, RadeonRays> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(device),
+            None,
             serialized_object,
             Some(progress_callback),
         )
@@ -340,9 +359,10 @@ impl<'a> Scene<'a, CustomRayTracer> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_custom(
         context: &Context,
-        callbacks: &'a CustomCallbacks,
+        callbacks: &'a CustomRayTracingCallbacks,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(callbacks))
+        let (mut settings, user_data) = callbacks.as_ffi_settings();
+        Self::from_ffi_create(context, &mut settings, Some(user_data))
     }
 
     /// Loads a scene from a serialized object using a custom ray tracer.
@@ -354,12 +374,14 @@ impl<'a> Scene<'a, CustomRayTracer> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom(
         context: &Context,
-        callbacks: &'a CustomCallbacks,
+        callbacks: &'a CustomRayTracingCallbacks,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
+        let (mut settings, user_data) = callbacks.as_ffi_settings();
         Self::from_ffi_load(
             context,
-            &mut Self::ffi_settings(callbacks),
+            &mut settings,
+            Some(user_data),
             serialized_object,
             None,
         )
@@ -374,30 +396,18 @@ impl<'a> Scene<'a, CustomRayTracer> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom_with_progress(
         context: &Context,
-        callbacks: &'a CustomCallbacks,
+        callbacks: &'a CustomRayTracingCallbacks,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
+        let (mut settings, user_data) = callbacks.as_ffi_settings();
         Self::from_ffi_load(
             context,
-            &mut Self::ffi_settings(callbacks),
+            &mut settings,
+            Some(user_data),
             serialized_object,
             Some(progress_callback),
         )
-    }
-
-    /// Returns FFI scene settings with custom callbacks.
-    fn ffi_settings(callbacks: &'a CustomCallbacks) -> audionimbus_sys::IPLSceneSettings {
-        audionimbus_sys::IPLSceneSettings {
-            type_: CustomRayTracer::scene_type(),
-            closestHitCallback: Some(callbacks.closest_hit_callback),
-            anyHitCallback: Some(callbacks.any_hit_callback),
-            batchedClosestHitCallback: Some(callbacks.batched_closest_hit_callback),
-            batchedAnyHitCallback: Some(callbacks.batched_any_hit_callback),
-            userData: callbacks.user_data,
-            embreeDevice: std::ptr::null_mut(),
-            radeonRaysDevice: std::ptr::null_mut(),
-        }
     }
 }
 
@@ -780,50 +790,6 @@ impl<T: RayTracer> Drop for Scene<'_, T> {
 
 unsafe impl<T: RayTracer> Send for Scene<'_, T> {}
 
-/// Callbacks used for a custom ray tracer.
-pub struct CustomCallbacks {
-    /// Callback for finding the closest hit along a ray.
-    pub closest_hit_callback: unsafe extern "C" fn(
-        ray: *const audionimbus_sys::IPLRay,
-        min_distance: f32,
-        max_distance: f32,
-        hit: *mut audionimbus_sys::IPLHit,
-        user_data: *mut std::ffi::c_void,
-    ),
-
-    /// Callback for finding whether a ray hits anything.
-    pub any_hit_callback: unsafe extern "C" fn(
-        ray: *const audionimbus_sys::IPLRay,
-        min_distance: f32,
-        max_distance: f32,
-        occluded: *mut u8,
-        user_data: *mut std::ffi::c_void,
-    ),
-
-    /// Callback for finding the closest hit along a batch of rays.
-    pub batched_closest_hit_callback: unsafe extern "C" fn(
-        num_rays: i32,
-        rays: *const audionimbus_sys::IPLRay,
-        min_distances: *const f32,
-        max_distances: *const f32,
-        hits: *mut audionimbus_sys::IPLHit,
-        user_data: *mut std::ffi::c_void,
-    ),
-
-    /// Callback for finding whether a batch of rays hits anything.
-    pub batched_any_hit_callback: unsafe extern "C" fn(
-        num_rays: i32,
-        rays: *const audionimbus_sys::IPLRay,
-        min_distances: *const f32,
-        max_distances: *const f32,
-        occluded: *mut u8,
-        user_data: *mut std::ffi::c_void,
-    ),
-
-    /// Arbitrary user-provided data for use by ray tracing callbacks.
-    pub user_data: *mut std::ffi::c_void,
-}
-
 /// Calculates the relative direction from the listener to a sound source.
 ///
 /// The returned direction vector is expressed in the listener’s coordinate system.
@@ -951,7 +917,10 @@ pub struct InstancedMeshHandle(DefaultKey);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Vector3;
+    use crate::{
+        AnyHitCallback, BatchedAnyHitCallback, BatchedClosestHitCallback, ClosestHitCallback,
+        CustomRayTracingCallbacks, Vector3,
+    };
 
     #[test]
     fn test_default_scene() {
@@ -984,5 +953,29 @@ mod tests {
                 z: 0.0
             }
         );
+    }
+
+    #[test]
+    fn test_custom_ray_tracer() {
+        let context = Context::default();
+
+        let closest_hit = ClosestHitCallback::new(|_ray, _min_dist, _max_dist| None);
+
+        let any_hit = AnyHitCallback::new(|_ray, _min_dist, _max_dist| false);
+
+        let batched_closest_hit =
+            BatchedClosestHitCallback::new(|rays, _min_dists, _max_dists| vec![None; rays.len()]);
+
+        let batched_any_hit =
+            BatchedAnyHitCallback::new(|rays, _min_dists, _max_dists| vec![false; rays.len()]);
+
+        let callbacks = CustomRayTracingCallbacks::new(
+            Some(closest_hit),
+            Some(any_hit),
+            Some(batched_closest_hit),
+            Some(batched_any_hit),
+        );
+
+        assert!(Scene::<CustomRayTracer>::try_with_custom(&context, &callbacks).is_ok());
     }
 }

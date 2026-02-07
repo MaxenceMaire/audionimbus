@@ -12,8 +12,9 @@ pub use baking::pathing::{PathBakeParams, PathBaker};
 pub use baking::reflections::{ReflectionsBakeFlags, ReflectionsBakeParams, ReflectionsBaker};
 pub use baking::{BakeError, BakedDataIdentifier, BakedDataVariation};
 pub use callback::{
-    AirAbsorptionCallback, DeviationCallback, DirectivityCallback, DistanceAttenuationCallback,
-    PathingVisualizationCallback, ProgressCallback,
+    AirAbsorptionCallback, AnyHitCallback, BatchedAnyHitCallback, BatchedClosestHitCallback,
+    ClosestHitCallback, CustomRayTracingCallbacks, DeviationCallback, DirectivityCallback,
+    DistanceAttenuationCallback, PathingVisualizationCallback, ProgressCallback,
 };
 pub use context::*;
 pub use device::embree::*;
