@@ -90,6 +90,9 @@ pub use triangle::Triangle;
 mod material;
 pub use material::Material;
 
+mod ray;
+pub use ray::Ray;
+
 mod scene;
 pub use scene::{
     relative_direction, InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, Scene,
