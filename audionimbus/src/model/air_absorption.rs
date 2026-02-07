@@ -1,10 +1,11 @@
 //! Frequency-dependent attenuation of sound over distance.
 
+pub use crate::callback::AirAbsorptionCallback;
 use crate::context::Context;
 use crate::{geometry, Equalizer};
 
 /// An air absorption model that can be used for modeling frequency-dependent attenuation of sound over distance.
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Default)]
 pub enum AirAbsorptionModel {
     /// The default air absorption model.
     /// This is an exponential falloff, with decay rates derived from physical properties of air.
@@ -21,22 +22,7 @@ pub enum AirAbsorptionModel {
     /// An arbitrary air absorption model, defined by a callback function.
     Callback {
         /// Callback for calculating how much air absorption should be applied to a sound based on its distance from the listener.
-        ///
-        /// # Arguments
-        ///
-        /// - `distance`: the distance (in meters) between the source and the listener.
-        /// - `band`: index of the frequency band for which to calculate air absorption. 0.0 = low frequencies, 1.0 = middle frequencies, 2.0 = high frequencies.
-        /// - `user_data`: pointer to the arbitrary data specified.
-        ///
-        /// # Returns
-        ///
-        /// The air absorption to apply, between 0.0 and 1.0.
-        /// 0.0 = sound in the frequency band `band` is not audible, 1.0 = sound in the frequency band `band` is not attenuated.
-        callback:
-            unsafe extern "C" fn(distance: f32, band: i32, user_data: *mut std::ffi::c_void) -> f32,
-
-        /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-        user_data: *mut std::ffi::c_void,
+        callback: AirAbsorptionCallback,
 
         /// Set to `true` to indicate that the air absorption model defined by the callback function has changed since the last time simulation was run.
         /// For example, the callback may be evaluating a set of curves defined in a GUI.
@@ -62,17 +48,16 @@ impl From<&AirAbsorptionModel> for audionimbus_sys::IPLAirAbsorptionModel {
                 std::ptr::null_mut(),
                 bool::default(),
             ),
-            AirAbsorptionModel::Callback {
-                callback,
-                user_data,
-                dirty,
-            } => (
-                audionimbus_sys::IPLAirAbsorptionModelType::IPL_AIRABSORPTIONTYPE_CALLBACK,
-                <[f32; 3]>::default(),
-                Some(*callback),
-                *user_data,
-                *dirty,
-            ),
+            AirAbsorptionModel::Callback { callback, dirty } => {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (
+                    audionimbus_sys::IPLAirAbsorptionModelType::IPL_AIRABSORPTIONTYPE_CALLBACK,
+                    <[f32; 3]>::default(),
+                    Some(callback_fn),
+                    user_data,
+                    *dirty,
+                )
+            }
         };
 
         Self {
@@ -177,35 +162,27 @@ mod tests {
     /*
     #[test]
     fn test_callback_model() {
-
         let context = Context::default();
         let source = Point::new(10.0, 0.0, 0.0);
         let listener = Point::new(0.0, 0.0, 0.0);
 
-        unsafe extern "C" fn custom_absorption(
-            distance: f32,
-            band: i32,
-            _user_data: *mut std::ffi::c_void,
-        ) -> f32 {
-            // More absorption in higher bands (band is 0, 1, or 2)
-            // At 10m distance, return different values for each band.
-            let absorption_per_meter = match band {
-                0 => 0.005, // Low frequency - less absorption
-                1 => 0.010, // Mid frequency
-                2 => 0.015, // High frequency - more absorption
-                _ => 0.01,
-            };
-            // Exponential decay
-            (-absorption_per_meter * distance).exp()
-        }
-
         let model = AirAbsorptionModel::Callback {
-            callback: custom_absorption,
-            user_data: std::ptr::null_mut(),
+            callback: AirAbsorptionCallback::new(|distance: f32, band: i32| {
+                // More absorption in higher bands (band is 0, 1, or 2)
+                // At 10m distance, return different values for each band.
+                let absorption_per_meter = match band {
+                    0 => 0.005, // Low frequency - less absorption
+                    1 => 0.010, // Mid frequency
+                    2 => 0.015, // High frequency - more absorption
+                    _ => 0.01,
+                };
+                // Exponential decay
+                (-absorption_per_meter * distance).exp()
+            }),
             dirty: false,
         };
 
-        let absorption = air_absorption(&context, source, listener, &model);
+        let absorption = unsafe { air_absorption(&context, source, listener, &model) };
 
         // All values should be between 0 and 1.
         for &band in &absorption.0 {

@@ -265,3 +265,18 @@ impl std::fmt::Debug for DirectivityCallback {
             .finish()
     }
 }
+
+callback! {
+    /// Callback for calculating how much air absorption should be applied to a sound based on its distance from the listener.
+    ///
+    /// # Callback arguments
+    ///
+    /// - `distance`: the distance (in meters) between the source and the listener.
+    /// - `band`: index of the frequency band for which to calculate air absorption. 0.0 = low frequencies, 1.0 = middle frequencies, 2.0 = high frequencies.
+    ///
+    /// # Returns
+    ///
+    /// The air absorption to apply, between 0.0 and 1.0.
+    /// 0.0 = sound in the frequency band `band` is not audible, 1.0 = sound in the frequency band `band` is not attenuated.
+    pub AirAbsorptionCallback(distance: f32, band: i32) -> f32
+}
