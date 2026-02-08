@@ -1,10 +1,12 @@
 //! Attenuation of sound over distance.
+
+pub use crate::callback::DistanceAttenuationCallback;
 use crate::context::Context;
 use crate::geometry;
 
 /// A distance attenuation model that can be used for modeling attenuation of sound over distance.
 /// Can be used with both direct and indirect sound propagation.
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Default)]
 pub enum DistanceAttenuationModel {
     /// The default distance attenuation model.
     /// This is an inverse distance falloff, with all sounds within 1 meter of the listener rendered without distance attenuation.
@@ -21,20 +23,7 @@ pub enum DistanceAttenuationModel {
     /// An arbitrary distance falloff function, defined by a callback function.
     Callback {
         /// Callback for calculating how much attenuation should be applied to a sound based on its distance from the listener.
-        ///
-        /// # Arguments
-        ///
-        /// - `distance`: the distance (in meters) between the source and the listener.
-        /// - `user_data`: pointer to the arbitrary data specified.
-        ///
-        /// # Returns
-        ///
-        /// The distance attenuation to apply, between 0.0 and 1.0.
-        /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it were emitted from the listener’s position.
-        callback: unsafe extern "C" fn(distance: f32, user_data: *mut std::ffi::c_void) -> f32,
-
-        /// Pointer to arbitrary data that will be provided to the callback function whenever it is called. May be `NULL`.
-        user_data: *mut std::ffi::c_void,
+        callback: DistanceAttenuationCallback,
 
         /// Set to `true` to indicate that the distance attenuation model defined by the callback function has changed since the last time simulation was run.
         /// For example, the callback may be evaluating a curve defined in a GUI.
@@ -60,13 +49,17 @@ impl From<&DistanceAttenuationModel> for audionimbus_sys::IPLDistanceAttenuation
                 std::ptr::null_mut(),
                 bool::default()
             ),
-            DistanceAttenuationModel::Callback { callback, user_data, dirty } => (
-                audionimbus_sys::IPLDistanceAttenuationModelType::IPL_DISTANCEATTENUATIONTYPE_CALLBACK,
-                f32::default(),
-                Some(*callback),
-                *user_data,
-                *dirty
-            )
+            DistanceAttenuationModel::Callback { callback, dirty } => {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+
+                (
+                    audionimbus_sys::IPLDistanceAttenuationModelType::IPL_DISTANCEATTENUATIONTYPE_CALLBACK,
+                    f32::default(),
+                    Some(callback_fn),
+                    user_data,
+                    *dirty
+                )
+            }
         };
 
         Self {
@@ -168,17 +161,11 @@ mod tests {
         let source = Point::new(10.0, 0.0, 0.0);
         let listener = Point::new(0.0, 0.0, 0.0);
 
-        unsafe extern "C" fn custom_attenuation(
-            distance: f32,
-            _user_data: *mut std::ffi::c_void,
-        ) -> f32 {
-            // Custom: linear falloff to 0 at 100m.
-            (1.0 - distance / 100.0).max(0.0)
-        }
-
         let model = DistanceAttenuationModel::Callback {
-            callback: custom_attenuation,
-            user_data: std::ptr::null_mut(),
+            callback: DistanceAttenuationCallback::new(|distance: f32| {
+                // Custom: linear falloff to 0 at 100m.
+                (1.0 - distance / 100.0).max(0.0)
+            }),
             dirty: false,
         };
 

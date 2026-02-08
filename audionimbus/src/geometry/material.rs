@@ -105,6 +105,16 @@ impl From<Material> for audionimbus_sys::IPLMaterial {
     }
 }
 
+impl From<&audionimbus_sys::IPLMaterial> for Material {
+    fn from(material: &audionimbus_sys::IPLMaterial) -> Self {
+        Self {
+            absorption: material.absorption,
+            scattering: material.scattering,
+            transmission: material.transmission,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

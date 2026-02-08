@@ -24,7 +24,7 @@
 //! - Different simulation types can run in parallel
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
-use crate::callback::CallbackInformation;
+pub use crate::callback::PathingVisualizationCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
@@ -1259,7 +1259,9 @@ where
 
         self.validate_inputs(&inputs)?;
 
-        if let Some(pathing_params) = &inputs.pathing_simulation {
+        let mut ffi_inputs = inputs.to_ffi();
+
+        if let Some(pathing_params) = inputs.pathing_simulation {
             self.deviation_model = Some(pathing_params.deviation);
         }
 
@@ -1269,7 +1271,7 @@ where
             audionimbus_sys::iplSourceSetInputs(
                 self.raw_ptr(),
                 simulation_flags.into(),
-                &mut inputs.into(),
+                &mut ffi_inputs,
             );
         }
 
@@ -1450,7 +1452,7 @@ impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
 }
 
 /// Simulation parameters for a source.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct SimulationInputs<'a, D = (), R = (), P = ()> {
     /// The position and orientation of this source.
     source: CoordinateSystem,
@@ -1559,10 +1561,57 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
             _pathing: PhantomData,
         }
     }
+
+    fn to_ffi(&self) -> audionimbus_sys::IPLSimulationInputs {
+        let mut flags = audionimbus_sys::IPLSimulationFlags(0);
+
+        let source = self.source.into();
+
+        if self.direct_simulation.is_some() {
+            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
+        }
+        let direct_data = DirectSimulationData::from_params(&self.direct_simulation);
+
+        if self.reflections_simulation.is_some() {
+            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        }
+        let reflections_data = ReflectionsSimulationData::from_params(self.reflections_simulation);
+
+        if self.pathing_simulation.is_some() {
+            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
+        }
+        let pathing_data = PathingSimulationData::from_params(self.pathing_simulation.as_ref());
+
+        audionimbus_sys::IPLSimulationInputs {
+            flags,
+            directFlags: direct_data.flags,
+            source,
+            distanceAttenuationModel: direct_data.distance_attenuation_model,
+            airAbsorptionModel: direct_data.air_absorption_model,
+            directivity: direct_data.directivity,
+            occlusionType: direct_data.occlusion_type,
+            occlusionRadius: direct_data.occlusion_radius,
+            numOcclusionSamples: direct_data.num_occlusion_samples,
+            numTransmissionRays: direct_data.num_transmission_rays,
+            reverbScale: reflections_data.reverb_scale,
+            hybridReverbTransitionTime: reflections_data.hybrid_reverb_transition_time,
+            hybridReverbOverlapPercent: reflections_data.hybrid_reverb_overlap_percent,
+            baked: reflections_data.baked,
+            bakedDataIdentifier: reflections_data.baked_data_identifier.into(),
+            pathingProbes: pathing_data.pathing_probes,
+            visRadius: pathing_data.visibility_radius,
+            visThreshold: pathing_data.visibility_threshold,
+            visRange: pathing_data.visibility_range,
+            pathingOrder: pathing_data.pathing_order,
+            enableValidation: pathing_data.enable_validation,
+            findAlternatePaths: pathing_data.find_alternate_paths,
+            deviationModel: &pathing_data.deviation_model as *const _ as *mut _,
+        }
+    }
 }
 
 /// Direct simulation parameters for a source.
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug)]
 pub struct DirectSimulationParameters {
     /// If `Some`, enables distance attenuation calculations with the specified model.
     pub distance_attenuation: Option<DistanceAttenuationModel>,
@@ -1694,7 +1743,7 @@ pub enum ReflectionsSimulationParameters {
 }
 
 /// Pathing simulation parameters for a source.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct PathingSimulationParameters<'a> {
     /// The probe batch within which to find paths from this source to the listener.
     pub pathing_probes: &'a ProbeBatch,
@@ -1727,9 +1776,9 @@ pub struct PathingSimulationParameters<'a> {
 /// Intermediate representation of direct simulation parameters for FFI conversion.
 struct DirectSimulationData {
     flags: audionimbus_sys::IPLDirectSimulationFlags,
-    distance_attenuation_model: DistanceAttenuationModel,
-    air_absorption_model: AirAbsorptionModel,
-    directivity: Directivity,
+    distance_attenuation_model: audionimbus_sys::IPLDistanceAttenuationModel,
+    air_absorption_model: audionimbus_sys::IPLAirAbsorptionModel,
+    directivity: audionimbus_sys::IPLDirectivity,
     occlusion_type: audionimbus_sys::IPLOcclusionType,
     occlusion_radius: f32,
     num_occlusion_samples: i32,
@@ -1738,7 +1787,7 @@ struct DirectSimulationData {
 
 impl DirectSimulationData {
     /// Converts optional direct simulation parameters into concrete FFI-compatible data.
-    fn from_params(params: Option<DirectSimulationParameters>) -> Self {
+    fn from_params(params: &Option<DirectSimulationParameters>) -> Self {
         let Some(params) = params else {
             return Self::default();
         };
@@ -1746,11 +1795,11 @@ impl DirectSimulationData {
         let mut flags = audionimbus_sys::IPLDirectSimulationFlags(0);
 
         let distance_attenuation_model =
-            Self::process_distance_attenuation(params.distance_attenuation, &mut flags);
+            Self::process_distance_attenuation(&params.distance_attenuation, &mut flags);
 
-        let air_absorption_model = Self::process_air_absorption(params.air_absorption, &mut flags);
+        let air_absorption_model = Self::process_air_absorption(&params.air_absorption, &mut flags);
 
-        let directivity = Self::process_directivity(params.directivity, &mut flags);
+        let directivity = Self::process_directivity(&params.directivity, &mut flags);
 
         let (occlusion_type, occlusion_radius, num_occlusion_samples, num_transmission_rays) =
             Self::process_occlusion(params.occlusion, &mut flags);
@@ -1769,42 +1818,42 @@ impl DirectSimulationData {
 
     /// Processes optional distance attenuation settings and updates flags accordingly.
     fn process_distance_attenuation(
-        distance_attenuation: Option<DistanceAttenuationModel>,
+        distance_attenuation: &Option<DistanceAttenuationModel>,
         flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
-    ) -> DistanceAttenuationModel {
+    ) -> audionimbus_sys::IPLDistanceAttenuationModel {
         if let Some(model) = distance_attenuation {
             *flags |= audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION;
-            model
+            model.into()
         } else {
-            DistanceAttenuationModel::default()
+            (&DistanceAttenuationModel::default()).into()
         }
     }
 
     /// Processes optional air absorption settings and updates flags accordingly.
     fn process_air_absorption(
-        air_absorption: Option<AirAbsorptionModel>,
+        air_absorption: &Option<AirAbsorptionModel>,
         flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
-    ) -> AirAbsorptionModel {
+    ) -> audionimbus_sys::IPLAirAbsorptionModel {
         if let Some(model) = air_absorption {
             *flags |=
                 audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION;
-            model
+            model.into()
         } else {
-            AirAbsorptionModel::default()
+            (&AirAbsorptionModel::default()).into()
         }
     }
 
     /// Processes optional directivity settings and updates flags accordingly.
     fn process_directivity(
-        directivity: Option<Directivity>,
+        directivity: &Option<Directivity>,
         flags: &mut audionimbus_sys::IPLDirectSimulationFlags,
-    ) -> Directivity {
+    ) -> audionimbus_sys::IPLDirectivity {
         if let Some(directivity) = directivity {
             *flags |=
                 audionimbus_sys::IPLDirectSimulationFlags::IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY;
-            directivity
+            directivity.into()
         } else {
-            Directivity::default()
+            (&Directivity::default()).into()
         }
     }
 
@@ -1861,9 +1910,9 @@ impl Default for DirectSimulationData {
     fn default() -> Self {
         Self {
             flags: audionimbus_sys::IPLDirectSimulationFlags(0),
-            distance_attenuation_model: DistanceAttenuationModel::default(),
-            air_absorption_model: AirAbsorptionModel::default(),
-            directivity: Directivity::default(),
+            distance_attenuation_model: (&DistanceAttenuationModel::default()).into(),
+            air_absorption_model: (&AirAbsorptionModel::default()).into(),
+            directivity: (&Directivity::default()).into(),
             occlusion_type: audionimbus_sys::IPLOcclusionType::IPL_OCCLUSIONTYPE_RAYCAST,
             occlusion_radius: 0.0,
             num_occlusion_samples: 0,
@@ -2001,61 +2050,6 @@ impl Default for PathingSimulationData {
     }
 }
 
-impl<D, R, P> From<SimulationInputs<'_, D, R, P>> for audionimbus_sys::IPLSimulationInputs {
-    fn from(simulation_inputs: SimulationInputs<'_, D, R, P>) -> Self {
-        let SimulationInputs {
-            source,
-            direct_simulation,
-            reflections_simulation,
-            pathing_simulation,
-            ..
-        } = simulation_inputs;
-
-        let mut flags = audionimbus_sys::IPLSimulationFlags(0);
-
-        if direct_simulation.is_some() {
-            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
-        }
-        let direct_data = DirectSimulationData::from_params(direct_simulation);
-
-        if reflections_simulation.is_some() {
-            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
-        }
-        let reflections_data = ReflectionsSimulationData::from_params(reflections_simulation);
-
-        if pathing_simulation.is_some() {
-            flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
-        }
-        let pathing_data = PathingSimulationData::from_params(pathing_simulation.as_ref());
-
-        Self {
-            flags,
-            directFlags: direct_data.flags,
-            source: source.into(),
-            distanceAttenuationModel: (&direct_data.distance_attenuation_model).into(),
-            airAbsorptionModel: (&direct_data.air_absorption_model).into(),
-            directivity: (&direct_data.directivity).into(),
-            occlusionType: direct_data.occlusion_type,
-            occlusionRadius: direct_data.occlusion_radius,
-            numOcclusionSamples: direct_data.num_occlusion_samples,
-            numTransmissionRays: direct_data.num_transmission_rays,
-            reverbScale: reflections_data.reverb_scale,
-            hybridReverbTransitionTime: reflections_data.hybrid_reverb_transition_time,
-            hybridReverbOverlapPercent: reflections_data.hybrid_reverb_overlap_percent,
-            baked: reflections_data.baked,
-            bakedDataIdentifier: reflections_data.baked_data_identifier.into(),
-            pathingProbes: pathing_data.pathing_probes,
-            visRadius: pathing_data.visibility_radius,
-            visThreshold: pathing_data.visibility_threshold,
-            visRange: pathing_data.visibility_range,
-            pathingOrder: pathing_data.pathing_order,
-            enableValidation: pathing_data.enable_validation,
-            findAlternatePaths: pathing_data.find_alternate_paths,
-            deviationModel: &pathing_data.deviation_model as *const _ as *mut _,
-        }
-    }
-}
-
 /// The different algorithms for simulating occlusion.
 #[derive(Copy, Clone, Debug)]
 pub enum OcclusionAlgorithm {
@@ -2091,7 +2085,7 @@ pub struct SimulationSharedInputs<D = (), R = (), P = ()> {
     reflections_shared_inputs: Option<ReflectionsSharedInputs>,
 
     /// Optional callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
-    pathing_visualization_callback: Option<CallbackInformation<PathingVisualizationCallback>>,
+    pathing_visualization_callback: Option<PathingVisualizationCallback>,
 
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -2190,7 +2184,7 @@ impl<D, R, P> SimulationSharedInputs<D, R, P> {
     /// - `pathing_visualization_callback`: Callback for visualizing valid path segments during call to [`Simulator::run_pathing`].
     pub fn with_pathing_visualization_callback(
         self,
-        pathing_visualization_callback: CallbackInformation<PathingVisualizationCallback>,
+        pathing_visualization_callback: PathingVisualizationCallback,
     ) -> SimulationSharedInputs<D, R, Pathing> {
         let Self {
             listener,
@@ -2218,11 +2212,9 @@ impl<D, R, P> From<&SimulationSharedInputs<D, R, P>>
         let (pathing_visualization_callback, pathing_user_data) = simulation_shared_inputs
             .pathing_visualization_callback
             .as_ref()
-            .map_or((None, std::ptr::null_mut()), |callback_information| {
-                (
-                    Some(callback_information.callback),
-                    callback_information.user_data,
-                )
+            .map_or((None, std::ptr::null_mut()), |callback| {
+                let (callback_fn, user_data) = callback.as_raw_parts();
+                (Some(callback_fn), user_data)
             });
 
         let (num_rays, num_bounces, duration, order, irradiance_min_distance) =
@@ -2274,23 +2266,6 @@ pub struct ReflectionsSharedInputs {
     /// When calculating how much sound energy reaches a surface directly from a source, any source that is closer than [`Self::irradiance_min_distance`] to the surface is assumed to be at a distance of [`Self::irradiance_min_distance`], for the purposes of energy calculations.
     pub irradiance_min_distance: f32,
 }
-
-/// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
-///
-/// You can use this to provide the user with visual feedback, like drawing each segment of a path.
-///
-/// # Arguments
-///
-/// - `from`: position of starting probe.
-/// - `to`: position of ending probe.
-/// - `occluded`: occlusion status of ray segment between `from` to `to`.
-/// - `user_data`: pointer to arbitrary user-specified data provided when calling the function that will call this callback.
-pub type PathingVisualizationCallback = unsafe extern "C" fn(
-    from: audionimbus_sys::IPLVector3,
-    to: audionimbus_sys::IPLVector3,
-    occluded: audionimbus_sys::IPLbool,
-    user_data: *mut std::ffi::c_void,
-);
 
 /// Simulation results for a source.
 #[derive(Debug)]

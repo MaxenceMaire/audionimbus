@@ -43,6 +43,7 @@
 - Fixed use-after-free error by ensuring [`TrueAudioNextDevice`] outlives [`ReflectionEffectParams`].
 - Fixed use-after-free error by ensuring devices outlive [`Scene`].
 - Fixed memory leak in pathing simulation when using deviation models.
+- Fixed callback dangling pointers.
 
 ### Changed
 
@@ -105,6 +106,10 @@
 - All fields of `ReflectionEffectParams` are now private. Constructors should be used instead.
 - `ReflectionEffectParams<'_, TrueAudioNext>::new` now takes `TrueAudioNextDevice` by reference instead of value to ensure it outlives methods using it.
 - `PathingSimulationData::from_params` now takes `Option<&PathingSimulationParameters>` instead of `Option<PathingSimulationParameters>`.
+- Refactored callbacks for type safety and ergonomics. Callbacks now use wrapper types (e.g., `ProgressCallback`, `DirectivityCallback`) instead of raw function pointers and `CallbackInformation<T>`.
+- `ContextSettings` fields are now private; use builder methods (e.g., `with_simd_level()`, `with_log_callback()`) to configure context.
+- Custom ray tracing now uses `CustomRayTracingCallbacks` with typed callback wrappers instead of raw function pointers in `CustomCallbacks`.
+- All model types (`DistanceAttenuationModel`, `AirAbsorptionModel`, `Directivity`, `DeviationModel`) now use callback wrapper types instead of raw function pointers for custom implementations.
 
 ### Added
 
@@ -134,6 +139,10 @@
 - Add compatibility traits (`DirectCompatible`, `ReflectionsCompatible`, `PathingCompatible`) to enforce type-safe Source creation.
 - Add assertion to validate simulation flags in `Source::set_inputs` and `Source::get_outputs`.
 - Add mutex serialization to `Hrtf::try_new()` to prevent undefined behavior from concurrent HRTF creation.
+- Add callback wrapper types: `ProgressCallback`, `PathingVisualizationCallback`, `DeviationCallback`, `DistanceAttenuationCallback`, `DirectivityCallback`, `AirAbsorptionCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`, `CustomRayTracingCallbacks`.
+- Add `log_callback!`, `allocate_callback!`, and `free_callback!` macros for ergonomic callback creation with automatic type conversion.
+- Add `Ray` and `Hit` geometry types for custom ray tracing support.
+- Add `LogLevel` enum for log message severity.
 
 ### Removed
 
@@ -147,6 +156,9 @@
 - Removed `InstancedMesh::update_transform`. Use `Scene::update_instanced_mesh_transform` instead.
 - Removed `Clone` and `Sync` implementations from all Steam Audio wrapper types. These types can still be moved between threads (`Send`) but cannot be shared or cloned, as the underlying objects are not thread-safe for concurrent access.
 - Removed `From<IPLReflectionEffectParams>` trait implementation for `ReflectionEffectParams`.
+- Removed `CallbackInformation<T>` struct. Use callback wrapper types (e.g., `ProgressCallback::new(|progress| { ... })`) instead.
+- Removed `CustomCallbacks` struct. Use `CustomRayTracingCallbacks` with callback wrapper types instead.
+- Removed `PathingVisualizationCallback` type alias. Use the `PathingVisualizationCallback::new()` constructor instead.
 
 ## [0.11.0] - 2026-01-14
 
