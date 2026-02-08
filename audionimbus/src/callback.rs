@@ -692,7 +692,7 @@ impl std::fmt::Debug for BatchedAnyHitCallback {
     }
 }
 
-/// Log level.
+/// Log level of messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum LogLevel {
@@ -736,10 +736,8 @@ impl From<audionimbus_sys::IPLLogLevel> for LogLevel {
 ///     println!("{level:?}: {message}");
 /// });
 ///
-/// let context = Context::try_new(&ContextSettings {
-///     log_callback: Some(my_logger),
-///     ..Default::default()
-/// })?;
+/// let settings = ContextSettings::new().with_log_callback(my_logger);
+/// let context = Context::try_new(&settings)?;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 ///
@@ -749,12 +747,10 @@ impl From<audionimbus_sys::IPLLogLevel> for LogLevel {
 ///
 /// ```
 /// # use audionimbus::{log_callback, Context, ContextSettings};
-/// let context = Context::try_new(&ContextSettings {
-///     log_callback: log_callback!(|level, message| {
-///         println!("{level:?}: {message}");
-///     }),
-///     ..Default::default()
-/// })?;
+/// let settings = ContextSettings::new().with_log_callback(log_callback!(|level, message| {
+///     println!("{level:?}: {message}");
+/// }));
+/// let context = Context::try_new(&settings)?;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 #[macro_export]
@@ -765,7 +761,7 @@ macro_rules! log_callback {
 
     ($closure:expr) => {{
         $crate::log_callback!(@impl __log_callback_impl, $closure);
-        Some(__log_callback_impl)
+        __log_callback_impl
     }};
 
     (@impl $name:ident, $closure:expr) => {
@@ -821,11 +817,10 @@ macro_rules! log_callback {
 ///     }
 /// });
 ///
-/// let context = Context::try_new(&ContextSettings {
-///     allocate_callback: Some(my_allocator),
-///     free_callback: Some(my_free),
-///     ..Default::default()
-/// })?;
+/// let settings = ContextSettings::new()
+///     .with_allocate_callback(my_allocator)
+///     .with_free_callback(my_free);
+/// let context = Context::try_new(&settings)?;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 ///
@@ -839,16 +834,15 @@ macro_rules! log_callback {
 /// use std::alloc::{alloc, Layout};
 /// use std::ffi::c_void;
 ///
-/// let context = Context::try_new(&ContextSettings {
-///     allocate_callback: allocate_callback!(|size, alignment| {
+/// let settings = ContextSettings::new()
+///     .with_allocate_callback(allocate_callback!(|size, alignment| {
 ///         unsafe {
 ///             let layout = Layout::from_size_align_unchecked(size, alignment);
 ///             alloc(layout) as *mut c_void
 ///         }
-///     }),
-///     free_callback: Some(my_free),
-///     ..Default::default()
-/// })?;
+///     }))
+///     .with_free_callback(my_free);
+/// let context = Context::try_new(&settings)?;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 ///
@@ -866,7 +860,7 @@ macro_rules! allocate_callback {
 
     ($closure:expr) => {{
         $crate::allocate_callback!(@impl __allocate_callback_impl, $closure);
-        Some(__allocate_callback_impl)
+        __allocate_callback_impl
     }};
 
     (@impl $name:ident, $closure:expr) => {
@@ -905,14 +899,13 @@ macro_rules! allocate_callback {
 /// #     }
 /// # });
 /// free_callback!(my_free, |ptr| {
-///   // ...
+///     // ...
 /// });
 ///
-/// let context = Context::try_new(&ContextSettings {
-///     allocate_callback: Some(my_allocator),
-///     free_callback: Some(my_free),
-///     ..Default::default()
-/// })?;
+/// let settings = ContextSettings::new()
+///     .with_allocate_callback(my_allocator)
+///     .with_free_callback(my_free);
+/// let context = Context::try_new(&settings)?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
@@ -928,13 +921,12 @@ macro_rules! allocate_callback {
 /// #         alloc(layout) as *mut c_void
 /// #     }
 /// # });
-/// let context = Context::try_new(&ContextSettings {
-///     allocate_callback: Some(my_allocator),
-///     free_callback: free_callback!(|ptr| {
-///       // ...
-///     }),
-///     ..Default::default()
-/// })?;
+/// let settings = ContextSettings::new()
+///     .with_allocate_callback(my_allocator)
+///     .with_free_callback(free_callback!(|ptr| {
+///         // ...
+///     }));
+/// let context = Context::try_new(&settings)?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[macro_export]
@@ -945,7 +937,7 @@ macro_rules! free_callback {
 
     ($closure:expr) => {{
         $crate::free_callback!(@impl __free_callback_impl, $closure);
-        Some(__free_callback_impl)
+        __free_callback_impl
     }};
 
     (@impl $name:ident, $closure:expr) => {
