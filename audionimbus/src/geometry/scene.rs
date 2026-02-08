@@ -970,10 +970,10 @@ mod tests {
             BatchedAnyHitCallback::new(|rays, _min_dists, _max_dists| vec![false; rays.len()]);
 
         let callbacks = CustomRayTracingCallbacks::new(
-            Some(closest_hit),
-            Some(any_hit),
-            Some(batched_closest_hit),
-            Some(batched_any_hit),
+            closest_hit,
+            any_hit,
+            batched_closest_hit,
+            batched_any_hit,
         );
 
         assert!(Scene::<CustomRayTracer>::try_with_custom(&context, &callbacks).is_ok());

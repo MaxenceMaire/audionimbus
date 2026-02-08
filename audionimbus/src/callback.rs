@@ -296,16 +296,16 @@ callback! {
 /// Callbacks used for a custom ray tracer.
 pub struct CustomRayTracingCallbacks {
     /// Callback for calculating the closest hit along a ray.
-    closest_hit_callback: Option<ClosestHitCallback>,
+    closest_hit_callback: ClosestHitCallback,
 
     /// Callback for calculating whether a ray hits any geometry.
-    any_hit_callback: Option<AnyHitCallback>,
+    any_hit_callback: AnyHitCallback,
 
     /// Callback for calculating the closest hit along a batch of rays.
-    batched_closest_hit_callback: Option<BatchedClosestHitCallback>,
+    batched_closest_hit_callback: BatchedClosestHitCallback,
 
     /// Callback for calculating for each ray in a batch of rays, whether the ray hits any geometry.
-    batched_any_hit_callback: Option<BatchedAnyHitCallback>,
+    batched_any_hit_callback: BatchedAnyHitCallback,
 }
 
 impl CustomRayTracingCallbacks {
@@ -318,10 +318,10 @@ impl CustomRayTracingCallbacks {
     /// - `batched_closest_hit_callback`: Callback for calculating the closest hit along a batch of rays
     /// - `batched_any_hit_callback`: Callback for calculating for each ray in a batch of rays, whether the ray hits any geometry
     pub fn new(
-        closest_hit: Option<ClosestHitCallback>,
-        any_hit: Option<AnyHitCallback>,
-        batched_closest_hit: Option<BatchedClosestHitCallback>,
-        batched_any_hit: Option<BatchedAnyHitCallback>,
+        closest_hit: ClosestHitCallback,
+        any_hit: AnyHitCallback,
+        batched_closest_hit: BatchedClosestHitCallback,
+        batched_any_hit: BatchedAnyHitCallback,
     ) -> Self {
         Self {
             closest_hit_callback: closest_hit,
@@ -340,42 +340,26 @@ impl CustomRayTracingCallbacks {
         Box<CustomRayTracingUserData>,
     ) {
         let user_data = Box::new(CustomRayTracingUserData {
-            closest_hit: self
-                .closest_hit_callback
-                .as_ref()
-                .map(|cb| &cb.callback as *const _ as *mut _),
-            any_hit: self
-                .any_hit_callback
-                .as_ref()
-                .map(|cb| &cb.callback as *const _ as *mut _),
-            batched_closest_hit: self
-                .batched_closest_hit_callback
-                .as_ref()
-                .map(|cb| &cb.callback as *const _ as *mut _),
-            batched_any_hit: self
-                .batched_any_hit_callback
-                .as_ref()
-                .map(|cb| &cb.callback as *const _ as *mut _),
+            closest_hit: &self.closest_hit_callback.callback as *const _ as *mut _,
+            any_hit: &self.any_hit_callback.callback as *const _ as *mut _,
+            batched_closest_hit: &self.batched_closest_hit_callback.callback as *const _ as *mut _,
+            batched_any_hit: &self.batched_any_hit_callback.callback as *const _ as *mut _,
         });
 
         let user_data_ptr = &*user_data as *const _ as *mut c_void;
 
         let settings = audionimbus_sys::IPLSceneSettings {
             type_: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM,
-            closestHitCallback: self
-                .closest_hit_callback
-                .as_ref()
-                .map(|_| ClosestHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _)),
-            anyHitCallback: self
-                .any_hit_callback
-                .as_ref()
-                .map(|_| AnyHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _)),
-            batchedClosestHitCallback: self.batched_closest_hit_callback.as_ref().map(|_| {
-                BatchedClosestHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _, _)
-            }),
-            batchedAnyHitCallback: self.batched_any_hit_callback.as_ref().map(|_| {
-                BatchedAnyHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _, _)
-            }),
+            closestHitCallback: Some(
+                ClosestHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _),
+            ),
+            anyHitCallback: Some(AnyHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _)),
+            batchedClosestHitCallback: Some(
+                BatchedClosestHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _, _),
+            ),
+            batchedAnyHitCallback: Some(
+                BatchedAnyHitCallback::trampoline as unsafe extern "C" fn(_, _, _, _, _, _),
+            ),
             userData: user_data_ptr,
             embreeDevice: std::ptr::null_mut(),
             radeonRaysDevice: std::ptr::null_mut(),
@@ -393,10 +377,10 @@ type BatchedAnyHitFn = dyn FnMut(&[Ray], &[f32], &[f32]) -> Vec<bool> + Send;
 /// Internal struct holding pointers to all callback closures.
 #[derive(Debug)]
 pub(crate) struct CustomRayTracingUserData {
-    closest_hit: Option<*mut Box<ClosestHitFn>>,
-    any_hit: Option<*mut Box<AnyHitFn>>,
-    batched_closest_hit: Option<*mut Box<BatchedClosestHitFn>>,
-    batched_any_hit: Option<*mut Box<BatchedAnyHitFn>>,
+    closest_hit: *mut Box<ClosestHitFn>,
+    any_hit: *mut Box<AnyHitFn>,
+    batched_closest_hit: *mut Box<BatchedClosestHitFn>,
+    batched_any_hit: *mut Box<BatchedAnyHitFn>,
 }
 
 /// Callback for calculating the closest hit along a ray.
@@ -439,26 +423,24 @@ impl ClosestHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        if let Some(callback_ptr) = all_callbacks.closest_hit {
-            let callback = &mut *callback_ptr;
-            let ray = if ray.is_null() {
-                Ray::default()
-            } else {
-                Ray::from(*ray)
-            };
-            let result = callback(ray, min_distance, max_distance);
+        let callback = &mut *all_callbacks.closest_hit;
+        let ray = if ray.is_null() {
+            Ray::default()
+        } else {
+            Ray::from(*ray)
+        };
+        let result = callback(ray, min_distance, max_distance);
 
-            if let Some(hit_result) = result {
-                if !hit.is_null() {
-                    *hit = audionimbus_sys::IPLHit {
-                        distance: hit_result.distance,
-                        triangleIndex: hit_result.triangle_index.map(|i| i as i32).unwrap_or(-1),
-                        objectIndex: hit_result.object_index.map(|i| i as i32).unwrap_or(-1),
-                        materialIndex: hit_result.material_index.map(|i| i as i32).unwrap_or(-1),
-                        normal: hit_result.normal.into(),
-                        material: std::ptr::null_mut(),
-                    };
-                }
+        if let Some(hit_result) = result {
+            if !hit.is_null() {
+                *hit = audionimbus_sys::IPLHit {
+                    distance: hit_result.distance,
+                    triangleIndex: hit_result.triangle_index.map(|i| i as i32).unwrap_or(-1),
+                    objectIndex: hit_result.object_index.map(|i| i as i32).unwrap_or(-1),
+                    materialIndex: hit_result.material_index.map(|i| i as i32).unwrap_or(-1),
+                    normal: hit_result.normal.into(),
+                    material: std::ptr::null_mut(),
+                };
             }
         }
     }
@@ -513,18 +495,16 @@ impl AnyHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        if let Some(callback_ptr) = all_callbacks.any_hit {
-            let callback = &mut *callback_ptr;
-            let ray = if ray.is_null() {
-                Ray::default()
-            } else {
-                Ray::from(*ray)
-            };
-            let result = callback(ray, min_distance, max_distance);
+        let callback = &mut *all_callbacks.any_hit;
+        let ray = if ray.is_null() {
+            Ray::default()
+        } else {
+            Ray::from(*ray)
+        };
+        let result = callback(ray, min_distance, max_distance);
 
-            if !occluded.is_null() {
-                *occluded = if result { 1 } else { 0 };
-            }
+        if !occluded.is_null() {
+            *occluded = if result { 1 } else { 0 };
         }
     }
 }
@@ -577,45 +557,43 @@ impl BatchedClosestHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        if let Some(callback_ptr) = all_callbacks.batched_closest_hit {
-            let callback = &mut *callback_ptr;
+        let callback = &mut *all_callbacks.batched_closest_hit;
 
-            if num_rays <= 0
-                || rays.is_null()
-                || min_distances.is_null()
-                || max_distances.is_null()
-                || hits.is_null()
-            {
-                return;
-            }
+        if num_rays <= 0
+            || rays.is_null()
+            || min_distances.is_null()
+            || max_distances.is_null()
+            || hits.is_null()
+        {
+            return;
+        }
 
-            let num_rays = num_rays as usize;
-            let rays_slice = std::slice::from_raw_parts(rays, num_rays)
-                .iter()
-                .map(|&r| Ray::from(r))
-                .collect::<Vec<_>>();
-            let min_distances_slice = std::slice::from_raw_parts(min_distances, num_rays);
-            let max_distances_slice = std::slice::from_raw_parts(max_distances, num_rays);
+        let num_rays = num_rays as usize;
+        let rays_slice = std::slice::from_raw_parts(rays, num_rays)
+            .iter()
+            .map(|&r| Ray::from(r))
+            .collect::<Vec<_>>();
+        let min_distances_slice = std::slice::from_raw_parts(min_distances, num_rays);
+        let max_distances_slice = std::slice::from_raw_parts(max_distances, num_rays);
 
-            let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
+        let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
 
-            for (i, result) in results.iter().enumerate().take(num_rays) {
-                if let Some(hit_result) = result {
-                    *hits.add(i) = audionimbus_sys::IPLHit {
-                        distance: hit_result.distance,
-                        triangleIndex: hit_result
-                            .triangle_index
-                            .map(|idx| idx as i32)
-                            .unwrap_or(-1),
-                        objectIndex: hit_result.object_index.map(|idx| idx as i32).unwrap_or(-1),
-                        materialIndex: hit_result
-                            .material_index
-                            .map(|idx| idx as i32)
-                            .unwrap_or(-1),
-                        normal: hit_result.normal.into(),
-                        material: std::ptr::null_mut(),
-                    };
-                }
+        for (i, result) in results.iter().enumerate().take(num_rays) {
+            if let Some(hit_result) = result {
+                *hits.add(i) = audionimbus_sys::IPLHit {
+                    distance: hit_result.distance,
+                    triangleIndex: hit_result
+                        .triangle_index
+                        .map(|idx| idx as i32)
+                        .unwrap_or(-1),
+                    objectIndex: hit_result.object_index.map(|idx| idx as i32).unwrap_or(-1),
+                    materialIndex: hit_result
+                        .material_index
+                        .map(|idx| idx as i32)
+                        .unwrap_or(-1),
+                    normal: hit_result.normal.into(),
+                    material: std::ptr::null_mut(),
+                };
             }
         }
     }
@@ -669,31 +647,29 @@ impl BatchedAnyHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        if let Some(callback_ptr) = all_callbacks.batched_any_hit {
-            let callback = &mut *callback_ptr;
+        let callback = &mut *all_callbacks.batched_any_hit;
 
-            if num_rays <= 0
-                || rays.is_null()
-                || min_distances.is_null()
-                || max_distances.is_null()
-                || occluded.is_null()
-            {
-                return;
-            }
+        if num_rays <= 0
+            || rays.is_null()
+            || min_distances.is_null()
+            || max_distances.is_null()
+            || occluded.is_null()
+        {
+            return;
+        }
 
-            let num_rays = num_rays as usize;
-            let rays_slice = std::slice::from_raw_parts(rays, num_rays)
-                .iter()
-                .map(|&r| Ray::from(r))
-                .collect::<Vec<_>>();
-            let min_distances_slice = std::slice::from_raw_parts(min_distances, num_rays);
-            let max_distances_slice = std::slice::from_raw_parts(max_distances, num_rays);
+        let num_rays = num_rays as usize;
+        let rays_slice = std::slice::from_raw_parts(rays, num_rays)
+            .iter()
+            .map(|&r| Ray::from(r))
+            .collect::<Vec<_>>();
+        let min_distances_slice = std::slice::from_raw_parts(min_distances, num_rays);
+        let max_distances_slice = std::slice::from_raw_parts(max_distances, num_rays);
 
-            let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
+        let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
 
-            for (i, &result) in results.iter().enumerate().take(num_rays) {
-                *occluded.add(i) = if result { 1 } else { 0 };
-            }
+        for (i, &result) in results.iter().enumerate().take(num_rays) {
+            *occluded.add(i) = if result { 1 } else { 0 };
         }
     }
 }
