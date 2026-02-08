@@ -691,3 +691,267 @@ impl std::fmt::Debug for BatchedAnyHitCallback {
             .finish()
     }
 }
+
+/// Log level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum LogLevel {
+    Info,
+    Warning,
+    Error,
+    Debug,
+}
+
+impl From<audionimbus_sys::IPLLogLevel> for LogLevel {
+    fn from(level: audionimbus_sys::IPLLogLevel) -> Self {
+        match level {
+            audionimbus_sys::IPLLogLevel::IPL_LOGLEVEL_INFO => LogLevel::Info,
+            audionimbus_sys::IPLLogLevel::IPL_LOGLEVEL_WARNING => LogLevel::Warning,
+            audionimbus_sys::IPLLogLevel::IPL_LOGLEVEL_ERROR => LogLevel::Error,
+            audionimbus_sys::IPLLogLevel::IPL_LOGLEVEL_DEBUG => LogLevel::Debug,
+        }
+    }
+}
+
+/// Creates a log callback.
+///
+/// This macro generates a C-compatible callback function that converts C types to idiomatic Rust
+/// types before invoking the closure.
+///
+/// # Parameters
+///
+/// The callback receives:
+/// - `level`: [`LogLevel`] - The log level
+/// - `message`: [`&str`] - The log message
+///
+/// # Usage
+///
+/// ## Named callback
+///
+/// Creates a named function that can be reused:
+///
+/// ```
+/// # use audionimbus::{log_callback, Context, ContextSettings, LogLevel};
+/// log_callback!(my_logger, |level, message| {
+///     println!("{level:?}: {message}");
+/// });
+///
+/// let context = Context::try_new(&ContextSettings {
+///     log_callback: Some(my_logger),
+///     ..Default::default()
+/// })?;
+/// # Ok::<(), audionimbus::SteamAudioError>(())
+/// ```
+///
+/// ## Anonymous callback
+///
+/// Creates an inline callback without a name:
+///
+/// ```
+/// # use audionimbus::{log_callback, Context, ContextSettings};
+/// let context = Context::try_new(&ContextSettings {
+///     log_callback: log_callback!(|level, message| {
+///         println!("{level:?}: {message}");
+///     }),
+///     ..Default::default()
+/// })?;
+/// # Ok::<(), audionimbus::SteamAudioError>(())
+/// ```
+#[macro_export]
+macro_rules! log_callback {
+    ($name:ident, $closure:expr) => {
+        $crate::log_callback!(@impl $name, $closure);
+    };
+
+    ($closure:expr) => {{
+        $crate::log_callback!(@impl __log_callback_impl, $closure);
+        Some(__log_callback_impl)
+    }};
+
+    (@impl $name:ident, $closure:expr) => {
+        unsafe extern "C" fn $name(
+            level: audionimbus_sys::IPLLogLevel,
+            message: *const ::std::os::raw::c_char,
+        ) {
+            let rust_level = $crate::callback::LogLevel::from(level);
+            let rust_message = if !message.is_null() {
+                ::std::ffi::CStr::from_ptr(message)
+                    .to_str()
+                    .unwrap_or("<invalid UTF-8>")
+            } else {
+                "<null>"
+            };
+
+            let closure: fn($crate::callback::LogLevel, &str) = $closure;
+            closure(rust_level, rust_message);
+        }
+    };
+}
+
+/// Creates a memory allocation callback.
+///
+/// This macro generates a C-compatible callback function to use a custom memory allocator.
+///
+/// # Parameters
+///
+/// The callback receives:
+/// - `size`: [`usize`] - The number of bytes to allocate
+/// - `alignment`: [`usize`] - The required alignment in bytes (must be a power of 2)
+///
+/// # Returns
+///
+/// [`*mut`] [`c_void`] - Pointer to the allocated memory, or null pointer on failure
+///
+/// # Usage
+///
+/// ## Named callback
+///
+/// ```
+/// # use audionimbus::{allocate_callback, free_callback, Context, ContextSettings};
+/// # free_callback!(my_free, |ptr| {
+/// #   // ...
+/// # });
+/// use std::alloc::{alloc, Layout};
+/// use std::ffi::c_void;
+///
+/// allocate_callback!(my_allocator, |size, alignment| {
+///     unsafe {
+///         let layout = Layout::from_size_align_unchecked(size, alignment);
+///         alloc(layout) as *mut c_void
+///     }
+/// });
+///
+/// let context = Context::try_new(&ContextSettings {
+///     allocate_callback: Some(my_allocator),
+///     free_callback: Some(my_free),
+///     ..Default::default()
+/// })?;
+/// # Ok::<(), audionimbus::SteamAudioError>(())
+/// ```
+///
+/// ## Anonymous callback
+///
+/// ```
+/// # use audionimbus::{allocate_callback, free_callback, Context, ContextSettings};
+/// # free_callback!(my_free, |ptr| {
+/// #   // ...
+/// # });
+/// use std::alloc::{alloc, Layout};
+/// use std::ffi::c_void;
+///
+/// let context = Context::try_new(&ContextSettings {
+///     allocate_callback: allocate_callback!(|size, alignment| {
+///         unsafe {
+///             let layout = Layout::from_size_align_unchecked(size, alignment);
+///             alloc(layout) as *mut c_void
+///         }
+///     }),
+///     free_callback: Some(my_free),
+///     ..Default::default()
+/// })?;
+/// # Ok::<(), audionimbus::SteamAudioError>(())
+/// ```
+///
+/// # Safety
+///
+/// The returned pointer must:
+/// - Point to valid memory of at least `size` bytes
+/// - Be aligned to `alignment` bytes
+/// - Remain valid until freed by the corresponding [`free_callback`](crate::free_callback)
+#[macro_export]
+macro_rules! allocate_callback {
+    ($name:ident, $closure:expr) => {
+        $crate::allocate_callback!(@impl $name, $closure);
+    };
+
+    ($closure:expr) => {{
+        $crate::allocate_callback!(@impl __allocate_callback_impl, $closure);
+        Some(__allocate_callback_impl)
+    }};
+
+    (@impl $name:ident, $closure:expr) => {
+        unsafe extern "C" fn $name(
+            size: usize,
+            alignment: usize,
+        ) -> *mut ::std::ffi::c_void {
+            let closure: fn(usize, usize) -> *mut ::std::ffi::c_void = $closure;
+            closure(size, alignment)
+        }
+    };
+}
+
+/// Creates a memory deallocation callback.
+///
+/// This macro generates a C-compatible callback function used to free memory previously allocated
+/// by [`allocate_callback`](crate::allocate_callback).
+///
+/// # Parameters
+///
+/// The callback receives:
+/// - `ptr`: [`*mut`] [`c_void`] - Pointer to memory previously allocated by the allocate callback
+///
+/// # Usage
+///
+/// ## Named callback
+///
+/// ```
+/// # use audionimbus::{free_callback, allocate_callback, Context, ContextSettings};
+/// # use std::alloc::{alloc, Layout};
+/// # use std::ffi::c_void;
+/// # allocate_callback!(my_allocator, |size, alignment| {
+/// #     unsafe {
+/// #         let layout = Layout::from_size_align_unchecked(size, alignment);
+/// #         alloc(layout) as *mut c_void
+/// #     }
+/// # });
+/// free_callback!(my_free, |ptr| {
+///   // ...
+/// });
+///
+/// let context = Context::try_new(&ContextSettings {
+///     allocate_callback: Some(my_allocator),
+///     free_callback: Some(my_free),
+///     ..Default::default()
+/// })?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// ## Anonymous callback
+///
+/// ```
+/// # use audionimbus::{free_callback, allocate_callback, Context, ContextSettings};
+/// # use std::alloc::{alloc, Layout};
+/// # use std::ffi::c_void;
+/// # allocate_callback!(my_allocator, |size, alignment| {
+/// #     unsafe {
+/// #         let layout = Layout::from_size_align_unchecked(size, alignment);
+/// #         alloc(layout) as *mut c_void
+/// #     }
+/// # });
+/// let context = Context::try_new(&ContextSettings {
+///     allocate_callback: Some(my_allocator),
+///     free_callback: free_callback!(|ptr| {
+///       // ...
+///     }),
+///     ..Default::default()
+/// })?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[macro_export]
+macro_rules! free_callback {
+    ($name:ident, $closure:expr) => {
+        $crate::free_callback!(@impl $name, $closure);
+    };
+
+    ($closure:expr) => {{
+        $crate::free_callback!(@impl __free_callback_impl, $closure);
+        Some(__free_callback_impl)
+    }};
+
+    (@impl $name:ident, $closure:expr) => {
+        unsafe extern "C" fn $name(ptr: *mut ::std::ffi::c_void) {
+            let closure: fn(*mut ::std::ffi::c_void) = $closure;
+            closure(ptr);
+        }
+    };
+}

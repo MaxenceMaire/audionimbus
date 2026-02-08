@@ -14,7 +14,7 @@ pub use baking::{BakeError, BakedDataIdentifier, BakedDataVariation};
 pub use callback::{
     AirAbsorptionCallback, AnyHitCallback, BatchedAnyHitCallback, BatchedClosestHitCallback,
     ClosestHitCallback, CustomRayTracingCallbacks, DeviationCallback, DirectivityCallback,
-    DistanceAttenuationCallback, PathingVisualizationCallback, ProgressCallback,
+    DistanceAttenuationCallback, LogLevel, PathingVisualizationCallback, ProgressCallback,
 };
 pub use context::*;
 pub use device::embree::*;
