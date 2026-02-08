@@ -295,14 +295,28 @@ callback! {
 
 /// Callbacks used for a custom ray tracer.
 pub struct CustomRayTracingCallbacks {
+    /// Callback for calculating the closest hit along a ray.
     closest_hit_callback: Option<ClosestHitCallback>,
+
+    /// Callback for calculating whether a ray hits any geometry.
     any_hit_callback: Option<AnyHitCallback>,
+
+    /// Callback for calculating the closest hit along a batch of rays.
     batched_closest_hit_callback: Option<BatchedClosestHitCallback>,
+
+    /// Callback for calculating for each ray in a batch of rays, whether the ray hits any geometry.
     batched_any_hit_callback: Option<BatchedAnyHitCallback>,
 }
 
 impl CustomRayTracingCallbacks {
     /// Creates new custom callbacks.
+    ///
+    /// # Arguments
+    ///
+    /// - `closest_hit_callback`: Callback for calculating the closest hit along a ray
+    /// - `any_hit_callback`: Callback for calculating whether a ray hits any geometry
+    /// - `batched_closest_hit_callback`: Callback for calculating the closest hit along a batch of rays
+    /// - `batched_any_hit_callback`: Callback for calculating for each ray in a batch of rays, whether the ray hits any geometry
     pub fn new(
         closest_hit: Option<ClosestHitCallback>,
         any_hit: Option<AnyHitCallback>,
