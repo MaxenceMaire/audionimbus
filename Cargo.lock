@@ -50,7 +50,7 @@ dependencies = [
 
 [[package]]
 name = "audionimbus-sys"
-version = "4.8.0"
+version = "4.8.1"
 dependencies = [
  "bindgen 0.71.1",
  "zip",
