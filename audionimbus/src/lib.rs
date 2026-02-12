@@ -34,14 +34,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.11.0", features = ["auto-install"] }
+//! audionimbus = { version = "0.12.0", features = ["auto-install"] }
 //! ```
 //!
 //! #### With FMOD Studio Integration
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.11.0", features = ["auto-install", "fmod"] }
+//! audionimbus = { version = "0.12.0", features = ["auto-install", "fmod"] }
 //! ```
 //!
 //! You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMOD="/path/to/FMOD"`).
@@ -50,7 +50,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.11.0", features = ["auto-install", "wwise"] }
+//! audionimbus = { version = "0.12.0", features = ["auto-install", "wwise"] }
 //! ```
 //!
 //! You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
@@ -107,7 +107,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = "0.11.0"
+//! audionimbus = "0.12.0"
 //! ```
 //!
 //! #### Manual FMOD Studio Integration
@@ -139,7 +139,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.11.0", features = ["fmod"] }
+//! audionimbus = { version = "0.12.0", features = ["fmod"] }
 //! ```
 //!
 //! #### Manual Wwise Integration
@@ -158,7 +158,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.11.0", features = ["wwise"] }
+//! audionimbus = { version = "0.12.0", features = ["wwise"] }
 //! ```
 //!
 //! ## Example

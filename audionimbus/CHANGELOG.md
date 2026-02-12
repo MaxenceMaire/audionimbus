@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.12.0] - 2026-02-12
 
 ### Fixed
 
@@ -47,6 +47,7 @@
 
 ### Changed
 
+- Upgrade to Steam Audio v4.8.1.
 - Mark the `air_absorption` function as `unsafe` since it calls `iplAirAbsorptionCalculate` which causes a segfault when using a callback.
 - Improved documentation and added examples.
 - Make `NUM_BANDS` constant private.
@@ -116,7 +117,7 @@
 - Implement `Default` trait for `Context` using default `ContextSettings`.
 - Derive `PartialEq` trait for `Matrix`, `Triangle`, `Sphere`.
 - Increase the test coverage.
-- Add `num_ambisonics_channels` const function to compute the number of channels reuqired given an ambisonics order.
+- Add `num_ambisonics_channels` const function to compute the number of channels required given an ambisonics order.
 - Add `Matrix3` and `Matrix4` type aliases.
 - Add `StaticMeshHandle` and `InstancedMeshHandle` structs (returned by `Scene::add_static_mesh` and `Scene::add_instanced_mesh` respectively).
 - Add `slotmap` lib dependency.
@@ -164,7 +165,7 @@
 
 ### Changed
 
-- Upgrade to Steam Audio v4.8.1.
+- Upgrade to Steam Audio v4.8.0.
 
 ## [0.10.0] - 2025-10-28
 
