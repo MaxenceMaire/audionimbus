@@ -139,7 +139,7 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         params: ReflectionsBakeParams,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
-        // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplReflectionsBakerBake`.
+        // WORKAROUND: Steam Audio segfaults when passing `NULL` callback to `iplReflectionsBakerBake`.
         // We pass a no-op callback instead until the fix is released.
         // See: https://github.com/ValveSoftware/steam-audio/issues/523
         // TODO: Remove this workaround when fix is released.

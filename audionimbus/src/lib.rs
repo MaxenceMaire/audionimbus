@@ -12,7 +12,7 @@
 //!
 //! ## Version compatibility
 //!
-//! `audionimbus` currently tracks Steam Audio 4.8.0.
+//! `audionimbus` currently tracks Steam Audio 4.8.1.
 //!
 //! Unlike `audionimbus-sys`, which mirrors Steam Audio's versioning, `audionimbus` introduces its own abstractions and is subject to breaking changes.
 //! As a result, it uses independent versioning.
@@ -84,7 +84,7 @@
 //!
 //! `audionimbus` requires linking against the Steam Audio library during compilation.
 //!
-//! To do so, download `steamaudio_4.8.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+//! To do so, download `steamaudio_4.8.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 //!
 //! Locate the relevant library for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 //!
@@ -116,7 +116,7 @@
 //!
 //! It requires linking against both the Steam Audio library and the FMOD integration library during compilation:
 //!
-//! 1. Download `steamaudio_fmod_4.8.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+//! 1. Download `steamaudio_fmod_4.8.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 //!
 //! 2. Locate the two relevant libraries for your target platform (`SDKROOT` refers to the directory in which you extracted the zip file):
 //!
@@ -148,7 +148,7 @@
 //!
 //! It requires linking against both the Steam Audio library and the Wwise integration library during compilation:
 //!
-//! 1. Download `steamaudio_wwise_4.8.0.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
+//! 1. Download `steamaudio_wwise_4.8.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 //!
 //! 2. Locate the two relevant libraries for your target platform and place them in a location listed in [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
 //!

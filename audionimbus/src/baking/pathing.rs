@@ -96,7 +96,7 @@ impl<T: RayTracer> PathBaker<T> {
         params: PathBakeParams,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
-        // WORKAROUND: Steam Audio 4.8.0 segfaults when passing `NULL` callback to `iplPathBakerBake`.
+        // WORKAROUND: Steam Audio segfaults when passing `NULL` callback to `iplPathBakerBake`.
         // We pass a no-op callback instead until the fix is released.
         // See: https://github.com/ValveSoftware/steam-audio/issues/523
         // TODO: Remove this workaround when fix is released.
