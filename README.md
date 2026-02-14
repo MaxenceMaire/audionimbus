@@ -1,34 +1,47 @@
 # AudioNimbus
 
-A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/), bringing powerful spatial audio capabilities to the Rust ecosystem.
+[![Crates.io](https://img.shields.io/crates/v/audionimbus.svg)](https://crates.io/crates/audionimbus)
+[![Documentation](https://docs.rs/audionimbus/badge.svg)](https://docs.rs/audionimbus)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 
-## What is Steam Audio?
-
-Steam Audio is a toolkit for spatial audio, developed by Valve. It simulates realistic sound propagation, including effects like directionality, distance attenuation, and reflections.
-
-## What is AudioNimbus?
-
-AudioNimbus provides a safe and ergonomic Rust interface to Steam Audio, enabling developers to integrate immersive spatial audio into their Rust projects. It consists of two crates:
-
-* [`audionimbus`](audionimbus): A high-level, safe wrapper around Steam Audio.
-* [`audionimbus-sys`](audionimbus-sys): Automatically generated raw bindings to the Steam Audio C API.
-
-Both can integrate with FMOD Studio and Wwise.
+A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/) that provides spatial audio capabilities for games and VR applications. It simulates realistic sound propagation, including physics-based occlusion, reflections, reverb, HRTF, and more.
 
 ## Features
 
-AudioNimbus supports a variety of spatial audio effects, including:
+* **Sound propagation**: Models how sound is affected as it travels through its environment. Includes effects like distance attenuation and interaction with physical obstacles of varying materials.
+* **Reflections & reverb**: Simulates how sound waves reflect off surrounding geometry to create realistic acoustics.
+* **Head-Related Transfer Function (HRTF)**: Simulates how the listener's head and ears shape incoming sound to convey direction and distance.
+* **Ambisonics & surround sound**: Encodes spatial information across multiple audio channels to reproduce directional sound fields.
 
-* **Head-Related Transfer Function (HRTF)**: Simulates how the listener’s ears, head, and shoulders shape sound perception, providing the acoustic cues the brain uses to infer direction and distance.
-* **Ambisonics and surround sound**: Uses multiple audio channels to create the sensation of sound coming from specific directions.
-* **Sound propagation**: Models how sound is affected as it travels through its environment, including effects like distance attenuation and interaction with physical obstacles of varying materials.
-* **Reflections**: Simulates how sound waves reflect off surrounding geometry, mimicking real-world acoustic behavior.
+AudioNimbus can integrate with FMOD Studio and Wwise.
 
 For a demonstration of AudioNimbus' capabilities, watch [the walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 
 ## Get Started
 
-To get started using [`audionimbus`](audionimbus), check out the [`demo`](audionimbus/demo) for a practical example of how to integrate and use the library in your project.
+Add `audionimbus` to your dependencies:
+
+```toml
+[dependencies]
+audionimbus = { version = "0.12.0", features = ["auto-install"] }
+```
+
+The `auto-install` feature automatically downloads and installs Steam Audio for you.
+
+For more information, refer to the detailed [installation guide](audionimbus/README.md#installation).
+
+To get started integrating `audionimbus` into your project, check out [the example](audionimbus/README.md#example) or run the [`demo`](audionimbus/demo).
+
+## Documentation
+
+Documentation is available at [docs.rs](https://docs.rs/audionimbus/latest).
+
+## Project Structure
+
+AudioNimbus consists of two crates:
+
+* [`audionimbus`](audionimbus): A high-level, safe wrapper around Steam Audio. You typically only need to use this crate.
+* [`audionimbus-sys`](audionimbus-sys): Automatically generated raw bindings to the Steam Audio C API. Used internally by `audionimbus`. You typically don't need to interact directly with this crate.
 
 ## License
 

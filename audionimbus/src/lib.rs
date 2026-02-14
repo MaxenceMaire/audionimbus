@@ -169,7 +169,7 @@
 //! use audionimbus::*;
 //!
 //! // Initialize the audio context.
-//! let context = Context::try_new(&ContextSettings::default())?;
+//! let context = Context::default();
 //!
 //! let audio_settings = AudioSettings {
 //!     sampling_rate: 48000,
