@@ -87,6 +87,19 @@ impl Drop for Hrtf {
 }
 
 unsafe impl Send for Hrtf {}
+unsafe impl Sync for Hrtf {}
+
+impl Clone for Hrtf {
+    /// Retains an additional reference to the HRTF.
+    ///
+    /// The returned [`Hrtf`] shares the same underlying Steam Audio object.
+    /// The HRTF will not be destroyed until all clones are dropped.
+    fn clone(&self) -> Self {
+        // SAFETY: iplHRTFRetain increments the reference count and returns a new handle.
+        // The HRTF will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplHRTFRetain(self.0) })
+    }
+}
 
 /// Settings used to create an [`Hrtf`].
 #[derive(Debug)]
@@ -243,5 +256,17 @@ mod tests {
         let hrtf_settings = HrtfSettings::default();
         let hrtf_result = Hrtf::try_new(&context, &audio_settings, &hrtf_settings);
         assert!(hrtf_result.is_ok());
+    }
+
+    #[test]
+    fn test_hrtf_clone() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let hrtf_settings = HrtfSettings::default();
+        let hrtf = Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
+        let clone = hrtf.clone();
+        assert_eq!(hrtf.raw_ptr(), clone.raw_ptr());
+        drop(hrtf);
+        assert!(!clone.raw_ptr().is_null());
     }
 }
