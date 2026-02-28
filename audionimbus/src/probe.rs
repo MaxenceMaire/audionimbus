@@ -6,6 +6,7 @@ use crate::energy_field::EnergyField;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
+use std::sync::{Arc, Mutex};
 
 /// An array of sound probes.
 ///
@@ -182,7 +183,12 @@ impl From<ProbeGenerationParams> for audionimbus_sys::IPLProbeGenerationParams {
 #[derive(Debug)]
 pub struct ProbeBatch {
     inner: audionimbus_sys::IPLProbeBatch,
+    shared: Arc<Mutex<ProbeBatchShared>>,
+}
 
+/// Shared ownership of [`ProbeBatch`] data across clones.
+#[derive(Default, Debug)]
+struct ProbeBatchShared {
     /// Number of probes after the last commit.
     committed_num_probes: usize,
 
@@ -199,8 +205,7 @@ impl ProbeBatch {
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         let mut probe_batch = Self {
             inner: std::ptr::null_mut(),
-            committed_num_probes: 0,
-            pending_num_probes: 0,
+            shared: Arc::new(Mutex::new(ProbeBatchShared::default())),
         };
 
         let status = unsafe {
@@ -220,8 +225,8 @@ impl ProbeBatch {
     }
 
     /// Returns the number of committed probes in the probe batch.
-    pub const fn committed_num_probes(&self) -> usize {
-        self.committed_num_probes
+    pub fn committed_num_probes(&self) -> usize {
+        self.shared.lock().unwrap().committed_num_probes
     }
 
     /// Returns the size (in bytes) of a specific baked data layer in the probe batch.
@@ -252,7 +257,7 @@ impl ProbeBatch {
             );
         }
 
-        self.pending_num_probes += 1;
+        self.shared.lock().unwrap().pending_num_probes += 1;
     }
 
     /// Removes a probe from the batch.
@@ -273,7 +278,8 @@ impl ProbeBatch {
             audionimbus_sys::iplProbeBatchRemoveProbe(self.raw_ptr(), probe_index as i32);
         }
 
-        self.pending_num_probes -= 1;
+        self.shared.lock().unwrap().pending_num_probes -= 1;
+
         Ok(())
     }
 
@@ -284,7 +290,7 @@ impl ProbeBatch {
             audionimbus_sys::iplProbeBatchAddProbeArray(self.raw_ptr(), probe_array.raw_ptr());
         }
 
-        self.pending_num_probes += probe_array.num_probes() as i32;
+        self.shared.lock().unwrap().pending_num_probes += probe_array.num_probes() as i32;
     }
 
     /// Retrieves a single array of parametric reverb times in a specific baked data layer of a specific probe in the probe batch.
@@ -359,9 +365,11 @@ impl ProbeBatch {
     pub fn commit(&mut self) {
         unsafe { audionimbus_sys::iplProbeBatchCommit(self.raw_ptr()) }
 
-        self.committed_num_probes = self
+        let mut shared = self.shared.lock().unwrap();
+
+        shared.committed_num_probes = shared
             .committed_num_probes
-            .saturating_add_signed(self.pending_num_probes as isize);
+            .saturating_add_signed(shared.pending_num_probes as isize);
     }
 
     /// Saves a probe batch to a serialized object.
@@ -384,10 +392,11 @@ impl ProbeBatch {
         context: &Context,
         serialized_object: &mut SerializedObject,
     ) -> Result<Self, SteamAudioError> {
+        let shared = Arc::new(Mutex::new(ProbeBatchShared::default()));
+
         let mut probe_batch = Self {
             inner: std::ptr::null_mut(),
-            committed_num_probes: 0,
-            pending_num_probes: 0,
+            shared: shared.clone(),
         };
 
         let status = unsafe {
@@ -402,7 +411,7 @@ impl ProbeBatch {
             return Err(error);
         }
 
-        probe_batch.committed_num_probes = probe_batch.num_probes();
+        shared.lock().unwrap().committed_num_probes = probe_batch.num_probes();
 
         Ok(probe_batch)
     }
@@ -429,6 +438,20 @@ impl Drop for ProbeBatch {
 }
 
 unsafe impl Send for ProbeBatch {}
+unsafe impl Sync for ProbeBatch {}
+
+impl Clone for ProbeBatch {
+    /// Retains an additional reference to the probe batch.
+    ///
+    /// The returned [`ProbeBatch`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The probe batch will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplProbeBatchRetain(self.inner) },
+            shared: Arc::clone(&self.shared),
+        }
+    }
+}
 
 /// [`ProbeBatch`] errors.
 #[derive(Debug, PartialEq, Eq)]
@@ -597,6 +620,16 @@ mod tests {
                     num_probes: 0,
                 })
             );
+        }
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let probe_batch = ProbeBatch::try_new(&context).unwrap();
+            let clone = probe_batch.clone();
+            assert_eq!(probe_batch.raw_ptr(), clone.raw_ptr());
+            drop(probe_batch);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }
