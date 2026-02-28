@@ -116,19 +116,7 @@ pub struct Pathing;
 #[derive(Debug)]
 pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSimulator,
-
-    /// Number of probes after the last commit.
-    /// Used to ensure the simulator has probes before running pathing.
-    committed_num_probes: usize,
-
-    /// Pending probe batches to be committed.
-    pending_probe_batches: HashMap<audionimbus_sys::IPLProbeBatch, usize>,
-
-    /// Whether a scene has been set and committed.
-    has_committed_scene: bool,
-
-    /// Whether a scene is pending commit.
-    has_pending_scene: bool,
+    shared: Arc<Mutex<SimulatorShared>>,
 
     /// The maximum number of occlusion samples specified during creation.
     max_num_occlusion_samples: Option<u32>,
@@ -156,6 +144,23 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
     _lifetime: PhantomData<&'a ()>,
+}
+
+/// Shared ownership of [`Simulator`] data across clones.
+#[derive(Default, Debug)]
+pub struct SimulatorShared {
+    /// Number of probes after the last commit.
+    /// Used to ensure the simulator has probes before running pathing.
+    committed_num_probes: usize,
+
+    /// Pending probe batches to be committed.
+    pending_probe_batches: HashMap<audionimbus_sys::IPLProbeBatch, usize>,
+
+    /// Whether a scene has been set and committed.
+    has_committed_scene: bool,
+
+    /// Whether a scene is pending commit.
+    has_pending_scene: bool,
 }
 
 impl<'a, T, D, R, P> Simulator<'a, T, D, R, P>
@@ -218,10 +223,7 @@ where
 
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
-            committed_num_probes: 0,
-            pending_probe_batches: HashMap::new(),
-            has_committed_scene: false,
-            has_pending_scene: false,
+            shared: Arc::new(Mutex::new(SimulatorShared::default())),
             max_num_occlusion_samples: settings.max_num_occlusion_samples(),
             max_num_rays: settings.max_num_rays(),
             max_duration: settings.max_duration(),
@@ -260,7 +262,8 @@ where
     /// This function cannot be called while any simulation is running.
     pub fn set_scene(&mut self, scene: &Scene<T>) {
         unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
-        self.has_pending_scene = true;
+        let mut shared = self.shared.lock().unwrap();
+        shared.has_pending_scene = true;
     }
 
     /// Adds a probe batch for use in subsequent simulations.
@@ -276,7 +279,9 @@ where
             audionimbus_sys::iplSimulatorAddProbeBatch(self.raw_ptr(), probe_batch.raw_ptr());
         }
 
-        self.pending_probe_batches
+        let mut shared = self.shared.lock().unwrap();
+        shared
+            .pending_probe_batches
             .insert(raw_ptr, probe_batch.committed_num_probes());
     }
 
@@ -293,7 +298,8 @@ where
             audionimbus_sys::iplSimulatorRemoveProbeBatch(self.raw_ptr(), probe_batch.raw_ptr());
         }
 
-        self.pending_probe_batches.remove(&raw_ptr);
+        let mut shared = self.shared.lock().unwrap();
+        shared.pending_probe_batches.remove(&raw_ptr);
     }
 
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
@@ -331,11 +337,12 @@ where
 
         unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
 
-        self.committed_num_probes = self.pending_probe_batches.values().sum();
+        let mut shared = self.shared.lock().unwrap();
+        shared.committed_num_probes = shared.pending_probe_batches.values().sum();
 
-        if self.has_pending_scene {
-            self.has_committed_scene = true;
-            self.has_pending_scene = false;
+        if shared.has_pending_scene {
+            shared.has_committed_scene = true;
+            shared.has_pending_scene = false;
         }
     }
 
@@ -503,7 +510,8 @@ where
             .lock()
             .unwrap();
 
-        if !self.has_committed_scene {
+        let shared = self.shared.lock().unwrap();
+        if !shared.has_committed_scene {
             return Err(SimulationError::ReflectionsWithoutScene);
         }
 
@@ -543,7 +551,8 @@ where
             .lock()
             .unwrap();
 
-        if self.committed_num_probes == 0 {
+        let shared = self.shared.lock().unwrap();
+        if shared.committed_num_probes == 0 {
             return Err(SimulationError::PathingWithoutProbes);
         }
 
@@ -562,6 +571,40 @@ impl<T: RayTracer, D, R, P> Drop for Simulator<'_, T, D, R, P> {
 }
 
 unsafe impl<T: RayTracer, D, R, P> Send for Simulator<'_, T, D, R, P> {}
+unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<'_, T, D, R, P> {}
+
+impl<'a, T, D, R, P> Clone for Simulator<'a, T, D, R, P>
+where
+    T: RayTracer,
+    D: 'static,
+    R: 'static,
+    P: 'static,
+{
+    /// Retains an additional reference to the simulator.
+    ///
+    /// The returned [`Simulator`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The simulator will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplSimulatorRetain(self.inner) },
+            shared: Arc::clone(&self.shared),
+            max_num_occlusion_samples: self.max_num_occlusion_samples,
+            max_num_rays: self.max_num_rays,
+            max_duration: self.max_duration,
+            direct_lock: self.direct_lock.clone(),
+            reflections_lock: self.reflections_lock.clone(),
+            pathing_lock: self.pathing_lock.clone(),
+            _open_cl_device: self._open_cl_device,
+            _radeon_rays_device: self._radeon_rays_device,
+            _true_audio_next_device: self._true_audio_next_device,
+            _ray_tracer: PhantomData,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+            _lifetime: PhantomData,
+        }
+    }
+}
 
 /// Settings used to create a [`Simulator`].
 ///
@@ -2555,6 +2598,21 @@ mod tests {
                 simulator.run_direct();
                 let _ = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
             }
+        }
+    }
+
+    mod simulator {
+        use super::*;
+
+        #[test]
+        fn test_simulator_clone() {
+            let context = Context::default();
+            let settings = SimulationSettings::new(48_000, 1024, 1);
+            let simulator = Simulator::try_new(&context, &settings).unwrap();
+            let clone = simulator.clone();
+            assert_eq!(simulator.raw_ptr(), clone.raw_ptr());
+            drop(simulator);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }
