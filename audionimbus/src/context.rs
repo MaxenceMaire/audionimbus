@@ -84,6 +84,20 @@ impl Drop for Context {
 }
 
 unsafe impl Send for Context {}
+unsafe impl Sync for Context {}
+
+impl Clone for Context {
+    /// Retains an additional reference to the context.
+    ///
+    /// The returned [`Context`] shares the same underlying Steam Audio object.
+    /// The context will not be destroyed until all clones are dropped.
+    fn clone(&self) -> Self {
+        // SAFETY: iplContextRetain increments the reference count of the underlying
+        // Steam Audio context and returns a new handle to it. The context will not
+        // be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplContextRetain(self.0) })
+    }
+}
 
 /// Settings used to create a [`Context`].
 pub struct ContextSettings {
@@ -426,6 +440,15 @@ impl From<ContextFlags> for audionimbus_sys::IPLContextFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_context_clone() {
+        let context = Context::default();
+        let clone = context.clone();
+        assert_eq!(context.raw_ptr(), clone.raw_ptr());
+        drop(context);
+        assert!(!clone.raw_ptr().is_null());
+    }
 
     #[test]
     fn test_context_settings_simd_levels() {
