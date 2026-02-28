@@ -1184,13 +1184,10 @@ impl PathingCompatible<()> for () {}
 #[derive(Debug)]
 pub struct Source<'a, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSource,
+    shared: Arc<Mutex<SourceShared>>,
 
     /// The maximum number of occlusion samples specified during creation of the [Simulator].
     max_num_occlusion_samples: Option<u32>,
-
-    /// Stored deviation model to keep `callback` and `user_data` alive.
-    /// Only used when pathing simulation is enabled.
-    deviation_model: Option<DeviationModel>,
 
     /// Reference to the simulator's direct simulation lock.
     /// Used to synchronize access to direct simulation data.
@@ -1208,6 +1205,14 @@ pub struct Source<'a, D = (), R = (), P = ()> {
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
     _lifetime: PhantomData<&'a ()>,
+}
+
+/// Shared ownership of [`Source`] data across clones.
+#[derive(Default, Debug)]
+struct SourceShared {
+    /// Stored deviation model to keep `callback` and `user_data` alive.
+    /// Only used when pathing simulation is enabled.
+    deviation_model: Option<DeviationModel>,
 }
 
 impl<'a, D, R, P> Source<'a, D, R, P>
@@ -1254,8 +1259,8 @@ where
 
         let source = Self {
             inner,
+            shared: Arc::new(Mutex::new(SourceShared::default())),
             max_num_occlusion_samples: simulator.max_num_occlusion_samples,
-            deviation_model: None,
             direct_lock,
             reflections_lock,
             pathing_lock,
@@ -1305,7 +1310,7 @@ where
         let mut ffi_inputs = inputs.to_ffi();
 
         if let Some(pathing_params) = inputs.pathing_simulation {
-            self.deviation_model = Some(pathing_params.deviation);
+            self.shared.lock().unwrap().deviation_model = Some(pathing_params.deviation);
         }
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
@@ -1478,6 +1483,33 @@ impl<D, R, P> Drop for Source<'_, D, R, P> {
 }
 
 unsafe impl Send for Source<'_> {}
+unsafe impl<D, R, P> Sync for Source<'_, D, R, P> {}
+
+impl<'a, D, R, P> Clone for Source<'a, D, R, P>
+where
+    D: 'static,
+    R: 'static,
+    P: 'static,
+{
+    /// Retains an additional reference to the source.
+    ///
+    /// The returned [`Source`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The source will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplSourceRetain(self.inner) },
+            max_num_occlusion_samples: self.max_num_occlusion_samples,
+            shared: Arc::clone(&self.shared),
+            direct_lock: self.direct_lock.clone(),
+            reflections_lock: self.reflections_lock.clone(),
+            pathing_lock: self.pathing_lock.clone(),
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+            _lifetime: PhantomData,
+        }
+    }
+}
 
 /// Settings used to create a source.
 #[derive(Debug)]
@@ -2597,6 +2629,25 @@ mod tests {
 
                 simulator.run_direct();
                 let _ = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+            }
+        }
+
+        mod clone {
+            use super::*;
+
+            #[test]
+            fn test_clone() {
+                let context = Context::default();
+                let simulator_settings = SimulationSettings::new(48_000, 1024, 1);
+                let simulator = Simulator::try_new(&context, &simulator_settings).unwrap();
+                let source_settings = SourceSettings {
+                    flags: SimulationFlags::empty(),
+                };
+                let source = Source::<(), (), ()>::try_new(&simulator, &source_settings).unwrap();
+                let clone = source.clone();
+                assert_eq!(source.raw_ptr(), clone.raw_ptr());
+                drop(source);
+                assert!(!clone.raw_ptr().is_null());
             }
         }
     }
