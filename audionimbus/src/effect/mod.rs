@@ -65,7 +65,7 @@ pub mod direct;
 pub use direct::*;
 
 mod error;
-pub use error::EffectError;
+pub use error::{EffectError, ImpulseResponseSizeExceedsMaxError, NumChannelsExceedsMaxError};
 
 pub mod reflections;
 pub use reflections::*;

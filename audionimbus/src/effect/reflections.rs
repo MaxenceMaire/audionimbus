@@ -2,6 +2,7 @@
 
 use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
+use super::error::{ImpulseResponseSizeExceedsMaxError, NumChannelsExceedsMaxError};
 use super::EffectError;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
@@ -678,6 +679,12 @@ pub struct ReflectionEffectParams<'a, T: ReflectionEffectType> {
     /// May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
     impulse_response_size: u32,
 
+    /// Maximum number of IR channels, as specified during creation.
+    max_num_channels: u32,
+
+    /// Maximum number of IR samples per channel, as specified during creation.
+    max_impulse_response_size: u32,
+
     /// The TrueAudio Next device to use for convolution processing.
     true_audio_next_device: Option<&'a TrueAudioNextDevice>,
 
@@ -708,6 +715,8 @@ impl ReflectionEffectParams<'_, Convolution> {
             delay: 0,
             num_channels,
             impulse_response_size,
+            max_num_channels: num_channels,
+            max_impulse_response_size: impulse_response_size,
             true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
@@ -731,6 +740,8 @@ impl ReflectionEffectParams<'_, Parametric> {
             delay: 0,
             num_channels,
             impulse_response_size,
+            max_num_channels: num_channels,
+            max_impulse_response_size: impulse_response_size,
             true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
@@ -764,6 +775,8 @@ impl ReflectionEffectParams<'_, Hybrid> {
             delay,
             num_channels,
             impulse_response_size,
+            max_num_channels: num_channels,
+            max_impulse_response_size: impulse_response_size,
             true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
@@ -794,6 +807,8 @@ impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
             delay: 0,
             num_channels,
             impulse_response_size,
+            max_num_channels: num_channels,
+            max_impulse_response_size: impulse_response_size,
             true_audio_next_device: Some(device),
             true_audio_next_slot: slot,
             _marker: PhantomData,
@@ -801,14 +816,60 @@ impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
     }
 }
 
-impl<'a, T: ReflectionEffectType> ReflectionEffectParams<'a, T> {
+impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
+    /// Sets the number of impulse response channels to process.
+    ///
+    /// May be less than the number of channels specified when creating the effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NumChannelsExceedsMaxError`] if `num_channels` exceeds the value specified during
+    /// creation.
+    pub fn set_num_channels(
+        &mut self,
+        num_channels: u32,
+    ) -> Result<(), NumChannelsExceedsMaxError> {
+        if num_channels > self.max_num_channels {
+            return Err(NumChannelsExceedsMaxError {
+                requested: num_channels,
+                max: self.max_num_channels,
+            });
+        }
+
+        self.num_channels = num_channels;
+        Ok(())
+    }
+
+    /// Sets the number of impulse response samples per channel to process.
+    ///
+    /// May be less than the number of samples specified when creating the effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImpulseResponseSizeExceedsMaxError`] if `impulse_response_size` exceeds the value
+    /// specified during creation.
+    pub fn set_impulse_response_size(
+        &mut self,
+        impulse_response_size: u32,
+    ) -> Result<(), ImpulseResponseSizeExceedsMaxError> {
+        if impulse_response_size > self.max_impulse_response_size {
+            return Err(ImpulseResponseSizeExceedsMaxError {
+                requested: impulse_response_size,
+                max: self.max_impulse_response_size,
+            });
+        }
+
+        self.impulse_response_size = impulse_response_size;
+        Ok(())
+    }
+
     /// Constructs params from FFI representation.
     ///
     /// # Safety
     ///
-    /// For `TrueAudioNext` type: The device pointer in `params` must remain valid
-    /// for the lifetime `'a`. The caller is responsible for ensuring the device
-    /// outlives these parameters.
+    /// For `TrueAudioNext` type: The device pointer in `params` must remain valid for the lifetime
+    /// of the params.
+    /// The caller is responsible for ensuring the device outlives these parameters.
     ///
     /// For other types: This is safe as they don't use the device pointer.
     pub(crate) unsafe fn from_ffi_unchecked(
@@ -820,13 +881,18 @@ impl<'a, T: ReflectionEffectType> ReflectionEffectParams<'a, T> {
             Some(&*(params.tanDevice as *const TrueAudioNextDevice))
         };
 
+        let num_channels = params.numChannels as u32;
+        let impulse_response_size = params.irSize as u32;
+
         Self {
             impulse_response: ReflectionEffectIR(params.ir),
             reverb_times: params.reverbTimes,
             equalizer: Equalizer(params.eq),
             delay: params.delay as u32,
-            num_channels: params.numChannels as u32,
-            impulse_response_size: params.irSize as u32,
+            num_channels,
+            impulse_response_size,
+            max_num_channels: num_channels,
+            max_impulse_response_size: impulse_response_size,
             true_audio_next_device: device,
             true_audio_next_slot: params.tanSlot as u32,
             _marker: PhantomData,
