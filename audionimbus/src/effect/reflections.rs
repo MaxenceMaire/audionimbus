@@ -971,6 +971,21 @@ impl<T: ReflectionEffectType> Drop for ReflectionMixer<T> {
 }
 
 unsafe impl<T: ReflectionEffectType> Send for ReflectionMixer<T> {}
+unsafe impl<T: ReflectionEffectType> Sync for ReflectionMixer<T> {}
+
+impl<T: ReflectionEffectType> Clone for ReflectionMixer<T> {
+    /// Retains an additional reference to the reflection mixer.
+    ///
+    /// The returned [`ReflectionMixer`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The reflection mixer will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplReflectionMixerRetain(self.inner) },
+            num_output_channels: self.num_output_channels,
+            _marker: PhantomData,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -2032,6 +2047,37 @@ mod tests {
                 .unwrap();
 
                 mixer.reset();
+            }
+        }
+
+        mod clone {
+            use super::*;
+
+            #[test]
+            fn test_reset() {
+                const SAMPLING_RATE: u32 = 48000;
+                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+
+                let context = Context::default();
+
+                let audio_settings = AudioSettings::default();
+
+                let num_output_channels = num_ambisonics_channels(1);
+                let reflection_effect_settings = ReflectionEffectSettings {
+                    impulse_response_size: IR_SIZE,
+                    num_channels: num_output_channels,
+                };
+
+                let mixer = ReflectionMixer::<Convolution>::try_new(
+                    &context,
+                    &audio_settings,
+                    &reflection_effect_settings,
+                )
+                .unwrap();
+                let clone = mixer.clone();
+                assert_eq!(mixer.raw_ptr(), clone.raw_ptr());
+                drop(mixer);
+                assert!(!clone.raw_ptr().is_null());
             }
         }
     }
