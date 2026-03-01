@@ -223,6 +223,8 @@ where
 
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
+            // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `Simulator`.
+            #[allow(clippy::arc_with_non_send_sync)]
             shared: Arc::new(Mutex::new(SimulatorShared::default())),
             max_num_occlusion_samples: settings.max_num_occlusion_samples(),
             max_num_rays: settings.max_num_rays(),

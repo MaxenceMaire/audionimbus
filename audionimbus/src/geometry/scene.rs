@@ -237,6 +237,8 @@ impl<'a> Scene<'a, Embree> {
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self {
             inner: std::ptr::null_mut(),
+            // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `Scene`.
+            #[allow(clippy::arc_with_non_send_sync)]
             shared: Arc::new(Mutex::new(SceneShared::default())),
             _ray_tracing_device: PhantomData,
             _marker: PhantomData,
