@@ -58,3 +58,35 @@ impl Drop for RadeonRaysDevice {
 }
 
 unsafe impl Send for RadeonRaysDevice {}
+unsafe impl Sync for RadeonRaysDevice {}
+
+impl Clone for RadeonRaysDevice {
+    /// Retains an additional reference to the Radeon Rays device.
+    ///
+    /// The returned [`RadeonRays`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The device will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplRadeonRaysDeviceRetain(self.0) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_clone() {
+        let context = Context::default();
+        let settings = OpenClDeviceSettings::default();
+        let Ok(device_list) = OpenClDeviceList::try_new(&context, &settings) else {
+            // OpenCL not available
+            return;
+        };
+        let open_cl_device = OpenClDevice::try_new(&context, &device_list, 0).unwrap();
+        let radeon_rays_device = RadeonRaysDevice::try_new(&open_cl_device).unwrap();
+        let clone = radeon_rays_device.clone();
+        assert_eq!(radeon_rays_device.raw_ptr(), clone.raw_ptr());
+        drop(radeon_rays_device);
+        assert!(!clone.raw_ptr().is_null());
+    }
+}
