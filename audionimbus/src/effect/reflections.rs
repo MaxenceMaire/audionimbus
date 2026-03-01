@@ -1723,7 +1723,7 @@ mod tests {
             use super::*;
 
             #[test]
-            fn test_reset() {
+            fn test_clone() {
                 const SAMPLING_RATE: u32 = 48000;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 
@@ -2099,7 +2099,7 @@ mod tests {
             use super::*;
 
             #[test]
-            fn test_reset() {
+            fn test_clone() {
                 const SAMPLING_RATE: u32 = 48000;
                 const IR_SIZE: u32 = 2 * SAMPLING_RATE;
 

@@ -69,7 +69,7 @@ unsafe impl Sync for TrueAudioNextDevice {}
 impl Clone for TrueAudioNextDevice {
     /// Retains an additional reference to the TrueAudio Next device.
     ///
-    /// The returned [`TrueAudioNext`] shares the same underlying Steam Audio object.
+    /// The returned [`TrueAudioNextDevice`] shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The device will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplTrueAudioNextDeviceRetain(self.0) })

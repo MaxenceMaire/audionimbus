@@ -63,7 +63,7 @@ unsafe impl Sync for RadeonRaysDevice {}
 impl Clone for RadeonRaysDevice {
     /// Retains an additional reference to the Radeon Rays device.
     ///
-    /// The returned [`RadeonRays`] shares the same underlying Steam Audio object.
+    /// The returned [`RadeonRaysDevice`] shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The device will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplRadeonRaysDeviceRetain(self.0) })
