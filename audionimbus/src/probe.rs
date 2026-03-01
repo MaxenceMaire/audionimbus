@@ -92,6 +92,17 @@ impl Drop for ProbeArray {
 }
 
 unsafe impl Send for ProbeArray {}
+unsafe impl Sync for ProbeArray {}
+
+impl Clone for ProbeArray {
+    /// Retains an additional reference to the probe array.
+    ///
+    /// The returned [`ProbeArray`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The probe array will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplProbeArrayRetain(self.0) })
+    }
+}
 
 /// [`ProbeArray`] errors.
 #[derive(Debug, PartialEq, Eq)]
@@ -555,6 +566,16 @@ mod tests {
 
             probe_array.generate_probes(&scene, &params);
             assert_eq!(probe_array.num_probes(), 121);
+        }
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let probe_array = ProbeArray::try_new(&context).unwrap();
+            let clone = probe_array.clone();
+            assert_eq!(probe_array.raw_ptr(), clone.raw_ptr());
+            drop(probe_array);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 
