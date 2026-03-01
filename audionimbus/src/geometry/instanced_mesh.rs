@@ -64,6 +64,17 @@ impl Drop for InstancedMesh {
 }
 
 unsafe impl Send for InstancedMesh {}
+unsafe impl Sync for InstancedMesh {}
+
+impl Clone for InstancedMesh {
+    /// Retains an additional reference to the instanced mesh.
+    ///
+    /// The returned [`InstancedMesh`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The instanced mesh will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplInstancedMeshRetain(self.0) })
+    }
+}
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug, Clone)]
@@ -73,4 +84,33 @@ pub struct InstancedMeshSettings<'a> {
 
     /// Local-to-world transform that places the instance within the parent scene.
     pub transform: Matrix<f32, 4, 4>,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_instanced_mesh_clone() {
+        let context = Context::default();
+        let main_scene = Scene::try_new(&context).unwrap();
+        let sub_scene = Scene::try_new(&context).unwrap();
+
+        let transform = Matrix::new([
+            [1.0, 0.0, 0.0, 5.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let instanced_mesh_settings = geometry::InstancedMeshSettings {
+            sub_scene: &sub_scene,
+            transform,
+        };
+        let instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
+        let clone = instanced_mesh.clone();
+        assert_eq!(instanced_mesh.raw_ptr(), clone.raw_ptr());
+        drop(instanced_mesh);
+        assert!(!clone.raw_ptr().is_null());
+    }
 }
