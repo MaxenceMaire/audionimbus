@@ -137,6 +137,17 @@ impl Drop for ImpulseResponse {
 }
 
 unsafe impl Send for ImpulseResponse {}
+unsafe impl Sync for ImpulseResponse {}
+
+impl Clone for ImpulseResponse {
+    /// Retains an additional reference to the impulse response.
+    ///
+    /// The returned [`ImpulseResponse`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The impulse response will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplImpulseResponseRetain(self.0) })
+    }
+}
 
 /// Settings used to create an impulse response.
 #[derive(Debug)]
@@ -329,5 +340,21 @@ mod tests {
         let data = impulse_response.data();
         // Values before scaling are 0.0, so they should remain 0.0.
         assert!(data.iter().all(|&x| x == 0.0));
+    }
+
+    #[test]
+    fn test_clone() {
+        let context = Context::default();
+        let settings = ImpulseResponseSettings {
+            duration: 1.0,
+            order: 1,
+            sampling_rate: 48000,
+        };
+
+        let impulse_response = ImpulseResponse::try_new(&context, &settings).unwrap();
+        let clone = impulse_response.clone();
+        assert_eq!(impulse_response.raw_ptr(), clone.raw_ptr());
+        drop(impulse_response);
+        assert!(!clone.raw_ptr().is_null());
     }
 }
