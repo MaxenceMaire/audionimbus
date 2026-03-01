@@ -191,9 +191,23 @@ impl<T> Drop for StaticMesh<T> {
 }
 
 unsafe impl<T: RayTracer> Send for StaticMesh<T> {}
+unsafe impl<T: RayTracer> Sync for StaticMesh<T> {}
+
+impl<T: RayTracer> Clone for StaticMesh<T> {
+    /// Retains an additional reference to the static mesh.
+    ///
+    /// The returned [`StaticMesh`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The static mesh will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplStaticMeshRetain(self.inner) },
+            _marker: PhantomData,
+        }
+    }
+}
 
 /// Settings used to create a static mesh.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct StaticMeshSettings<'a> {
     /// Array containing vertices.
     pub vertices: &'a [Point],
@@ -206,4 +220,48 @@ pub struct StaticMeshSettings<'a> {
 
     /// Array of materials.
     pub materials: &'a [Material],
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_static_mesh_clone() {
+        let context = Context::default();
+        let scene = Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+
+        let vertices = vec![
+            geometry::Point::new(0.0, 0.0, 0.0),
+            geometry::Point::new(1.0, 0.0, 0.0),
+            geometry::Point::new(1.0, 1.0, 0.0),
+            geometry::Point::new(0.0, 1.0, 0.0),
+        ];
+
+        let triangles = vec![
+            geometry::Triangle::new(0, 1, 2),
+            geometry::Triangle::new(0, 2, 2),
+        ];
+
+        let materials = vec![geometry::Material {
+            absorption: [0.1, 0.1, 0.1],
+            scattering: 0.5,
+            transmission: [0.2, 0.2, 0.2],
+        }];
+
+        let material_indices = vec![0, 0];
+
+        let settings = geometry::StaticMeshSettings {
+            vertices: &vertices,
+            triangles: &triangles,
+            material_indices: &material_indices,
+            materials: &materials,
+        };
+
+        let static_mesh = StaticMesh::<DefaultRayTracer>::try_new(&scene, &settings).unwrap();
+        let clone = static_mesh.clone();
+        assert_eq!(static_mesh.raw_ptr(), clone.raw_ptr());
+        drop(static_mesh);
+        assert!(!clone.raw_ptr().is_null());
+    }
 }

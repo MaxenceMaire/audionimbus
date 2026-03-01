@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- Removed the `Default` trait implementation for `StaticMeshSettings`.
+
 ## [0.12.0] - 2026-02-12
 
 ### Fixed
