@@ -629,6 +629,21 @@ impl<T: ReflectionEffectType> Drop for ReflectionEffect<T> {
 }
 
 unsafe impl<T: ReflectionEffectType> Send for ReflectionEffect<T> {}
+unsafe impl<T: ReflectionEffectType> Sync for ReflectionEffect<T> {}
+
+impl<T: ReflectionEffectType> Clone for ReflectionEffect<T> {
+    /// Retains an additional reference to the reflection effect.
+    ///
+    /// The returned [`ReflectionEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The reflection effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplReflectionEffectRetain(self.inner) },
+            num_output_channels: self.num_output_channels,
+            _marker: PhantomData,
+        }
+    }
+}
 
 /// Settings used to create a reflection effect.
 #[derive(Copy, Clone, Debug)]
@@ -1701,6 +1716,36 @@ mod tests {
                         actual: 1
                     })
                 );
+            }
+        }
+
+        mod clone {
+            use super::*;
+
+            #[test]
+            fn test_reset() {
+                const SAMPLING_RATE: u32 = 48000;
+                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
+
+                let context = Context::default();
+                let audio_settings = AudioSettings::default();
+
+                let num_output_channels = num_ambisonics_channels(1);
+                let reflection_effect_settings = ReflectionEffectSettings {
+                    impulse_response_size: IR_SIZE,
+                    num_channels: num_output_channels,
+                };
+
+                let effect = ReflectionEffect::<Convolution>::try_new(
+                    &context,
+                    &audio_settings,
+                    &reflection_effect_settings,
+                )
+                .unwrap();
+                let clone = effect.clone();
+                assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+                drop(effect);
+                assert!(!clone.raw_ptr().is_null());
             }
         }
     }

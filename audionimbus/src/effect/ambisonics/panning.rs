@@ -220,6 +220,20 @@ impl Drop for AmbisonicsPanningEffect {
 }
 
 unsafe impl Send for AmbisonicsPanningEffect {}
+unsafe impl Sync for AmbisonicsPanningEffect {}
+
+impl Clone for AmbisonicsPanningEffect {
+    /// Retains an additional reference to the ambisonics panning effect.
+    ///
+    /// The returned [`AmbisonicsPanningEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The ambisonics panning effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplAmbisonicsPanningEffectRetain(self.inner) },
+            num_output_channels: self.num_output_channels,
+        }
+    }
+}
 
 /// Settings used to create an ambisonics panning effect.
 #[derive(Debug)]
@@ -442,6 +456,30 @@ mod tests {
                     actual: 3,
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = AmbisonicsPanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsPanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

@@ -210,6 +210,20 @@ impl Drop for AmbisonicsEncodeEffect {
 }
 
 unsafe impl Send for AmbisonicsEncodeEffect {}
+unsafe impl Sync for AmbisonicsEncodeEffect {}
+
+impl Clone for AmbisonicsEncodeEffect {
+    /// Retains an additional reference to the ambisonics encode effect.
+    ///
+    /// The returned [`AmbisonicsEncodeEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The ambisonics encode effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplAmbisonicsEncodeEffectRetain(self.inner) },
+            num_output_channels: self.num_output_channels,
+        }
+    }
+}
 
 /// Settings used to create an ambisonics decode effect.
 #[derive(Debug)]
@@ -420,6 +434,27 @@ mod tests {
                     actual: 2,
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = AmbisonicsEncodeEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsEncodeEffectSettings { max_order: 1 },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

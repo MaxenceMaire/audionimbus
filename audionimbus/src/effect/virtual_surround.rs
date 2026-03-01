@@ -220,6 +220,20 @@ impl Drop for VirtualSurroundEffect {
 }
 
 unsafe impl Send for VirtualSurroundEffect {}
+unsafe impl Sync for VirtualSurroundEffect {}
+
+impl Clone for VirtualSurroundEffect {
+    /// Retains an additional reference to the virtual surround effect.
+    ///
+    /// The returned [`VirtualSurroundEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The virtual surround effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplVirtualSurroundEffectRetain(self.inner) },
+            num_input_channels: self.num_input_channels,
+        }
+    }
+}
 
 /// Settings used to create a virtual surround effect.
 #[derive(Debug)]
@@ -481,6 +495,31 @@ mod tests {
                     actual: 4
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let effect = VirtualSurroundEffect::try_new(
+                &context,
+                &audio_settings,
+                &VirtualSurroundEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                    hrtf: &hrtf,
+                },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

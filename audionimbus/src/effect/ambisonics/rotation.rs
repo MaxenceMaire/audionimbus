@@ -212,6 +212,20 @@ impl Drop for AmbisonicsRotationEffect {
 }
 
 unsafe impl Send for AmbisonicsRotationEffect {}
+unsafe impl Sync for AmbisonicsRotationEffect {}
+
+impl Clone for AmbisonicsRotationEffect {
+    /// Retains an additional reference to the ambisonics rotation effect.
+    ///
+    /// The returned [`AmbisonicsRotationEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The ambisonics rotation effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplAmbisonicsRotationEffectRetain(self.inner) },
+            num_channels: self.num_channels,
+        }
+    }
+}
 
 /// Settings used to create an ambisonics rotation effect.
 #[derive(Debug)]
@@ -429,6 +443,27 @@ mod tests {
                     actual: 2,
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = AmbisonicsRotationEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsRotationEffectSettings { max_order: 1 },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }
