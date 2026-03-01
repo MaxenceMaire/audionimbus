@@ -177,6 +177,17 @@ impl Drop for EnergyField {
 }
 
 unsafe impl Send for EnergyField {}
+unsafe impl Sync for EnergyField {}
+
+impl Clone for EnergyField {
+    /// Retains an additional reference to the energy field.
+    ///
+    /// The returned [`EnergyField`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The energy field will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplEnergyFieldRetain(self.0) })
+    }
+}
 
 /// Settings used to create an [`EnergyField`].
 #[derive(Debug)]
@@ -375,6 +386,20 @@ mod tests {
                     }),
                 );
             }
+        }
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let settings = EnergyFieldSettings {
+                duration: 1.0,
+                order: 1,
+            };
+            let energy_field = EnergyField::try_new(&context, &settings).unwrap();
+            let clone = energy_field.clone();
+            assert_eq!(energy_field.raw_ptr(), clone.raw_ptr());
+            drop(energy_field);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

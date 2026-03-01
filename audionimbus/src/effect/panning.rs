@@ -211,6 +211,20 @@ impl Drop for PanningEffect {
 }
 
 unsafe impl Send for PanningEffect {}
+unsafe impl Sync for PanningEffect {}
+
+impl Clone for PanningEffect {
+    /// Retains an additional reference to the panning effect.
+    ///
+    /// The returned [`PanningEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The panning effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplPanningEffectRetain(self.inner) },
+            num_output_channels: self.num_output_channels,
+        }
+    }
+}
 
 /// Settings used to create a panning effect.
 #[derive(Debug)]
@@ -460,6 +474,29 @@ mod tests {
                     actual: 4
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = PanningEffect::try_new(
+                &context,
+                &audio_settings,
+                &PanningEffectSettings {
+                    speaker_layout: SpeakerLayout::Stereo,
+                },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

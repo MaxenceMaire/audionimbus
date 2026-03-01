@@ -58,3 +58,32 @@ impl Drop for EmbreeDevice {
 }
 
 unsafe impl Send for EmbreeDevice {}
+unsafe impl Sync for EmbreeDevice {}
+
+impl Clone for EmbreeDevice {
+    /// Retains an additional reference to the Embree device.
+    ///
+    /// The returned [`EmbreeDevice`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The device will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplEmbreeDeviceRetain(self.0) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clone() {
+        let context = Context::default();
+        let Ok(device) = EmbreeDevice::try_new(&context) else {
+            // Device not available
+            return;
+        };
+        let clone = device.clone();
+        assert_eq!(device.raw_ptr(), clone.raw_ptr());
+        drop(device);
+        assert!(!clone.raw_ptr().is_null());
+    }
+}

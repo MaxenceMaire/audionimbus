@@ -135,6 +135,21 @@ impl Drop for Reconstructor {
 }
 
 unsafe impl Send for Reconstructor {}
+unsafe impl Sync for Reconstructor {}
+
+impl Clone for Reconstructor {
+    /// Retains an additional reference to the reconstructor.
+    ///
+    /// The returned [`Reconstructor`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The reconstructor will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplReconstructorRetain(self.inner) },
+            max_duration: self.max_duration,
+            max_order: self.max_order,
+        }
+    }
+}
 
 /// Settings used to create a reconstructor.
 #[derive(Debug)]
@@ -472,6 +487,21 @@ mod tests {
                     outputs_len: 1,
                 }),
             );
+        }
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let reconstructor_settings = ReconstructorSettings {
+                max_duration: MAX_DURATION,
+                max_order: MAX_ORDER,
+                sampling_rate: SAMPLING_RATE,
+            };
+            let reconstructor = Reconstructor::try_new(&context, &reconstructor_settings).unwrap();
+            let clone = reconstructor.clone();
+            assert_eq!(reconstructor.raw_ptr(), clone.raw_ptr());
+            drop(reconstructor);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

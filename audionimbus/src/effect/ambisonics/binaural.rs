@@ -205,6 +205,17 @@ impl Drop for AmbisonicsBinauralEffect {
 }
 
 unsafe impl Send for AmbisonicsBinauralEffect {}
+unsafe impl Sync for AmbisonicsBinauralEffect {}
+
+impl Clone for AmbisonicsBinauralEffect {
+    /// Retains an additional reference to the ambisonics binaural effect.
+    ///
+    /// The returned [`AmbisonicsBinauralEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The ambisonics binaural effect will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplAmbisonicsBinauralEffectRetain(self.0) })
+    }
+}
 
 /// Settings used to create an ambisonics binaural effect.
 #[derive(Debug)]
@@ -446,6 +457,31 @@ mod tests {
                     actual: 3
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default()).unwrap();
+
+            let effect = AmbisonicsBinauralEffect::try_new(
+                &context,
+                &audio_settings,
+                &AmbisonicsBinauralEffectSettings {
+                    hrtf: &hrtf,
+                    max_order: 1,
+                },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

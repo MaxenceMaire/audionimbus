@@ -148,6 +148,17 @@ impl Drop for SerializedObject {
 }
 
 unsafe impl Send for SerializedObject {}
+unsafe impl Sync for SerializedObject {}
+
+impl Clone for SerializedObject {
+    /// Retains an additional reference to the serialized object.
+    ///
+    /// The returned [`SerializedObject`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The serialized object will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplSerializedObjectRetain(self.0) })
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -166,5 +177,15 @@ mod tests {
         let mut buffer = vec![0u8; 1024];
         let serialized_object = SerializedObject::try_with_buffer(&context, &mut buffer);
         assert!(serialized_object.is_ok());
+    }
+
+    #[test]
+    fn test_clone() {
+        let context = Context::default();
+        let serialized_object = SerializedObject::try_new(&context).unwrap();
+        let clone = serialized_object.clone();
+        assert_eq!(serialized_object.raw_ptr(), clone.raw_ptr());
+        drop(serialized_object);
+        assert!(!clone.raw_ptr().is_null());
     }
 }

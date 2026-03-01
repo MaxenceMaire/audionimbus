@@ -10,6 +10,7 @@ use crate::serialized_object::SerializedObject;
 use crate::Sealed;
 use slotmap::{DefaultKey, SlotMap};
 use std::marker::PhantomData;
+use std::sync::{Arc, Mutex};
 
 /// Marker trait for scenes that can use `save()`.
 pub trait SaveableAsSerialized: Sealed {}
@@ -28,7 +29,14 @@ impl SaveableAsObj for Embree {}
 #[derive(Debug)]
 pub struct Scene<'a, T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
+    shared: Arc<Mutex<SceneShared<T>>>,
+    _ray_tracing_device: PhantomData<&'a ()>,
+    _marker: PhantomData<T>,
+}
 
+/// Shared ownership of [`Scene`] data across clones.
+#[derive(Debug)]
+struct SceneShared<T: RayTracer> {
     /// Used to keep static meshes alive for the lifetime of the scene.
     static_meshes: SlotMap<DefaultKey, StaticMesh<T>>,
 
@@ -43,21 +51,34 @@ pub struct Scene<'a, T: RayTracer = DefaultRayTracer> {
 
     /// Keeps the callback user data alive for custom ray tracers.
     _callback_user_data: Option<Box<CustomRayTracingUserData>>,
-
-    _ray_tracing_device: PhantomData<&'a ()>,
-    _marker: PhantomData<T>,
 }
 
-impl<T: RayTracer> Scene<'_, T> {
-    /// Creates an empty scene.
-    fn empty() -> Self {
+impl<T: RayTracer> Default for SceneShared<T> {
+    fn default() -> Self {
         Self {
-            inner: std::ptr::null_mut(),
             static_meshes: SlotMap::new(),
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
             _callback_user_data: None,
+        }
+    }
+}
+
+impl<T: RayTracer> Scene<'_, T> {
+    /// Creates an empty scene.
+    fn empty() -> Self {
+        let shared = SceneShared {
+            static_meshes: SlotMap::new(),
+            instanced_meshes: SlotMap::new(),
+            static_meshes_to_remove: Vec::new(),
+            instanced_meshes_to_remove: Vec::new(),
+            _callback_user_data: None,
+        };
+
+        Self {
+            inner: std::ptr::null_mut(),
+            shared: Arc::new(Mutex::new(shared)),
             _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         }
@@ -70,7 +91,7 @@ impl<T: RayTracer> Scene<'_, T> {
         callback_user_data: Option<Box<CustomRayTracingUserData>>,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
-        scene._callback_user_data = callback_user_data;
+        scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
 
         let status = unsafe {
             audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, scene.raw_ptr_mut())
@@ -96,7 +117,7 @@ impl<T: RayTracer> Scene<'_, T> {
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
-        scene._callback_user_data = callback_user_data;
+        scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
 
         let (callback_fn, user_data) =
             progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
@@ -216,11 +237,7 @@ impl<'a> Scene<'a, Embree> {
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self {
             inner: std::ptr::null_mut(),
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _callback_user_data: None,
+            shared: Arc::new(Mutex::new(SceneShared::default())),
             _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         };
@@ -448,7 +465,14 @@ impl<T: RayTracer> Scene<'_, T> {
         unsafe {
             audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
         }
-        let key = self.static_meshes.insert(static_mesh);
+
+        let key = self
+            .shared
+            .lock()
+            .unwrap()
+            .static_meshes
+            .insert(static_mesh);
+
         StaticMeshHandle(key)
     }
 
@@ -487,9 +511,9 @@ impl<T: RayTracer> Scene<'_, T> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn remove_static_mesh(&mut self, handle: StaticMeshHandle) -> bool {
-        let handle = handle.0;
+        let mut shared = self.shared.lock().unwrap();
 
-        let Some(static_mesh) = self.static_meshes.remove(handle) else {
+        let Some(static_mesh) = shared.static_meshes.remove(handle.0) else {
             return false;
         };
 
@@ -497,7 +521,7 @@ impl<T: RayTracer> Scene<'_, T> {
             audionimbus_sys::iplStaticMeshRemove(static_mesh.raw_ptr(), self.raw_ptr());
         }
 
-        self.static_meshes_to_remove.push(static_mesh);
+        shared.static_meshes_to_remove.push(static_mesh);
 
         true
     }
@@ -549,7 +573,9 @@ impl<T: RayTracer> Scene<'_, T> {
         unsafe {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
-        let key = self.instanced_meshes.insert(instanced_mesh);
+
+        let mut shared = self.shared.lock().unwrap();
+        let key = shared.instanced_meshes.insert(instanced_mesh);
         InstancedMeshHandle(key)
     }
 
@@ -599,9 +625,9 @@ impl<T: RayTracer> Scene<'_, T> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn remove_instanced_mesh(&mut self, handle: InstancedMeshHandle) -> bool {
-        let handle = handle.0;
+        let mut shared = self.shared.lock().unwrap();
 
-        let Some(instanced_mesh) = self.instanced_meshes.remove(handle) else {
+        let Some(instanced_mesh) = shared.instanced_meshes.remove(handle.0) else {
             return false;
         };
 
@@ -609,7 +635,7 @@ impl<T: RayTracer> Scene<'_, T> {
             audionimbus_sys::iplInstancedMeshRemove(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
 
-        self.instanced_meshes_to_remove.push(instanced_mesh);
+        shared.instanced_meshes_to_remove.push(instanced_mesh);
 
         true
     }
@@ -672,7 +698,8 @@ impl<T: RayTracer> Scene<'_, T> {
         handle: InstancedMeshHandle,
         transform: Matrix<f32, 4, 4>,
     ) -> bool {
-        let Some(instanced_mesh) = self.instanced_meshes.get(handle.0) else {
+        let shared = self.shared.lock().unwrap();
+        let Some(instanced_mesh) = shared.instanced_meshes.get(handle.0) else {
             return false;
         };
 
@@ -729,8 +756,9 @@ impl<T: RayTracer> Scene<'_, T> {
             audionimbus_sys::iplSceneCommit(self.raw_ptr());
         }
 
-        self.static_meshes_to_remove.clear();
-        self.instanced_meshes_to_remove.clear();
+        let mut shared = self.shared.lock().unwrap();
+        shared.static_meshes_to_remove.clear();
+        shared.instanced_meshes_to_remove.clear();
     }
 
     /// Returns the raw FFI pointer to the underlying scene.
@@ -789,6 +817,22 @@ impl<T: RayTracer> Drop for Scene<'_, T> {
 }
 
 unsafe impl<T: RayTracer> Send for Scene<'_, T> {}
+unsafe impl<T: RayTracer> Sync for Scene<'_, T> {}
+
+impl<T: RayTracer> Clone for Scene<'_, T> {
+    /// Retains an additional reference to the scene.
+    ///
+    /// The returned [`Scene`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The scene will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplSceneRetain(self.inner) },
+            shared: Arc::clone(&self.shared),
+            _ray_tracing_device: PhantomData,
+            _marker: PhantomData,
+        }
+    }
+}
 
 /// Calculates the relative direction from the listener to a sound source.
 ///
@@ -977,5 +1021,15 @@ mod tests {
         );
 
         assert!(Scene::<CustomRayTracer>::try_with_custom(&context, &callbacks).is_ok());
+    }
+
+    #[test]
+    fn test_scene_clone() {
+        let context = Context::default();
+        let scene = Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+        let clone = scene.clone();
+        assert_eq!(scene.raw_ptr(), clone.raw_ptr());
+        drop(scene);
+        assert!(!clone.raw_ptr().is_null());
     }
 }

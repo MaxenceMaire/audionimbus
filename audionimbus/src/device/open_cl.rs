@@ -107,6 +107,17 @@ impl Drop for OpenClDevice {
 }
 
 unsafe impl Send for OpenClDevice {}
+unsafe impl Sync for OpenClDevice {}
+
+impl Clone for OpenClDevice {
+    /// Retains an additional reference to the OpenCL device.
+    ///
+    /// The returned [`OpenClDevice`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The device will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplOpenCLDeviceRetain(self.0) })
+    }
+}
 
 /// Provides a list of OpenCL devices available on the user’s system.
 ///
@@ -208,6 +219,17 @@ impl Drop for OpenClDeviceList {
 }
 
 unsafe impl Send for OpenClDeviceList {}
+unsafe impl Sync for OpenClDeviceList {}
+
+impl Clone for OpenClDeviceList {
+    /// Retains an additional reference to the OpenCL device list.
+    ///
+    /// The returned [`OpenClDeviceList`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The device will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplOpenCLDeviceListRetain(self.0) })
+    }
+}
 
 /// [`OpenClDeviceList`] errors.
 #[derive(Debug, PartialEq, Eq)]
@@ -460,6 +482,35 @@ mod tests {
                     }),
                 );
             }
+        }
+
+        #[test]
+        fn test_device_list_clone() {
+            let context = Context::default();
+            let settings = OpenClDeviceSettings::default();
+            let Ok(device_list) = OpenClDeviceList::try_new(&context, &settings) else {
+                // OpenCL not available
+                return;
+            };
+            let clone = device_list.clone();
+            assert_eq!(device_list.raw_ptr(), clone.raw_ptr());
+            drop(device_list);
+            assert!(!clone.raw_ptr().is_null());
+        }
+
+        #[test]
+        fn test_device_clone() {
+            let context = Context::default();
+            let settings = OpenClDeviceSettings::default();
+            let Ok(device_list) = OpenClDeviceList::try_new(&context, &settings) else {
+                // OpenCL not available
+                return;
+            };
+            let device = OpenClDevice::try_new(&context, &device_list, 0).unwrap();
+            let clone = device.clone();
+            assert_eq!(device.raw_ptr(), clone.raw_ptr());
+            drop(device);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Implement `Sync` and `Clone` traits for `Hrtf`, `Scene`, `Source`, `Context`, `Simulator`, `ProbeArray`, `ProbeBatch`, `StaticMesh`, `EnergyField`, `EmbreeDevice`, `OpenClDevice`, `OpenClDeviceList`, `RadeonRaysDevice`, `InstancedMesh`, `Reconstructor`, `ImpulseResponse`, `ReflectionMixer`, `SerializedObject`, `TrueAudioNextDevice`, `PathEffect`, `DirectEffect`, `PanningEffect`, `BinauralEffect`, `ReflectionEffect`, `VirtualSurroundEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsEncodeEffect`, `AmbisonicsPanningEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsRotationEffect`.
+
+### Removed
+
+- Removed the `Default` trait implementation for `StaticMeshSettings`.
+
 ## [0.12.0] - 2026-02-12
 
 ### Fixed

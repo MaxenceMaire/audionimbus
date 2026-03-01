@@ -340,6 +340,20 @@ impl Drop for PathEffect {
 }
 
 unsafe impl Send for PathEffect {}
+unsafe impl Sync for PathEffect {}
+
+impl Clone for PathEffect {
+    /// Retains an additional reference to the path effect.
+    ///
+    /// The returned [`PathEffect`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The path effect will not be destroyed until all references are released.
+        Self {
+            inner: unsafe { audionimbus_sys::iplPathEffectRetain(self.inner) },
+            num_output_channels: self.num_output_channels,
+        }
+    }
+}
 
 /// Settings used to create a path effect.
 #[derive(Debug)]
@@ -704,6 +718,30 @@ mod tests {
                     actual: 2
                 })
             );
+        }
+    }
+
+    mod clone {
+        use super::*;
+
+        #[test]
+        fn test_clone() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+
+            let effect = PathEffect::try_new(
+                &context,
+                &audio_settings,
+                &PathEffectSettings {
+                    max_order: 1,
+                    spatialization: None,
+                },
+            )
+            .unwrap();
+            let clone = effect.clone();
+            assert_eq!(effect.raw_ptr(), clone.raw_ptr());
+            drop(effect);
+            assert!(!clone.raw_ptr().is_null());
         }
     }
 }

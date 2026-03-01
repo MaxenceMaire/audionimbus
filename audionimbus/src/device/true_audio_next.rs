@@ -64,6 +64,17 @@ impl Drop for TrueAudioNextDevice {
 }
 
 unsafe impl Send for TrueAudioNextDevice {}
+unsafe impl Sync for TrueAudioNextDevice {}
+
+impl Clone for TrueAudioNextDevice {
+    /// Retains an additional reference to the TrueAudio Next device.
+    ///
+    /// The returned [`TrueAudioNextDevice`] shares the same underlying Steam Audio object.
+    fn clone(&self) -> Self {
+        // SAFETY: The device will not be destroyed until all references are released.
+        Self(unsafe { audionimbus_sys::iplTrueAudioNextDeviceRetain(self.0) })
+    }
+}
 
 /// Settings used to create a TrueAudio Next device.
 #[derive(Debug)]
@@ -89,5 +100,33 @@ impl From<&TrueAudioNextDeviceSettings> for audionimbus_sys::IPLTrueAudioNextDev
             order: settings.order as i32,
             maxSources: settings.max_sources as i32,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_clone() {
+        let context = Context::default();
+        let open_cl_settings = OpenClDeviceSettings::default();
+        let Ok(device_list) = OpenClDeviceList::try_new(&context, &open_cl_settings) else {
+            // OpenCL not available
+            return;
+        };
+        let open_cl_device = OpenClDevice::try_new(&context, &device_list, 0).unwrap();
+        let true_audio_next_settings = TrueAudioNextDeviceSettings {
+            frame_size: 1024,
+            impulse_response_size: 1024,
+            order: 1,
+            max_sources: 1,
+        };
+        let true_audio_next_device =
+            TrueAudioNextDevice::try_new(&open_cl_device, &true_audio_next_settings).unwrap();
+        let clone = true_audio_next_device.clone();
+        assert_eq!(true_audio_next_device.raw_ptr(), clone.raw_ptr());
+        drop(true_audio_next_device);
+        assert!(!clone.raw_ptr().is_null());
     }
 }
