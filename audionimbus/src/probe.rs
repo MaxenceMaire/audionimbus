@@ -381,6 +381,7 @@ impl ProbeBatch {
         shared.committed_num_probes = shared
             .committed_num_probes
             .saturating_add_signed(shared.pending_num_probes as isize);
+        shared.pending_num_probes = 0;
     }
 
     /// Saves a probe batch to a serialized object.

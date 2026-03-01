@@ -148,7 +148,7 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
 
 /// Shared ownership of [`Simulator`] data across clones.
 #[derive(Default, Debug)]
-pub struct SimulatorShared {
+struct SimulatorShared {
     /// Number of probes after the last commit.
     /// Used to ensure the simulator has probes before running pathing.
     committed_num_probes: usize,
@@ -1482,7 +1482,7 @@ impl<D, R, P> Drop for Source<'_, D, R, P> {
     }
 }
 
-unsafe impl Send for Source<'_> {}
+unsafe impl<D, R, P> Send for Source<'_, D, R, P> {}
 unsafe impl<D, R, P> Sync for Source<'_, D, R, P> {}
 
 impl<'a, D, R, P> Clone for Source<'a, D, R, P>
