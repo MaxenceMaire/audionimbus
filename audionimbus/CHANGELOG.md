@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `Source`s now only need to be compatible with (rather than exactly match) the `Simulator`'s simulation type parameters in `add_source`/`remove_source`.
+
 ### Added
 
 - Implement `Sync` and `Clone` traits for `Hrtf`, `Scene`, `Source`, `Context`, `Simulator`, `ProbeArray`, `ProbeBatch`, `StaticMesh`, `EnergyField`, `EmbreeDevice`, `OpenClDevice`, `OpenClDeviceList`, `RadeonRaysDevice`, `InstancedMesh`, `Reconstructor`, `ImpulseResponse`, `ReflectionMixer`, `SerializedObject`, `TrueAudioNextDevice`, `PathEffect`, `DirectEffect`, `PanningEffect`, `BinauralEffect`, `ReflectionEffect`, `VirtualSurroundEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsEncodeEffect`, `AmbisonicsPanningEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsRotationEffect`.

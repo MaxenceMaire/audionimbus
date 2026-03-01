@@ -305,7 +305,12 @@ where
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn add_source(&self, source: &Source<'a, D, R, P>) {
+    pub fn add_source<SrcD, SrcR, SrcP>(&self, source: &Source<'a, SrcD, SrcR, SrcP>)
+    where
+        SrcD: DirectCompatible<D> + 'static,
+        SrcR: ReflectionsCompatible<R> + 'static,
+        SrcP: PathingCompatible<P> + 'static,
+    {
         unsafe {
             audionimbus_sys::iplSourceAdd(source.raw_ptr(), self.raw_ptr());
         }
@@ -314,7 +319,12 @@ where
     /// Removes a source from the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn remove_source(&self, source: &Source) {
+    pub fn remove_source<SrcD, SrcR, SrcP>(&self, source: &Source<'a, SrcD, SrcR, SrcP>)
+    where
+        SrcD: DirectCompatible<D> + 'static,
+        SrcR: ReflectionsCompatible<R> + 'static,
+        SrcP: PathingCompatible<P> + 'static,
+    {
         unsafe {
             audionimbus_sys::iplSourceRemove(source.raw_ptr(), self.raw_ptr());
         }
@@ -2547,7 +2557,8 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
                 };
-                let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+                let mut source =
+                    Source::<Direct, (), ()>::try_new(&simulator, &source_settings).unwrap();
 
                 let simulation_inputs = SimulationInputs::new(CoordinateSystem {
                     right: Vector3::new(1.0, 0.0, 0.0),
