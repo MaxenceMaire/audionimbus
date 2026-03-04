@@ -23,7 +23,7 @@ Add `audionimbus` to your dependencies:
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.12.0", features = ["auto-install"] }
+audionimbus = { version = "0.13.0", features = ["auto-install"] }
 ```
 
 The `auto-install` feature automatically downloads and installs Steam Audio for you.
