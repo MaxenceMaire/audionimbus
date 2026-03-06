@@ -5,7 +5,7 @@ use crate::context::Context;
 use crate::{geometry, Equalizer};
 
 /// An air absorption model that can be used for modeling frequency-dependent attenuation of sound over distance.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum AirAbsorptionModel {
     /// The default air absorption model.
     /// This is an exponential falloff, with decay rates derived from physical properties of air.

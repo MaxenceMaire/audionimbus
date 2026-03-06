@@ -3,7 +3,7 @@
 pub use crate::callback::DeviationCallback;
 
 /// A deviation model that can be used for modeling frequency-dependent attenuation of sound as it bends along the path from the source to the listener.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum DeviationModel {
     /// The default deviation model.
     /// This is a physics-based model, based on the Uniform Theory of Diffraction, with various additional assumptions.
