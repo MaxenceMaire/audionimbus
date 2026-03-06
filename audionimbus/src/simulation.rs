@@ -143,7 +143,6 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
-    _lifetime: PhantomData<&'a ()>,
 }
 
 /// Shared ownership of [`Simulator`] data across clones.
@@ -239,7 +238,6 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         };
 
         let status = unsafe {
@@ -613,7 +611,6 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
