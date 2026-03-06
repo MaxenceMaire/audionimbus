@@ -307,7 +307,7 @@ where
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn add_source<SrcD, SrcR, SrcP>(&self, source: &Source<'a, SrcD, SrcR, SrcP>)
+    pub fn add_source<SrcD, SrcR, SrcP>(&self, source: &Source<SrcD, SrcR, SrcP>)
     where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
@@ -321,7 +321,7 @@ where
     /// Removes a source from the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn remove_source<SrcD, SrcR, SrcP>(&self, source: &Source<'a, SrcD, SrcR, SrcP>)
+    pub fn remove_source<SrcD, SrcR, SrcP>(&self, source: &Source<SrcD, SrcR, SrcP>)
     where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
@@ -1194,7 +1194,7 @@ impl PathingCompatible<()> for () {}
 ///
 /// This object is used to specify various parameters for direct and indirect sound propagation simulation, and to retrieve the simulation results.
 #[derive(Debug)]
-pub struct Source<'a, D = (), R = (), P = ()> {
+pub struct Source<D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSource,
     shared: Arc<Mutex<SourceShared>>,
 
@@ -1216,7 +1216,6 @@ pub struct Source<'a, D = (), R = (), P = ()> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
-    _lifetime: PhantomData<&'a ()>,
 }
 
 /// Shared ownership of [`Source`] data across clones.
@@ -1227,7 +1226,7 @@ struct SourceShared {
     deviation_model: Option<DeviationModel>,
 }
 
-impl<'a, D, R, P> Source<'a, D, R, P>
+impl<D, R, P> Source<D, R, P>
 where
     D: 'static,
     R: 'static,
@@ -1239,7 +1238,7 @@ where
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new<T, SimD, SimR, SimP>(
-        simulator: &Simulator<'a, T, SimD, SimR, SimP>,
+        simulator: &Simulator<'_, T, SimD, SimR, SimP>,
         source_settings: &SourceSettings,
     ) -> Result<Self, SteamAudioError>
     where
@@ -1279,7 +1278,6 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         };
 
         Ok(source)
@@ -1488,16 +1486,16 @@ where
     }
 }
 
-impl<D, R, P> Drop for Source<'_, D, R, P> {
+impl<D, R, P> Drop for Source<D, R, P> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<D, R, P> Send for Source<'_, D, R, P> {}
-unsafe impl<D, R, P> Sync for Source<'_, D, R, P> {}
+unsafe impl<D, R, P> Send for Source<D, R, P> {}
+unsafe impl<D, R, P> Sync for Source<D, R, P> {}
 
-impl<'a, D, R, P> Clone for Source<'a, D, R, P>
+impl<'a, D, R, P> Clone for Source<D, R, P>
 where
     D: 'static,
     R: 'static,
@@ -1518,7 +1516,6 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
