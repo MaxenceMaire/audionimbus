@@ -1539,7 +1539,7 @@ impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
 }
 
 /// Simulation parameters for a source.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SimulationInputs<'a, D = (), R = (), P = ()> {
     /// The position and orientation of this source.
     source: CoordinateSystem,
@@ -1698,7 +1698,7 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
 }
 
 /// Direct simulation parameters for a source.
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct DirectSimulationParameters {
     /// If `Some`, enables distance attenuation calculations with the specified model.
     pub distance_attenuation: Option<DistanceAttenuationModel>,
@@ -1830,7 +1830,7 @@ pub enum ReflectionsSimulationParameters {
 }
 
 /// Pathing simulation parameters for a source.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PathingSimulationParameters<'a> {
     /// The probe batch within which to find paths from this source to the listener.
     pub pathing_probes: &'a ProbeBatch,
