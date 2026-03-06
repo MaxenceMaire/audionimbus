@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
+
+### Added
+
+- Implement `Clone` for all callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`, `CustomRayTracingCallbacks`).
+
 ## [0.13.0] - 2026-03-04
 
 ### Fixed

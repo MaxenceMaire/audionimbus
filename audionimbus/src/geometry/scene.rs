@@ -50,7 +50,7 @@ struct SceneShared<T: RayTracer> {
     instanced_meshes_to_remove: Vec<InstancedMesh>,
 
     /// Keeps the callback user data alive for custom ray tracers.
-    _callback_user_data: Option<Box<CustomRayTracingUserData>>,
+    _callback_user_data: Option<Arc<CustomRayTracingUserData>>,
 }
 
 impl<T: RayTracer> Default for SceneShared<T> {
@@ -88,7 +88,7 @@ impl<T: RayTracer> Scene<'_, T> {
     fn from_ffi_create(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: Option<Box<CustomRayTracingUserData>>,
+        callback_user_data: Option<Arc<CustomRayTracingUserData>>,
     ) -> Result<Self, SteamAudioError> {
         let mut scene = Self::empty();
         scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
@@ -112,7 +112,7 @@ impl<T: RayTracer> Scene<'_, T> {
     fn from_ffi_load(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: Option<Box<CustomRayTracingUserData>>,
+        callback_user_data: Option<Arc<CustomRayTracingUserData>>,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {

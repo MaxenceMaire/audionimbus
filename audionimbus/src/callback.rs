@@ -3,6 +3,7 @@
 use crate::geometry::{Hit, Ray, Vector3};
 use std::cell::Cell;
 use std::ffi::c_void;
+use std::sync::Arc;
 
 #[cfg(doc)]
 use crate::simulation::Simulator;
@@ -14,17 +15,18 @@ macro_rules! callback {
         $vis:vis $name:ident($($arg:ident: $arg_ty:ty),* $(,)?) $(-> $ret:ty)?
     ) => {
         $(#[$meta])*
+        #[derive(Clone)]
         $vis struct $name {
-            callback: Box<dyn FnMut($($arg_ty),*) $(-> $ret)? + Send>,
+            callback: Arc<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>,
         }
 
         impl $name {
             pub fn new<F>(f: F) -> Self
             where
-                F: FnMut($($arg_ty),*) $(-> $ret)? + Send + 'static,
+                F: Fn($($arg_ty),*) $(-> $ret)? + Send + Sync + 'static,
             {
                 Self {
-                    callback: Box::new(f),
+                    callback: Arc::new(f),
                 }
             }
 
@@ -32,7 +34,7 @@ macro_rules! callback {
                 $($arg: <$arg_ty as $crate::callback::FfiConvert>::FfiType,)*
                 user_data: *mut c_void,
             ) $(-> <$ret as $crate::callback::FfiConvert>::FfiType)? {
-                let callback = &mut *(user_data as *mut Box<dyn FnMut($($arg_ty),*) $(-> $ret)? + Send>);
+                let callback = &*(user_data as *const Arc<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>);
 
                 $(let $arg = <$arg_ty as $crate::callback::FfiConvert>::from_ffi($arg);)*
 
@@ -230,17 +232,18 @@ thread_local! {
 ///
 /// The directivity value to apply, between 0.0 and 1.0.
 /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
+#[derive(Clone)]
 pub struct DirectivityCallback {
-    callback: Box<dyn FnMut(Vector3) -> f32 + Send>,
+    callback: Arc<dyn Fn(Vector3) -> f32 + Send + Sync>,
 }
 
 impl DirectivityCallback {
     pub fn new<F>(f: F) -> Self
     where
-        F: FnMut(Vector3) -> f32 + Send + 'static,
+        F: Fn(Vector3) -> f32 + Send + Sync + 'static,
     {
         Self {
-            callback: Box::new(f),
+            callback: Arc::new(f),
         }
     }
 
@@ -251,7 +254,7 @@ impl DirectivityCallback {
         _user_data: *mut c_void,
     ) -> f32 {
         let callback_ptr = DIRECTIVITY_CALLBACK_PTR.get();
-        let callback = &mut *(callback_ptr as *mut Box<dyn FnMut(Vector3) -> f32 + Send>);
+        let callback = &*(callback_ptr as *const Arc<dyn Fn(Vector3) -> f32 + Send + Sync>);
         let direction = Vector3::from_ffi(direction);
         callback(direction)
     }
@@ -294,6 +297,7 @@ callback! {
 }
 
 /// Callbacks used for a custom ray tracer.
+#[derive(Clone)]
 pub struct CustomRayTracingCallbacks {
     /// Callback for calculating the closest hit along a ray.
     closest_hit_callback: ClosestHitCallback,
@@ -332,18 +336,19 @@ impl CustomRayTracingCallbacks {
     }
 
     /// Returns FFI scene settings with custom callbacks and the user data box.
-    /// The caller must ensure the returned Box<CustomRayTracingUserData> lives as long as the settings are in use.
+    /// The returned `Arc<CustomRayTracingUserData>` must be kept alive for as long as the scene is
+    /// in use.
     pub(crate) fn as_ffi_settings(
         &self,
     ) -> (
         audionimbus_sys::IPLSceneSettings,
-        Box<CustomRayTracingUserData>,
+        Arc<CustomRayTracingUserData>,
     ) {
-        let user_data = Box::new(CustomRayTracingUserData {
-            closest_hit: &self.closest_hit_callback.callback as *const _ as *mut _,
-            any_hit: &self.any_hit_callback.callback as *const _ as *mut _,
-            batched_closest_hit: &self.batched_closest_hit_callback.callback as *const _ as *mut _,
-            batched_any_hit: &self.batched_any_hit_callback.callback as *const _ as *mut _,
+        let user_data = Arc::new(CustomRayTracingUserData {
+            closest_hit: Arc::clone(&self.closest_hit_callback.callback),
+            any_hit: Arc::clone(&self.any_hit_callback.callback),
+            batched_closest_hit: Arc::clone(&self.batched_closest_hit_callback.callback),
+            batched_any_hit: Arc::clone(&self.batched_any_hit_callback.callback),
         });
 
         let user_data_ptr = &*user_data as *const _ as *mut c_void;
@@ -369,18 +374,28 @@ impl CustomRayTracingCallbacks {
     }
 }
 
-type ClosestHitFn = dyn FnMut(Ray, f32, f32) -> Option<Hit> + Send;
-type AnyHitFn = dyn FnMut(Ray, f32, f32) -> bool + Send;
-type BatchedClosestHitFn = dyn FnMut(&[Ray], &[f32], &[f32]) -> Vec<Option<Hit>> + Send;
-type BatchedAnyHitFn = dyn FnMut(&[Ray], &[f32], &[f32]) -> Vec<bool> + Send;
+type ClosestHitFn = dyn Fn(Ray, f32, f32) -> Option<Hit> + Send + Sync;
+type AnyHitFn = dyn Fn(Ray, f32, f32) -> bool + Send + Sync;
+type BatchedClosestHitFn = dyn Fn(&[Ray], &[f32], &[f32]) -> Vec<Option<Hit>> + Send + Sync;
+type BatchedAnyHitFn = dyn Fn(&[Ray], &[f32], &[f32]) -> Vec<bool> + Send + Sync;
 
 /// Internal struct holding pointers to all callback closures.
-#[derive(Debug)]
 pub(crate) struct CustomRayTracingUserData {
-    closest_hit: *mut Box<ClosestHitFn>,
-    any_hit: *mut Box<AnyHitFn>,
-    batched_closest_hit: *mut Box<BatchedClosestHitFn>,
-    batched_any_hit: *mut Box<BatchedAnyHitFn>,
+    closest_hit: Arc<ClosestHitFn>,
+    any_hit: Arc<AnyHitFn>,
+    batched_closest_hit: Arc<BatchedClosestHitFn>,
+    batched_any_hit: Arc<BatchedAnyHitFn>,
+}
+
+impl std::fmt::Debug for CustomRayTracingUserData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomRayTracingUserData")
+            .field("closest_hit", &"<callback>")
+            .field("any_hit", &"<callback>")
+            .field("batched_closest_hit", &"<callback>")
+            .field("batched_any_hit", &"<callback>")
+            .finish()
+    }
 }
 
 /// Callback for calculating the closest hit along a ray.
@@ -400,18 +415,19 @@ pub(crate) struct CustomRayTracingUserData {
 /// # Returns
 ///
 /// Information describing the ray’s intersection with geometry, if any.
+#[derive(Clone)]
 pub struct ClosestHitCallback {
-    callback: Box<ClosestHitFn>,
+    callback: Arc<ClosestHitFn>,
 }
 
 impl ClosestHitCallback {
     /// Creates a new [`ClosestHitCallback`].
     pub fn new<F>(f: F) -> Self
     where
-        F: FnMut(Ray, f32, f32) -> Option<Hit> + Send + 'static,
+        F: Fn(Ray, f32, f32) -> Option<Hit> + Send + Sync + 'static,
     {
         Self {
-            callback: Box::new(f),
+            callback: Arc::new(f),
         }
     }
 
@@ -423,7 +439,7 @@ impl ClosestHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        let callback = &mut *all_callbacks.closest_hit;
+        let callback = &all_callbacks.closest_hit;
         let ray = if ray.is_null() {
             Ray::default()
         } else {
@@ -472,18 +488,19 @@ impl std::fmt::Debug for ClosestHitCallback {
 /// A boolean indicating whether the ray intersects any geometry.
 ///
 /// `false` indicates no intersection, `true` indicates that an intersection exists.
+#[derive(Clone)]
 pub struct AnyHitCallback {
-    callback: Box<AnyHitFn>,
+    callback: Arc<AnyHitFn>,
 }
 
 impl AnyHitCallback {
     /// Creates a new [`AnyHitCallback`].
     pub fn new<F>(f: F) -> Self
     where
-        F: FnMut(Ray, f32, f32) -> bool + Send + 'static,
+        F: Fn(Ray, f32, f32) -> bool + Send + Sync + 'static,
     {
         Self {
-            callback: Box::new(f),
+            callback: Arc::new(f),
         }
     }
 
@@ -495,7 +512,7 @@ impl AnyHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        let callback = &mut *all_callbacks.any_hit;
+        let callback = &all_callbacks.any_hit;
         let ray = if ray.is_null() {
             Ray::default()
         } else {
@@ -533,18 +550,19 @@ impl std::fmt::Debug for AnyHitCallback {
 /// # Returns
 ///
 /// Information describing each ray’s intersection with geometry, if any.
+#[derive(Clone)]
 pub struct BatchedClosestHitCallback {
-    callback: Box<BatchedClosestHitFn>,
+    callback: Arc<BatchedClosestHitFn>,
 }
 
 impl BatchedClosestHitCallback {
     /// Creates a new [`BatchedClosestHitCallback`].
     pub fn new<F>(f: F) -> Self
     where
-        F: FnMut(&[Ray], &[f32], &[f32]) -> Vec<Option<Hit>> + Send + 'static,
+        F: Fn(&[Ray], &[f32], &[f32]) -> Vec<Option<Hit>> + Send + Sync + 'static,
     {
         Self {
-            callback: Box::new(f),
+            callback: Arc::new(f),
         }
     }
 
@@ -557,7 +575,7 @@ impl BatchedClosestHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        let callback = &mut *all_callbacks.batched_closest_hit;
+        let callback = &all_callbacks.batched_closest_hit;
 
         if num_rays <= 0
             || rays.is_null()
@@ -623,18 +641,19 @@ impl std::fmt::Debug for BatchedClosestHitCallback {
 ///
 /// Array of integers indicating, for each ray, whether the ray intersects any geometry.
 /// `false` indicates no intersection, `true` indicates that an intersection exists.
+#[derive(Clone)]
 pub struct BatchedAnyHitCallback {
-    callback: Box<BatchedAnyHitFn>,
+    callback: Arc<BatchedAnyHitFn>,
 }
 
 impl BatchedAnyHitCallback {
     /// Creates a new [`BatchedAnyHitCallback`].
     pub fn new<F>(f: F) -> Self
     where
-        F: FnMut(&[Ray], &[f32], &[f32]) -> Vec<bool> + Send + 'static,
+        F: Fn(&[Ray], &[f32], &[f32]) -> Vec<bool> + Send + Sync + 'static,
     {
         Self {
-            callback: Box::new(f),
+            callback: Arc::new(f),
         }
     }
 
@@ -647,7 +666,7 @@ impl BatchedAnyHitCallback {
         user_data: *mut c_void,
     ) {
         let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
-        let callback = &mut *all_callbacks.batched_any_hit;
+        let callback = &all_callbacks.batched_any_hit;
 
         if num_rays <= 0
             || rays.is_null()
