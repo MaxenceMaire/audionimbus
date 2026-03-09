@@ -13,6 +13,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///
 /// This involves calculating signals to emit from each speaker so as to approximate the Ambisonic sound field.
 ///
+/// `AmbisonicsPanningEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -54,7 +59,7 @@ pub struct AmbisonicsPanningEffect {
 }
 
 impl AmbisonicsPanningEffect {
-    /// Creates a new ambisonics panning effect.
+    /// Creates a new ambisonics panning effect and returns a handle to it.
     ///
     /// # Errors
     ///

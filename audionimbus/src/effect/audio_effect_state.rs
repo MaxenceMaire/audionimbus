@@ -10,7 +10,7 @@
 /// 1. Apply the effect normally while audio is playing using `apply()`
 /// 2. When input stops, call `tail()` repeatedly until it returns [`AudioEffectState::TailComplete`]
 /// 3. Optionally check `tail_size()` to know how many samples remain
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum AudioEffectState {
     /// One or more samples of tail remain in the effect’s internal buffers.
     TailRemaining,

@@ -6,11 +6,16 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Application-wide state for the Embree ray tracer.
 ///
 /// An Embree device must be created before using any of Steam Audio’s Embree ray tracing functionality.
+///
+/// `EmbreeDevice` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct EmbreeDevice(audionimbus_sys::IPLEmbreeDevice);
 
 impl EmbreeDevice {
-    /// Creates a new Embree device for ray tracing.
+    /// Creates a new Embree device for ray tracing and returns a handle to it.
     ///
     /// # Errors
     ///

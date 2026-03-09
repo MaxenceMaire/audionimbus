@@ -15,6 +15,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///
 /// The source audio can be 1- or 2-channel; in either case all input channels are spatialized from the same position.
 ///
+/// `BinauralEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -52,7 +57,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 pub struct BinauralEffect(audionimbus_sys::IPLBinauralEffect);
 
 impl BinauralEffect {
-    /// Creates a new binaural effect.
+    /// Creates a new binaural effect and returns a handle to it.
     ///
     /// # Errors
     ///

@@ -19,6 +19,11 @@ use crate::{ChannelPointers, ChannelRequirement, Hrtf};
 /// After the sources are mixed, the mix can be rendered using virtual surround.
 /// This can reduce CPU usage, at the cost of spatialization accuracy.
 ///
+/// `VirtualSurroundEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -61,7 +66,7 @@ pub struct VirtualSurroundEffect {
 }
 
 impl VirtualSurroundEffect {
-    /// Creates a new virtual surround effect.
+    /// Creates a new virtual surround effect and returns a handle to it.
     ///
     /// # Errors
     ///

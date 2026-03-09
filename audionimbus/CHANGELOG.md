@@ -11,6 +11,7 @@
 - Implement `Clone` for all callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`, `CustomRayTracingCallbacks`).
 - Implement `Clone` for all models (`AirAbsorptionModel`, `DeviationModel`, `Directivity`, `DistanceAttenuationModel`).
 - Implement `Clone` for `SimulationInputs`, `DirectSimulationParameters`, `PathingSimulationParameters`.
+- Implement `Copy`, `Clone` for `AudioEffectState`.
 
 ## [0.13.0] - 2026-03-04
 

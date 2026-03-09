@@ -11,6 +11,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 ///
+/// `DirectEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -51,7 +56,7 @@ pub struct DirectEffect {
 }
 
 impl DirectEffect {
-    /// Creates a new direct effect.
+    /// Creates a new direct effect and returns a handle to it.
     ///
     /// # Errors
     ///

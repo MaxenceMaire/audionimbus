@@ -12,6 +12,11 @@ use std::marker::PhantomData;
 ///
 /// [`StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
 /// belongs to.
+///
+/// `StaticMesh` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct StaticMesh<T> {
     inner: audionimbus_sys::IPLStaticMesh,
@@ -19,7 +24,7 @@ pub struct StaticMesh<T> {
 }
 
 impl<T: RayTracer> StaticMesh<T> {
-    /// Creates a new static mesh.
+    /// Creates a new static mesh and returns a handle to it.
     ///
     /// # Errors
     ///

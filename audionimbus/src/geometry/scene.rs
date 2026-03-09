@@ -26,6 +26,11 @@ impl SaveableAsObj for Embree {}
 /// The scene object itself doesn’t contain any geometry, but is a container for [`StaticMesh`] and [`InstancedMesh`] objects, which do contain geometry.
 ///
 /// [`Scene`] is generic over the [`RayTracer`] implementation.
+///
+/// `Scene` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct Scene<'a, T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
@@ -66,7 +71,7 @@ impl<T: RayTracer> Default for SceneShared<T> {
 }
 
 impl<T: RayTracer> Scene<'_, T> {
-    /// Creates an empty scene.
+    /// Creates an empty scene and returns a handle to it.
     fn empty() -> Self {
         let shared = SceneShared {
             static_meshes: SlotMap::new(),
@@ -84,7 +89,7 @@ impl<T: RayTracer> Scene<'_, T> {
         }
     }
 
-    /// Creates a scene from FFI settings.
+    /// Creates a scene from FFI settings and returns a handle to it.
     fn from_ffi_create(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
@@ -104,7 +109,7 @@ impl<T: RayTracer> Scene<'_, T> {
         Ok(scene)
     }
 
-    /// Loads a scene from FFI settings and serialized object.
+    /// Loads a scene from FFI settings and serialized object and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -145,7 +150,7 @@ impl<T: RayTracer> Scene<'_, T> {
 }
 
 impl Scene<'_, DefaultRayTracer> {
-    /// Creates a new scene.
+    /// Creates a new scene and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -154,7 +159,7 @@ impl Scene<'_, DefaultRayTracer> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(), None)
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -174,7 +179,7 @@ impl Scene<'_, DefaultRayTracer> {
         )
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -211,7 +216,7 @@ impl Scene<'_, DefaultRayTracer> {
 }
 
 impl<'a> Scene<'a, Embree> {
-    /// Creates a new scene with the Embree ray tracer.
+    /// Creates a new scene with the Embree ray tracer and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -223,7 +228,7 @@ impl<'a> Scene<'a, Embree> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(device), None)
     }
 
-    /// Loads a scene from a serialized object using Embree.
+    /// Loads a scene from a serialized object using Embree and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -262,7 +267,8 @@ impl<'a> Scene<'a, Embree> {
         Ok(scene)
     }
 
-    /// Loads a scene from a serialized object using Embree with a progress callback.
+    /// Loads a scene from a serialized object using Embree with a progress callback, and returns a
+    /// handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -300,7 +306,7 @@ impl<'a> Scene<'a, Embree> {
 }
 
 impl<'a> Scene<'a, RadeonRays> {
-    /// Creates a new scene with the Radeon Rays ray tracer.
+    /// Creates a new scene with the Radeon Rays ray tracer and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -312,7 +318,7 @@ impl<'a> Scene<'a, RadeonRays> {
         Self::from_ffi_create(context, &mut Self::ffi_settings(device), None)
     }
 
-    /// Loads a scene from a serialized object using Radeon Rays.
+    /// Loads a scene from a serialized object using Radeon Rays and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -333,7 +339,8 @@ impl<'a> Scene<'a, RadeonRays> {
         )
     }
 
-    /// Loads a scene from a serialized object using Radeon Rays with a progerss callback.
+    /// Loads a scene from a serialized object using Radeon Rays with a progress callback, and
+    /// returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -371,7 +378,7 @@ impl<'a> Scene<'a, RadeonRays> {
 }
 
 impl<'a> Scene<'a, CustomRayTracer> {
-    /// Creates a new scene with a custom ray tracer.
+    /// Creates a new scene with a custom ray tracer and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -384,7 +391,7 @@ impl<'a> Scene<'a, CustomRayTracer> {
         Self::from_ffi_create(context, &mut settings, Some(user_data))
     }
 
-    /// Loads a scene from a serialized object using a custom ray tracer.
+    /// Loads a scene from a serialized object using a custom ray tracer and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -406,7 +413,8 @@ impl<'a> Scene<'a, CustomRayTracer> {
         )
     }
 
-    /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
+    /// Loads a scene from a serialized object using a custom ray tracer with a progress callback,
+    /// and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///

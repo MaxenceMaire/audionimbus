@@ -14,6 +14,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///
 /// This is essentially an ambisonics rotate effect followed by either an ambisonics panning effect or an ambisonics binaural effect.
 ///
+/// `AmbisonicsDecodeEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -69,7 +74,7 @@ pub struct AmbisonicsDecodeEffect {
 }
 
 impl AmbisonicsDecodeEffect {
-    /// Creates a new ambisonics decode effect.
+    /// Creates a new ambisonics decode effect and returns a handle to it.
     ///
     /// # Errors
     ///

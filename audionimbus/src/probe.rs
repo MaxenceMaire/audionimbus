@@ -11,11 +11,16 @@ use std::sync::{Arc, Mutex};
 /// An array of sound probes.
 ///
 /// Each probe has a position and a radius of influence.
+///
+/// `ProbeArray` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct ProbeArray(audionimbus_sys::IPLProbeArray);
 
 impl ProbeArray {
-    /// Creates a new probe array.
+    /// Creates a new probe array and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -191,6 +196,11 @@ impl From<ProbeGenerationParams> for audionimbus_sys::IPLProbeGenerationParams {
 ///
 /// The associated data may include reverb, reflections from a static source position, pathing, and more.
 /// This data is loaded and unloaded as a unit, either from disk or over the network.
+///
+/// `ProbeBatch` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct ProbeBatch {
     inner: audionimbus_sys::IPLProbeBatch,
@@ -208,7 +218,7 @@ struct ProbeBatchShared {
 }
 
 impl ProbeBatch {
-    /// Creates a new probe batch.
+    /// Creates a new probe batch and returns a handle to it.
     ///
     /// # Errors
     ///

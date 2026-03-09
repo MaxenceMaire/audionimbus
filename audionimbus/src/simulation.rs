@@ -62,6 +62,11 @@ pub struct Pathing;
 /// Your application will typically create one simulator object and use it to run simulations with different source and listener parameters between consecutive simulation runs.
 /// The simulator can also be reused across scene changes.
 ///
+/// `Simulator` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// Basic simulation workflow (shown with direct sound; reflections and pathing follow a similar pattern):
@@ -169,7 +174,7 @@ where
     R: 'static,
     P: 'static,
 {
-    /// Creates a new [`Simulator`].
+    /// Creates a new [`Simulator`] and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -1190,6 +1195,11 @@ impl PathingCompatible<()> for () {}
 /// A sound source, for the purposes of simulation.
 ///
 /// This object is used to specify various parameters for direct and indirect sound propagation simulation, and to retrieve the simulation results.
+///
+/// `Source` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct Source<D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSource,
@@ -1229,7 +1239,7 @@ where
     R: 'static,
     P: 'static,
 {
-    /// Creates a new source.
+    /// Creates a new source and returns a handle to it.
     ///
     /// # Errors
     ///

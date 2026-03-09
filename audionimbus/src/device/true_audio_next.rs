@@ -6,11 +6,17 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Application-wide state for the TrueAudio Next convolution engine.
 ///
 /// A TrueAudio Next device must be created before using any of Steam Audio’s TrueAudio Next convolution functionality.
+///
+/// `TrueAudioNextDevice` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug, Eq, PartialEq)]
 pub struct TrueAudioNextDevice(pub(crate) audionimbus_sys::IPLTrueAudioNextDevice);
 
 impl TrueAudioNextDevice {
-    /// Creates a new TrueAudio Next device for GPU-accelerated convolution.
+    /// Creates a new TrueAudio Next device for GPU-accelerated convolution and returns a handle to
+    /// it.
     ///
     /// # Errors
     ///

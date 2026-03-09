@@ -25,6 +25,11 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// Multiple paths that sound can take as it propagates from the source to the listener are combined into an Ambisonic sound field.
 ///
+/// `PathEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// Applying pathing involves:
@@ -190,7 +195,7 @@ pub struct PathEffect {
 }
 
 impl PathEffect {
-    /// Creates a new path effect.
+    /// Creates a new path effect and returns a handle to it.
     ///
     /// # Errors
     ///
