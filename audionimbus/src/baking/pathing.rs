@@ -175,7 +175,7 @@ pub struct PathBakeParams {
 pub mod tests {
     use crate::*;
 
-    fn test_scene(context: &Context) -> Scene<'_, DefaultRayTracer> {
+    fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
         let mut scene = Scene::try_new(context).unwrap();
 
         // Create a simple room mesh.

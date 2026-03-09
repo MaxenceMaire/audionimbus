@@ -85,7 +85,7 @@ impl Clone for InstancedMesh {
 #[derive(Debug, Clone)]
 pub struct InstancedMeshSettings<'a> {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: &'a Scene<'a>,
+    pub sub_scene: &'a Scene,
 
     /// Local-to-world transform that places the instance within the parent scene.
     pub transform: Matrix<f32, 4, 4>,

@@ -12,6 +12,10 @@
 - `PathingSimulationParameters::pathing_probes` is now an owned `ProbeBatch` instead of `&ProbeBatch`.
 - `ReflectionsSimulationSettings::TrueAudioNext` now owns its `OpenClDevice` and `TrueAudioNextDevice` fields instead of borrowing them. As a result, `ReflectionsSimulationSettings` no longer implements `Copy`.
 - Lifetime parameters have been removed from `Simulator`, `SimulationSettings`, `SimulationInputs`, `PathingSimulationParameters`, and `ReflectionsSimulationSettings`.
+- `Scene::try_with_embree`, `Scene::load_embree`, and `Scene::load_embree_with_progress` now take `EmbreeDevice` by value instead of by reference.
+- `Scene::try_with_radeon_rays`, `Scene::load_radeon_rays`, and `Scene::load_radeon_rays_with_progress` now take `RadeonRaysDevice` by value instead of by reference.
+- `Scene::try_with_custom`, `Scene::load_custom`, and `Scene::load_custom_with_progress` now take `CustomRayTracingCallbacks` by value instead of by reference.
+- Lifetime parameters have been removed from `Scene`.
 
 ### Added
 
