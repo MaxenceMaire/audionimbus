@@ -224,7 +224,7 @@ fn test_pathing() {
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
         });
-    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+    let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
     let mut scene = Scene::try_new(&context).unwrap();
     let vertices = vec![
@@ -270,10 +270,10 @@ fn test_pathing() {
         },
     );
 
-    let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
-    probe_batch.add_probe_array(&probe_array);
-    probe_batch.commit();
-    simulator.add_probe_batch(&probe_batch);
+    let mut pathing_probes = ProbeBatch::try_new(&context).unwrap();
+    pathing_probes.add_probe_array(&probe_array);
+    pathing_probes.commit();
+    simulator.add_probe_batch(&pathing_probes);
 
     let path_bake_params = PathBakeParams {
         identifier,
@@ -285,13 +285,13 @@ fn test_pathing() {
         threshold: 0.5,
     };
     PathBaker::new()
-        .bake(&context, &mut probe_batch, &scene, path_bake_params)
+        .bake(&context, &mut pathing_probes, &scene, path_bake_params)
         .unwrap();
 
     let source_settings = SourceSettings {
         flags: SimulationFlags::PATHING,
     };
-    let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+    let mut source = Source::try_new(&simulator, source_settings).unwrap();
     let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
         .with_direct(
             DirectSimulationParameters::new()
@@ -310,7 +310,7 @@ fn test_pathing() {
             baked_data_identifier: None,
         })
         .with_pathing(PathingSimulationParameters {
-            pathing_probes: &probe_batch,
+            pathing_probes,
             visibility_radius: 1.0,
             visibility_threshold: 10.0,
             visibility_range: 10.0,

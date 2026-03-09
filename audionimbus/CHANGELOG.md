@@ -5,6 +5,13 @@
 ### Changed
 
 - All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
+- `Simulator::try_new` now takes `SimulationSettings` by value instead of by reference.
+- `Source::try_new` now takes `SourceSettings` by value instead of by reference.
+- `Source::set_inputs` now takes `SimulationInputs` by value instead of by reference.
+- `SimulationSettings::with_radeon_rays` now takes `OpenClDevice` and `RadeonRaysDevice` by value instead of by reference.
+- `PathingSimulationParameters::pathing_probes` is now an owned `ProbeBatch` instead of `&ProbeBatch`.
+- `ReflectionsSimulationSettings::TrueAudioNext` now owns its `OpenClDevice` and `TrueAudioNextDevice` fields instead of borrowing them. As a result, `ReflectionsSimulationSettings` no longer implements `Copy`.
+- Lifetime parameters have been removed from `Simulator`, `SimulationSettings`, `SimulationInputs`, `PathingSimulationParameters`, and `ReflectionsSimulationSettings`.
 
 ### Added
 
@@ -12,6 +19,7 @@
 - Implement `Clone` for all models (`AirAbsorptionModel`, `DeviationModel`, `Directivity`, `DistanceAttenuationModel`).
 - Implement `Clone` for `SimulationInputs`, `DirectSimulationParameters`, `PathingSimulationParameters`.
 - Implement `Copy`, `Clone` for `AudioEffectState`.
+- Implement `Copy`, `Clone` for `SourceSettings`.
 
 ## [0.13.0] - 2026-03-04
 

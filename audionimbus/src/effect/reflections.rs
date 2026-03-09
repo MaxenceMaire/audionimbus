@@ -185,14 +185,14 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_num_sources: 8,
 ///         num_threads: 2,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, simulation_settings)?;
 ///
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
 ///
 /// let mut source = Source::try_new(
 ///     &simulator,
-///     &SourceSettings {
+///     SourceSettings {
 ///         flags: SimulationFlags::REFLECTIONS,
 ///     },
 /// )?;
@@ -271,7 +271,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_num_sources: 8,
 ///         num_threads: 2,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, simulation_settings)?;
 ///
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
@@ -279,7 +279,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// // Create a reverb source positioned at the listener.
 /// let mut reverb_source = Source::try_new(
 ///     &simulator,
-///     &SourceSettings {
+///     SourceSettings {
 ///         flags: SimulationFlags::REFLECTIONS,
 ///     },
 /// )?;
@@ -1109,7 +1109,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1118,7 +1118,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1190,7 +1190,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1199,7 +1199,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1283,7 +1283,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1292,7 +1292,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1375,7 +1375,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1384,7 +1384,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1468,7 +1468,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1477,7 +1477,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1569,7 +1569,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1578,7 +1578,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1859,7 +1859,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1868,7 +1868,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -1937,7 +1937,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1946,7 +1946,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -2019,7 +2019,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2028,7 +2028,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(
@@ -2097,7 +2097,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2106,7 +2106,7 @@ mod tests {
                     flags: SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<(), Reflections, ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
                 let simulation_shared_inputs = SimulationSharedInputs::new(

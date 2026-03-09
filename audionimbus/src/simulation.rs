@@ -83,7 +83,7 @@ pub struct Pathing;
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, &settings)?;
+/// let mut simulator = Simulator::try_new(&context, settings)?;
 ///
 /// // Set up a scene.
 /// let scene = Scene::try_new(&context)?;
@@ -97,7 +97,7 @@ pub struct Pathing;
 /// let source_settings = SourceSettings {
 ///     flags: SimulationFlags::DIRECT,
 /// };
-/// let mut source = Source::try_new(&simulator, &source_settings)?;
+/// let mut source = Source::try_new(&simulator, source_settings)?;
 ///
 /// simulator.add_source(&source);
 ///
@@ -119,7 +119,7 @@ pub struct Pathing;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
+pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSimulator,
     shared: Arc<Mutex<SimulatorShared>>,
 
@@ -141,9 +141,9 @@ pub struct Simulator<'a, T: RayTracer, D = (), R = (), P = ()> {
     /// Synchronization lock for pathing simulation operations.
     pathing_lock: Option<Arc<Mutex<()>>>,
 
-    _open_cl_device: Option<&'a OpenClDevice>,
-    _radeon_rays_device: Option<&'a RadeonRaysDevice>,
-    _true_audio_next_device: Option<&'a TrueAudioNextDevice>,
+    _open_cl_device: Option<OpenClDevice>,
+    _radeon_rays_device: Option<RadeonRaysDevice>,
+    _true_audio_next_device: Option<TrueAudioNextDevice>,
     _ray_tracer: PhantomData<T>,
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -167,7 +167,7 @@ struct SimulatorShared {
     has_pending_scene: bool,
 }
 
-impl<'a, T, D, R, P> Simulator<'a, T, D, R, P>
+impl<T, D, R, P> Simulator<T, D, R, P>
 where
     T: RayTracer,
     D: 'static,
@@ -199,12 +199,12 @@ where
     ///     .with_pathing(PathingSimulationSettings {
     ///         num_visibility_samples: 4,
     ///     });
-    /// let simulator = Simulator::try_new(&context, &settings)?;
+    /// let simulator = Simulator::try_new(&context, settings)?;
     /// # Ok::<(), audionimbus::SteamAudioError>(())
     /// ```
     pub fn try_new(
         context: &Context,
-        settings: &SimulationSettings<'a, T, D, R, P>,
+        settings: SimulationSettings<T, D, R, P>,
     ) -> Result<Self, SteamAudioError> {
         let direct_lock = if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
             Some(Arc::new(Mutex::new(())))
@@ -225,6 +225,8 @@ where
             None
         };
 
+        let mut ffi_settings = settings.to_ffi();
+
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
             // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `Simulator`.
@@ -236,9 +238,9 @@ where
             direct_lock,
             reflections_lock,
             pathing_lock,
-            _open_cl_device: settings._open_cl_device,
-            _radeon_rays_device: settings._radeon_rays_device,
-            _true_audio_next_device: settings._true_audio_next_device,
+            _open_cl_device: settings.open_cl_device,
+            _radeon_rays_device: settings.radeon_rays_device,
+            _true_audio_next_device: settings.true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -248,7 +250,7 @@ where
         let status = unsafe {
             audionimbus_sys::iplSimulatorCreate(
                 context.raw_ptr(),
-                &mut settings.to_ffi(),
+                &mut ffi_settings,
                 simulator.raw_ptr_mut(),
             )
         };
@@ -469,7 +471,7 @@ where
     }
 }
 
-impl<T, R, P> Simulator<'_, T, Direct, R, P>
+impl<T, R, P> Simulator<T, Direct, R, P>
 where
     T: RayTracer,
     R: 'static,
@@ -497,7 +499,7 @@ where
     }
 }
 
-impl<T, D, P> Simulator<'_, T, D, Reflections, P>
+impl<T, D, P> Simulator<T, D, Reflections, P>
 where
     T: RayTracer,
     D: 'static,
@@ -538,7 +540,7 @@ where
     }
 }
 
-impl<T, D, R> Simulator<'_, T, D, R, Pathing>
+impl<T, D, R> Simulator<T, D, R, Pathing>
 where
     T: RayTracer,
     D: 'static,
@@ -579,16 +581,16 @@ where
     }
 }
 
-impl<T: RayTracer, D, R, P> Drop for Simulator<'_, T, D, R, P> {
+impl<T: RayTracer, D, R, P> Drop for Simulator<T, D, R, P> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSimulatorRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer, D, R, P> Send for Simulator<'_, T, D, R, P> {}
-unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<'_, T, D, R, P> {}
+unsafe impl<T: RayTracer, D, R, P> Send for Simulator<T, D, R, P> {}
+unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<T, D, R, P> {}
 
-impl<'a, T, D, R, P> Clone for Simulator<'a, T, D, R, P>
+impl<T, D, R, P> Clone for Simulator<T, D, R, P>
 where
     T: RayTracer,
     D: 'static,
@@ -609,9 +611,9 @@ where
             direct_lock: self.direct_lock.clone(),
             reflections_lock: self.reflections_lock.clone(),
             pathing_lock: self.pathing_lock.clone(),
-            _open_cl_device: self._open_cl_device,
-            _radeon_rays_device: self._radeon_rays_device,
-            _true_audio_next_device: self._true_audio_next_device,
+            _open_cl_device: self._open_cl_device.clone(),
+            _radeon_rays_device: self._radeon_rays_device.clone(),
+            _true_audio_next_device: self._true_audio_next_device.clone(),
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -642,20 +644,19 @@ where
 ///     });
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
-#[derive(Debug)]
-pub struct SimulationSettings<'a, T: RayTracer, D = (), R = (), P = ()> {
+#[derive(Clone, Debug)]
+pub struct SimulationSettings<T: RayTracer, D = (), R = (), P = ()> {
     settings: audionimbus_sys::IPLSimulationSettings,
-    _open_cl_device: Option<&'a OpenClDevice>,
-    _radeon_rays_device: Option<&'a RadeonRaysDevice>,
-    _true_audio_next_device: Option<&'a TrueAudioNextDevice>,
+    open_cl_device: Option<OpenClDevice>,
+    radeon_rays_device: Option<RadeonRaysDevice>,
+    true_audio_next_device: Option<TrueAudioNextDevice>,
     _ray_tracer: PhantomData<T>,
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
-    _lifetime: PhantomData<&'a ()>,
 }
 
-impl SimulationSettings<'_, DefaultRayTracer, (), (), ()> {
+impl SimulationSettings<DefaultRayTracer, (), (), ()> {
     /// Creates new simulation settings with all simulations disabled by default.
     pub const fn new(sampling_rate: u32, frame_size: u32, max_order: u32) -> Self {
         let settings = audionimbus_sys::IPLSimulationSettings {
@@ -681,40 +682,38 @@ impl SimulationSettings<'_, DefaultRayTracer, (), (), ()> {
 
         Self {
             settings,
-            _open_cl_device: None,
-            _radeon_rays_device: None,
-            _true_audio_next_device: None,
+            open_cl_device: None,
+            radeon_rays_device: None,
+            true_audio_next_device: None,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
+impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
     /// Switches to the Embree ray tracer.
-    pub fn with_embree(self) -> SimulationSettings<'a, Embree, (), (), ()> {
+    pub fn with_embree(self) -> SimulationSettings<Embree, (), (), ()> {
         let Self {
             mut settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             ..
         } = self;
         settings.sceneType = Embree::scene_type();
 
         SimulationSettings {
             settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 
@@ -726,12 +725,12 @@ impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
     /// - `radeon_rays_device`: The Radeon Rays device to use.
     pub fn with_radeon_rays(
         self,
-        open_cl_device: &'a OpenClDevice,
-        radeon_rays_device: &'a RadeonRaysDevice,
-    ) -> SimulationSettings<'a, RadeonRays, (), (), ()> {
+        open_cl_device: OpenClDevice,
+        radeon_rays_device: RadeonRaysDevice,
+    ) -> SimulationSettings<RadeonRays, (), (), ()> {
         let Self {
             mut settings,
-            _true_audio_next_device,
+            true_audio_next_device,
             ..
         } = self;
         settings.sceneType = RadeonRays::scene_type();
@@ -740,14 +739,13 @@ impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
 
         SimulationSettings {
             settings,
-            _open_cl_device: Some(open_cl_device),
-            _radeon_rays_device: Some(radeon_rays_device),
-            _true_audio_next_device,
+            open_cl_device: Some(open_cl_device),
+            radeon_rays_device: Some(radeon_rays_device),
+            true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 
@@ -759,12 +757,12 @@ impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
     pub fn with_custom_ray_tracer(
         self,
         ray_batch_size: u32,
-    ) -> SimulationSettings<'a, CustomRayTracer, (), (), ()> {
+    ) -> SimulationSettings<CustomRayTracer, (), (), ()> {
         let Self {
             mut settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             ..
         } = self;
         settings.sceneType = CustomRayTracer::scene_type();
@@ -772,33 +770,31 @@ impl<'a, D, R, P> SimulationSettings<'a, DefaultRayTracer, D, R, P> {
 
         SimulationSettings {
             settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
+impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
     /// Enables direct simulation.
     pub fn with_direct(
         self,
         direct_settings: DirectSimulationSettings,
-    ) -> SimulationSettings<'a, T, Direct, R, P> {
+    ) -> SimulationSettings<T, Direct, R, P> {
         let Self {
             mut settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer,
             _reflections,
             _pathing,
-            _lifetime,
             ..
         } = self;
 
@@ -807,31 +803,29 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
 
         SimulationSettings {
             settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer,
             _direct: PhantomData,
             _reflections,
             _pathing,
-            _lifetime,
         }
     }
 
     /// Enables reflections simulation.
     pub fn with_reflections(
         self,
-        reflections_settings: ReflectionsSimulationSettings<'static>,
-    ) -> SimulationSettings<'a, T, D, Reflections, P> {
+        reflections_settings: ReflectionsSimulationSettings,
+    ) -> SimulationSettings<T, D, Reflections, P> {
         let Self {
             mut settings,
-            mut _open_cl_device,
-            _radeon_rays_device,
-            mut _true_audio_next_device,
+            mut open_cl_device,
+            radeon_rays_device,
+            mut true_audio_next_device,
             _ray_tracer,
             _direct,
             _pathing,
-            _lifetime,
             ..
         } = self;
 
@@ -893,13 +887,13 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
                 max_duration,
                 max_num_sources,
                 num_threads,
-                open_cl_device,
-                true_audio_next_device,
+                open_cl_device: ocl_device,
+                true_audio_next_device: tan_device,
             } => {
-                settings.openCLDevice = open_cl_device.raw_ptr();
-                settings.tanDevice = true_audio_next_device.raw_ptr();
-                _open_cl_device = Some(open_cl_device);
-                _true_audio_next_device = Some(true_audio_next_device);
+                settings.openCLDevice = ocl_device.raw_ptr();
+                settings.tanDevice = tan_device.raw_ptr();
+                open_cl_device = Some(ocl_device);
+                true_audio_next_device = Some(tan_device);
 
                 (
                     audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN,
@@ -921,14 +915,13 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
 
         SimulationSettings {
             settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer,
             _direct,
             _reflections: PhantomData,
             _pathing,
-            _lifetime,
         }
     }
 
@@ -936,16 +929,15 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
     pub fn with_pathing(
         self,
         pathing_settings: PathingSimulationSettings,
-    ) -> SimulationSettings<'a, T, D, R, Pathing> {
+    ) -> SimulationSettings<T, D, R, Pathing> {
         let Self {
             mut settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer,
             _direct,
             _reflections,
-            _lifetime,
             ..
         } = self;
 
@@ -954,14 +946,13 @@ impl<'a, T: RayTracer, D, R, P> SimulationSettings<'a, T, D, R, P> {
 
         SimulationSettings {
             settings,
-            _open_cl_device,
-            _radeon_rays_device,
-            _true_audio_next_device,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
             _ray_tracer,
             _direct,
             _reflections,
             _pathing: PhantomData,
-            _lifetime,
         }
     }
 
@@ -1016,8 +1007,8 @@ pub struct DirectSimulationSettings {
 }
 
 /// Settings used for reflections simulation.
-#[derive(Debug, Copy, Clone)]
-pub enum ReflectionsSimulationSettings<'a> {
+#[derive(Debug, Clone)]
+pub enum ReflectionsSimulationSettings {
     /// Multi-channel convolution reverb.
     Convolution {
         /// The maximum number of rays to trace from the listener when simulating reflections.
@@ -1110,10 +1101,10 @@ pub enum ReflectionsSimulationSettings<'a> {
         num_threads: u32,
 
         /// The OpenCL device being used.
-        open_cl_device: &'a OpenClDevice,
+        open_cl_device: OpenClDevice,
 
         /// The TrueAudio Next device being used.
-        true_audio_next_device: &'a TrueAudioNextDevice,
+        true_audio_next_device: TrueAudioNextDevice,
     },
 }
 
@@ -1231,6 +1222,10 @@ struct SourceShared {
     /// Stored deviation model to keep `callback` and `user_data` alive.
     /// Only used when pathing simulation is enabled.
     deviation_model: Option<DeviationModel>,
+
+    /// When pathing is enabled, a reference to the probe batch within which to find paths.
+    /// It keeps the probe batch alive as long as the source is alive.
+    _pathing_probes: Option<ProbeBatch>,
 }
 
 impl<D, R, P> Source<D, R, P>
@@ -1245,8 +1240,8 @@ where
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new<T, SimD, SimR, SimP>(
-        simulator: &Simulator<'_, T, SimD, SimR, SimP>,
-        source_settings: &SourceSettings,
+        simulator: &Simulator<T, SimD, SimR, SimP>,
+        source_settings: SourceSettings,
     ) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
@@ -1318,7 +1313,7 @@ where
     pub fn set_inputs(
         &mut self,
         simulation_flags: SimulationFlags,
-        inputs: SimulationInputs<'_, D, R, P>,
+        inputs: SimulationInputs<D, R, P>,
     ) -> Result<(), ParameterValidationError> {
         Self::validate_flags(simulation_flags);
 
@@ -1326,9 +1321,11 @@ where
 
         let mut ffi_inputs = inputs.to_ffi();
 
-        if let Some(pathing_params) = inputs.pathing_simulation {
-            self.shared.lock().unwrap().deviation_model = Some(pathing_params.deviation);
-        }
+        let mut shared = self.shared.lock().unwrap();
+        (shared.deviation_model, shared._pathing_probes) = inputs
+            .pathing_simulation
+            .map(|p| (Some(p.deviation), Some(p.pathing_probes)))
+            .unwrap_or_default();
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
@@ -1446,7 +1443,7 @@ where
     /// Validates simulation parameters against the limits set during simulator initialization.
     fn validate_inputs(
         &self,
-        inputs: &SimulationInputs<'_, D, R, P>,
+        inputs: &SimulationInputs<D, R, P>,
     ) -> Result<(), ParameterValidationError> {
         let Some(direct_params) = &inputs.direct_simulation else {
             return Ok(());
@@ -1528,14 +1525,14 @@ where
 }
 
 /// Settings used to create a source.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct SourceSettings {
     /// The types of simulation that may be run for this source.
     pub flags: SimulationFlags,
 }
 
-impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
-    fn from(settings: &SourceSettings) -> Self {
+impl From<SourceSettings> for audionimbus_sys::IPLSourceSettings {
+    fn from(settings: SourceSettings) -> Self {
         Self {
             flags: settings.flags.into(),
         }
@@ -1544,7 +1541,7 @@ impl From<&SourceSettings> for audionimbus_sys::IPLSourceSettings {
 
 /// Simulation parameters for a source.
 #[derive(Clone, Debug)]
-pub struct SimulationInputs<'a, D = (), R = (), P = ()> {
+pub struct SimulationInputs<D = (), R = (), P = ()> {
     /// The position and orientation of this source.
     source: CoordinateSystem,
 
@@ -1555,14 +1552,14 @@ pub struct SimulationInputs<'a, D = (), R = (), P = ()> {
     reflections_simulation: Option<ReflectionsSimulationParameters>,
 
     /// If `Some`, enables pathing simulation.
-    pathing_simulation: Option<PathingSimulationParameters<'a>>,
+    pathing_simulation: Option<PathingSimulationParameters>,
 
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
 }
 
-impl SimulationInputs<'_> {
+impl SimulationInputs {
     /// Crates new [`SimulationInputs`] with all simulations disabled by default.
     pub fn new(source: CoordinateSystem) -> Self {
         Self {
@@ -1577,12 +1574,9 @@ impl SimulationInputs<'_> {
     }
 }
 
-impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
+impl<D, R, P> SimulationInputs<D, R, P> {
     /// Enables direct simulation with the specified parameters.
-    pub fn with_direct(
-        self,
-        params: DirectSimulationParameters,
-    ) -> SimulationInputs<'a, Direct, R, P> {
+    pub fn with_direct(self, params: DirectSimulationParameters) -> SimulationInputs<Direct, R, P> {
         let Self {
             source,
             reflections_simulation,
@@ -1607,7 +1601,7 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
     pub fn with_reflections(
         self,
         params: ReflectionsSimulationParameters,
-    ) -> SimulationInputs<'a, D, Reflections, P> {
+    ) -> SimulationInputs<D, Reflections, P> {
         let Self {
             source,
             direct_simulation,
@@ -1631,8 +1625,8 @@ impl<'a, D, R, P> SimulationInputs<'a, D, R, P> {
     /// Enables pathing simulation with the specified parameters.
     pub fn with_pathing(
         self,
-        params: PathingSimulationParameters<'a>,
-    ) -> SimulationInputs<'a, D, R, Pathing> {
+        params: PathingSimulationParameters,
+    ) -> SimulationInputs<D, R, Pathing> {
         let Self {
             source,
             direct_simulation,
@@ -1835,9 +1829,9 @@ pub enum ReflectionsSimulationParameters {
 
 /// Pathing simulation parameters for a source.
 #[derive(Clone, Debug)]
-pub struct PathingSimulationParameters<'a> {
+pub struct PathingSimulationParameters {
     /// The probe batch within which to find paths from this source to the listener.
-    pub pathing_probes: &'a ProbeBatch,
+    pub pathing_probes: ProbeBatch,
 
     /// When testing for mutual visibility between a pair of probes, each probe is treated as a sphere of this radius (in meters), and point samples are generated within this sphere.
     pub visibility_radius: f32,
@@ -2555,7 +2549,7 @@ mod tests {
                             max_num_occlusion_samples: 4,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2564,7 +2558,7 @@ mod tests {
                     flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
                 };
                 let mut source =
-                    Source::<Direct, (), ()>::try_new(&simulator, &source_settings).unwrap();
+                    Source::<Direct, (), ()>::try_new(&simulator, source_settings).unwrap();
 
                 let simulation_inputs = SimulationInputs::new(CoordinateSystem {
                     right: Vector3::new(1.0, 0.0, 0.0),
@@ -2611,7 +2605,7 @@ mod tests {
                             max_num_occlusion_samples: 4,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2619,7 +2613,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
                 };
-                let mut source = Source::try_new(&simulator, &source_settings).unwrap();
+                let mut source = Source::try_new(&simulator, source_settings).unwrap();
 
                 let simulation_inputs = SimulationInputs::new(CoordinateSystem {
                     right: Vector3::new(1.0, 0.0, 0.0),
@@ -2656,11 +2650,11 @@ mod tests {
             fn test_clone() {
                 let context = Context::default();
                 let simulator_settings = SimulationSettings::new(48_000, 1024, 1);
-                let simulator = Simulator::try_new(&context, &simulator_settings).unwrap();
+                let simulator = Simulator::try_new(&context, simulator_settings).unwrap();
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::empty(),
                 };
-                let source = Source::<(), (), ()>::try_new(&simulator, &source_settings).unwrap();
+                let source = Source::<(), (), ()>::try_new(&simulator, source_settings).unwrap();
                 let clone = source.clone();
                 assert_eq!(source.raw_ptr(), clone.raw_ptr());
                 drop(source);
@@ -2676,7 +2670,7 @@ mod tests {
         fn test_simulator_clone() {
             let context = Context::default();
             let settings = SimulationSettings::new(48_000, 1024, 1);
-            let simulator = Simulator::try_new(&context, &settings).unwrap();
+            let simulator = Simulator::try_new(&context, settings).unwrap();
             let clone = simulator.clone();
             assert_eq!(simulator.raw_ptr(), clone.raw_ptr());
             drop(simulator);

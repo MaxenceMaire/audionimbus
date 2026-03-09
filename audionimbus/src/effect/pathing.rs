@@ -62,7 +62,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     .with_pathing(PathingSimulationSettings {
 ///         num_visibility_samples: 4,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, simulation_settings)?;
 ///
 /// let mut scene = Scene::try_new(&context)?;
 /// let vertices = vec![
@@ -128,7 +128,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let source_settings = SourceSettings {
 ///     flags: SimulationFlags::PATHING,
 /// };
-/// let mut source = Source::try_new(&simulator, &source_settings)?;
+/// let mut source = Source::try_new(&simulator, source_settings)?;
 /// let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
 ///     .with_direct(
 ///         DirectSimulationParameters::new()
@@ -147,7 +147,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         baked_data_identifier: None,
 ///     })
 ///     .with_pathing(PathingSimulationParameters {
-///         pathing_probes: &probe_batch,
+///         pathing_probes: probe_batch,
 ///         visibility_radius: 1.0,
 ///         visibility_threshold: 10.0,
 ///         visibility_range: 10.0,

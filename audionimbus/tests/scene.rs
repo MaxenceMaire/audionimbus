@@ -200,7 +200,7 @@ pub fn test_baking() {
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
         });
-    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+    let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
 
     let scene = Scene::try_new(&context).unwrap();
     simulator.set_scene(&scene);
