@@ -1,11 +1,13 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
-use crate::callback::{CustomRayTracingCallbacks, CustomRayTracingUserData, ProgressCallback};
+use crate::callback::{CustomRayTracingCallbacks, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Direction, Point};
-use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
+use crate::ray_tracing::{
+    CustomCallbackUserData, CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer,
+};
 use crate::serialized_object::SerializedObject;
 use crate::Sealed;
 use slotmap::{DefaultKey, SlotMap};
@@ -53,36 +55,32 @@ struct SceneShared<T: RayTracer> {
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh>,
 
-    /// Keeps the Embree device alive for the lifetime of the scene.
-    _embree_device: Option<EmbreeDevice>,
-
-    /// Keeps the Radeon Rays device alive for the lifetime of the scene.
-    _radeon_rays_device: Option<RadeonRaysDevice>,
+    /// Keeps the device alive for the lifetime of the scene.
+    _device: T::Device,
 
     /// Keeps the callback user data alive for custom ray tracers.
-    _callback_user_data: Option<Arc<CustomRayTracingUserData>>,
+    _callback_user_data: T::CallbackUserData,
 }
 
-impl<T: RayTracer> Default for SceneShared<T> {
-    fn default() -> Self {
+impl<T: RayTracer> SceneShared<T> {
+    fn new(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
         Self {
             static_meshes: SlotMap::new(),
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
-            _embree_device: None,
-            _radeon_rays_device: None,
-            _callback_user_data: None,
+            _device: device,
+            _callback_user_data: callback_user_data,
         }
     }
 }
 
 impl<T: RayTracer> Scene<T> {
-    /// Creates an empty scene and returns a handle to it.
-    fn empty() -> Self {
+    /// Creates an empty scene with the specified device and returns a handle to it.
+    fn empty(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
         Self {
             inner: std::ptr::null_mut(),
-            shared: Arc::new(Mutex::new(SceneShared::default())),
+            shared: Arc::new(Mutex::new(SceneShared::new(device, callback_user_data))),
             _marker: PhantomData,
         }
     }
@@ -91,10 +89,10 @@ impl<T: RayTracer> Scene<T> {
     fn from_ffi_create(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: Option<Arc<CustomRayTracingUserData>>,
+        callback_user_data: T::CallbackUserData,
+        device: T::Device,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self::empty();
-        scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
+        let mut scene = Self::empty(device, callback_user_data);
 
         let status = unsafe {
             audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, scene.raw_ptr_mut())
@@ -115,12 +113,12 @@ impl<T: RayTracer> Scene<T> {
     fn from_ffi_load(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: Option<Arc<CustomRayTracingUserData>>,
+        callback_user_data: T::CallbackUserData,
+        device: T::Device,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self::empty();
-        scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
+        let mut scene = Self::empty(device, callback_user_data);
 
         let (callback_fn, user_data) =
             progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
@@ -154,7 +152,7 @@ impl Scene<DefaultRayTracer> {
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(), None)
+        Self::from_ffi_create(context, &mut Self::ffi_settings(), (), ())
     }
 
     /// Loads a scene from a serialized object and returns a handle to it.
@@ -171,7 +169,8 @@ impl Scene<DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
-            None,
+            (),
+            (),
             serialized_object,
             None,
         )
@@ -192,7 +191,8 @@ impl Scene<DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
-            None,
+            (),
+            (),
             serialized_object,
             Some(progress_callback),
         )
@@ -223,8 +223,7 @@ impl Scene<Embree> {
         context: &Context,
         device: EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
-        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), None)?;
-        scene.shared.lock().unwrap()._embree_device = Some(device);
+        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), (), device)?;
         Ok(scene)
     }
 
@@ -243,11 +242,11 @@ impl Scene<Embree> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            None,
+            (),
+            device,
             serialized_object,
             None,
         )?;
-        scene.shared.lock().unwrap()._embree_device = Some(device);
         Ok(scene)
     }
 
@@ -268,11 +267,11 @@ impl Scene<Embree> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            None,
+            (),
+            device,
             serialized_object,
             Some(progress_callback),
         )?;
-        scene.shared.lock().unwrap()._embree_device = Some(device);
         Ok(scene)
     }
 
@@ -301,8 +300,7 @@ impl Scene<RadeonRays> {
         context: &Context,
         device: RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
-        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), None)?;
-        scene.shared.lock().unwrap()._radeon_rays_device = Some(device);
+        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), (), device)?;
         Ok(scene)
     }
 
@@ -321,11 +319,11 @@ impl Scene<RadeonRays> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            None,
+            (),
+            device,
             serialized_object,
             None,
         )?;
-        scene.shared.lock().unwrap()._radeon_rays_device = Some(device);
         Ok(scene)
     }
 
@@ -346,11 +344,11 @@ impl Scene<RadeonRays> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            None,
+            (),
+            device,
             serialized_object,
             Some(progress_callback),
         )?;
-        scene.shared.lock().unwrap()._radeon_rays_device = Some(device);
         Ok(scene)
     }
 
@@ -380,7 +378,12 @@ impl Scene<CustomRayTracer> {
         callbacks: CustomRayTracingCallbacks,
     ) -> Result<Self, SteamAudioError> {
         let (mut settings, user_data) = callbacks.as_ffi_settings();
-        Self::from_ffi_create(context, &mut settings, Some(user_data))
+        Self::from_ffi_create(
+            context,
+            &mut settings,
+            CustomCallbackUserData(user_data),
+            (),
+        )
     }
 
     /// Loads a scene from a serialized object using a custom ray tracer and returns a handle to it.
@@ -399,7 +402,8 @@ impl Scene<CustomRayTracer> {
         Self::from_ffi_load(
             context,
             &mut settings,
-            Some(user_data),
+            CustomCallbackUserData(user_data),
+            (),
             serialized_object,
             None,
         )
@@ -423,7 +427,8 @@ impl Scene<CustomRayTracer> {
         Self::from_ffi_load(
             context,
             &mut settings,
-            Some(user_data),
+            CustomCallbackUserData(user_data),
+            (),
             serialized_object,
             Some(progress_callback),
         )

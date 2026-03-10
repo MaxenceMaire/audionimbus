@@ -1,6 +1,10 @@
 //! Ray tracing implementations.
 
+use crate::callback::CustomRayTracingUserData;
+use crate::device::{EmbreeDevice, RadeonRaysDevice};
 use crate::Sealed;
+use std::fmt::Debug;
+use std::sync::Arc;
 
 /// Steam Audio’s built-in ray tracer.
 ///
@@ -43,30 +47,55 @@ impl Sealed for CustomRayTracer {}
 /// - [`RadeonRays`]: The AMD Radeon Rays ray tracer
 /// - [`CustomRayTracer`]: Allows you to specify callbacks to your own ray tracer
 pub trait RayTracer: Sealed {
+    type Device: Debug + Send + Sync;
+    type CallbackUserData: Debug + Send + Sync;
+
     /// Returns the FFI scene type for this ray tracer implementation.
     fn scene_type() -> audionimbus_sys::IPLSceneType;
 }
 
 impl RayTracer for DefaultRayTracer {
+    type Device = ();
+    type CallbackUserData = ();
+
     fn scene_type() -> audionimbus_sys::IPLSceneType {
         audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT
     }
 }
 
 impl RayTracer for Embree {
+    type Device = EmbreeDevice;
+    type CallbackUserData = ();
+
     fn scene_type() -> audionimbus_sys::IPLSceneType {
         audionimbus_sys::IPLSceneType::IPL_SCENETYPE_EMBREE
     }
 }
 
 impl RayTracer for RadeonRays {
+    type Device = RadeonRaysDevice;
+    type CallbackUserData = ();
+
     fn scene_type() -> audionimbus_sys::IPLSceneType {
         audionimbus_sys::IPLSceneType::IPL_SCENETYPE_RADEONRAYS
     }
 }
 
 impl RayTracer for CustomRayTracer {
+    type Device = ();
+    type CallbackUserData = CustomCallbackUserData;
+
     fn scene_type() -> audionimbus_sys::IPLSceneType {
         audionimbus_sys::IPLSceneType::IPL_SCENETYPE_CUSTOM
     }
 }
+
+/// Callback user data used with a custom ray tracer.
+#[derive(Debug)]
+pub struct CustomCallbackUserData(
+    /// Never read directly.
+    /// Held here so that the underlying data is not freed, since the FFI layer holds a raw pointer
+    /// to it.
+    #[allow(dead_code)]
+    pub(crate) Arc<CustomRayTracingUserData>,
+);
