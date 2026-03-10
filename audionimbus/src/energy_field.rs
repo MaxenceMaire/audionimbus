@@ -14,11 +14,16 @@ use crate::NUM_BANDS;
 /// For a given frequency band and time bin, we store an Ambisonic representation of the variation of incident energy as a function of direction.
 ///
 /// Energy field data is stored as a 3D array of size #channels * #bands * #bins, in row-major order.
+///
+/// `EnergyField` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct EnergyField(pub(crate) audionimbus_sys::IPLEnergyField);
 
 impl EnergyField {
-    /// Creates a new energy field.
+    /// Creates a new energy field and returns a handle to it.
     ///
     /// # Errors
     ///

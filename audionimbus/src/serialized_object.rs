@@ -9,11 +9,16 @@ use crate::probe::ProbeBatch;
 /// A serialized representation of an API object, like a [`Scene`] or [`ProbeBatch`].
 ///
 /// Create an empty serialized object if you want to serialize an existing object to a byte array, or create a serialized object that wraps an existing byte array if you want to deserialize it.
+///
+/// `SerializedObject` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct SerializedObject(pub(crate) audionimbus_sys::IPLSerializedObject);
 
 impl SerializedObject {
-    /// Creates a new empty serialized object for serialization purposes.
+    /// Creates a new empty serialized object for serialization purposes and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -36,7 +41,8 @@ impl SerializedObject {
         Self::try_with_settings(context, serialized_object_settings)
     }
 
-    /// Creates a serialized object that wraps an existing byte buffer for deserialization.
+    /// Creates a serialized object that wraps an existing byte buffer for deserialization and
+    /// returns a handle to it.
     ///
     /// # Errors
     ///
@@ -64,7 +70,7 @@ impl SerializedObject {
         Self::try_with_settings(context, serialized_object_settings)
     }
 
-    /// Creates a serialized object with the given settings.
+    /// Creates a serialized object with the given settings and returns a handle to it.
     ///
     /// # Errors
     ///

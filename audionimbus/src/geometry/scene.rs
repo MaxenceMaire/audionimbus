@@ -1,11 +1,13 @@
 use super::{InstancedMesh, Matrix, StaticMesh};
-use crate::callback::{CustomRayTracingCallbacks, CustomRayTracingUserData, ProgressCallback};
+use crate::callback::{CustomRayTracingCallbacks, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{Direction, Point};
-use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
+use crate::ray_tracing::{
+    CustomCallbackUserData, CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer,
+};
 use crate::serialized_object::SerializedObject;
 use crate::Sealed;
 use slotmap::{DefaultKey, SlotMap};
@@ -26,11 +28,15 @@ impl SaveableAsObj for Embree {}
 /// The scene object itself doesn’t contain any geometry, but is a container for [`StaticMesh`] and [`InstancedMesh`] objects, which do contain geometry.
 ///
 /// [`Scene`] is generic over the [`RayTracer`] implementation.
+///
+/// `Scene` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
-pub struct Scene<'a, T: RayTracer = DefaultRayTracer> {
+pub struct Scene<T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
     shared: Arc<Mutex<SceneShared<T>>>,
-    _ray_tracing_device: PhantomData<&'a ()>,
     _marker: PhantomData<T>,
 }
 
@@ -49,49 +55,44 @@ struct SceneShared<T: RayTracer> {
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh>,
 
+    /// Keeps the device alive for the lifetime of the scene.
+    _device: T::Device,
+
     /// Keeps the callback user data alive for custom ray tracers.
-    _callback_user_data: Option<Arc<CustomRayTracingUserData>>,
+    _callback_user_data: T::CallbackUserData,
 }
 
-impl<T: RayTracer> Default for SceneShared<T> {
-    fn default() -> Self {
+impl<T: RayTracer> SceneShared<T> {
+    fn new(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
         Self {
             static_meshes: SlotMap::new(),
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
-            _callback_user_data: None,
+            _device: device,
+            _callback_user_data: callback_user_data,
         }
     }
 }
 
-impl<T: RayTracer> Scene<'_, T> {
-    /// Creates an empty scene.
-    fn empty() -> Self {
-        let shared = SceneShared {
-            static_meshes: SlotMap::new(),
-            instanced_meshes: SlotMap::new(),
-            static_meshes_to_remove: Vec::new(),
-            instanced_meshes_to_remove: Vec::new(),
-            _callback_user_data: None,
-        };
-
+impl<T: RayTracer> Scene<T> {
+    /// Creates an empty scene with the specified device and returns a handle to it.
+    fn empty(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
         Self {
             inner: std::ptr::null_mut(),
-            shared: Arc::new(Mutex::new(shared)),
-            _ray_tracing_device: PhantomData,
+            shared: Arc::new(Mutex::new(SceneShared::new(device, callback_user_data))),
             _marker: PhantomData,
         }
     }
 
-    /// Creates a scene from FFI settings.
+    /// Creates a scene from FFI settings and returns a handle to it.
     fn from_ffi_create(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: Option<Arc<CustomRayTracingUserData>>,
+        callback_user_data: T::CallbackUserData,
+        device: T::Device,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self::empty();
-        scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
+        let mut scene = Self::empty(device, callback_user_data);
 
         let status = unsafe {
             audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, scene.raw_ptr_mut())
@@ -104,7 +105,7 @@ impl<T: RayTracer> Scene<'_, T> {
         Ok(scene)
     }
 
-    /// Loads a scene from FFI settings and serialized object.
+    /// Loads a scene from FFI settings and serialized object and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -112,12 +113,12 @@ impl<T: RayTracer> Scene<'_, T> {
     fn from_ffi_load(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: Option<Arc<CustomRayTracingUserData>>,
+        callback_user_data: T::CallbackUserData,
+        device: T::Device,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self::empty();
-        scene.shared.lock().unwrap()._callback_user_data = callback_user_data;
+        let mut scene = Self::empty(device, callback_user_data);
 
         let (callback_fn, user_data) =
             progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
@@ -144,17 +145,17 @@ impl<T: RayTracer> Scene<'_, T> {
     }
 }
 
-impl Scene<'_, DefaultRayTracer> {
-    /// Creates a new scene.
+impl Scene<DefaultRayTracer> {
+    /// Creates a new scene and returns a handle to it.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(), None)
+        Self::from_ffi_create(context, &mut Self::ffi_settings(), (), ())
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -168,13 +169,14 @@ impl Scene<'_, DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
-            None,
+            (),
+            (),
             serialized_object,
             None,
         )
     }
 
-    /// Loads a scene from a serialized object.
+    /// Loads a scene from a serialized object and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -189,7 +191,8 @@ impl Scene<'_, DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
-            None,
+            (),
+            (),
             serialized_object,
             Some(progress_callback),
         )
@@ -210,20 +213,21 @@ impl Scene<'_, DefaultRayTracer> {
     }
 }
 
-impl<'a> Scene<'a, Embree> {
-    /// Creates a new scene with the Embree ray tracer.
+impl Scene<Embree> {
+    /// Creates a new scene with the Embree ray tracer and returns a handle to it.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_embree(
         context: &Context,
-        device: &'a EmbreeDevice,
+        device: EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(device), None)
+        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), (), device)?;
+        Ok(scene)
     }
 
-    /// Loads a scene from a serialized object using Embree.
+    /// Loads a scene from a serialized object using Embree and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -232,37 +236,22 @@ impl<'a> Scene<'a, Embree> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_embree(
         context: &Context,
-        device: &'a EmbreeDevice,
+        device: EmbreeDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self {
-            inner: std::ptr::null_mut(),
-            // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `Scene`.
-            #[allow(clippy::arc_with_non_send_sync)]
-            shared: Arc::new(Mutex::new(SceneShared::default())),
-            _ray_tracing_device: PhantomData,
-            _marker: PhantomData,
-        };
-
-        let status = unsafe {
-            audionimbus_sys::iplSceneLoad(
-                context.raw_ptr(),
-                &mut Self::ffi_settings(device),
-                serialized_object.raw_ptr(),
-                None,
-                std::ptr::null_mut(),
-                scene.raw_ptr_mut(),
-            )
-        };
-
-        if let Some(error) = to_option_error(status) {
-            return Err(error);
-        }
-
+        let scene = Self::from_ffi_load(
+            context,
+            &mut Self::ffi_settings(&device),
+            (),
+            device,
+            serialized_object,
+            None,
+        )?;
         Ok(scene)
     }
 
-    /// Loads a scene from a serialized object using Embree with a progress callback.
+    /// Loads a scene from a serialized object using Embree with a progress callback, and returns a
+    /// handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -271,21 +260,23 @@ impl<'a> Scene<'a, Embree> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_embree_with_progress(
         context: &Context,
-        device: &'a EmbreeDevice,
+        device: EmbreeDevice,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_load(
+        let scene = Self::from_ffi_load(
             context,
-            &mut Self::ffi_settings(device),
-            None,
+            &mut Self::ffi_settings(&device),
+            (),
+            device,
             serialized_object,
             Some(progress_callback),
-        )
+        )?;
+        Ok(scene)
     }
 
     /// Returns FFI scene settings with the Embree ray tracer.
-    fn ffi_settings(device: &'a EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(device: &EmbreeDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: Embree::scene_type(),
             closestHitCallback: None,
@@ -299,20 +290,21 @@ impl<'a> Scene<'a, Embree> {
     }
 }
 
-impl<'a> Scene<'a, RadeonRays> {
-    /// Creates a new scene with the Radeon Rays ray tracer.
+impl Scene<RadeonRays> {
+    /// Creates a new scene with the Radeon Rays ray tracer and returns a handle to it.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_radeon_rays(
         context: &Context,
-        device: &'a RadeonRaysDevice,
+        device: RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(device), None)
+        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), (), device)?;
+        Ok(scene)
     }
 
-    /// Loads a scene from a serialized object using Radeon Rays.
+    /// Loads a scene from a serialized object using Radeon Rays and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -321,19 +313,22 @@ impl<'a> Scene<'a, RadeonRays> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_radeon_rays(
         context: &Context,
-        device: &'a RadeonRaysDevice,
+        device: RadeonRaysDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_load(
+        let scene = Self::from_ffi_load(
             context,
-            &mut Self::ffi_settings(device),
-            None,
+            &mut Self::ffi_settings(&device),
+            (),
+            device,
             serialized_object,
             None,
-        )
+        )?;
+        Ok(scene)
     }
 
-    /// Loads a scene from a serialized object using Radeon Rays with a progerss callback.
+    /// Loads a scene from a serialized object using Radeon Rays with a progress callback, and
+    /// returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -342,21 +337,23 @@ impl<'a> Scene<'a, RadeonRays> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_radeon_rays_with_progress(
         context: &Context,
-        device: &'a RadeonRaysDevice,
+        device: RadeonRaysDevice,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_load(
+        let scene = Self::from_ffi_load(
             context,
-            &mut Self::ffi_settings(device),
-            None,
+            &mut Self::ffi_settings(&device),
+            (),
+            device,
             serialized_object,
             Some(progress_callback),
-        )
+        )?;
+        Ok(scene)
     }
 
     /// Returns FFI scene settings with the Radeon Rays ray tracer.
-    fn ffi_settings(device: &'a RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
+    fn ffi_settings(device: &RadeonRaysDevice) -> audionimbus_sys::IPLSceneSettings {
         audionimbus_sys::IPLSceneSettings {
             type_: RadeonRays::scene_type(),
             closestHitCallback: None,
@@ -370,21 +367,26 @@ impl<'a> Scene<'a, RadeonRays> {
     }
 }
 
-impl<'a> Scene<'a, CustomRayTracer> {
-    /// Creates a new scene with a custom ray tracer.
+impl Scene<CustomRayTracer> {
+    /// Creates a new scene with a custom ray tracer and returns a handle to it.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_with_custom(
         context: &Context,
-        callbacks: &'a CustomRayTracingCallbacks,
+        callbacks: CustomRayTracingCallbacks,
     ) -> Result<Self, SteamAudioError> {
         let (mut settings, user_data) = callbacks.as_ffi_settings();
-        Self::from_ffi_create(context, &mut settings, Some(user_data))
+        Self::from_ffi_create(
+            context,
+            &mut settings,
+            CustomCallbackUserData(user_data),
+            (),
+        )
     }
 
-    /// Loads a scene from a serialized object using a custom ray tracer.
+    /// Loads a scene from a serialized object using a custom ray tracer and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -393,20 +395,22 @@ impl<'a> Scene<'a, CustomRayTracer> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom(
         context: &Context,
-        callbacks: &'a CustomRayTracingCallbacks,
+        callbacks: CustomRayTracingCallbacks,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         let (mut settings, user_data) = callbacks.as_ffi_settings();
         Self::from_ffi_load(
             context,
             &mut settings,
-            Some(user_data),
+            CustomCallbackUserData(user_data),
+            (),
             serialized_object,
             None,
         )
     }
 
-    /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
+    /// Loads a scene from a serialized object using a custom ray tracer with a progress callback,
+    /// and returns a handle to it.
     ///
     /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
     ///
@@ -415,7 +419,7 @@ impl<'a> Scene<'a, CustomRayTracer> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_custom_with_progress(
         context: &Context,
-        callbacks: &'a CustomRayTracingCallbacks,
+        callbacks: CustomRayTracingCallbacks,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
@@ -423,14 +427,15 @@ impl<'a> Scene<'a, CustomRayTracer> {
         Self::from_ffi_load(
             context,
             &mut settings,
-            Some(user_data),
+            CustomCallbackUserData(user_data),
+            (),
             serialized_object,
             Some(progress_callback),
         )
     }
 }
 
-impl<T: RayTracer> Scene<'_, T> {
+impl<T: RayTracer> Scene<T> {
     /// Adds a static mesh to a scene and returns a handle to it.
     ///
     /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
@@ -778,7 +783,7 @@ impl<T: RayTracer> Scene<'_, T> {
     }
 }
 
-impl<T: RayTracer + SaveableAsSerialized> Scene<'_, T> {
+impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
     /// Saves a scene to a serialized object.
     ///
     /// Typically, the serialized object will then be saved to disk.
@@ -795,7 +800,7 @@ impl<T: RayTracer + SaveableAsSerialized> Scene<'_, T> {
     }
 }
 
-impl<T: RayTracer + SaveableAsObj> Scene<'_, T> {
+impl<T: RayTracer + SaveableAsObj> Scene<T> {
     /// Saves a scene to an OBJ file.
     ///
     /// An OBJ file is a widely-supported 3D model file format, that can be displayed using a variety of software on most PC platforms.
@@ -812,16 +817,16 @@ impl<T: RayTracer + SaveableAsObj> Scene<'_, T> {
     }
 }
 
-impl<T: RayTracer> Drop for Scene<'_, T> {
+impl<T: RayTracer> Drop for Scene<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSceneRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer> Send for Scene<'_, T> {}
-unsafe impl<T: RayTracer> Sync for Scene<'_, T> {}
+unsafe impl<T: RayTracer> Send for Scene<T> {}
+unsafe impl<T: RayTracer> Sync for Scene<T> {}
 
-impl<T: RayTracer> Clone for Scene<'_, T> {
+impl<T: RayTracer> Clone for Scene<T> {
     /// Retains an additional reference to the scene.
     ///
     /// The returned [`Scene`] shares the same underlying Steam Audio object.
@@ -830,7 +835,6 @@ impl<T: RayTracer> Clone for Scene<'_, T> {
         Self {
             inner: unsafe { audionimbus_sys::iplSceneRetain(self.inner) },
             shared: Arc::clone(&self.shared),
-            _ray_tracing_device: PhantomData,
             _marker: PhantomData,
         }
     }
@@ -1022,7 +1026,7 @@ mod tests {
             batched_any_hit,
         );
 
-        assert!(Scene::<CustomRayTracer>::try_with_custom(&context, &callbacks).is_ok());
+        assert!(Scene::<CustomRayTracer>::try_with_custom(&context, callbacks).is_ok());
     }
 
     #[test]

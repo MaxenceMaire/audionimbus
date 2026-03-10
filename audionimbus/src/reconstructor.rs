@@ -8,6 +8,11 @@ use crate::impulse_response::ImpulseResponse;
 /// An object that can convert energy fields to impulse responses.
 ///
 /// Energy fields are typically much smaller in size than impulse responses, and therefore are used when storing baked reflections or reverb in a probe batch, but impulse responses are what is needed at runtime for convolution.
+///
+/// `Reconstructor` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct Reconstructor {
     inner: audionimbus_sys::IPLReconstructor,
@@ -22,7 +27,7 @@ pub struct Reconstructor {
 }
 
 impl Reconstructor {
-    /// Creates a new reconstructor.
+    /// Creates a new reconstructor and returns a handle to it.
     ///
     /// # Errors
     ///

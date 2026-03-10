@@ -15,6 +15,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// The input buffer is assumed to describe a sound field in "world space".
 /// The output buffer is then the same sound field, but expressed relative to the listener’s orientation.
 ///
+/// `AmbisonicsRotationEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -58,7 +63,7 @@ pub struct AmbisonicsRotationEffect {
 }
 
 impl AmbisonicsRotationEffect {
-    /// Creates a new ambisonics rotation effect.
+    /// Creates a new ambisonics rotation effect and returns a handle to it.
     ///
     /// # Errors
     ///

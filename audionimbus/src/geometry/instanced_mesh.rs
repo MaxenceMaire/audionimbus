@@ -7,11 +7,16 @@ use crate::error::{to_option_error, SteamAudioError};
 /// An instanced mesh is essentially a scene (called the “sub-scene”) with a transform applied to it.
 /// Adding an instanced mesh to a scene places the sub-scene into the scene with the transform applied.
 /// For example, the sub-scene may be a prefab door, and the transform can be used to place it in a doorway and animate it as it opens or closes.
+///
+/// `InstancedMesh` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
 
 impl InstancedMesh {
-    /// Creates a new instanced mesh.
+    /// Creates a new instanced mesh and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -80,7 +85,7 @@ impl Clone for InstancedMesh {
 #[derive(Debug, Clone)]
 pub struct InstancedMeshSettings<'a> {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: &'a Scene<'a>,
+    pub sub_scene: &'a Scene,
 
     /// Local-to-world transform that places the instance within the parent scene.
     pub transform: Matrix<f32, 4, 4>,

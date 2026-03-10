@@ -9,11 +9,16 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Impulse responses are represented in Ambisonics to allow for directional variation of propagated sound.
 ///
 /// Impulse response data is stored as a 2D array of size #channels * #samples, in row-major order.
+///
+/// `ImpulseResponse` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct ImpulseResponse(audionimbus_sys::IPLImpulseResponse);
 
 impl ImpulseResponse {
-    /// Creates a new impulse response.
+    /// Creates a new impulse response and returns a handle to it.
     ///
     /// # Errors
     ///

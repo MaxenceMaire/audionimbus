@@ -7,6 +7,11 @@ use crate::version::SteamAudioVersion;
 ///
 /// Typically, a context is specified once during the execution of the client program, before calling any other API functions.
 ///
+/// `Context` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -24,7 +29,7 @@ use crate::version::SteamAudioVersion;
 pub struct Context(pub(crate) audionimbus_sys::IPLContext);
 
 impl Context {
-    /// Creates a new context with the given [`ContextSettings`].
+    /// Creates a new context with the given [`ContextSettings`] and returns a handle to it.
     ///
     /// # Errors
     ///

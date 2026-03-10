@@ -9,11 +9,16 @@ use std::sync::{Mutex, OnceLock};
 ///
 /// HRTFs describe how sound from different directions is perceived by a each of a listener’s ears, and are a crucial component of spatial audio.
 /// Steam Audio includes a built-in HRTF, while also allowing developers and users to import their own custom HRTFs.
+///
+/// `Hrtf` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Hrtf(pub(crate) audionimbus_sys::IPLHRTF);
 
 impl Hrtf {
-    /// Creates a new Head-Related Transfer Function (HRTF).
+    /// Creates a new Head-Related Transfer Function (HRTF) and returns a handle to it.
     ///
     /// Calling this function is expensive; avoid creating HRTFs in your audio thread at all if possible.
     ///

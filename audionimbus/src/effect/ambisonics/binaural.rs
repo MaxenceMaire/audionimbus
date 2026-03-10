@@ -14,6 +14,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///
 /// This results in more immersive spatialization of the ambisonic audio as compared to using an ambisonics binaural effect, at the cost of slightly increased CPU usage.
 ///
+/// `AmbisonicsBinauralEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -54,7 +59,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 pub struct AmbisonicsBinauralEffect(audionimbus_sys::IPLAmbisonicsBinauralEffect);
 
 impl AmbisonicsBinauralEffect {
-    /// Creates a new ambisonics binaural effect.
+    /// Creates a new ambisonics binaural effect and returns a handle to it.
     ///
     /// # Errors
     ///

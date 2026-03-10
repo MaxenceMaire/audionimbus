@@ -15,6 +15,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// Given a point source with some direction relative to the listener, this effect generates an Ambisonic audio buffer that approximates a point source in the given direction.
 /// This allows multiple point sources and ambiences to mixed to a single ambisonics buffer before being spatialized.
 ///
+/// `AmbisonicsEncodeEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -56,7 +61,7 @@ pub struct AmbisonicsEncodeEffect {
 }
 
 impl AmbisonicsEncodeEffect {
-    /// Creates a new ambisonics encode effect.
+    /// Creates a new ambisonics encode effect and returns a handle to it.
     ///
     /// # Errors
     ///

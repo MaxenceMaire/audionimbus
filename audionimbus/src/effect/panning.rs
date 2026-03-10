@@ -12,6 +12,11 @@ use crate::{ChannelPointers, ChannelRequirement};
 
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
 ///
+/// `PanningEffect` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+///
 /// # Examples
 ///
 /// ```
@@ -52,7 +57,7 @@ pub struct PanningEffect {
 }
 
 impl PanningEffect {
-    /// Creates a new panning effect.
+    /// Creates a new panning effect and returns a handle to it.
     ///
     /// # Errors
     ///

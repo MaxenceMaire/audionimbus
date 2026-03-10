@@ -5,12 +5,25 @@
 ### Changed
 
 - All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
+- `Simulator::try_new` now takes `SimulationSettings` by value instead of by reference.
+- `Source::try_new` now takes `SourceSettings` by value instead of by reference.
+- `Source::set_inputs` now takes `SimulationInputs` by value instead of by reference.
+- `SimulationSettings::with_radeon_rays` now takes `OpenClDevice` and `RadeonRaysDevice` by value instead of by reference.
+- `PathingSimulationParameters::pathing_probes` is now an owned `ProbeBatch` instead of `&ProbeBatch`.
+- `ReflectionsSimulationSettings::TrueAudioNext` now owns its `OpenClDevice` and `TrueAudioNextDevice` fields instead of borrowing them. As a result, `ReflectionsSimulationSettings` no longer implements `Copy`.
+- Lifetime parameters have been removed from `Simulator`, `SimulationSettings`, `SimulationInputs`, `PathingSimulationParameters`, and `ReflectionsSimulationSettings`.
+- `Scene::try_with_embree`, `Scene::load_embree`, and `Scene::load_embree_with_progress` now take `EmbreeDevice` by value instead of by reference.
+- `Scene::try_with_radeon_rays`, `Scene::load_radeon_rays`, and `Scene::load_radeon_rays_with_progress` now take `RadeonRaysDevice` by value instead of by reference.
+- `Scene::try_with_custom`, `Scene::load_custom`, and `Scene::load_custom_with_progress` now take `CustomRayTracingCallbacks` by value instead of by reference.
+- Lifetime parameters have been removed from `Scene`.
 
 ### Added
 
 - Implement `Clone` for all callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`, `CustomRayTracingCallbacks`).
 - Implement `Clone` for all models (`AirAbsorptionModel`, `DeviationModel`, `Directivity`, `DistanceAttenuationModel`).
 - Implement `Clone` for `SimulationInputs`, `DirectSimulationParameters`, `PathingSimulationParameters`.
+- Implement `Copy`, `Clone` for `AudioEffectState`.
+- Implement `Copy`, `Clone` for `SourceSettings`.
 
 ## [0.13.0] - 2026-03-04
 

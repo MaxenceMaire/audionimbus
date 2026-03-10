@@ -6,11 +6,16 @@ use crate::error::{to_option_error, SteamAudioError};
 /// Application-wide state for the Radeon Rays ray tracer.
 ///
 /// A Radeon Rays device must be created before using any of Steam Audio’s Radeon Rays ray tracing functionality.
+///
+/// `RadeonRaysDevice` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
 pub struct RadeonRaysDevice(audionimbus_sys::IPLRadeonRaysDevice);
 
 impl RadeonRaysDevice {
-    /// Creates a new Radeon Rays device for GPU-accelerated ray tracing.
+    /// Creates a new Radeon Rays device for GPU-accelerated ray tracing and returns a handle to it.
     ///
     /// # Errors
     ///
