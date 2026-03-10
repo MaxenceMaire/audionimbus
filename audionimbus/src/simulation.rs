@@ -1499,7 +1499,7 @@ impl<D, R, P> Drop for Source<D, R, P> {
 unsafe impl<D, R, P> Send for Source<D, R, P> {}
 unsafe impl<D, R, P> Sync for Source<D, R, P> {}
 
-impl<'a, D, R, P> Clone for Source<D, R, P>
+impl<D, R, P> Clone for Source<D, R, P>
 where
     D: 'static,
     R: 'static,
