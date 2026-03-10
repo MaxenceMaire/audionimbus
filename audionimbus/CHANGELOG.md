@@ -14,6 +14,7 @@
 - `Scene::try_with_radeon_rays`, `Scene::load_radeon_rays`, and `Scene::load_radeon_rays_with_progress` now take `RadeonRaysDevice` by value instead of by reference.
 - `Scene::try_with_custom`, `Scene::load_custom`, and `Scene::load_custom_with_progress` now take `CustomRayTracingCallbacks` by value instead of by reference.
 - Lifetime parameters have been removed from `Scene`.
+- Implement `set_source` method for `Source<D, R, P>` instead of `Source`.
 
 ### Added
 
@@ -24,6 +25,11 @@
 - Implement `Copy`, `Clone` for `SourceSettings`.
 - Add `SimulationInputs::set_source` to update the source position and orientation in place.
 - Add `SimulationInputs::set_direct_simulation_parameters`, `set_reflections_simulation_parameters`, and `set_pathing_simulation_parameters` to update simulation parameters in place without rebuilding the struct.
+- Implement `Copy`, `Clone` for `Direct`, `Reflections` and `Pathing` marker types.
+
+### Removed
+
+- Remove `'static` bounds from `Clone` implementation for `Source`.
 
 ## [0.13.0] - 2026-03-04
 

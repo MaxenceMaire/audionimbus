@@ -46,15 +46,15 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Marker type indicating that direct sound simulation is enabled.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Direct;
 
 /// Marker type indicating that reflection simulation is enabled.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Reflections;
 
 /// Marker type indicating that pathing simulation is enabled.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Pathing;
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
@@ -1500,12 +1500,7 @@ impl<D, R, P> Drop for Source<D, R, P> {
 unsafe impl<D, R, P> Send for Source<D, R, P> {}
 unsafe impl<D, R, P> Sync for Source<D, R, P> {}
 
-impl<D, R, P> Clone for Source<D, R, P>
-where
-    D: 'static,
-    R: 'static,
-    P: 'static,
-{
+impl<D, R, P> Clone for Source<D, R, P> {
     /// Retains an additional reference to the source.
     ///
     /// The returned [`Source`] shares the same underlying Steam Audio object.
@@ -1576,11 +1571,6 @@ impl SimulationInputs {
             _reflections: PhantomData,
             _pathing: PhantomData,
         }
-    }
-
-    /// Sets the position and orientation of the source.
-    pub const fn set_source(&mut self, source: CoordinateSystem) {
-        self.source = source;
     }
 }
 
@@ -1655,6 +1645,11 @@ impl<D, R, P> SimulationInputs<D, R, P> {
             _reflections,
             _pathing: PhantomData,
         }
+    }
+
+    /// Sets the position and orientation of the source.
+    pub const fn set_source(&mut self, source: CoordinateSystem) {
+        self.source = source;
     }
 
     fn to_ffi(&self) -> audionimbus_sys::IPLSimulationInputs {
