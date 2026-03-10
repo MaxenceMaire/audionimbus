@@ -83,7 +83,7 @@ pub struct Pathing;
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, settings)?;
+/// let mut simulator = Simulator::try_new(&context, &settings)?;
 ///
 /// // Set up a scene.
 /// let scene = Scene::try_new(&context)?;
@@ -105,7 +105,7 @@ pub struct Pathing;
 /// let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
 ///     .with_direct(DirectSimulationParameters::new()
 ///         .with_distance_attenuation(DistanceAttenuationModel::default()));
-/// source.set_inputs(SimulationFlags::DIRECT, simulation_inputs);
+/// source.set_inputs(SimulationFlags::DIRECT, &simulation_inputs);
 ///
 /// // Set shared parameters.
 /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default());
@@ -199,12 +199,12 @@ where
     ///     .with_pathing(PathingSimulationSettings {
     ///         num_visibility_samples: 4,
     ///     });
-    /// let simulator = Simulator::try_new(&context, settings)?;
+    /// let simulator = Simulator::try_new(&context, &settings)?;
     /// # Ok::<(), audionimbus::SteamAudioError>(())
     /// ```
     pub fn try_new(
         context: &Context,
-        settings: SimulationSettings<T, D, R, P>,
+        settings: &SimulationSettings<T, D, R, P>,
     ) -> Result<Self, SteamAudioError> {
         let direct_lock = if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
             Some(Arc::new(Mutex::new(())))
@@ -238,9 +238,9 @@ where
             direct_lock,
             reflections_lock,
             pathing_lock,
-            _open_cl_device: settings.open_cl_device,
-            _radeon_rays_device: settings.radeon_rays_device,
-            _true_audio_next_device: settings.true_audio_next_device,
+            _open_cl_device: settings.open_cl_device.clone(),
+            _radeon_rays_device: settings.radeon_rays_device.clone(),
+            _true_audio_next_device: settings.true_audio_next_device.clone(),
             _ray_tracer: PhantomData,
             _direct: PhantomData,
             _reflections: PhantomData,
@@ -1313,18 +1313,19 @@ where
     pub fn set_inputs(
         &mut self,
         simulation_flags: SimulationFlags,
-        inputs: SimulationInputs<D, R, P>,
+        inputs: &SimulationInputs<D, R, P>,
     ) -> Result<(), ParameterValidationError> {
         Self::validate_flags(simulation_flags);
 
-        self.validate_inputs(&inputs)?;
+        self.validate_inputs(inputs)?;
 
         let mut ffi_inputs = inputs.to_ffi();
 
         let mut shared = self.shared.lock().unwrap();
         (shared.deviation_model, shared._pathing_probes) = inputs
             .pathing_simulation
-            .map(|p| (Some(p.deviation), Some(p.pathing_probes)))
+            .as_ref()
+            .map(|p| (Some(p.deviation.clone()), Some(p.pathing_probes.clone())))
             .unwrap_or_default();
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
@@ -1561,6 +1562,10 @@ pub struct SimulationInputs<D = (), R = (), P = ()> {
 
 impl SimulationInputs {
     /// Crates new [`SimulationInputs`] with all simulations disabled by default.
+    ///
+    /// # Arguments
+    ///
+    /// - `source`: The position and orientation of the source.
     pub fn new(source: CoordinateSystem) -> Self {
         Self {
             source,
@@ -1571,6 +1576,11 @@ impl SimulationInputs {
             _reflections: PhantomData,
             _pathing: PhantomData,
         }
+    }
+
+    /// Sets the position and orientation of the source.
+    pub const fn set_source(&mut self, source: CoordinateSystem) {
+        self.source = source;
     }
 }
 
@@ -1692,6 +1702,30 @@ impl<D, R, P> SimulationInputs<D, R, P> {
             findAlternatePaths: pathing_data.find_alternate_paths,
             deviationModel: &pathing_data.deviation_model as *const _ as *mut _,
         }
+    }
+}
+
+impl<R, P> SimulationInputs<Direct, R, P> {
+    /// Sets the parameters to use for direct simulation.
+    pub fn set_direct_simulation_parameters(&mut self, params: DirectSimulationParameters) {
+        self.direct_simulation.replace(params);
+    }
+}
+
+impl<D, P> SimulationInputs<D, Reflections, P> {
+    /// Sets the parameters to use for reflections simulation.
+    pub const fn set_reflections_simulation_parameters(
+        &mut self,
+        params: ReflectionsSimulationParameters,
+    ) {
+        self.reflections_simulation.replace(params);
+    }
+}
+
+impl<D, R> SimulationInputs<D, R, Pathing> {
+    /// Sets the parameters to use for path simulation.
+    pub fn set_pathing_simulation_parameters(&mut self, params: PathingSimulationParameters) {
+        self.pathing_simulation.replace(params);
     }
 }
 
@@ -2549,7 +2583,7 @@ mod tests {
                             max_num_occlusion_samples: 4,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2580,7 +2614,7 @@ mod tests {
                         ),
                 );
                 source
-                    .set_inputs(SimulationFlags::REFLECTIONS, simulation_inputs)
+                    .set_inputs(SimulationFlags::REFLECTIONS, &simulation_inputs)
                     .unwrap();
             }
         }
@@ -2605,7 +2639,7 @@ mod tests {
                             max_num_occlusion_samples: 4,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2635,7 +2669,7 @@ mod tests {
                         ),
                 );
                 source
-                    .set_inputs(SimulationFlags::DIRECT, simulation_inputs)
+                    .set_inputs(SimulationFlags::DIRECT, &simulation_inputs)
                     .unwrap();
 
                 simulator.run_direct();
@@ -2650,7 +2684,7 @@ mod tests {
             fn test_clone() {
                 let context = Context::default();
                 let simulator_settings = SimulationSettings::new(48_000, 1024, 1);
-                let simulator = Simulator::try_new(&context, simulator_settings).unwrap();
+                let simulator = Simulator::try_new(&context, &simulator_settings).unwrap();
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::empty(),
                 };
@@ -2670,7 +2704,7 @@ mod tests {
         fn test_simulator_clone() {
             let context = Context::default();
             let settings = SimulationSettings::new(48_000, 1024, 1);
-            let simulator = Simulator::try_new(&context, settings).unwrap();
+            let simulator = Simulator::try_new(&context, &settings).unwrap();
             let clone = simulator.clone();
             assert_eq!(simulator.raw_ptr(), clone.raw_ptr());
             drop(simulator);

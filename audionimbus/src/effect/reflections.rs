@@ -185,7 +185,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_num_sources: 8,
 ///         num_threads: 2,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
@@ -199,7 +199,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// source.set_inputs(
 ///     SimulationFlags::REFLECTIONS,
-///     SimulationInputs::new(CoordinateSystem::default()).with_reflections(
+///     &SimulationInputs::new(CoordinateSystem::default()).with_reflections(
 ///         ReflectionsSimulationParameters::Convolution {
 ///             baked_data_identifier: None,
 ///         },
@@ -271,7 +271,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_num_sources: 8,
 ///         num_threads: 2,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
 /// let scene = Scene::try_new(&context)?;
 /// simulator.set_scene(&scene);
@@ -292,7 +292,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// // Set source position to match listener position.
 /// reverb_source.set_inputs(
 ///     SimulationFlags::REFLECTIONS,
-///     SimulationInputs::new(listener_position) // Source at listener = reverb
+///     &SimulationInputs::new(listener_position) // Source at listener = reverb
 ///         .with_reflections(ReflectionsSimulationParameters::Convolution {
 ///             baked_data_identifier: None,
 ///         }),
@@ -1109,7 +1109,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1190,7 +1190,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1283,7 +1283,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1375,7 +1375,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1468,7 +1468,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1569,7 +1569,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1859,7 +1859,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -1937,7 +1937,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2019,7 +2019,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);
@@ -2097,7 +2097,7 @@ mod tests {
                             num_threads: 1,
                         },
                     );
-                let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
                 simulator.set_scene(&scene);

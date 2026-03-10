@@ -224,7 +224,7 @@ fn test_pathing() {
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
         });
-    let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let mut scene = Scene::try_new(&context).unwrap();
     let vertices = vec![
@@ -320,7 +320,7 @@ fn test_pathing() {
             deviation: DeviationModel::default(),
         });
     source
-        .set_inputs(SimulationFlags::PATHING, simulation_inputs)
+        .set_inputs(SimulationFlags::PATHING, &simulation_inputs)
         .unwrap();
     simulator.add_source(&source);
 

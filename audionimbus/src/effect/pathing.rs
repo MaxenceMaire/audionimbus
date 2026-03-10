@@ -62,7 +62,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     .with_pathing(PathingSimulationSettings {
 ///         num_visibility_samples: 4,
 ///     });
-/// let mut simulator = Simulator::try_new(&context, simulation_settings)?;
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
 /// let mut scene = Scene::try_new(&context)?;
 /// let vertices = vec![
@@ -156,7 +156,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         find_alternate_paths: true,
 ///         deviation: DeviationModel::default(),
 ///     });
-/// source.set_inputs(SimulationFlags::PATHING, simulation_inputs);
+/// source.set_inputs(SimulationFlags::PATHING, &simulation_inputs);
 /// simulator.add_source(&source);
 ///
 /// simulator.commit();

@@ -5,9 +5,7 @@
 ### Changed
 
 - All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
-- `Simulator::try_new` now takes `SimulationSettings` by value instead of by reference.
 - `Source::try_new` now takes `SourceSettings` by value instead of by reference.
-- `Source::set_inputs` now takes `SimulationInputs` by value instead of by reference.
 - `SimulationSettings::with_radeon_rays` now takes `OpenClDevice` and `RadeonRaysDevice` by value instead of by reference.
 - `PathingSimulationParameters::pathing_probes` is now an owned `ProbeBatch` instead of `&ProbeBatch`.
 - `ReflectionsSimulationSettings::TrueAudioNext` now owns its `OpenClDevice` and `TrueAudioNextDevice` fields instead of borrowing them. As a result, `ReflectionsSimulationSettings` no longer implements `Copy`.
@@ -24,6 +22,8 @@
 - Implement `Clone` for `SimulationInputs`, `DirectSimulationParameters`, `PathingSimulationParameters`.
 - Implement `Copy`, `Clone` for `AudioEffectState`.
 - Implement `Copy`, `Clone` for `SourceSettings`.
+- Add `SimulationInputs::set_source` to update the source position and orientation in place.
+- Add `SimulationInputs::set_direct_simulation_parameters`, `set_reflections_simulation_parameters`, and `set_pathing_simulation_parameters` to update simulation parameters in place without rebuilding the struct.
 
 ## [0.13.0] - 2026-03-04
 

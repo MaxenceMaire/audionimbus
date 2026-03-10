@@ -26,7 +26,7 @@ fn test_simulation() {
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
         });
-    let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let scene = Scene::try_new(&context).unwrap();
     simulator.set_scene(&scene);
@@ -70,7 +70,7 @@ fn test_simulation() {
         deviation: DeviationModel::default(),
     });
     source
-        .set_inputs(SimulationFlags::DIRECT, simulation_inputs)
+        .set_inputs(SimulationFlags::DIRECT, &simulation_inputs)
         .unwrap();
 
     simulator.add_source(&source);
@@ -150,7 +150,7 @@ fn test_pathing_without_probes() {
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
         });
-    let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let mut scene = Scene::try_new(&context).unwrap();
     let vertices = vec![
@@ -247,7 +247,7 @@ fn test_pathing_without_probes() {
             deviation: DeviationModel::default(),
         });
     source
-        .set_inputs(SimulationFlags::PATHING, simulation_inputs)
+        .set_inputs(SimulationFlags::PATHING, &simulation_inputs)
         .unwrap();
     simulator.add_source(&source);
 
@@ -273,7 +273,7 @@ fn test_reflections_without_scene() {
             max_num_sources: 8,
             num_threads: 2,
         });
-    let mut simulator = Simulator::try_new(&context, simulation_settings).unwrap();
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
         .with_reflections(ReflectionsSharedInputs {
