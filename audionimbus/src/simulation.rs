@@ -46,15 +46,15 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Marker type indicating that direct sound simulation is enabled.
-#[derive(Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Direct;
 
 /// Marker type indicating that reflection simulation is enabled.
-#[derive(Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Reflections;
 
 /// Marker type indicating that pathing simulation is enabled.
-#[derive(Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Pathing;
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
@@ -1311,7 +1311,7 @@ where
     ///
     /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
     pub fn set_inputs(
-        &mut self,
+        &self,
         simulation_flags: SimulationFlags,
         inputs: &SimulationInputs<D, R, P>,
     ) -> Result<(), ParameterValidationError> {
@@ -1370,7 +1370,7 @@ where
     ///
     /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
     pub fn get_outputs(
-        &mut self,
+        &self,
         simulation_flags: SimulationFlags,
     ) -> Result<SimulationOutputs<'_, D, R, P>, SteamAudioError> {
         Self::validate_flags(simulation_flags);
@@ -2190,7 +2190,7 @@ pub enum OcclusionAlgorithm {
 }
 
 /// Simulation parameters that are not specific to any source.
-#[derive(Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct SimulationSharedInputs<D = (), R = (), P = ()> {
     /// The position and orientation of the listener.
     listener: CoordinateSystem,
@@ -2316,6 +2316,29 @@ impl<D, R, P> SimulationSharedInputs<D, R, P> {
             _reflections,
             _pathing: PhantomData,
         }
+    }
+
+    /// Sets the position and orientation of the listener.
+    pub const fn set_listener(&mut self, listener: CoordinateSystem) {
+        self.listener = listener;
+    }
+}
+
+impl<D, P> SimulationSharedInputs<D, Reflections, P> {
+    /// Sets the shared inputs to use for reflections simulation.
+    pub fn set_reflections_shared_inputs(&mut self, shared_inputs: ReflectionsSharedInputs) {
+        self.reflections_shared_inputs.replace(shared_inputs);
+    }
+}
+
+impl<D, R> SimulationSharedInputs<D, R, Pathing> {
+    /// Sets the visualization callback to use for pathing simulation.
+    pub fn set_pathing_visualization_callback(
+        &mut self,
+        visualization_callback: PathingVisualizationCallback,
+    ) {
+        self.pathing_visualization_callback
+            .replace(visualization_callback);
     }
 }
 
@@ -2586,7 +2609,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<Direct, (), ()>::try_new(&simulator, source_settings).unwrap();
 
                 let simulation_inputs = SimulationInputs::new(CoordinateSystem {

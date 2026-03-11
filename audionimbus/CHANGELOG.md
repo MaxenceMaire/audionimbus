@@ -15,6 +15,7 @@
 - `Scene::try_with_custom`, `Scene::load_custom`, and `Scene::load_custom_with_progress` now take `CustomRayTracingCallbacks` by value instead of by reference.
 - Lifetime parameters have been removed from `Scene`.
 - Implement `set_source` method for `Source<D, R, P>` instead of `Source`.
+- Take `&self` instead of `&mut self` in `Source::set_inputs` and `Source::get_outputs`.
 
 ### Added
 
@@ -26,6 +27,9 @@
 - Add `SimulationInputs::set_source` to update the source position and orientation in place.
 - Add `SimulationInputs::set_direct_simulation_parameters`, `set_reflections_simulation_parameters`, and `set_pathing_simulation_parameters` to update simulation parameters in place without rebuilding the struct.
 - Implement `Copy`, `Clone` for `Direct`, `Reflections` and `Pathing` marker types.
+- Implement `Default` for `Direct`, `Reflections`, `Pathing`.
+- Implement `Default`, `Clone` for `SimulationSharedInputs`.
+- Add methods `set_listener`, `set_reflections_shared_inputs`, and `set_pathing_visualization_callback` for `SimulationSharedInputs`.
 
 ### Removed
 
