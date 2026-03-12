@@ -40,7 +40,7 @@
 - Add `Source::get_direct_outputs`, `Source::get_reflection_outputs`, and `Source::get_pathing_outputs` as typed convenience methods that return effect parameters directly.
 - Add `Source::set_inputs_subset` to set a subset of simulation inputs, blocking only for the requested simulation types.
 - Add `Source::set_direct_inputs`, `Source::set_reflections_inputs`, and `Source::set_pathing_inputs` as typed convenience methods.
-- Add `Source::try_new_limited` to create a source that runs a subset of the simulations supported by its simulator.
+- Add `Source::try_new_subset` to create a source that runs a subset of the simulations supported by its simulator.
 - Add `SimulationFlagsProvider` trait, implemented for `Direct`, `Reflections`, `Pathing`, and `()`.
 
 ### Removed

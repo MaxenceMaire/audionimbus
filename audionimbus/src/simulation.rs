@@ -1262,7 +1262,7 @@ where
 {
     /// Creates a new source and returns a handle to it.
     ///
-    /// Convenience method abstracting the more expressive [`Self::try_new_limited`].
+    /// Convenience method abstracting the more expressive [`Self::try_new_subset`].
     ///
     /// # Errors
     ///
@@ -1274,7 +1274,7 @@ where
         R: 'static + ReflectionsCompatible<R> + SimulationFlagsProvider,
         P: 'static + PathingCompatible<P> + SimulationFlagsProvider,
     {
-        Self::try_new_limited::<T, D, R, P>(simulator)
+        Self::try_new_subset::<T, D, R, P>(simulator)
     }
 
     /// Creates a new source and returns a handle to it.
@@ -1284,7 +1284,7 @@ where
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new_limited<T, SimD, SimR, SimP>(
+    pub fn try_new_subset<T, SimD, SimR, SimP>(
         simulator: &Simulator<T, SimD, SimR, SimP>,
     ) -> Result<Self, SteamAudioError>
     where
