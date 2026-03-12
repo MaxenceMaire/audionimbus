@@ -180,8 +180,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
 /// )?;
 ///
-/// let simulation_outputs = source.get_outputs(SimulationFlags::PATHING)?;
-/// let path_effect_params = simulation_outputs.pathing();
+/// let path_effect_params = source.get_pathing_outputs()?;
 /// let _ = path_effect.apply(&path_effect_params, &input_buffer, &output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```

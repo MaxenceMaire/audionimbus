@@ -13,11 +13,6 @@ impl<T, Owner> FFIWrapper<'_, T, Owner> {
             _marker: std::marker::PhantomData,
         }
     }
-
-    /// Consumes the wrapper and returns the inner FFI object.
-    pub fn into_inner(self) -> T {
-        self.ffi_object
-    }
 }
 
 impl<T, Owner> std::ops::Deref for FFIWrapper<'_, T, Owner> {

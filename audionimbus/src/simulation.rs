@@ -19,7 +19,7 @@
 //!
 //! ## Important Rules
 //!
-//! - Never call [`Source::get_outputs`] from an audio thread - it will block and cause audio glitches
+//! - Never call [`Source::get_outputs`] or [`Source::get_outputs_subset`] from an audio thread as it will block and cause audio glitches
 //! - Use lock-free communication to pass results from simulation to audio threads
 //! - Different simulation types can run in parallel
 
@@ -55,6 +55,36 @@ pub struct Reflections;
 /// Marker type indicating that pathing simulation is enabled.
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Pathing;
+
+/// Provider of [`SimulationFlags`].
+pub trait SimulationFlagsProvider {
+    /// Returns the simulation flags associated with this type.
+    fn flags() -> SimulationFlags;
+}
+
+impl SimulationFlagsProvider for Direct {
+    fn flags() -> SimulationFlags {
+        SimulationFlags::DIRECT
+    }
+}
+
+impl SimulationFlagsProvider for Reflections {
+    fn flags() -> SimulationFlags {
+        SimulationFlags::REFLECTIONS
+    }
+}
+
+impl SimulationFlagsProvider for Pathing {
+    fn flags() -> SimulationFlags {
+        SimulationFlags::PATHING
+    }
+}
+
+impl SimulationFlagsProvider for () {
+    fn flags() -> SimulationFlags {
+        SimulationFlags::empty()
+    }
+}
 
 /// Manages direct and indirect sound propagation simulation for multiple sources.
 ///
@@ -114,7 +144,7 @@ pub struct Pathing;
 /// simulator.run_direct();
 ///
 /// // Get results.
-/// let outputs = source.get_outputs(SimulationFlags::DIRECT)?;
+/// let outputs = source.get_outputs()?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
@@ -1342,41 +1372,57 @@ where
 
     /// Retrieves simulation results for a source.
     ///
-    /// # ⚠️ Critical Threading Considerations
+    /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
     ///
-    /// This method MUST NOT be called from a real-time audio thread!
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
     ///
-    /// This method will block while a simulation is running for the specified type(s).
-    /// Since simulations can take 50-500ms to complete, calling this from an audio thread
-    /// will likely cause audio dropouts, glitches, and severe performance problems.
-    ///
-    /// Recommended multi-threading pattern:
-    /// - Simulation thread: run simulation, then call `get_outputs()` to retrieve results
-    /// - Communication layer: send results to audio thread via non-blocking mechanism (e.g.,
-    ///   triple buffering or lock-free queue)
-    /// - Audio thread: receive results and apply effects
-    ///
-    /// # Arguments
-    ///
-    /// - `flags`: the types of simulation for which to retrieve results.
+    /// Also see:
+    /// - [`Self::get_direct_outputs`]
+    /// - [`Self::get_reflection_outputs`]
+    /// - [`Self::get_pathing_outputs`]
     ///
     /// # Errors
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
+    pub fn get_outputs(&self) -> Result<SimulationOutputs<D, R, P>, SteamAudioError>
+    where
+        D: DirectCompatible<D> + SimulationFlagsProvider,
+        R: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        P: PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        self.get_outputs_subset::<D, R, P>()
+    }
+
+    /// Retrieves parts or all of the simulation results for a source.
     ///
-    /// # Panics
+    /// Only blocks for the requested simulation types, allowing concurrent retrieval across
+    /// simulation threads.
     ///
-    /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
-    pub fn get_outputs(
+    /// For example, `get_outputs_subset::<Direct, (), ()>()` and
+    /// `get_outputs_subset::<(), Reflections, ()>()` can be called simultaneously without blocking
+    /// each other.
+    ///
+    /// MUST NOT be called from a real-time audio thread.
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
+    /// [`SimulationOutputs`].
+    pub fn get_outputs_subset<OutD, OutR, OutP>(
         &self,
-        simulation_flags: SimulationFlags,
-    ) -> Result<SimulationOutputs<D, R, P>, SteamAudioError> {
-        Self::validate_flags(simulation_flags);
+    ) -> Result<SimulationOutputs<OutD, OutR, OutP>, SteamAudioError>
+    where
+        OutD: DirectCompatible<D> + SimulationFlagsProvider,
+        OutR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        OutP: PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        let simulation_flags = OutD::flags() | OutR::flags() | OutP::flags();
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
-        let simulation_outputs = SimulationOutputs::try_allocate(self.clone())?;
+        let simulation_outputs = SimulationOutputs::try_allocate(self)?;
 
         unsafe {
             audionimbus_sys::iplSourceGetOutputs(
@@ -1487,6 +1533,75 @@ where
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSource {
         &mut self.inner
+    }
+}
+
+impl<R, P> Source<Direct, R, P>
+where
+    R: 'static,
+    P: 'static,
+    (): ReflectionsCompatible<R>,
+    (): PathingCompatible<P>,
+{
+    /// Retrieves direct simulation results for a source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
+    /// [`SimulationOutputs`].
+    pub fn get_direct_outputs(&self) -> Result<DirectEffectParams, SteamAudioError> {
+        self.get_outputs_subset::<Direct, (), ()>()
+            .map(|outputs| outputs.direct())
+    }
+}
+
+impl<D, P> Source<D, Reflections, P>
+where
+    D: 'static,
+    P: 'static,
+    (): DirectCompatible<D>,
+    (): PathingCompatible<P>,
+{
+    /// Retrieves reflections simulation results for a source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
+    /// [`SimulationOutputs`].
+    pub fn get_reflection_outputs<T>(&self) -> Result<ReflectionEffectParams<T>, SteamAudioError>
+    where
+        T: ReflectionEffectType,
+    {
+        self.get_outputs_subset::<(), Reflections, ()>()
+            .map(|outputs| outputs.reflections())
+    }
+}
+
+impl<D, R> Source<D, R, Pathing>
+where
+    D: 'static,
+    R: 'static,
+    (): DirectCompatible<D>,
+    (): ReflectionsCompatible<R>,
+{
+    /// Retrieves pathing simulation results for a source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
+    /// [`SimulationOutputs`].
+    pub fn get_pathing_outputs(&self) -> Result<PathEffectParams, SteamAudioError> {
+        self.get_outputs_subset::<(), (), Pathing>()
+            .map(|outputs| outputs.pathing())
     }
 }
 
@@ -2408,8 +2523,9 @@ pub struct ReflectionsSharedInputs {
 pub struct SimulationOutputs<D, R, P> {
     inner: *mut audionimbus_sys::IPLSimulationOutputs,
 
-    /// Holds a reference to the [`Source`] [`SimulationOutputs`] originated from.
-    _source: Source<D, R, P>,
+    /// Retained pointer of the [`Source`] it originated from, to ensure the IR pointer remains
+    /// valid.
+    _source: audionimbus_sys::IPLSource,
 
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
@@ -2417,7 +2533,17 @@ pub struct SimulationOutputs<D, R, P> {
 }
 
 impl<D, R, P> SimulationOutputs<D, R, P> {
-    fn try_allocate(source: Source<D, R, P>) -> Result<Self, SteamAudioError> {
+    fn try_allocate<SourceD, SourceR, SourceP>(
+        source: &Source<SourceD, SourceR, SourceP>,
+    ) -> Result<Self, SteamAudioError>
+    where
+        D: DirectCompatible<SourceD>,
+        R: ReflectionsCompatible<SourceR>,
+        P: PathingCompatible<SourceP>,
+        SourceD: 'static,
+        SourceR: 'static,
+        SourceP: 'static,
+    {
         let ptr = unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
             let ptr = std::alloc::alloc(layout).cast::<audionimbus_sys::IPLSimulationOutputs>();
@@ -2427,6 +2553,8 @@ impl<D, R, P> SimulationOutputs<D, R, P> {
             std::ptr::write(ptr, std::mem::zeroed());
             ptr
         };
+
+        let source = unsafe { audionimbus_sys::iplSourceRetain(source.raw_ptr()) };
 
         Ok(Self {
             inner: ptr,
@@ -2453,8 +2581,10 @@ impl<R, P> SimulationOutputs<Direct, R, P> {
 }
 
 impl<D, P> SimulationOutputs<D, Reflections, P> {
-    pub fn reflections<T: ReflectionEffectType>(&self) -> ReflectionEffectParams<'_, T> {
-        unsafe { ReflectionEffectParams::from_ffi_unchecked((*self.inner).reflections) }
+    pub fn reflections<T: ReflectionEffectType>(&self) -> ReflectionEffectParams<T> {
+        unsafe {
+            ReflectionEffectParams::from_ffi_unchecked((*self.inner).reflections, self._source)
+        }
     }
 }
 
@@ -2471,6 +2601,8 @@ impl<D, R, P> Drop for SimulationOutputs<D, R, P> {
         unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
             std::alloc::dealloc(self.inner.cast::<u8>(), layout);
+
+            audionimbus_sys::iplSourceRelease(&mut self._source);
         }
     }
 }
@@ -2626,64 +2758,6 @@ mod tests {
                 source
                     .set_inputs(SimulationFlags::REFLECTIONS, &simulation_inputs)
                     .unwrap();
-            }
-        }
-
-        mod get_outputs {
-            use super::*;
-
-            #[test]
-            #[should_panic(
-                expected = "requested simulation flags SimulationFlags(REFLECTIONS) are not enabled on this source (valid flags: SimulationFlags(DIRECT))"
-            )]
-            fn panic_on_invalid_flags() {
-                let context = Context::default();
-
-                const SAMPLING_RATE: u32 = 48_000;
-                const FRAME_SIZE: u32 = 1024;
-                const MAX_ORDER: u32 = 1;
-
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_direct(
-                        DirectSimulationSettings {
-                            max_num_occlusion_samples: 4,
-                        },
-                    );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-                let scene = Scene::try_new(&context).unwrap();
-                simulator.set_scene(&scene);
-
-                let source_settings = SourceSettings {
-                    flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
-                };
-                let source = Source::try_new(&simulator, source_settings).unwrap();
-
-                let simulation_inputs = SimulationInputs::new(CoordinateSystem {
-                    right: Vector3::new(1.0, 0.0, 0.0),
-                    up: Vector3::new(0.0, 1.0, 0.0),
-                    ahead: Vector3::new(0.0, 0.0, 1.0),
-                    origin: Vector3::new(0.0, 0.0, 0.0),
-                })
-                .with_direct(
-                    DirectSimulationParameters::new()
-                        .with_distance_attenuation(DistanceAttenuationModel::default())
-                        .with_air_absorption(AirAbsorptionModel::default())
-                        .with_directivity(Directivity::default())
-                        .with_occlusion(
-                            Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
-                                TransmissionParameters {
-                                    num_transmission_rays: 1,
-                                },
-                            ),
-                        ),
-                );
-                source
-                    .set_inputs(SimulationFlags::DIRECT, &simulation_inputs)
-                    .unwrap();
-
-                simulator.run_direct();
-                let _ = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
             }
         }
 

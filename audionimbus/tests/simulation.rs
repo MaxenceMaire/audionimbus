@@ -95,7 +95,7 @@ fn test_simulation() {
     simulator.run_direct();
     assert!(simulator.run_reflections().is_ok());
     let simulation_outputs = source
-        .get_outputs(SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS)
+        .get_outputs_subset::<Direct, Reflections, ()>()
         .unwrap();
 
     let reflection_effect_settings = ReflectionEffectSettings {
