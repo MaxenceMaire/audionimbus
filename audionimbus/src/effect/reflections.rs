@@ -222,7 +222,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// simulator.commit();
 ///
 /// simulator.run_reflections();
-/// let outputs = source.get_outputs(SimulationFlags::REFLECTIONS)?;
+/// let params = source.get_reflection_outputs()?;
 ///
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
 /// let mut effect = ReflectionEffect::<Convolution>::try_new(
@@ -242,7 +242,6 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
 /// )?;
 ///
-/// let params = outputs.reflections();
 /// let _ = effect.apply(&params, &input_buffer, &output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -315,8 +314,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// // Run simulation.
 /// simulator.run_reflections();
-/// let reverb_outputs = reverb_source.get_outputs(SimulationFlags::REFLECTIONS)?;
-/// let reverb_params = reverb_outputs.reflections();
+/// let reverb_params = reverb_source.get_reflection_outputs()?;
 ///
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
 /// let mut reverb_effect = ReflectionEffect::<Convolution>::try_new(
@@ -663,7 +661,7 @@ pub struct ReflectionEffectSettings {
 
 /// Parameters for applying a reflection effect to an audio buffer.
 #[derive(Debug, PartialEq)]
-pub struct ReflectionEffectParams<'a, T: ReflectionEffectType> {
+pub struct ReflectionEffectParams<T: ReflectionEffectType> {
     /// The impulse response.
     impulse_response: ReflectionEffectIR,
 
@@ -697,13 +695,13 @@ pub struct ReflectionEffectParams<'a, T: ReflectionEffectType> {
     /// The slot identifies the IR to use.
     true_audio_next_slot: u32,
 
-    /// Safety marker to tie the `ReflectioEffectIR` pointer to the lifetime.
-    _lifetime: PhantomData<&'a ()>,
+    /// Retained source pointer, keeping the IR pointer valid.
+    _source: audionimbus_sys::IPLSource,
 
     _marker: PhantomData<T>,
 }
 
-impl ReflectionEffectParams<'_, Convolution> {
+impl ReflectionEffectParams<Convolution> {
     /// Constructs multi-channel convolution reverb params.
     ///
     /// # Arguments
@@ -711,7 +709,19 @@ impl ReflectionEffectParams<'_, Convolution> {
     /// - `impulse_response`: the impulse response.
     /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub fn new(
+    ///
+    /// # Safety
+    ///
+    /// `impulse_response` is a pointer managed internally by Steam Audio.
+    /// The caller must ensure the type that owns this IR remains valid for the lifetime of these
+    /// params.
+    ///
+    /// # Safety
+    ///
+    /// `impulse_response` is a pointer managed internally by Steam Audio.
+    /// The caller must ensure the type that owns this IR remains valid for the lifetime of these
+    /// params.
+    pub unsafe fn new(
         impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         num_channels: u32,
         impulse_response_size: u32,
@@ -727,13 +737,13 @@ impl ReflectionEffectParams<'_, Convolution> {
             max_impulse_response_size: impulse_response_size,
             true_audio_next_device: None,
             true_audio_next_slot: 0,
+            _source: std::ptr::null_mut(),
             _marker: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-impl ReflectionEffectParams<'_, Parametric> {
+impl ReflectionEffectParams<Parametric> {
     /// Constructs parametric (or artificial) reverb params.
     ///
     /// # Arguments
@@ -753,13 +763,13 @@ impl ReflectionEffectParams<'_, Parametric> {
             max_impulse_response_size: impulse_response_size,
             true_audio_next_device: None,
             true_audio_next_slot: 0,
+            _source: std::ptr::null_mut(),
             _marker: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-impl ReflectionEffectParams<'_, Hybrid> {
+impl ReflectionEffectParams<Hybrid> {
     /// Constructs params for a hybrid of convolution and parametric reverb.
     ///
     /// # Arguments
@@ -770,7 +780,13 @@ impl ReflectionEffectParams<'_, Hybrid> {
     /// - `delay`: samples after which parametric part starts.
     /// - `num_channels`: number of IR channels to process. May be less than the number of channels specified when creating the effect, in which case CPU usage will be reduced.
     /// - `impulse_response_size`: number of IR samples per channel to process. May be less than the number of samples specified when creating the effect, in which case CPU usage will be reduced.
-    pub const fn new(
+    ///
+    /// # Safety
+    ///
+    /// `impulse_response` is a pointer managed internally by Steam Audio.
+    /// The caller must ensure the type that owns this IR remains valid for the lifetime of these
+    /// params.
+    pub const unsafe fn new(
         impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         reverb_times: [f32; 3],
         equalizer: Equalizer<3>,
@@ -789,13 +805,13 @@ impl ReflectionEffectParams<'_, Hybrid> {
             max_impulse_response_size: impulse_response_size,
             true_audio_next_device: None,
             true_audio_next_slot: 0,
+            _source: std::ptr::null_mut(),
             _marker: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
+impl ReflectionEffectParams<TrueAudioNext> {
     /// Constructs multi-channel convolution reverb (using AMD TrueAudio Next for GPU acceleration)
     /// params.
     ///
@@ -822,13 +838,13 @@ impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
             max_impulse_response_size: impulse_response_size,
             true_audio_next_device: Some(device),
             true_audio_next_slot: slot,
+            _source: std::ptr::null_mut(),
             _marker: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
+impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
     /// Sets the number of impulse response channels to process.
     ///
     /// May be less than the number of channels specified when creating the effect.
@@ -882,6 +898,7 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
     /// The `ir` pointer in `params` must remain valid for the lifetime of the params.
     pub(crate) unsafe fn from_ffi_unchecked(
         params: audionimbus_sys::IPLReflectionEffectParams,
+        source: audionimbus_sys::IPLSource,
     ) -> Self {
         let device = if params.tanDevice.is_null() {
             None
@@ -890,6 +907,8 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
                 audionimbus_sys::iplTrueAudioNextDeviceRetain(params.tanDevice),
             ))
         };
+
+        let source = audionimbus_sys::iplSourceRetain(source);
 
         let num_channels = params.numChannels as u32;
         let impulse_response_size = params.irSize as u32;
@@ -905,13 +924,21 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
             max_impulse_response_size: impulse_response_size,
             true_audio_next_device: device,
             true_audio_next_slot: params.tanSlot as u32,
+            _source: source,
             _marker: PhantomData,
-            _lifetime: PhantomData,
         }
     }
 }
 
-unsafe impl<T: ReflectionEffectType> Send for ReflectionEffectParams<'_, T> {}
+unsafe impl<T: ReflectionEffectType> Send for ReflectionEffectParams<T> {}
+
+impl<T: ReflectionEffectType> Drop for ReflectionEffectParams<T> {
+    fn drop(&mut self) {
+        if !self._source.is_null() {
+            unsafe { audionimbus_sys::iplSourceRelease(&mut self._source) };
+        }
+    }
+}
 
 /// The impulse response of [`ReflectionEffectParams`].
 #[derive(Debug, Eq, PartialEq)]
@@ -919,7 +946,7 @@ pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
 
 unsafe impl Send for ReflectionEffectIR {}
 
-impl<'a, T: ReflectionEffectType> ReflectionEffectParams<'a, T> {
+impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLReflectionEffectParams, Self> {
@@ -1145,7 +1172,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1170,7 +1197,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let reflection_effect_params = simulation_outputs.reflections();
                 assert!(reflection_effect
                     .apply(&reflection_effect_params, &input_buffer, &output_buffer)
                     .is_ok());
@@ -1226,7 +1252,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1255,7 +1281,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let reflection_effect_params = simulation_outputs.reflections();
                 assert_eq!(
                     reflection_effect.apply(
                         &reflection_effect_params,
@@ -1319,7 +1344,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1343,7 +1368,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let reflection_effect_params = simulation_outputs.reflections();
                 assert_eq!(
                     reflection_effect.apply(
                         &reflection_effect_params,
@@ -1411,7 +1435,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1443,7 +1467,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let reflection_effect_params = simulation_outputs.reflections();
                 assert!(reflection_effect
                     .apply_into_mixer(
                         &reflection_effect_params,
@@ -1504,7 +1527,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1540,7 +1563,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let reflection_effect_params = simulation_outputs.reflections();
                 assert_eq!(
                     reflection_effect.apply_into_mixer(
                         &reflection_effect_params,
@@ -1605,7 +1627,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1636,7 +1658,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let reflection_effect_params = simulation_outputs.reflections();
                 assert_eq!(
                     reflection_effect.apply_into_mixer(
                         &reflection_effect_params,
@@ -1895,7 +1916,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1917,7 +1938,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut reflection_effect_params = simulation_outputs.reflections();
                 assert!(mixer
                     .apply(&mut reflection_effect_params, &output_buffer)
                     .is_ok());
@@ -1973,7 +1993,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1995,7 +2015,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut reflection_effect_params = simulation_outputs.reflections();
                 assert_eq!(
                     mixer.apply(&mut reflection_effect_params, &output_buffer),
                     Err(EffectError::InvalidOutputChannels {
@@ -2055,7 +2074,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -2077,7 +2096,6 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut reflection_effect_params = simulation_outputs.reflections();
                 assert!(mixer
                     .apply(&mut reflection_effect_params, &output_buffer)
                     .is_ok());
@@ -2133,7 +2151,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let simulation_outputs = source.get_outputs(SimulationFlags::REFLECTIONS).unwrap();
+                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -2152,7 +2170,6 @@ mod tests {
                 let mut output_container = vec![0.0; FRAME_SIZE as usize];
                 let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
-                let mut reflection_effect_params = simulation_outputs.reflections();
                 assert!(mixer
                     .apply(&mut reflection_effect_params, &output_buffer)
                     .is_ok());
