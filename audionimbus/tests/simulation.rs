@@ -34,7 +34,7 @@ fn test_simulation() {
     let source_settings = SourceSettings {
         flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
     };
-    let mut source = Source::try_new(&simulator, source_settings).unwrap();
+    let source = Source::try_new(&simulator, source_settings).unwrap();
 
     let pathing_probes = ProbeBatch::try_new(&context).unwrap();
     let simulation_inputs = SimulationInputs::new(CoordinateSystem {

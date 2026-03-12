@@ -2665,7 +2665,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
                 };
-                let mut source = Source::try_new(&simulator, source_settings).unwrap();
+                let source = Source::try_new(&simulator, source_settings).unwrap();
 
                 let simulation_inputs = SimulationInputs::new(CoordinateSystem {
                     right: Vector3::new(1.0, 0.0, 0.0),

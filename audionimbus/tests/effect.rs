@@ -291,7 +291,7 @@ fn test_pathing() {
     let source_settings = SourceSettings {
         flags: SimulationFlags::PATHING,
     };
-    let mut source = Source::try_new(&simulator, source_settings).unwrap();
+    let source = Source::try_new(&simulator, source_settings).unwrap();
     let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
         .with_direct(
             DirectSimulationParameters::new()

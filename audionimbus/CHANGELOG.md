@@ -16,6 +16,7 @@
 - Lifetime parameters have been removed from `Scene`.
 - Implement `set_source` method for `Source<D, R, P>` instead of `Source`.
 - Take `&self` instead of `&mut self` in `Source::set_inputs` and `Source::get_outputs`.
+- `ReflectionParams<TrueAudioNext>::new` now takes `device` by value instead of by reference.
 
 ### Added
 

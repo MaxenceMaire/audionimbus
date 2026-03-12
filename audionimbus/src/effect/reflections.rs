@@ -691,11 +691,14 @@ pub struct ReflectionEffectParams<'a, T: ReflectionEffectType> {
     max_impulse_response_size: u32,
 
     /// The TrueAudio Next device to use for convolution processing.
-    true_audio_next_device: Option<&'a TrueAudioNextDevice>,
+    true_audio_next_device: Option<TrueAudioNextDevice>,
 
     /// The TrueAudio Next slot index to use for convolution processing.
     /// The slot identifies the IR to use.
     true_audio_next_slot: u32,
+
+    /// Safety marker to tie the `ReflectioEffectIR` pointer to the lifetime.
+    _lifetime: PhantomData<&'a ()>,
 
     _marker: PhantomData<T>,
 }
@@ -725,6 +728,7 @@ impl ReflectionEffectParams<'_, Convolution> {
             true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
@@ -750,6 +754,7 @@ impl ReflectionEffectParams<'_, Parametric> {
             true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
@@ -785,6 +790,7 @@ impl ReflectionEffectParams<'_, Hybrid> {
             true_audio_next_device: None,
             true_audio_next_slot: 0,
             _marker: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
@@ -802,7 +808,7 @@ impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
     pub fn new(
         num_channels: u32,
         impulse_response_size: u32,
-        device: &'a TrueAudioNextDevice,
+        device: TrueAudioNextDevice,
         slot: u32,
     ) -> Self {
         Self {
@@ -817,6 +823,7 @@ impl<'a> ReflectionEffectParams<'a, TrueAudioNext> {
             true_audio_next_device: Some(device),
             true_audio_next_slot: slot,
             _marker: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
@@ -872,18 +879,16 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
     ///
     /// # Safety
     ///
-    /// For `TrueAudioNext` type: The device pointer in `params` must remain valid for the lifetime
-    /// of the params.
-    /// The caller is responsible for ensuring the device outlives these parameters.
-    ///
-    /// For other types: This is safe as they don't use the device pointer.
+    /// The `ir` pointer in `params` must remain valid for the lifetime of the params.
     pub(crate) unsafe fn from_ffi_unchecked(
         params: audionimbus_sys::IPLReflectionEffectParams,
     ) -> Self {
         let device = if params.tanDevice.is_null() {
             None
         } else {
-            Some(&*(params.tanDevice as *const TrueAudioNextDevice))
+            Some(TrueAudioNextDevice(
+                audionimbus_sys::iplTrueAudioNextDeviceRetain(params.tanDevice),
+            ))
         };
 
         let num_channels = params.numChannels as u32;
@@ -901,6 +906,7 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<'_, T> {
             true_audio_next_device: device,
             true_audio_next_slot: params.tanSlot as u32,
             _marker: PhantomData,
+            _lifetime: PhantomData,
         }
     }
 }
@@ -919,6 +925,7 @@ impl<'a, T: ReflectionEffectType> ReflectionEffectParams<'a, T> {
     ) -> FFIWrapper<'_, audionimbus_sys::IPLReflectionEffectParams, Self> {
         let device_ptr = self
             .true_audio_next_device
+            .as_ref()
             .map(|d| d.raw_ptr())
             .unwrap_or(std::ptr::null_mut());
 
@@ -1117,7 +1124,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1198,7 +1205,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1291,7 +1298,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1383,7 +1390,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1476,7 +1483,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1577,7 +1584,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1867,7 +1874,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -1945,7 +1952,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -2027,7 +2034,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
@@ -2105,7 +2112,7 @@ mod tests {
                 let source_settings = SourceSettings {
                     flags: SimulationFlags::REFLECTIONS,
                 };
-                let mut source =
+                let source =
                     Source::<(), Reflections, ()>::try_new(&simulator, source_settings).unwrap();
                 simulator.add_source(&source);
 
