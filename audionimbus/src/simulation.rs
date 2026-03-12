@@ -102,7 +102,7 @@ impl SimulationFlagsProvider for () {
 ///
 /// ```
 /// # use audionimbus::{
-/// #     Context, Simulator, Scene, Source, SourceSettings, SimulationFlags,
+/// #     Context, Simulator, Scene, Source, SimulationFlags,
 /// #     DirectSimulationSettings, SimulationSettings, SimulationInputs, SimulationSharedInputs,
 /// #     CoordinateSystem, DirectSimulationParameters, ReflectionsSharedInputs, DistanceAttenuationModel,
 /// # };
@@ -122,19 +122,14 @@ impl SimulationFlagsProvider for () {
 /// simulator.set_scene(&scene);
 /// simulator.commit();
 ///
-/// // Create and add a source.
-/// let source_settings = SourceSettings {
-///     flags: SimulationFlags::DIRECT,
-/// };
-/// let mut source = Source::try_new(&simulator, source_settings)?;
-///
+/// let mut source = Source::try_new(&simulator)?;
 /// simulator.add_source(&source);
 ///
 /// // Configure simulation parameters.
 /// let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
 ///     .with_direct(DirectSimulationParameters::new()
 ///         .with_distance_attenuation(DistanceAttenuationModel::default()));
-/// source.set_inputs(SimulationFlags::DIRECT, &simulation_inputs);
+/// source.set_direct_inputs(&simulation_inputs);
 ///
 /// // Set shared parameters.
 /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default());
@@ -1220,6 +1215,8 @@ impl PathingCompatible<()> for () {}
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
+///
+/// Generic over the types of simulation that may be run for this source.
 #[derive(Debug)]
 pub struct Source<D = (), R = (), P = ()> {
     inner: audionimbus_sys::IPLSource,
@@ -1265,28 +1262,50 @@ where
 {
     /// Creates a new source and returns a handle to it.
     ///
+    /// Convenience method abstracting the more expressive [`Self::try_new_limited`].
+    ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new<T, SimD, SimR, SimP>(
+    pub fn try_new<T>(simulator: &Simulator<T, D, R, P>) -> Result<Self, SteamAudioError>
+    where
+        T: RayTracer,
+        D: 'static + DirectCompatible<D> + SimulationFlagsProvider,
+        R: 'static + ReflectionsCompatible<R> + SimulationFlagsProvider,
+        P: 'static + PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        Self::try_new_limited::<T, D, R, P>(simulator)
+    }
+
+    /// Creates a new source and returns a handle to it.
+    ///
+    /// Generics specify which types of simulation may be run for this source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
+    pub fn try_new_limited<T, SimD, SimR, SimP>(
         simulator: &Simulator<T, SimD, SimR, SimP>,
-        source_settings: SourceSettings,
     ) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
         SimD: 'static,
         SimR: 'static,
         SimP: 'static,
-        D: DirectCompatible<SimD> + 'static,
-        R: ReflectionsCompatible<SimR> + 'static,
-        P: PathingCompatible<SimP> + 'static,
+        D: 'static + DirectCompatible<SimD> + SimulationFlagsProvider,
+        R: 'static + ReflectionsCompatible<SimR> + SimulationFlagsProvider,
+        P: 'static + PathingCompatible<SimP> + SimulationFlagsProvider,
     {
         let mut inner = std::ptr::null_mut();
+
+        let simulation_flags = D::flags() | R::flags() | P::flags();
 
         let status = unsafe {
             audionimbus_sys::iplSourceCreate(
                 simulator.raw_ptr(),
-                &mut audionimbus_sys::IPLSourceSettings::from(source_settings),
+                &mut audionimbus_sys::IPLSourceSettings {
+                    flags: simulation_flags.into(),
+                },
                 &mut inner,
             )
         };
@@ -1316,6 +1335,15 @@ where
 
     /// Specifies simulation parameters for a source.
     ///
+    /// Convenience method abstracting the more expressive [`Self::set_inputs_subset`].
+    ///
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// Also see:
+    /// - [`Self::set_direct_inputs`]
+    /// - [`Self::set_reflections_inputs`]
+    /// - [`Self::set_pathing_inputs`]
+    ///
     /// # Threading Considerations
     ///
     /// This method will block if a simulation is currently running for the
@@ -1328,25 +1356,56 @@ where
     ///
     /// # Arguments
     ///
-    /// - `flags`: the types of simulation for which to specify inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `inputs`: the input parameters to set.
     ///
     /// # Errors
     ///
     /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
     /// set during simulator initialization.
-    ///
-    /// # Panics
-    ///
-    /// Panics if some of the `simulation_flags` are disabled on this [`Source`].
     pub fn set_inputs(
         &self,
-        simulation_flags: SimulationFlags,
         inputs: &SimulationInputs<D, R, P>,
-    ) -> Result<(), ParameterValidationError> {
-        Self::validate_flags(simulation_flags);
+    ) -> Result<(), ParameterValidationError>
+    where
+        D: DirectCompatible<D> + SimulationFlagsProvider,
+        R: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        P: PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        self.set_inputs_subset::<D, R, P>(inputs)
+    }
 
+    /// Specifies parts or all of the simulation parameters for a source.
+    ///
+    /// Only blocks for the requested simulation types, allowing concurrent setting of parameters
+    /// across simulation threads.
+    ///
+    /// For example, `set_inputs_subset::<Direct, (), ()>()` and
+    /// `set_inputs_subset::<(), Reflections, ()>()` can be called simultaneously without blocking
+    /// each other.
+    ///
+    /// MUST NOT be called from a real-time audio thread.
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `inputs`: the input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
+    /// set during simulator initialization.
+    pub fn set_inputs_subset<InD, InR, InP>(
+        &self,
+        inputs: &SimulationInputs<InD, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+    {
         self.validate_inputs(inputs)?;
+
+        let simulation_flags = InD::flags() | InR::flags() | InP::flags();
 
         let mut ffi_inputs = inputs.to_ffi();
 
@@ -1460,37 +1519,16 @@ where
         guards
     }
 
-    /// Asserts whether flags are enabled on this [`Source`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if some `flags` are disabled on this [`Source`].
-    fn validate_flags(flags: SimulationFlags) {
-        let mut valid_flags = SimulationFlags::empty();
-
-        if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
-            valid_flags |= SimulationFlags::DIRECT;
-        }
-        if std::any::TypeId::of::<R>() == std::any::TypeId::of::<Reflections>() {
-            valid_flags |= SimulationFlags::REFLECTIONS;
-        }
-        if std::any::TypeId::of::<P>() == std::any::TypeId::of::<Pathing>() {
-            valid_flags |= SimulationFlags::PATHING;
-        }
-
-        assert!(
-            valid_flags.contains(flags),
-            "requested simulation flags {:?} are not enabled on this source (valid flags: {:?})",
-            flags,
-            valid_flags
-        );
-    }
-
     /// Validates simulation parameters against the limits set during simulator initialization.
-    fn validate_inputs(
+    fn validate_inputs<InD, InR, InP>(
         &self,
-        inputs: &SimulationInputs<D, R, P>,
-    ) -> Result<(), ParameterValidationError> {
+        inputs: &SimulationInputs<InD, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D>,
+        InR: ReflectionsCompatible<R>,
+        InP: PathingCompatible<P>,
+    {
         let Some(direct_params) = &inputs.direct_simulation else {
             return Ok(());
         };
@@ -1543,6 +1581,30 @@ where
     (): ReflectionsCompatible<R>,
     (): PathingCompatible<P>,
 {
+    /// Specifies direct simulation parameters for a source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::set_inputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `inputs`: the input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
+    /// set during simulator initialization.
+    pub fn set_direct_inputs<InR, InP>(
+        &self,
+        inputs: &SimulationInputs<Direct, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        self.set_inputs_subset::<Direct, InR, InP>(inputs)
+    }
+
     /// Retrieves direct simulation results for a source.
     ///
     /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
@@ -1565,6 +1627,30 @@ where
     (): DirectCompatible<D>,
     (): PathingCompatible<P>,
 {
+    /// Specifies reflections simulation parameters for a source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::set_inputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `inputs`: the input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
+    /// set during simulator initialization.
+    pub fn set_reflections_inputs<InD, InP>(
+        &self,
+        inputs: &SimulationInputs<InD, Reflections, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        self.set_inputs_subset::<InD, Reflections, InP>(inputs)
+    }
+
     /// Retrieves reflections simulation results for a source.
     ///
     /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
@@ -1590,6 +1676,30 @@ where
     (): DirectCompatible<D>,
     (): ReflectionsCompatible<R>,
 {
+    /// Specifies pathing simulation parameters for a source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::set_inputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `inputs`: the input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
+    /// set during simulator initialization.
+    pub fn set_pathing_inputs<InD, InR>(
+        &self,
+        inputs: &SimulationInputs<InD, InR, Pathing>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+    {
+        self.set_inputs_subset::<InD, InR, Pathing>(inputs)
+    }
+
     /// Retrieves pathing simulation results for a source.
     ///
     /// Convenience method abstracting the more expressive [`Self::get_outputs_subset`].
@@ -1630,21 +1740,6 @@ impl<D, R, P> Clone for Source<D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-        }
-    }
-}
-
-/// Settings used to create a source.
-#[derive(Copy, Clone, Debug)]
-pub struct SourceSettings {
-    /// The types of simulation that may be run for this source.
-    pub flags: SimulationFlags,
-}
-
-impl From<SourceSettings> for audionimbus_sys::IPLSourceSettings {
-    fn from(settings: SourceSettings) -> Self {
-        Self {
-            flags: settings.flags.into(),
         }
     }
 }
@@ -2705,62 +2800,6 @@ mod tests {
     mod source {
         use super::*;
 
-        mod set_inputs {
-            use super::*;
-
-            #[test]
-            #[should_panic(
-                expected = "requested simulation flags SimulationFlags(REFLECTIONS) are not enabled on this source (valid flags: SimulationFlags(DIRECT))"
-            )]
-            fn panic_on_invalid_flags() {
-                let context = Context::default();
-
-                const SAMPLING_RATE: u32 = 48_000;
-                const FRAME_SIZE: u32 = 1024;
-                const MAX_ORDER: u32 = 1;
-
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_direct(
-                        DirectSimulationSettings {
-                            max_num_occlusion_samples: 4,
-                        },
-                    );
-                let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-                let scene = Scene::try_new(&context).unwrap();
-                simulator.set_scene(&scene);
-
-                let source_settings = SourceSettings {
-                    flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
-                };
-                let source =
-                    Source::<Direct, (), ()>::try_new(&simulator, source_settings).unwrap();
-
-                let simulation_inputs = SimulationInputs::new(CoordinateSystem {
-                    right: Vector3::new(1.0, 0.0, 0.0),
-                    up: Vector3::new(0.0, 1.0, 0.0),
-                    ahead: Vector3::new(0.0, 0.0, 1.0),
-                    origin: Vector3::new(0.0, 0.0, 0.0),
-                })
-                .with_direct(
-                    DirectSimulationParameters::new()
-                        .with_distance_attenuation(DistanceAttenuationModel::default())
-                        .with_air_absorption(AirAbsorptionModel::default())
-                        .with_directivity(Directivity::default())
-                        .with_occlusion(
-                            Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
-                                TransmissionParameters {
-                                    num_transmission_rays: 1,
-                                },
-                            ),
-                        ),
-                );
-                source
-                    .set_inputs(SimulationFlags::REFLECTIONS, &simulation_inputs)
-                    .unwrap();
-            }
-        }
-
         mod clone {
             use super::*;
 
@@ -2769,10 +2808,7 @@ mod tests {
                 let context = Context::default();
                 let simulator_settings = SimulationSettings::new(48_000, 1024, 1);
                 let simulator = Simulator::try_new(&context, &simulator_settings).unwrap();
-                let source_settings = SourceSettings {
-                    flags: SimulationFlags::empty(),
-                };
-                let source = Source::<(), (), ()>::try_new(&simulator, source_settings).unwrap();
+                let source = Source::try_new(&simulator).unwrap();
                 let clone = source.clone();
                 assert_eq!(source.raw_ptr(), clone.raw_ptr());
                 drop(source);

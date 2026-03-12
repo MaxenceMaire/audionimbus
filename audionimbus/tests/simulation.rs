@@ -31,10 +31,7 @@ fn test_simulation() {
     let scene = Scene::try_new(&context).unwrap();
     simulator.set_scene(&scene);
 
-    let source_settings = SourceSettings {
-        flags: SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
-    };
-    let source = Source::try_new(&simulator, source_settings).unwrap();
+    let source = Source::try_new(&simulator).unwrap();
 
     let pathing_probes = ProbeBatch::try_new(&context).unwrap();
     let simulation_inputs = SimulationInputs::new(CoordinateSystem {
@@ -69,9 +66,7 @@ fn test_simulation() {
         find_alternate_paths: true,
         deviation: DeviationModel::default(),
     });
-    source
-        .set_inputs(SimulationFlags::DIRECT, &simulation_inputs)
-        .unwrap();
+    source.set_direct_inputs(&simulation_inputs).unwrap();
 
     simulator.add_source(&source);
 
@@ -215,10 +210,7 @@ fn test_pathing_without_probes() {
         .bake(&context, &mut pathing_probes, &scene, path_bake_params)
         .unwrap();
 
-    let source_settings = SourceSettings {
-        flags: SimulationFlags::PATHING,
-    };
-    let source = Source::try_new(&simulator, source_settings).unwrap();
+    let source = Source::try_new(&simulator).unwrap();
     let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
         .with_direct(
             DirectSimulationParameters::new()
@@ -246,9 +238,7 @@ fn test_pathing_without_probes() {
             find_alternate_paths: true,
             deviation: DeviationModel::default(),
         });
-    source
-        .set_inputs(SimulationFlags::PATHING, &simulation_inputs)
-        .unwrap();
+    source.set_pathing_inputs(&simulation_inputs).unwrap();
     simulator.add_source(&source);
 
     simulator.commit();

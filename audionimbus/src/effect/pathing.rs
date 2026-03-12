@@ -125,10 +125,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     .bake(&context, &mut probe_batch, &scene, path_bake_params)
 ///     .unwrap();
 ///
-/// let source_settings = SourceSettings {
-///     flags: SimulationFlags::PATHING,
-/// };
-/// let mut source = Source::try_new(&simulator, source_settings)?;
+/// let mut source = Source::try_new(&simulator)?;
 /// let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
 ///     .with_direct(
 ///         DirectSimulationParameters::new()
@@ -156,7 +153,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         find_alternate_paths: true,
 ///         deviation: DeviationModel::default(),
 ///     });
-/// source.set_inputs(SimulationFlags::PATHING, &simulation_inputs);
+/// source.set_pathing_inputs(&simulation_inputs);
 /// simulator.add_source(&source);
 ///
 /// simulator.commit();
