@@ -6,6 +6,7 @@
 
 - All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
 - `Source::try_new` now takes `SourceSettings` by value instead of by reference.
+- `Source::set_inputs` now takes `SimulationInputs` by reference instead of by value.
 - `SimulationSettings::with_radeon_rays` now takes `OpenClDevice` and `RadeonRaysDevice` by value instead of by reference.
 - `PathingSimulationParameters::pathing_probes` is now an owned `ProbeBatch` instead of `&ProbeBatch`.
 - `ReflectionsSimulationSettings::TrueAudioNext` now owns its `OpenClDevice` and `TrueAudioNextDevice` fields instead of borrowing them. As a result, `ReflectionsSimulationSettings` no longer implements `Copy`.
@@ -14,10 +15,13 @@
 - `Scene::try_with_radeon_rays`, `Scene::load_radeon_rays`, and `Scene::load_radeon_rays_with_progress` now take `RadeonRaysDevice` by value instead of by reference.
 - `Scene::try_with_custom`, `Scene::load_custom`, and `Scene::load_custom_with_progress` now take `CustomRayTracingCallbacks` by value instead of by reference.
 - Lifetime parameters have been removed from `Scene`.
-- Implement `set_source` method for `Source<D, R, P>` instead of `Source`.
-- Take `&self` instead of `&mut self` in `Source::set_inputs` and `Source::get_outputs`.
+- `SimulationInputs::set_source` is now implemented for `Source<D, R, P>` instead of `Source`.
+- `Source::set_inputs` and `Source::get_outputs` now take `&self` instead of `&mut self`.
 - `ReflectionParams<TrueAudioNext>::new` now takes `device` by value instead of by reference.
-- Methods `direct`, `reflections`, and `pathing` now return their respective effect parameters directly instead of being wrapped inside `FFIWrapper`.
+- Methods `SimulationOutputs::direct`, `SimulationOutputs::reflections`, and `SimulationOutputs::pathing` now return their respective effect parameters directly instead of wrapped in `FFIWrapper`.
+- `Source::get_outputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
+- `ReflectionEffectParams` no longer has a lifetime parameter. It now bumps the reference count of the associated `Source` to keep the IR pointer valid.
+- `ReflectionEffectParams<Convolution>::new` and `ReflectionEffectParams<Hybrid>::new` are now `unsafe` since the caller must ensure the IR pointer remains valid.
 
 ### Added
 
@@ -28,15 +32,19 @@
 - Implement `Copy`, `Clone` for `SourceSettings`.
 - Add `SimulationInputs::set_source` to update the source position and orientation in place.
 - Add `SimulationInputs::set_direct_simulation_parameters`, `set_reflections_simulation_parameters`, and `set_pathing_simulation_parameters` to update simulation parameters in place without rebuilding the struct.
-- Implement `Copy`, `Clone` for `Direct`, `Reflections` and `Pathing` marker types.
+- Implement `Copy`, `Clone` for `Direct`, `Reflections`, and `Pathing` marker types.
 - Implement `Default` for `Direct`, `Reflections`, `Pathing`.
 - Implement `Default`, `Clone` for `SimulationSharedInputs`.
 - Add methods `set_listener`, `set_reflections_shared_inputs`, and `set_pathing_visualization_callback` for `SimulationSharedInputs`.
+- Add `Source::get_outputs_subset` to retrieve a subset of simulation results, blocking only for the requested simulation types.
+- Add `Source::get_direct_outputs`, `Source::get_reflection_outputs`, and `Source::get_pathing_outputs` as typed convenience methods that return effect parameters directly.
+- Add `SimulationFlagsProvider` trait, implemented for `Direct`, `Reflections`, `Pathing`, and `()`.
 
 ### Removed
 
 - Remove `'static` bounds from `Clone` implementation for `Source`.
 - Remove lifetime from `SimulationOutputs`. `SimulationOutputs` now bumps the reference count of the associated `Source` instead.
+- Remove `Source::get_outputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
 
 ## [0.13.0] - 2026-03-04
 
