@@ -32,7 +32,6 @@ use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::effect::reflections::ReflectionEffectType;
 use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
 use crate::error::{to_option_error, SteamAudioError};
-use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::{CoordinateSystem, Scene};
 use crate::model::air_absorption::AirAbsorptionModel;
 use crate::model::deviation::DeviationModel;
@@ -1372,12 +1371,12 @@ where
     pub fn get_outputs(
         &self,
         simulation_flags: SimulationFlags,
-    ) -> Result<SimulationOutputs<'_, D, R, P>, SteamAudioError> {
+    ) -> Result<SimulationOutputs<D, R, P>, SteamAudioError> {
         Self::validate_flags(simulation_flags);
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
-        let simulation_outputs = SimulationOutputs::try_allocate()?;
+        let simulation_outputs = SimulationOutputs::try_allocate(self.clone())?;
 
         unsafe {
             audionimbus_sys::iplSourceGetOutputs(
@@ -2406,20 +2405,19 @@ pub struct ReflectionsSharedInputs {
 
 /// Simulation results for a source.
 #[derive(Debug)]
-pub struct SimulationOutputs<'src, D, R, P> {
+pub struct SimulationOutputs<D, R, P> {
     inner: *mut audionimbus_sys::IPLSimulationOutputs,
+
+    /// Holds a reference to the [`Source`] [`SimulationOutputs`] originated from.
+    _source: Source<D, R, P>,
 
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
-
-    /// Marker that guarantees that the [`SimulationOutputs`] cannot outlive the [`Source`] it is
-    /// tied to.
-    _marker: PhantomData<&'src ()>,
 }
 
-impl<'src, D, R, P> SimulationOutputs<'src, D, R, P> {
-    fn try_allocate() -> Result<Self, SteamAudioError> {
+impl<D, R, P> SimulationOutputs<D, R, P> {
+    fn try_allocate(source: Source<D, R, P>) -> Result<Self, SteamAudioError> {
         let ptr = unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
             let ptr = std::alloc::alloc(layout).cast::<audionimbus_sys::IPLSimulationOutputs>();
@@ -2432,10 +2430,10 @@ impl<'src, D, R, P> SimulationOutputs<'src, D, R, P> {
 
         Ok(Self {
             inner: ptr,
+            _source: source,
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
-            _marker: PhantomData,
         })
     }
 
@@ -2448,33 +2446,27 @@ impl<'src, D, R, P> SimulationOutputs<'src, D, R, P> {
     }
 }
 
-impl<'src, R, P> SimulationOutputs<'src, Direct, R, P> {
-    pub fn direct(&self) -> FFIWrapper<'_, DirectEffectParams, Self> {
-        unsafe { FFIWrapper::new((*self.inner).direct.into()) }
+impl<R, P> SimulationOutputs<Direct, R, P> {
+    pub fn direct(&self) -> DirectEffectParams {
+        unsafe { (*self.inner).direct.into() }
     }
 }
 
-impl<'src, D, P> SimulationOutputs<'src, D, Reflections, P> {
-    pub fn reflections<'a, T: ReflectionEffectType>(
-        &'a self,
-    ) -> FFIWrapper<'a, ReflectionEffectParams<'a, T>, Self> {
-        unsafe {
-            FFIWrapper::new(ReflectionEffectParams::from_ffi_unchecked(
-                (*self.inner).reflections,
-            ))
-        }
+impl<D, P> SimulationOutputs<D, Reflections, P> {
+    pub fn reflections<T: ReflectionEffectType>(&self) -> ReflectionEffectParams<'_, T> {
+        unsafe { ReflectionEffectParams::from_ffi_unchecked((*self.inner).reflections) }
     }
 }
 
-impl<'src, D, R> SimulationOutputs<'src, D, R, Pathing> {
-    pub fn pathing(&self) -> FFIWrapper<'_, PathEffectParams, Self> {
-        unsafe { FFIWrapper::new((*self.inner).pathing.into()) }
+impl<D, R> SimulationOutputs<D, R, Pathing> {
+    pub fn pathing(&self) -> PathEffectParams {
+        unsafe { (*self.inner).pathing.into() }
     }
 }
 
-unsafe impl<D, R, P> Send for SimulationOutputs<'_, D, R, P> {}
+unsafe impl<D, R, P> Send for SimulationOutputs<D, R, P> {}
 
-impl<D, R, P> Drop for SimulationOutputs<'_, D, R, P> {
+impl<D, R, P> Drop for SimulationOutputs<D, R, P> {
     fn drop(&mut self) {
         unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();

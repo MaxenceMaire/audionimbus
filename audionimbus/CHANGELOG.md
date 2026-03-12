@@ -17,6 +17,7 @@
 - Implement `set_source` method for `Source<D, R, P>` instead of `Source`.
 - Take `&self` instead of `&mut self` in `Source::set_inputs` and `Source::get_outputs`.
 - `ReflectionParams<TrueAudioNext>::new` now takes `device` by value instead of by reference.
+- Methods `direct`, `reflections`, and `pathing` now return their respective effect parameters directly instead of being wrapped inside `FFIWrapper`.
 
 ### Added
 
@@ -35,6 +36,7 @@
 ### Removed
 
 - Remove `'static` bounds from `Clone` implementation for `Source`.
+- Remove lifetime from `SimulationOutputs`. `SimulationOutputs` now bumps the reference count of the associated `Source` instead.
 
 ## [0.13.0] - 2026-03-04
 
