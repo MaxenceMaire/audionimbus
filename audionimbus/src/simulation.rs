@@ -391,8 +391,6 @@ where
     ///
     /// Convenience method abstracting the more expressive [`Self::set_shared_inputs_subset`].
     ///
-    /// See the [module-level documentation](crate::simulation) for threading guidelines.
-    ///
     /// Also see:
     /// - [`Self::set_shared_direct_inputs`]
     /// - [`Self::set_shared_reflections_inputs`]
@@ -407,6 +405,8 @@ where
     /// It is safe to call this method concurrently with simulations of different types.
     /// For example, setting `DIRECT` shared inputs while a `REFLECTIONS` simulation is running
     /// will not block.
+    ///
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
     ///
     /// # Arguments
     ///
@@ -1477,8 +1477,6 @@ where
     ///
     /// Convenience method abstracting the more expressive [`Self::set_inputs_subset`].
     ///
-    /// See the [module-level documentation](crate::simulation) for threading guidelines.
-    ///
     /// Also see:
     /// - [`Self::set_direct_inputs`]
     /// - [`Self::set_reflections_inputs`]
@@ -1487,12 +1485,14 @@ where
     /// # Threading Considerations
     ///
     /// This method will block if a simulation is currently running for the
-    /// specified type(s). Call this from the same thread that runs the corresponding
-    /// simulation(s) to avoid blocking.
+    /// specified type(s).
+    /// Call this from the same thread that runs the corresponding simulation(s) to avoid blocking.
     ///
     /// It is safe to call this method concurrently with simulations of different types.
     /// For example, setting `DIRECT` inputs while a `REFLECTIONS` simulation is running
     /// will not block.
+    ///
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
     ///
     /// # Arguments
     ///
