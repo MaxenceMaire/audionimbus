@@ -23,6 +23,7 @@
 - `Source::set_inputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
 - `ReflectionEffectParams` no longer has a lifetime parameter. It now bumps the reference count of the associated `Source` to keep the IR pointer valid.
 - `ReflectionEffectParams<Convolution>::new` and `ReflectionEffectParams<Hybrid>::new` are now `unsafe` since the caller must ensure the IR pointer remains valid.
+- `Simulator::set_shared_inputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
 
 ### Added
 
@@ -42,6 +43,8 @@
 - Add `Source::set_direct_inputs`, `Source::set_reflections_inputs`, and `Source::set_pathing_inputs` as typed convenience methods.
 - Add `Source::try_new_subset` to create a source that runs a subset of the simulations supported by its simulator.
 - Add `SimulationFlagsProvider` trait, implemented for `Direct`, `Reflections`, `Pathing`, and `()`.
+- Add `Simulator::set_shared_inputs_subset` to set a subset of shared simulation inputs, blocking only for the requested simulation types.
+- Add `Simulator::set_shared_direct_inputs`, `Simulator::set_shared_reflections_inputs`, and `Simulator::set_shared_pathing_inputs` as typed convenience methods.
 
 ### Removed
 
