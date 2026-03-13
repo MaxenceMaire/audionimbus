@@ -5,7 +5,7 @@
 ### Changed
 
 - All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
-- `Source::try_new` now takes `SourceSettings` by value instead of by reference.
+- `Source::try_new` no longer takes `SourceSettings`. The simulation flags are now derived from the source's type parameters.
 - `Source::set_inputs` now takes `SimulationInputs` by reference instead of by value.
 - `SimulationSettings::with_radeon_rays` now takes `OpenClDevice` and `RadeonRaysDevice` by value instead of by reference.
 - `PathingSimulationParameters::pathing_probes` is now an owned `ProbeBatch` instead of `&ProbeBatch`.
@@ -20,8 +20,10 @@
 - `ReflectionParams<TrueAudioNext>::new` now takes `device` by value instead of by reference.
 - Methods `SimulationOutputs::direct`, `SimulationOutputs::reflections`, and `SimulationOutputs::pathing` now return their respective effect parameters directly instead of wrapped in `FFIWrapper`.
 - `Source::get_outputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
+- `Source::set_inputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
 - `ReflectionEffectParams` no longer has a lifetime parameter. It now bumps the reference count of the associated `Source` to keep the IR pointer valid.
 - `ReflectionEffectParams<Convolution>::new` and `ReflectionEffectParams<Hybrid>::new` are now `unsafe` since the caller must ensure the IR pointer remains valid.
+- `Simulator::set_shared_inputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
 
 ### Added
 
@@ -29,7 +31,6 @@
 - Implement `Clone` for all models (`AirAbsorptionModel`, `DeviationModel`, `Directivity`, `DistanceAttenuationModel`).
 - Implement `Clone` for `SimulationInputs`, `DirectSimulationParameters`, `PathingSimulationParameters`.
 - Implement `Copy`, `Clone` for `AudioEffectState`.
-- Implement `Copy`, `Clone` for `SourceSettings`.
 - Add `SimulationInputs::set_source` to update the source position and orientation in place.
 - Add `SimulationInputs::set_direct_simulation_parameters`, `set_reflections_simulation_parameters`, and `set_pathing_simulation_parameters` to update simulation parameters in place without rebuilding the struct.
 - Implement `Copy`, `Clone` for `Direct`, `Reflections`, and `Pathing` marker types.
@@ -38,13 +39,20 @@
 - Add methods `set_listener`, `set_reflections_shared_inputs`, and `set_pathing_visualization_callback` for `SimulationSharedInputs`.
 - Add `Source::get_outputs_subset` to retrieve a subset of simulation results, blocking only for the requested simulation types.
 - Add `Source::get_direct_outputs`, `Source::get_reflection_outputs`, and `Source::get_pathing_outputs` as typed convenience methods that return effect parameters directly.
+- Add `Source::set_inputs_subset` to set a subset of simulation inputs, blocking only for the requested simulation types.
+- Add `Source::set_direct_inputs`, `Source::set_reflections_inputs`, and `Source::set_pathing_inputs` as typed convenience methods.
+- Add `Source::try_new_subset` to create a source that runs a subset of the simulations supported by its simulator.
 - Add `SimulationFlagsProvider` trait, implemented for `Direct`, `Reflections`, `Pathing`, and `()`.
+- Add `Simulator::set_shared_inputs_subset` to set a subset of shared simulation inputs, blocking only for the requested simulation types.
+- Add `Simulator::set_shared_direct_inputs`, `Simulator::set_shared_reflections_inputs`, and `Simulator::set_shared_pathing_inputs` as typed convenience methods.
 
 ### Removed
 
+- Remove `SourceSettings`. The simulation flags are now derived from the source's type parameters.
 - Remove `'static` bounds from `Clone` implementation for `Source`.
 - Remove lifetime from `SimulationOutputs`. `SimulationOutputs` now bumps the reference count of the associated `Source` instead.
 - Remove `Source::get_outputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
+- Remove `Source::set_inputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
 
 ## [0.13.0] - 2026-03-04
 
