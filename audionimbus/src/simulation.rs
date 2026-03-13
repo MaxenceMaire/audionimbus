@@ -389,26 +389,83 @@ where
 
     /// Specifies simulation parameters that are not associated with any particular source.
     ///
+    /// Convenience method abstracting the more expressive [`Self::set_shared_inputs_subset`].
+    ///
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// Also see:
+    /// - [`Self::set_shared_direct_inputs`]
+    /// - [`Self::set_shared_reflections_inputs`]
+    /// - [`Self::set_shared_pathing_inputs`]
+    ///
+    /// # Threading Considerations
+    ///
+    /// This method will block if a simulation is currently running for the
+    /// specified type(s).
+    /// Call this from the same thread that runs the corresponding simulation(s) to avoid blocking.
+    ///
+    /// It is safe to call this method concurrently with simulations of different types.
+    /// For example, setting `DIRECT` shared inputs while a `REFLECTIONS` simulation is running
+    /// will not block.
+    ///
     /// # Arguments
     ///
-    /// - `flags`: the types of simulation for which to specify shared inputs. If, for example, direct and reflections simulations are being run on separate threads, you can call this function on the direct simulation thread with [`SimulationFlags::DIRECT`], and on the reflections simulation thread with [`SimulationFlags::REFLECTIONS`], without requiring any synchronization between the calls.
     /// - `shared_inputs`: the shared input parameters to set.
     ///
     /// # Errors
     ///
     /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
     /// simulator initialization.
-    pub fn set_shared_inputs<_D, _P>(
+    pub fn set_shared_inputs<InD, InR, InP>(
         &self,
-        simulation_flags: SimulationFlags,
-        // `_D` and `_P` are intentionally unconstrained here.
-        // `SimulationSharedInputs` does not contain any Direct- or Pathing-specific data.
-        // Allowing arbitrary `_D` and `_P` avoids forcing callers to construct a value via
-        // `SimulationSharedInputs::with_direct` and `SimulationSharedInputs::with_pathing`, which
-        // would add unnecessary boilerplate with no semantic benefit.
-        shared_inputs: &SimulationSharedInputs<_D, R, _P>,
-    ) -> Result<(), ParameterValidationError> {
+        shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        D: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
+        R: ReflectionsCompatible<R> + ReflectionsCompatible<InR> + SimulationFlagsProvider,
+        P: PathingCompatible<P> + PathingCompatible<InP> + SimulationFlagsProvider,
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+    {
+        self.set_shared_inputs_subset::<D, R, P, InD, InR, InP>(shared_inputs)
+    }
+
+    /// Specifies simulation parameters that are not associated with any particular source.
+    ///
+    /// Only blocks for the requested simulation types, allowing concurrent setting of shared
+    /// parameters across simulation threads.
+    ///
+    /// For example, `set_shared_inputs_subset::<Direct, (), ()>()` and
+    /// `set_shared_inputs_subset::<(), Reflections, ()>()` can be called simultaneously without
+    /// blocking each other.
+    ///
+    /// MUST NOT be called from a real-time audio thread.
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `shared_inputs`: the shared input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
+    /// simulator initialization.
+    pub fn set_shared_inputs_subset<SubD, SubR, SubP, InD, InR, InP>(
+        &self,
+        shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        SubD: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
+        SubR: ReflectionsCompatible<R> + ReflectionsCompatible<InR> + SimulationFlagsProvider,
+        SubP: PathingCompatible<P> + PathingCompatible<InP> + SimulationFlagsProvider,
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+    {
         self.validate_shared_inputs(shared_inputs)?;
+
+        let simulation_flags = SubD::flags() | SubR::flags() | SubP::flags();
 
         let _guards = self.acquire_locks_for_flags(simulation_flags);
 
@@ -449,10 +506,15 @@ where
     }
 
     /// Validates shared simulation inputs against the limits set during initialization.
-    fn validate_shared_inputs<_D, _P>(
+    fn validate_shared_inputs<InD, InR, InP>(
         &self,
-        shared_inputs: &SimulationSharedInputs<_D, R, _P>,
-    ) -> Result<(), ParameterValidationError> {
+        shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D>,
+        InR: ReflectionsCompatible<R>,
+        InP: PathingCompatible<P>,
+    {
         let Some(reflections_inputs) = &shared_inputs.reflections_shared_inputs else {
             return Ok(());
         };
@@ -501,6 +563,32 @@ where
     R: 'static,
     P: 'static,
 {
+    /// Specifies direct simulation parameters that are not associated with any particular source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::set_shared_inputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `shared_inputs`: the shared input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
+    /// simulator initialization.
+    pub fn set_shared_direct_inputs<InR, InP>(
+        &self,
+        shared_inputs: &SimulationSharedInputs<Direct, InR, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+        (): ReflectionsCompatible<R> + ReflectionsCompatible<InR>,
+        (): PathingCompatible<P> + PathingCompatible<InP>,
+    {
+        self.set_shared_inputs_subset::<Direct, (), (), Direct, InR, InP>(shared_inputs)
+    }
+
     /// Runs a direct simulation for all sources added to the simulator.
     ///
     /// This may include distance attenuation, air absorption, directivity, occlusion, and transmission.
@@ -529,6 +617,32 @@ where
     D: 'static,
     P: 'static,
 {
+    /// Specifies reflections simulation parameters that are not associated with any particular source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::set_shared_inputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `shared_inputs`: the shared input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
+    /// simulator initialization.
+    pub fn set_shared_reflections_inputs<InD, InP>(
+        &self,
+        shared_inputs: &SimulationSharedInputs<InD, Reflections, InP>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
+        (): DirectCompatible<D> + DirectCompatible<InD>,
+        (): PathingCompatible<P> + PathingCompatible<InP>,
+    {
+        self.set_shared_inputs_subset::<(), Reflections, (), InD, Reflections, InP>(shared_inputs)
+    }
+
     /// Runs a reflections simulation for all sources added to the simulator.
     ///
     /// # Performance Considerations
@@ -570,6 +684,32 @@ where
     D: 'static,
     R: 'static,
 {
+    /// Specifies pathing simulation parameters that are not associated with any particular source.
+    ///
+    /// Convenience method abstracting the more expressive [`Self::set_shared_inputs_subset`].
+    /// See the [module-level documentation](crate::simulation) for threading guidelines.
+    ///
+    /// # Arguments
+    ///
+    /// - `shared_inputs`: the shared input parameters to set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
+    /// simulator initialization.
+    pub fn set_shared_pathing_inputs<InD, InR>(
+        &self,
+        shared_inputs: &SimulationSharedInputs<InD, InR, Pathing>,
+    ) -> Result<(), ParameterValidationError>
+    where
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        (): DirectCompatible<D> + DirectCompatible<InD>,
+        (): ReflectionsCompatible<R> + ReflectionsCompatible<InR>,
+    {
+        self.set_shared_inputs_subset::<(), (), Pathing, InD, InR, Pathing>(shared_inputs)
+    }
+
     /// Runs a pathing simulation for all sources added to the simulator.
     ///
     /// # Performance Considerations
@@ -1362,16 +1502,19 @@ where
     ///
     /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
     /// set during simulator initialization.
-    pub fn set_inputs(
+    pub fn set_inputs<InD, InR, InP>(
         &self,
-        inputs: &SimulationInputs<D, R, P>,
+        inputs: &SimulationInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
-        D: DirectCompatible<D> + SimulationFlagsProvider,
-        R: ReflectionsCompatible<R> + SimulationFlagsProvider,
-        P: PathingCompatible<P> + SimulationFlagsProvider,
+        D: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
+        R: ReflectionsCompatible<R> + ReflectionsCompatible<InR> + SimulationFlagsProvider,
+        P: PathingCompatible<P> + PathingCompatible<InP> + SimulationFlagsProvider,
+        InD: DirectCompatible<D> + SimulationFlagsProvider,
+        InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<P> + SimulationFlagsProvider,
     {
-        self.set_inputs_subset::<D, R, P>(inputs)
+        self.set_inputs_subset::<D, R, P, InD, InR, InP>(inputs)
     }
 
     /// Specifies parts or all of the simulation parameters for a source.
@@ -1394,18 +1537,21 @@ where
     ///
     /// Returns [`ParameterValidationError`] if any parameters exceed the maximums
     /// set during simulator initialization.
-    pub fn set_inputs_subset<InD, InR, InP>(
+    pub fn set_inputs_subset<SubD, SubR, SubP, InD, InR, InP>(
         &self,
         inputs: &SimulationInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
+        SubD: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
+        SubR: ReflectionsCompatible<R> + ReflectionsCompatible<InR> + SimulationFlagsProvider,
+        SubP: PathingCompatible<P> + PathingCompatible<InP> + SimulationFlagsProvider,
         InD: DirectCompatible<D> + SimulationFlagsProvider,
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         InP: PathingCompatible<P> + SimulationFlagsProvider,
     {
         self.validate_inputs(inputs)?;
 
-        let simulation_flags = InD::flags() | InR::flags() | InP::flags();
+        let simulation_flags = SubD::flags() | SubR::flags() | SubP::flags();
 
         let mut ffi_inputs = inputs.to_ffi();
 
@@ -1601,8 +1747,10 @@ where
     where
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         InP: PathingCompatible<P> + SimulationFlagsProvider,
+        (): ReflectionsCompatible<InR>,
+        (): PathingCompatible<InP>,
     {
-        self.set_inputs_subset::<Direct, InR, InP>(inputs)
+        self.set_inputs_subset::<Direct, (), (), Direct, InR, InP>(inputs)
     }
 
     /// Retrieves direct simulation results for a source.
@@ -1647,8 +1795,10 @@ where
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
         InP: PathingCompatible<P> + SimulationFlagsProvider,
+        (): DirectCompatible<InD>,
+        (): PathingCompatible<InP>,
     {
-        self.set_inputs_subset::<InD, Reflections, InP>(inputs)
+        self.set_inputs_subset::<(), Reflections, (), InD, Reflections, InP>(inputs)
     }
 
     /// Retrieves reflections simulation results for a source.
@@ -1696,8 +1846,10 @@ where
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        (): DirectCompatible<InD>,
+        (): ReflectionsCompatible<InR>,
     {
-        self.set_inputs_subset::<InD, InR, Pathing>(inputs)
+        self.set_inputs_subset::<(), (), Pathing, InD, InR, Pathing>(inputs)
     }
 
     /// Retrieves pathing simulation results for a source.
