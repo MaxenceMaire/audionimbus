@@ -38,7 +38,7 @@
 - Implement `Default`, `Clone` for `SimulationSharedInputs`.
 - Add methods `set_listener`, `set_reflections_shared_inputs`, and `set_pathing_visualization_callback` for `SimulationSharedInputs`.
 - Add `Source::get_outputs_subset` to retrieve a subset of simulation results, blocking only for the requested simulation types.
-- Add `Source::get_direct_outputs`, `Source::get_reflection_outputs`, and `Source::get_pathing_outputs` as typed convenience methods that return effect parameters directly.
+- Add `Source::get_direct_outputs`, `Source::get_reflections_outputs`, and `Source::get_pathing_outputs` as typed convenience methods that return effect parameters directly.
 - Add `Source::set_inputs_subset` to set a subset of simulation inputs, blocking only for the requested simulation types.
 - Add `Source::set_direct_inputs`, `Source::set_reflections_inputs`, and `Source::set_pathing_inputs` as typed convenience methods.
 - Add `Source::try_new_subset` to create a source that runs a subset of the simulations supported by its simulator.

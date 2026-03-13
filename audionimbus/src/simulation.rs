@@ -1799,7 +1799,7 @@ where
     ///
     /// Also see:
     /// - [`Self::get_direct_outputs`]
-    /// - [`Self::get_reflection_outputs`]
+    /// - [`Self::get_reflections_outputs`]
     /// - [`Self::get_pathing_outputs`]
     ///
     /// # Errors
@@ -2065,7 +2065,7 @@ where
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
-    pub fn get_reflection_outputs<T>(&self) -> Result<ReflectionEffectParams<T>, SteamAudioError>
+    pub fn get_reflections_outputs<T>(&self) -> Result<ReflectionEffectParams<T>, SteamAudioError>
     where
         T: ReflectionEffectType,
     {

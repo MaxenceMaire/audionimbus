@@ -215,7 +215,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// simulator.commit();
 ///
 /// simulator.run_reflections();
-/// let params = source.get_reflection_outputs()?;
+/// let params = source.get_reflections_outputs()?;
 ///
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
 /// let mut effect = ReflectionEffect::<Convolution>::try_new(
@@ -300,7 +300,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// // Run simulation.
 /// simulator.run_reflections();
-/// let reverb_params = reverb_source.get_reflection_outputs()?;
+/// let reverb_params = reverb_source.get_reflections_outputs()?;
 ///
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1); // 1st order ambisonics
 /// let mut reverb_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1154,7 +1154,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1230,7 +1230,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1318,7 +1318,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1405,7 +1405,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1493,7 +1493,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1589,7 +1589,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1874,7 +1874,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -1947,7 +1947,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -2024,7 +2024,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
@@ -2097,7 +2097,7 @@ mod tests {
                 simulator.commit();
 
                 assert!(simulator.run_reflections().is_ok());
-                let mut reflection_effect_params = source.get_reflection_outputs().unwrap();
+                let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
