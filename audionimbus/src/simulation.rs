@@ -463,11 +463,24 @@ where
     /// Only blocks for the requested simulation types, allowing concurrent setting of shared
     /// parameters across simulation threads.
     ///
-    /// For example, `set_shared_inputs_subset::<Direct, (), ()>()` and
-    /// `set_shared_inputs_subset::<(), Reflections, ()>()` can be called simultaneously without
-    /// blocking each other.
+    /// The last three generic parameters `InD`, `InR`, and `InP` can be inferred from the
+    /// `shared_inputs` argument using `_`.
     ///
-    /// MUST NOT be called from a real-time audio thread.
+    /// Also see:
+    /// - [`Self::set_shared_direct_inputs`]
+    /// - [`Self::set_shared_reflections_inputs`]
+    /// - [`Self::set_shared_pathing_inputs`]
+    ///
+    /// # Threading Considerations
+    ///
+    /// This method will block if a simulation is currently running for the
+    /// specified type(s).
+    /// Call this from the same thread that runs the corresponding simulation(s) to avoid blocking.
+    ///
+    /// It is safe to call this method concurrently with simulations of different types.
+    /// For example, setting `DIRECT` shared inputs while a `REFLECTIONS` simulation is running
+    /// will not block.
+    ///
     /// See the [module-level documentation](crate::simulation) for threading guidelines.
     ///
     /// # Examples
