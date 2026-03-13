@@ -421,9 +421,9 @@ where
         shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
-        D: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
+        D: DirectCompatible<D> + SimulationFlagsProvider,
         R: ReflectionsCompatible<R> + ReflectionsCompatible<InR> + SimulationFlagsProvider,
-        P: PathingCompatible<P> + PathingCompatible<InP> + SimulationFlagsProvider,
+        P: PathingCompatible<P> + SimulationFlagsProvider,
         InD: DirectCompatible<D> + SimulationFlagsProvider,
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         InP: PathingCompatible<P> + SimulationFlagsProvider,
@@ -453,12 +453,17 @@ where
     /// simulator initialization.
     pub fn set_shared_inputs_subset<SubD, SubR, SubP, InD, InR, InP>(
         &self,
+        // `InD` and `InP` are intentionally loosely constrained here.
+        // `SimulationSharedInputs` does not contain any Direct- or Pathing-specific data.
+        // Allowing arbitrary `InD` and `InP` avoids forcing callers to construct a value via
+        // `SimulationSharedInputs::with_direct` and `SimulationSharedInputs::with_pathing`, which
+        // would add unnecessary boilerplate with no semantic benefit.
         shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
-        SubD: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
+        SubD: DirectCompatible<D> + SimulationFlagsProvider,
         SubR: ReflectionsCompatible<R> + ReflectionsCompatible<InR> + SimulationFlagsProvider,
-        SubP: PathingCompatible<P> + PathingCompatible<InP> + SimulationFlagsProvider,
+        SubP: PathingCompatible<P> + SimulationFlagsProvider,
         InD: DirectCompatible<D> + SimulationFlagsProvider,
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         InP: PathingCompatible<P> + SimulationFlagsProvider,
@@ -576,17 +581,18 @@ where
     ///
     /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
     /// simulator initialization.
-    pub fn set_shared_direct_inputs<InR, InP>(
+    pub fn set_shared_direct_inputs<InD, InR, InP>(
         &self,
-        shared_inputs: &SimulationSharedInputs<Direct, InR, InP>,
+        shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
+        InD: DirectCompatible<Direct> + SimulationFlagsProvider,
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         InP: PathingCompatible<P> + SimulationFlagsProvider,
         (): ReflectionsCompatible<R> + ReflectionsCompatible<InR>,
         (): PathingCompatible<P> + PathingCompatible<InP>,
     {
-        self.set_shared_inputs_subset::<Direct, (), (), Direct, InR, InP>(shared_inputs)
+        self.set_shared_inputs_subset::<Direct, (), (), InD, InR, InP>(shared_inputs)
     }
 
     /// Runs a direct simulation for all sources added to the simulator.
@@ -697,17 +703,18 @@ where
     ///
     /// Returns [`ParameterValidationError`] if any parameters exceed the maximums set during
     /// simulator initialization.
-    pub fn set_shared_pathing_inputs<InD, InR>(
+    pub fn set_shared_pathing_inputs<InD, InR, InP>(
         &self,
-        shared_inputs: &SimulationSharedInputs<InD, InR, Pathing>,
+        shared_inputs: &SimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
+        InP: PathingCompatible<Pathing> + SimulationFlagsProvider,
         (): DirectCompatible<D> + DirectCompatible<InD>,
         (): ReflectionsCompatible<R> + ReflectionsCompatible<InR>,
     {
-        self.set_shared_inputs_subset::<(), (), Pathing, InD, InR, Pathing>(shared_inputs)
+        self.set_shared_inputs_subset::<(), (), Pathing, InD, InR, InP>(shared_inputs)
     }
 
     /// Runs a pathing simulation for all sources added to the simulator.
