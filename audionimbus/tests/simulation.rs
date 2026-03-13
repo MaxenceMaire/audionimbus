@@ -79,10 +79,7 @@ fn test_simulation() {
             irradiance_min_distance: 1.0,
         });
     simulator
-        .set_shared_inputs(
-            SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
-            &simulation_shared_inputs,
-        )
+        .set_shared_inputs(&simulation_shared_inputs)
         .unwrap();
 
     simulator.commit();
@@ -274,7 +271,7 @@ fn test_reflections_without_scene() {
             irradiance_min_distance: 1.0,
         });
     simulator
-        .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+        .set_shared_reflections_inputs(&simulation_shared_inputs)
         .unwrap();
 
     simulator.commit();

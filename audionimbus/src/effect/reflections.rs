@@ -201,8 +201,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// );
 ///
 /// simulator.add_source(&source);
-/// simulator.set_shared_inputs(
-///     SimulationFlags::REFLECTIONS,
+/// simulator.set_shared_reflections_inputs(
 ///     &SimulationSharedInputs::new(CoordinateSystem::default()).with_reflections(
 ///         ReflectionsSharedInputs {
 ///             num_rays: 4096,
@@ -286,8 +285,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// );
 ///
 /// simulator.add_source(&reverb_source);
-/// simulator.set_shared_inputs(
-///     SimulationFlags::REFLECTIONS,
+/// simulator.set_shared_reflections_inputs(
 ///     &SimulationSharedInputs::new(CoordinateSystem::default()).with_reflections(
 ///         ReflectionsSharedInputs {
 ///             num_rays: 4096,
@@ -1150,7 +1148,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1226,7 +1224,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1314,7 +1312,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1401,7 +1399,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1489,7 +1487,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1585,7 +1583,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1870,7 +1868,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -1943,7 +1941,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -2020,7 +2018,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();
@@ -2093,7 +2091,7 @@ mod tests {
                     irradiance_min_distance: 1.0,
                 });
                 simulator
-                    .set_shared_inputs(SimulationFlags::REFLECTIONS, &simulation_shared_inputs)
+                    .set_shared_reflections_inputs(&simulation_shared_inputs)
                     .unwrap();
 
                 simulator.commit();

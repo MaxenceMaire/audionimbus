@@ -133,7 +133,7 @@ impl SimulationFlagsProvider for () {
 ///
 /// // Set shared parameters.
 /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default());
-/// simulator.set_shared_inputs(SimulationFlags::DIRECT, &shared_inputs);
+/// simulator.set_shared_direct_inputs(&shared_inputs);
 ///
 /// // Run the simulation.
 /// simulator.run_direct();
