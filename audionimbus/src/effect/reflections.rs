@@ -701,12 +701,6 @@ impl ReflectionEffectParams<Convolution> {
     /// `impulse_response` is a pointer managed internally by Steam Audio.
     /// The caller must ensure the type that owns this IR remains valid for the lifetime of these
     /// params.
-    ///
-    /// # Safety
-    ///
-    /// `impulse_response` is a pointer managed internally by Steam Audio.
-    /// The caller must ensure the type that owns this IR remains valid for the lifetime of these
-    /// params.
     pub unsafe fn new(
         impulse_response: audionimbus_sys::IPLReflectionEffectIR,
         num_channels: u32,
