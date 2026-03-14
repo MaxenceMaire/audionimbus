@@ -221,13 +221,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use audionimbus::{Context, Simulator, SimulationSettings, DirectSimulationSettings, ReflectionsSimulationSettings, PathingSimulationSettings};
+    /// # use audionimbus::{Context, Simulator, SimulationSettings, DirectSimulationSettings, ConvolutionSettings, PathingSimulationSettings};
     /// # let context = Context::default();
     /// let settings = SimulationSettings::new(48000, 1024, 2)
     ///     .with_direct(DirectSimulationSettings {
     ///         max_num_occlusion_samples: 4,
     ///     })
-    ///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    ///     .with_reflections(ConvolutionSettings {
     ///         max_num_rays: 4096,
     ///         num_diffuse_samples: 32,
     ///         max_duration: 2.0,
@@ -432,7 +432,7 @@ where
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -507,7 +507,7 @@ where
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -740,7 +740,7 @@ where
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -948,12 +948,12 @@ where
 /// # Examples
 ///
 /// ```
-/// # use audionimbus::{Context, Simulator, DirectSimulationSettings, ReflectionsSimulationSettings, PathingSimulationSettings, SimulationSettings};
+/// # use audionimbus::{Context, Simulator, DirectSimulationSettings, ConvolutionSettings, PathingSimulationSettings, SimulationSettings};
 /// let settings = SimulationSettings::new(48000, 1024, 2)
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     })
-///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///     .with_reflections(ConvolutionSettings {
 ///         max_num_rays: 4096,
 ///         num_diffuse_samples: 32,
 ///         max_duration: 2.0,
@@ -1701,7 +1701,7 @@ where
     /// # let context = Context::default();
     /// let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     ///     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    ///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    ///     .with_reflections(ConvolutionSettings {
     ///         max_num_rays: 4096,
     ///         num_diffuse_samples: 32,
     ///         max_duration: 2.0,
@@ -1850,7 +1850,7 @@ where
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -1941,7 +1941,7 @@ where
         P: PathingCompatible<P> + SimulationFlagsProvider,
         RE: ReflectionEffectCompatible<RE>,
     {
-        self.get_outputs_subset::<D, R, P, RE>()
+        self.get_outputs_subset::<D, R, P>()
     }
 
     /// Retrieves parts or all of the simulation results for a source.
@@ -1960,14 +1960,14 @@ where
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
-    pub fn get_outputs_subset<OutD, OutR, OutP, OutRE>(
+    pub fn get_outputs_subset<OutD, OutR, OutP>(
         &self,
-    ) -> Result<SimulationOutputs<OutD, OutR, OutP, OutRE>, SteamAudioError>
+    ) -> Result<SimulationOutputs<OutD, OutR, OutP, RE>, SteamAudioError>
     where
         OutD: DirectCompatible<D> + SimulationFlagsProvider,
         OutR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         OutP: PathingCompatible<P> + SimulationFlagsProvider,
-        OutRE: ReflectionEffectCompatible<RE>,
+        RE: ReflectionEffectCompatible<RE>,
     {
         let simulation_flags = OutD::flags() | OutR::flags() | OutP::flags();
 
@@ -2070,7 +2070,7 @@ impl<R, P, RE> Source<Direct, R, P, RE>
 where
     R: 'static,
     P: 'static,
-    RE: 'static,
+    RE: 'static + ReflectionEffectCompatible<RE>,
     (): ReflectionsCompatible<R>,
     (): PathingCompatible<P>,
 {
@@ -2126,7 +2126,7 @@ where
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
     pub fn get_direct_outputs(&self) -> Result<DirectEffectParams, SteamAudioError> {
-        self.get_outputs_subset::<Direct, (), (), ()>()
+        self.get_outputs_subset::<Direct, (), ()>()
             .map(|outputs| outputs.direct())
     }
 }
@@ -2150,7 +2150,7 @@ where
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -2198,7 +2198,7 @@ where
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
     pub fn get_reflections_outputs(&self) -> Result<ReflectionEffectParams<RE>, SteamAudioError> {
-        self.get_outputs_subset::<(), Reflections, (), RE>()
+        self.get_outputs_subset::<(), Reflections, ()>()
             .map(|outputs| outputs.reflections())
     }
 }
@@ -2207,7 +2207,7 @@ impl<D, R, RE> Source<D, R, Pathing, RE>
 where
     D: 'static,
     R: 'static,
-    RE: 'static,
+    RE: 'static + ReflectionEffectCompatible<RE>,
     (): DirectCompatible<D>,
     (): ReflectionsCompatible<R>,
 {
@@ -2274,7 +2274,7 @@ where
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
     pub fn get_pathing_outputs(&self) -> Result<PathEffectParams, SteamAudioError> {
-        self.get_outputs_subset::<(), (), Pathing, ()>()
+        self.get_outputs_subset::<(), (), Pathing>()
             .map(|outputs| outputs.pathing())
     }
 }

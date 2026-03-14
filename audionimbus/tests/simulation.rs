@@ -16,7 +16,7 @@ fn test_simulation() {
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
-        .with_reflections(ReflectionsSimulationSettings::Convolution {
+        .with_reflections(ConvolutionSettings {
             max_num_rays: 4096,
             num_diffuse_samples: 32,
             max_duration: 2.0,
@@ -132,7 +132,7 @@ fn test_pathing_without_probes() {
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
-        .with_reflections(ReflectionsSimulationSettings::Convolution {
+        .with_reflections(ConvolutionSettings {
             max_num_rays: 4096,
             num_diffuse_samples: 32,
             max_duration: 2.0,
@@ -253,7 +253,7 @@ fn test_reflections_without_scene() {
     let max_order = 1;
 
     let simulation_settings = SimulationSettings::new(sampling_rate, frame_size, max_order)
-        .with_reflections(ReflectionsSimulationSettings::Convolution {
+        .with_reflections(ConvolutionSettings {
             max_num_rays: 4096,
             num_diffuse_samples: 32,
             max_duration: 2.0,

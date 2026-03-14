@@ -178,7 +178,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// // Create a simulator with reflections.
 /// let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, 1)
-///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///     .with_reflections(ConvolutionSettings {
 ///         max_num_rays: 4096,
 ///         num_diffuse_samples: 32,
 ///         max_duration: 2.0,
@@ -256,7 +256,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// // Create simulator with reflections
 /// let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, 1)
-///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///     .with_reflections(ConvolutionSettings {
 ///         max_num_rays: 2048,
 ///         num_diffuse_samples: 32,
 ///         max_duration: 2.0,
@@ -1115,7 +1115,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1191,7 +1191,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1279,7 +1279,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1366,7 +1366,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1454,7 +1454,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1550,7 +1550,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1835,7 +1835,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1908,7 +1908,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Convolution {
+                        ConvolutionSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -1985,7 +1985,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Parametric {
+                        ParametricSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
@@ -2026,7 +2026,7 @@ mod tests {
                     num_channels: num_output_channels,
                 };
 
-                let mut mixer = ReflectionMixer::<Convolution>::try_new(
+                let mut mixer = ReflectionMixer::<Parametric>::try_new(
                     &context,
                     &audio_settings,
                     &reflection_effect_settings,
@@ -2058,7 +2058,7 @@ mod tests {
 
                 let simulation_settings =
                     SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ReflectionsSimulationSettings::Parametric {
+                        ParametricSettings {
                             max_num_rays: 4096,
                             num_diffuse_samples: 32,
                             max_duration: 2.0,
