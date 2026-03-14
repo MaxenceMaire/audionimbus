@@ -2,26 +2,35 @@
 //!
 //! # Multi-Threading Architecture
 //!
-//! Simulations are designed to run on separate threads from audio processing:
+//! Simulations are designed to run on separate threads from audio processing.
+//! Different simulation types can run concurrently without blocking each other.
+//! For example, [`Simulator::run_direct`] and [`Simulator::run_reflections`] can be called from
+//! separate threads simultaneously.
+//!
+//! Running a simulation may take 50-500ms.
+//! For this reason, a typical architecture is to run a dedicated simulation thread (or one per
+//! simulation type) alongside the main real-time audio thread.
+//! Simulation outputs are then passed down from the simulation thread(s) to the audio thread via
+//! lock-free communication (triple buffer, lock-free queue).
 //!
 //! ```text
 //! ┌────────────────────────────┐       ┌──────────────────┐       ┌─────────────────┐
 //! │ Simulation thread(s)       │       │ Lock-free        │       │ Audio thread    │
 //! │                            │──────▶│ communication    │──────▶│ (real-time)     │
 //! │                            │       │                  │       │                 │
-//! │ Simulator::run_direct      │       │ Triple buffer    │       │ Apply effects   │
-//! │ Simulator::run_reflections │       │ or               │       │                 │
-//! │ Source::get_outputs        │       │ lock-free queue  │       │                 │
+//! │ Source::set_inputs         │       │ Triple buffer    │       │ Apply effects   │
+//! │ Simulator::run_direct      │       │ or               │       │                 │
+//! │ Simulator::run_reflections │       │ lock-free queue  │       │                 │
+//! │ Simulator::run_pathing     │       │                  │       │                 │
+//! │ Source::get_outputs        │       │                  │       │                 │
 //! └────────────────────────────┘       └──────────────────┘       └─────────────────┘
 //!  Can take 50-500ms                    Non-blocking               Must complete in
 //!  Can block                                                       a few ms
 //! ```
 //!
-//! ## Important Rules
-//!
-//! - Never call [`Source::get_outputs`] or [`Source::get_outputs_subset`] from an audio thread as it will block and cause audio glitches
-//! - Use lock-free communication to pass results from simulation to audio threads
-//! - Different simulation types can run in parallel
+//! Never set inputs ([`Source::set_inputs`], [`Source::set_inputs_subset`], etc.) or retrieve
+//! outputs ([`Source::get_outputs`], [`Source::get_outputs_subset`], etc.) from an audio thread as
+//! it will block and cause audio glitches.
 
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
 pub use crate::callback::PathingVisualizationCallback;
