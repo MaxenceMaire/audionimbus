@@ -170,11 +170,7 @@
 //!
 //! // Initialize the audio context.
 //! let context = Context::default();
-//!
-//! let audio_settings = AudioSettings {
-//!     sampling_rate: 48000,
-//!     frame_size: 1024,
-//! };
+//! let audio_settings = AudioSettings::default();
 //!
 //! // Set up HRTF for binaural rendering.
 //! let hrtf = Hrtf::try_new(&context, &audio_settings, &HrtfSettings::default())?;
