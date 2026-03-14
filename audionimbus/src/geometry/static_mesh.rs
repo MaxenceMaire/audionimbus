@@ -95,7 +95,7 @@ impl<T: RayTracer> StaticMesh<T> {
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load(
         scene: &Scene,
-        serialized_object: &mut SerializedObject,
+        serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(scene, serialized_object, None)
     }

@@ -24,6 +24,7 @@
 - `ReflectionEffectParams` no longer has a lifetime parameter. It now bumps the reference count of the associated `Source` to keep the IR pointer valid.
 - `ReflectionEffectParams<Convolution>::new` and `ReflectionEffectParams<Hybrid>::new` are now `unsafe` since the caller must ensure the IR pointer remains valid.
 - `Simulator::set_shared_inputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
+- `StaticMesh::load` now takes `serialized_object` by reference instead of mutable reference.
 
 ### Added
 
