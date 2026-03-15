@@ -27,6 +27,7 @@
 - `StaticMesh::load` now takes `serialized_object` by reference instead of mutable reference.
 - `ReflectionsSimulationSettings` enum has been replaced by typed structs `ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, and `TrueAudioNextSettings`, each implementing the new `ReflectionsAlgorithm` trait. `SimulationSettings::with_reflections` now accepts any type implementing `ReflectionsAlgorithm`.
 - `Simulator`, `SimulationSettings`, `Source`, and `SimulationOutputs` now carry a fifth generic parameter `RE` encoding the reflection algorithm at the type level.
+- Renamed `ProbeBatch::energy_field` to `copy_energy_field_into`. The method now takes `&mut EnergyField` as a parameter instead of returning a new `EnergyField`. 
 
 ### Added
 

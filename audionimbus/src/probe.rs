@@ -347,16 +347,17 @@ impl ProbeBatch {
         Ok(reverb_times)
     }
 
-    /// Retrieves a single energy field in a specific baked data layer of a specific probe in the probe batch.
+    /// Retrieves a single energy field in a specific baked data layer of a specific probe in the probe batch and copies it into the specified energy field.
     ///
     /// # Errors
     ///
     /// Returns [`ProbeBatchError::ProbeIndexOutOfBounds`] if `probe_index` is out of bounds.
-    pub fn energy_field(
+    pub fn copy_energy_field_into(
         &self,
         identifier: BakedDataIdentifier,
         probe_index: usize,
-    ) -> Result<EnergyField, ProbeBatchError> {
+        energy_field: &mut EnergyField,
+    ) -> Result<(), ProbeBatchError> {
         let num_probes = self.num_probes();
         if probe_index >= num_probes {
             return Err(ProbeBatchError::ProbeIndexOutOfBounds {
@@ -366,8 +367,6 @@ impl ProbeBatch {
         }
 
         let mut ffi_identifier: audionimbus_sys::IPLBakedDataIdentifier = identifier.into();
-        let energy_field = EnergyField(std::ptr::null_mut());
-
         unsafe {
             audionimbus_sys::iplProbeBatchGetEnergyField(
                 self.raw_ptr(),
@@ -377,7 +376,7 @@ impl ProbeBatch {
             );
         }
 
-        Ok(energy_field)
+        Ok(())
     }
 
     /// Commits all changes made to a probe batch since this function was last called (or since the probe batch was first created, if this function was never called).
