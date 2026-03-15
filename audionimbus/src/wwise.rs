@@ -10,17 +10,23 @@ pub struct WwiseSettings {
     pub meters_per_unit: f32,
 }
 
-/// Initializes the Wwise integration.
+/// Initializes the Wwise integration with default settings.
 ///
 /// This function must be called before creating any Steam Audio DSP effects.
-pub fn initialize(context: &Context, settings: Option<WwiseSettings>) {
-    let mut ffi_settings = settings.map(|s| audionimbus_sys::IPLWwiseSettings {
-        metersPerUnit: s.meters_per_unit,
-    });
+pub fn initialize(context: &Context) {
+    let ipl_settings = std::ptr::null_mut();
+    unsafe { audionimbus_sys::wwise::iplWwiseInitialize(context.raw_ptr(), ipl_settings) }
+}
 
-    let ipl_settings = ffi_settings
-        .as_mut()
-        .map_or(std::ptr::null_mut(), std::ptr::from_mut);
+/// Initializes the Wwise integration with settings.
+///
+/// This function must be called before creating any Steam Audio DSP effects.
+pub fn initialize_with_settings(context: &Context, settings: WwiseSettings) {
+    let mut ffi_settings = audionimbus_sys::IPLWwiseSettings {
+        metersPerUnit: settings.meters_per_unit,
+    };
+
+    let ipl_settings = std::ptr::from_mut(&mut ffi_settings);
 
     unsafe { audionimbus_sys::wwise::iplWwiseInitialize(context.raw_ptr(), ipl_settings) }
 }
@@ -35,7 +41,9 @@ pub fn terminate() {
 /// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
 ///
 /// This function must be called once during initialization, after [`initialize`].
-pub fn set_simulation_settings<T: RayTracer>(simulation_settings: &SimulationSettings<'static, T>) {
+pub fn set_simulation_settings<T: RayTracer, D, R, P, RE>(
+    simulation_settings: &SimulationSettings<T, D, R, P, RE>,
+) {
     unsafe { audionimbus_sys::wwise::iplWwiseSetSimulationSettings(simulation_settings.to_ffi()) }
 }
 

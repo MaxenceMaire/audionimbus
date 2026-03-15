@@ -52,6 +52,7 @@
 - Add `ReflectionsAlgorithm` trait, implemented by `ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, and `TrueAudioNextSettings`.
 - Add `ReflectionEffectCompatible` trait. When a source participates in reflections, its algorithm type must match the simulator's.
 - Implement `Default`, `Copy`, `Clone` for `Convolution`, `Parametric`, `Hybrid`, and `TrueAudioNext` marker types.
+- Split Wwise's `initialize` into two functions: `initialize` that initializes Wwise with default settings, and `initialize_with_settings` which takes user-provided `settings`.
 
 ### Removed
 
