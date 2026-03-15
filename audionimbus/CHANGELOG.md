@@ -49,7 +49,7 @@
 - Add `Simulator::set_shared_inputs_subset` to set a subset of shared simulation inputs, blocking only for the requested simulation types.
 - Add `Simulator::set_shared_direct_inputs`, `Simulator::set_shared_reflections_inputs`, and `Simulator::set_shared_pathing_inputs` as typed convenience methods.
 - Add `ReflectionsAlgorithm` trait, implemented by `ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, and `TrueAudioNextSettings`.
-- Add `ReflectionEffectCompatible` trait, which enforces that a source's reflection effect type is compatible with its simulator's at the point of `add_source`, `remove_source`, and source creation.
+- Add `ReflectionEffectCompatible` trait. When a source participates in reflections, its algorithm type must match the simulator's.
 - Implement `Default`, `Copy`, `Clone` for `Convolution`, `Parametric`, `Hybrid`, and `TrueAudioNext` marker types.
 
 ### Removed
