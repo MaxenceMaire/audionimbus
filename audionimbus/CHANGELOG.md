@@ -32,6 +32,7 @@
 - `ReflectionsSimulationSettings` enum has been replaced by typed structs `ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, and `TrueAudioNextSettings`, each implementing the new `ReflectionsAlgorithm` trait. `SimulationSettings::with_reflections` now accepts any type implementing `ReflectionsAlgorithm`.
 - `Simulator`, `SimulationSettings`, `Source`, and `SimulationOutputs` now carry a fifth generic parameter `RE` encoding the reflection algorithm at the type level.
 - Renamed `ProbeBatch::energy_field` to `copy_energy_field_into`. The method now takes `&mut EnergyField` as a parameter instead of returning a new `EnergyField`. 
+- Replace type of field `sh_coeffs` of `PathEffectParams` from `ShCoeffs` to `Vec<f32>` to prevent use-after-free error.
 
 ### Added
 
@@ -73,6 +74,7 @@
 - Remove `From<&VirtualSurroundEffectSettings>` for `IPLVirtualSurroundEffectSettings`.
 - Remove `From<&AmbisonicsDecodeEffectSettings>` for `IPLAmbisonicsDecodeEffectSettings`.
 - Remove `From<&PathEffectSettings>` for `IPLPathEffectSettings`.
+- Remove `ShCoeffs`.
 
 ## [0.13.0] - 2026-03-04
 
