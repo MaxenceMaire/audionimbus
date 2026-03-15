@@ -25,6 +25,8 @@
 - `ReflectionEffectParams<Convolution>::new` and `ReflectionEffectParams<Hybrid>::new` are now `unsafe` since the caller must ensure the IR pointer remains valid.
 - `Simulator::set_shared_inputs` no longer takes a `SimulationFlags` argument. Simulation types are now encoded as type parameters, preventing invalid flag combinations at compile time instead of panicking at runtime.
 - `StaticMesh::load` now takes `serialized_object` by reference instead of mutable reference.
+- `ReflectionsSimulationSettings` enum has been replaced by typed structs `ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, and `TrueAudioNextSettings`, each implementing the new `ReflectionsAlgorithm` trait. `SimulationSettings::with_reflections` now accepts any type implementing `ReflectionsAlgorithm`.
+- `Simulator`, `SimulationSettings`, `Source`, and `SimulationOutputs` now carry a fifth generic parameter `RE` encoding the reflection algorithm at the type level.
 
 ### Added
 
@@ -46,6 +48,9 @@
 - Add `SimulationFlagsProvider` trait, implemented for `Direct`, `Reflections`, `Pathing`, and `()`.
 - Add `Simulator::set_shared_inputs_subset` to set a subset of shared simulation inputs, blocking only for the requested simulation types.
 - Add `Simulator::set_shared_direct_inputs`, `Simulator::set_shared_reflections_inputs`, and `Simulator::set_shared_pathing_inputs` as typed convenience methods.
+- Add `ReflectionsAlgorithm` trait, implemented by `ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, and `TrueAudioNextSettings`.
+- Add `ReflectionEffectCompatible` trait, which enforces that a source's reflection effect type is compatible with its simulator's at the point of `add_source`, `remove_source`, and source creation.
+- Implement `Default`, `Copy`, `Clone` for `Convolution`, `Parametric`, `Hybrid`, and `TrueAudioNext` marker types.
 
 ### Removed
 
@@ -54,6 +59,7 @@
 - Remove lifetime from `SimulationOutputs`. `SimulationOutputs` now bumps the reference count of the associated `Source` instead.
 - Remove `Source::get_outputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
 - Remove `Source::set_inputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
+- Remove `ReflectionsSimulationSettings` enum.
 
 ## [0.13.0] - 2026-03-04
 
