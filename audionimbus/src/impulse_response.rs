@@ -54,7 +54,7 @@ impl ImpulseResponse {
         unsafe { audionimbus_sys::iplImpulseResponseGetNumSamples(self.raw_ptr()) as u32 }
     }
 
-    /// Returns a pointer to the data stored in the impulse response, , in row-major order.
+    /// Returns a pointer to the data stored in the impulse response, in row-major order.
     pub fn data(&self) -> &[Sample] {
         let ptr = unsafe { audionimbus_sys::iplImpulseResponseGetData(self.raw_ptr()) };
         let len = self.num_channels() * self.num_samples();
