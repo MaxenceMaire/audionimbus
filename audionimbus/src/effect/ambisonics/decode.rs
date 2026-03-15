@@ -85,14 +85,17 @@ impl AmbisonicsDecodeEffect {
         ambisonics_decode_effect_settings: &AmbisonicsDecodeEffectSettings,
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
+        let speaker_layout = ambisonics_decode_effect_settings.speaker_layout.to_ffi();
 
         let status = unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLAmbisonicsDecodeEffectSettings::from(
-                    ambisonics_decode_effect_settings,
-                ),
+                &mut audionimbus_sys::IPLAmbisonicsDecodeEffectSettings {
+                    speakerLayout: *speaker_layout,
+                    hrtf: ambisonics_decode_effect_settings.hrtf.raw_ptr(),
+                    maxOrder: ambisonics_decode_effect_settings.max_order as i32,
+                },
                 &raw mut inner,
             )
         };
@@ -290,18 +293,6 @@ pub struct AmbisonicsDecodeEffectSettings<'a> {
 
     /// Whether to use binaural rendering or panning.
     pub rendering: Rendering,
-}
-
-impl From<&AmbisonicsDecodeEffectSettings<'_>>
-    for audionimbus_sys::IPLAmbisonicsDecodeEffectSettings
-{
-    fn from(settings: &AmbisonicsDecodeEffectSettings) -> Self {
-        Self {
-            speakerLayout: audionimbus_sys::IPLSpeakerLayout::from(&settings.speaker_layout),
-            hrtf: settings.hrtf.raw_ptr(),
-            maxOrder: settings.max_order as i32,
-        }
-    }
 }
 
 /// Parameters for applying an ambisonics decode effect to an audio buffer.

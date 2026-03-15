@@ -203,11 +203,34 @@ impl PathEffect {
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
 
+        let (spatialize, hrtf, speaker_layout) = if let Some(Spatialization {
+            speaker_layout,
+            hrtf,
+        }) = &path_effect_settings.spatialization
+        {
+            (
+                audionimbus_sys::IPLbool::IPL_TRUE,
+                hrtf.raw_ptr(),
+                speaker_layout.to_ffi(),
+            )
+        } else {
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                std::ptr::null_mut(),
+                SpeakerLayout::Mono.to_ffi(),
+            )
+        };
+
         let status = unsafe {
             audionimbus_sys::iplPathEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLPathEffectSettings::from(path_effect_settings),
+                &mut audionimbus_sys::IPLPathEffectSettings {
+                    maxOrder: path_effect_settings.max_order as i32,
+                    spatialize,
+                    speakerLayout: *speaker_layout,
+                    hrtf,
+                },
                 &raw mut inner,
             )
         };
@@ -368,35 +391,6 @@ pub struct PathEffectSettings<'a> {
     /// Setting this to `None` is mainly useful only if you plan to mix multiple Ambisonic buffers and/or apply additional processing to the Ambisonic audio before spatialization.
     /// If you plan to immediately spatialize the output of the path effect, setting this value to `Some` can result in significant performance improvements.
     pub spatialization: Option<Spatialization<'a>>,
-}
-
-impl From<&PathEffectSettings<'_>> for audionimbus_sys::IPLPathEffectSettings {
-    fn from(settings: &PathEffectSettings) -> Self {
-        let (spatialize, speaker_layout, hrtf) = if let Some(Spatialization {
-            speaker_layout,
-            hrtf,
-        }) = &settings.spatialization
-        {
-            (
-                audionimbus_sys::IPLbool::IPL_TRUE,
-                speaker_layout.clone(),
-                hrtf.raw_ptr(),
-            )
-        } else {
-            (
-                audionimbus_sys::IPLbool::IPL_FALSE,
-                SpeakerLayout::Mono,
-                std::ptr::null_mut(),
-            )
-        };
-
-        Self {
-            maxOrder: settings.max_order as i32,
-            spatialize,
-            speakerLayout: (&speaker_layout).into(),
-            hrtf,
-        }
-    }
 }
 
 /// Spatialization settings.

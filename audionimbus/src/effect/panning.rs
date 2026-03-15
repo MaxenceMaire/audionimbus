@@ -69,11 +69,15 @@ impl PanningEffect {
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
 
+        let speaker_layout = panning_effect_settings.speaker_layout.to_ffi();
+
         let status = unsafe {
             audionimbus_sys::iplPanningEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLPanningEffectSettings::from(panning_effect_settings),
+                &mut audionimbus_sys::IPLPanningEffectSettings {
+                    speakerLayout: *speaker_layout,
+                },
                 &raw mut inner,
             )
         };
@@ -236,14 +240,6 @@ impl Clone for PanningEffect {
 pub struct PanningEffectSettings {
     /// The speaker layout to pan input audio to.
     pub speaker_layout: SpeakerLayout,
-}
-
-impl From<&PanningEffectSettings> for audionimbus_sys::IPLPanningEffectSettings {
-    fn from(settings: &PanningEffectSettings) -> Self {
-        Self {
-            speakerLayout: (&settings.speaker_layout).into(),
-        }
-    }
 }
 
 /// Parameters for applying a panning effect to an audio buffer.

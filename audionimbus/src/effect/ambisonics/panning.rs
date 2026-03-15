@@ -70,14 +70,16 @@ impl AmbisonicsPanningEffect {
         ambisonics_panning_effect_settings: &AmbisonicsPanningEffectSettings,
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
+        let speaker_layout = ambisonics_panning_effect_settings.speaker_layout.to_ffi();
 
         let status = unsafe {
             audionimbus_sys::iplAmbisonicsPanningEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLAmbisonicsPanningEffectSettings::from(
-                    ambisonics_panning_effect_settings,
-                ),
+                &mut audionimbus_sys::IPLAmbisonicsPanningEffectSettings {
+                    speakerLayout: *speaker_layout,
+                    maxOrder: ambisonics_panning_effect_settings.max_order as i32,
+                },
                 &raw mut inner,
             )
         };
@@ -248,17 +250,6 @@ pub struct AmbisonicsPanningEffectSettings {
 
     /// The maximum ambisonics order that will be used by input audio buffers.
     pub max_order: u32,
-}
-
-impl From<&AmbisonicsPanningEffectSettings>
-    for audionimbus_sys::IPLAmbisonicsPanningEffectSettings
-{
-    fn from(settings: &AmbisonicsPanningEffectSettings) -> Self {
-        Self {
-            speakerLayout: (&settings.speaker_layout).into(),
-            maxOrder: settings.max_order as i32,
-        }
-    }
 }
 
 /// Parameters for applying an ambisonics panning effect to an audio buffer.

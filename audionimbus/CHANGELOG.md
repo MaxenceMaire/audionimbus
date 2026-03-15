@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `SpeakerLayout::Custom` FFI conversion: speaker directions are now guaranteed to remain valid for the duration of any FFI call.
+
 ### Changed
 
 - All callback types (`DistanceAttenuationCallback`, `AirAbsorptionCallback`, `DirectivityCallback`, `DeviationCallback`, `PathingVisualizationCallback`, `ClosestHitCallback`, `AnyHitCallback`, `BatchedClosestHitCallback`, `BatchedAnyHitCallback`) now require `Fn + Send + Sync` instead of `FnMut + Send`. Closures that previously captured mutable state must now use interior mutability (e.g. `Mutex`, `RwLock`) instead.
@@ -63,6 +67,12 @@
 - Remove `Source::get_outputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
 - Remove `Source::set_inputs` runtime panic on invalid flags. Invalid flag combinations are now rejected at compile time via type parameters.
 - Remove `ReflectionsSimulationSettings` enum.
+- Remove `From<&SpeakerLayout>` for `IPLSpeakerLayout`.
+- Remove `From<&PanningEffectSettings>` for `IPLPanningEffectSettings`.
+- Remove `From<&AmbisonicsPanningEffectSettings>` for `IPLAmbisonicsPanningEffectSettings`.
+- Remove `From<&VirtualSurroundEffectSettings>` for `IPLVirtualSurroundEffectSettings`.
+- Remove `From<&AmbisonicsDecodeEffectSettings>` for `IPLAmbisonicsDecodeEffectSettings`.
+- Remove `From<&PathEffectSettings>` for `IPLPathEffectSettings`.
 
 ## [0.13.0] - 2026-03-04
 

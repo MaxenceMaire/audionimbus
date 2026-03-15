@@ -77,14 +77,16 @@ impl VirtualSurroundEffect {
         virtual_surround_effect_settings: &VirtualSurroundEffectSettings,
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
+        let speaker_layout = virtual_surround_effect_settings.speaker_layout.to_ffi();
 
         let status = unsafe {
             audionimbus_sys::iplVirtualSurroundEffectCreate(
                 context.raw_ptr(),
                 &mut audionimbus_sys::IPLAudioSettings::from(audio_settings),
-                &mut audionimbus_sys::IPLVirtualSurroundEffectSettings::from(
-                    virtual_surround_effect_settings,
-                ),
+                &mut audionimbus_sys::IPLVirtualSurroundEffectSettings {
+                    speakerLayout: *speaker_layout,
+                    hrtf: virtual_surround_effect_settings.hrtf.raw_ptr(),
+                },
                 &raw mut inner,
             )
         };
@@ -248,17 +250,6 @@ pub struct VirtualSurroundEffectSettings<'a> {
 
     /// The HRTF to use.
     pub hrtf: &'a Hrtf,
-}
-
-impl From<&VirtualSurroundEffectSettings<'_>>
-    for audionimbus_sys::IPLVirtualSurroundEffectSettings
-{
-    fn from(settings: &VirtualSurroundEffectSettings) -> Self {
-        Self {
-            speakerLayout: (&settings.speaker_layout).into(),
-            hrtf: settings.hrtf.raw_ptr(),
-        }
-    }
 }
 
 /// Parameters for applying a virtual surround effect to an audio buffer.

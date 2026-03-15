@@ -1,5 +1,6 @@
 use crate::geometry::Direction;
 use std::fmt;
+use std::ops::{Deref, DerefMut};
 
 /// Describes a standard or custom speaker layout.
 #[derive(Debug, PartialEq, Clone)]
@@ -38,6 +39,38 @@ impl SpeakerLayout {
             Self::Custom { .. } => "custom",
         }
     }
+
+    pub(crate) fn to_ffi(&self) -> SpeakerLayoutFfi {
+        use audionimbus_sys::IPLSpeakerLayoutType::*;
+
+        let (type_, mut directions) = match self {
+            Self::Mono => (IPL_SPEAKERLAYOUTTYPE_MONO, vec![]),
+            Self::Stereo => (IPL_SPEAKERLAYOUTTYPE_STEREO, vec![]),
+            Self::Quadraphonic => (IPL_SPEAKERLAYOUTTYPE_QUADRAPHONIC, vec![]),
+            Self::Surround5_1 => (IPL_SPEAKERLAYOUTTYPE_SURROUND_5_1, vec![]),
+            Self::Surround7_1 => (IPL_SPEAKERLAYOUTTYPE_SURROUND_7_1, vec![]),
+            Self::Custom { speaker_directions } => (
+                IPL_SPEAKERLAYOUTTYPE_CUSTOM,
+                speaker_directions.iter().copied().map(Into::into).collect(),
+            ),
+        };
+
+        let num_speakers = directions.len() as i32;
+        let speakers_ptr = if directions.is_empty() {
+            std::ptr::null_mut()
+        } else {
+            directions.as_mut_ptr()
+        };
+
+        SpeakerLayoutFfi {
+            layout: audionimbus_sys::IPLSpeakerLayout {
+                type_,
+                numSpeakers: num_speakers,
+                speakers: speakers_ptr,
+            },
+            _directions: directions,
+        }
+    }
 }
 
 impl fmt::Display for SpeakerLayout {
@@ -51,49 +84,22 @@ impl fmt::Display for SpeakerLayout {
     }
 }
 
-impl From<&SpeakerLayout> for audionimbus_sys::IPLSpeakerLayout {
-    fn from(speaker_layout: &SpeakerLayout) -> Self {
-        let (type_, num_speakers, mut speaker_directions) = match speaker_layout {
-            SpeakerLayout::Mono => (
-                audionimbus_sys::IPLSpeakerLayoutType::IPL_SPEAKERLAYOUTTYPE_MONO,
-                i32::default(),
-                vec![],
-            ),
-            SpeakerLayout::Stereo => (
-                audionimbus_sys::IPLSpeakerLayoutType::IPL_SPEAKERLAYOUTTYPE_STEREO,
-                i32::default(),
-                vec![],
-            ),
-            SpeakerLayout::Quadraphonic => (
-                audionimbus_sys::IPLSpeakerLayoutType::IPL_SPEAKERLAYOUTTYPE_QUADRAPHONIC,
-                i32::default(),
-                vec![],
-            ),
-            SpeakerLayout::Surround5_1 => (
-                audionimbus_sys::IPLSpeakerLayoutType::IPL_SPEAKERLAYOUTTYPE_SURROUND_5_1,
-                i32::default(),
-                vec![],
-            ),
-            SpeakerLayout::Surround7_1 => (
-                audionimbus_sys::IPLSpeakerLayoutType::IPL_SPEAKERLAYOUTTYPE_SURROUND_7_1,
-                i32::default(),
-                vec![],
-            ),
-            SpeakerLayout::Custom { speaker_directions } => (
-                audionimbus_sys::IPLSpeakerLayoutType::IPL_SPEAKERLAYOUTTYPE_CUSTOM,
-                i32::default(),
-                speaker_directions
-                    .clone()
-                    .into_iter()
-                    .map(audionimbus_sys::IPLVector3::from)
-                    .collect(),
-            ),
-        };
+/// FFI speaker layout.
+pub(crate) struct SpeakerLayoutFfi {
+    layout: audionimbus_sys::IPLSpeakerLayout,
+    /// Keeps the IPLVector3 whose pointer is used by the layout alive.
+    _directions: Vec<audionimbus_sys::IPLVector3>,
+}
 
-        Self {
-            type_,
-            numSpeakers: num_speakers,
-            speakers: speaker_directions.as_mut_ptr(),
-        }
+impl Deref for SpeakerLayoutFfi {
+    type Target = audionimbus_sys::IPLSpeakerLayout;
+    fn deref(&self) -> &Self::Target {
+        &self.layout
+    }
+}
+
+impl DerefMut for SpeakerLayoutFfi {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.layout
     }
 }
