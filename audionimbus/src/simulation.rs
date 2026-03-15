@@ -356,7 +356,7 @@ where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
         SrcP: PathingCompatible<P> + 'static,
-        SrcRE: ReflectionEffectCompatible<RE> + 'static,
+        SrcRE: ReflectionEffectCompatible<SrcR, RE> + 'static,
     {
         unsafe {
             audionimbus_sys::iplSourceAdd(source.raw_ptr(), self.raw_ptr());
@@ -371,7 +371,7 @@ where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
         SrcP: PathingCompatible<P> + 'static,
-        SrcRE: ReflectionEffectCompatible<RE> + 'static,
+        SrcRE: ReflectionEffectCompatible<SrcR, RE> + 'static,
     {
         unsafe {
             audionimbus_sys::iplSourceRemove(source.raw_ptr(), self.raw_ptr());
@@ -1597,12 +1597,11 @@ impl PathingCompatible<Pathing> for () {}
 impl PathingCompatible<()> for () {}
 
 /// Trait ensuring reflection effect compatibility.
-pub trait ReflectionEffectCompatible<SimRE> {}
-impl<SimRE> ReflectionEffectCompatible<SimRE> for () {}
-impl ReflectionEffectCompatible<Convolution> for Convolution {}
-impl ReflectionEffectCompatible<Parametric> for Parametric {}
-impl ReflectionEffectCompatible<Hybrid> for Hybrid {}
-impl ReflectionEffectCompatible<TrueAudioNext> for TrueAudioNext {}
+///
+/// If the source participates in reflections, its `RE` must match the simulator's.
+pub trait ReflectionEffectCompatible<SrcR, SimRE> {}
+impl<SrcRE, SimRE> ReflectionEffectCompatible<(), SimRE> for SrcRE {}
+impl<SimRE> ReflectionEffectCompatible<Reflections, SimRE> for SimRE {}
 
 /// A sound source, for the purposes of simulation.
 ///
@@ -1685,7 +1684,7 @@ where
         D: 'static + DirectCompatible<D> + SimulationFlagsProvider,
         R: 'static + ReflectionsCompatible<R> + SimulationFlagsProvider,
         P: 'static + PathingCompatible<P> + SimulationFlagsProvider,
-        RE: 'static + ReflectionEffectCompatible<RE>,
+        RE: 'static + ReflectionEffectCompatible<R, RE>,
     {
         Self::try_new_subset::<T, D, R, P, RE>(simulator)
     }
@@ -1731,7 +1730,7 @@ where
         D: 'static + DirectCompatible<SimD> + SimulationFlagsProvider,
         R: 'static + ReflectionsCompatible<SimR> + SimulationFlagsProvider,
         P: 'static + PathingCompatible<SimP> + SimulationFlagsProvider,
-        RE: 'static + ReflectionEffectCompatible<SimRE>,
+        RE: 'static + ReflectionEffectCompatible<R, SimRE>,
     {
         let mut inner = std::ptr::null_mut();
 
@@ -1939,7 +1938,7 @@ where
         D: DirectCompatible<D> + SimulationFlagsProvider,
         R: ReflectionsCompatible<R> + SimulationFlagsProvider,
         P: PathingCompatible<P> + SimulationFlagsProvider,
-        RE: ReflectionEffectCompatible<RE>,
+        RE: ReflectionEffectCompatible<R, RE>,
     {
         self.get_outputs_subset::<D, R, P>()
     }
@@ -1967,7 +1966,7 @@ where
         OutD: DirectCompatible<D> + SimulationFlagsProvider,
         OutR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         OutP: PathingCompatible<P> + SimulationFlagsProvider,
-        RE: ReflectionEffectCompatible<RE>,
+        RE: ReflectionEffectCompatible<OutR, RE>,
     {
         let simulation_flags = OutD::flags() | OutR::flags() | OutP::flags();
 
@@ -2070,7 +2069,7 @@ impl<R, P, RE> Source<Direct, R, P, RE>
 where
     R: 'static,
     P: 'static,
-    RE: 'static + ReflectionEffectCompatible<RE>,
+    RE: 'static + ReflectionEffectCompatible<R, RE>,
     (): ReflectionsCompatible<R>,
     (): PathingCompatible<P>,
 {
@@ -2135,7 +2134,7 @@ impl<D, P, RE> Source<D, Reflections, P, RE>
 where
     D: 'static,
     P: 'static,
-    RE: 'static + ReflectionEffectType + ReflectionEffectCompatible<RE>,
+    RE: 'static + ReflectionEffectType + ReflectionEffectCompatible<Reflections, RE>,
     (): DirectCompatible<D>,
     (): PathingCompatible<P>,
 {
@@ -2207,7 +2206,7 @@ impl<D, R, RE> Source<D, R, Pathing, RE>
 where
     D: 'static,
     R: 'static,
-    RE: 'static + ReflectionEffectCompatible<RE>,
+    RE: 'static + ReflectionEffectCompatible<R, RE>,
     (): DirectCompatible<D>,
     (): ReflectionsCompatible<R>,
 {
@@ -3201,7 +3200,7 @@ impl<D, R, P, RE> SimulationOutputs<D, R, P, RE> {
         D: DirectCompatible<SourceD>,
         R: ReflectionsCompatible<SourceR>,
         P: PathingCompatible<SourceP>,
-        RE: ReflectionEffectCompatible<SourceRE>,
+        RE: ReflectionEffectCompatible<R, SourceRE>,
         SourceD: 'static,
         SourceR: 'static,
         SourceP: 'static,
