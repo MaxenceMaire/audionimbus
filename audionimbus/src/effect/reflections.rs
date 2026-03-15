@@ -20,7 +20,7 @@ use std::marker::PhantomData;
 /// This algorithm renders reflections with the most detail, but may result in significant CPU usage.
 ///
 /// Using a [`ReflectionMixer`] with this algorithm provides a reduction in CPU usage.
-#[derive(Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct Convolution;
 
 /// Parametric (or artificial) reverb, using feedback delay networks.
@@ -30,7 +30,7 @@ pub struct Convolution;
 /// This algorithm results in lower CPU usage, but cannot render individual echoes, especially in outdoor spaces.
 ///
 /// A reflection mixer cannot be used with this algorithm.
-#[derive(Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct Parametric;
 
 /// A hybrid of convolution and parametric reverb.
@@ -40,7 +40,7 @@ pub struct Parametric;
 /// This algorithm allows a trade-off between rendering quality and CPU usage.
 ///
 /// A reflection mixer cannot be used with this algorithm.
-#[derive(Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct Hybrid;
 
 /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
@@ -48,7 +48,7 @@ pub struct Hybrid;
 /// This algorithm is similar to [`Convolution`], but uses the GPU instead of the CPU for processing, allowing significantly more sources to be processed.
 ///
 /// A [`ReflectionMixer`] must be used with this algorithm, because the GPU will process convolution reverb at a single point in your audio processing pipeline.
-#[derive(Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct TrueAudioNext;
 
 impl Sealed for Convolution {}
