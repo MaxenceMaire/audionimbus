@@ -190,7 +190,7 @@ pub fn test_baking() {
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
-        .with_reflections(ReflectionsSimulationSettings::Convolution {
+        .with_reflections(ConvolutionSettings {
             max_num_rays: 4096,
             num_diffuse_samples: 32,
             max_duration: 2.0,

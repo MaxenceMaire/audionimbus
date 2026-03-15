@@ -39,7 +39,10 @@ use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::effect::reflections::ReflectionEffectType;
-use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectParams};
+use crate::effect::{
+    Convolution, DirectEffectParams, Hybrid, Parametric, PathEffectParams, ReflectionEffectParams,
+    TrueAudioNext,
+};
 use crate::error::{to_option_error, SteamAudioError};
 use crate::geometry::{CoordinateSystem, Scene};
 use crate::model::air_absorption::AirAbsorptionModel;
@@ -152,7 +155,7 @@ impl SimulationFlagsProvider for () {
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
-pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
+pub struct Simulator<T: RayTracer, D = (), R = (), P = (), RE = ()> {
     inner: audionimbus_sys::IPLSimulator,
     shared: Arc<Mutex<SimulatorShared>>,
 
@@ -181,6 +184,7 @@ pub struct Simulator<T: RayTracer, D = (), R = (), P = ()> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
+    _reflection_effect: PhantomData<RE>,
 }
 
 /// Shared ownership of [`Simulator`] data across clones.
@@ -200,12 +204,13 @@ struct SimulatorShared {
     has_pending_scene: bool,
 }
 
-impl<T, D, R, P> Simulator<T, D, R, P>
+impl<T, D, R, P, RE> Simulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
     R: 'static,
     P: 'static,
+    RE: 'static,
 {
     /// Creates a new [`Simulator`] and returns a handle to it.
     ///
@@ -216,13 +221,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use audionimbus::{Context, Simulator, SimulationSettings, DirectSimulationSettings, ReflectionsSimulationSettings, PathingSimulationSettings};
+    /// # use audionimbus::{Context, Simulator, SimulationSettings, DirectSimulationSettings, ConvolutionSettings, PathingSimulationSettings};
     /// # let context = Context::default();
     /// let settings = SimulationSettings::new(48000, 1024, 2)
     ///     .with_direct(DirectSimulationSettings {
     ///         max_num_occlusion_samples: 4,
     ///     })
-    ///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    ///     .with_reflections(ConvolutionSettings {
     ///         max_num_rays: 4096,
     ///         num_diffuse_samples: 32,
     ///         max_duration: 2.0,
@@ -237,7 +242,7 @@ where
     /// ```
     pub fn try_new(
         context: &Context,
-        settings: &SimulationSettings<T, D, R, P>,
+        settings: &SimulationSettings<T, D, R, P, RE>,
     ) -> Result<Self, SteamAudioError> {
         let direct_lock = if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
             Some(Arc::new(Mutex::new(())))
@@ -278,6 +283,7 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         };
 
         let status = unsafe {
@@ -345,11 +351,12 @@ where
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn add_source<SrcD, SrcR, SrcP>(&self, source: &Source<SrcD, SrcR, SrcP>)
+    pub fn add_source<SrcD, SrcR, SrcP, SrcRE>(&self, source: &Source<SrcD, SrcR, SrcP, SrcRE>)
     where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
         SrcP: PathingCompatible<P> + 'static,
+        SrcRE: ReflectionEffectCompatible<SrcR, RE> + 'static,
     {
         unsafe {
             audionimbus_sys::iplSourceAdd(source.raw_ptr(), self.raw_ptr());
@@ -359,11 +366,12 @@ where
     /// Removes a source from the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn remove_source<SrcD, SrcR, SrcP>(&self, source: &Source<SrcD, SrcR, SrcP>)
+    pub fn remove_source<SrcD, SrcR, SrcP, SrcRE>(&self, source: &Source<SrcD, SrcR, SrcP, SrcRE>)
     where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
         SrcP: PathingCompatible<P> + 'static,
+        SrcRE: ReflectionEffectCompatible<SrcR, RE> + 'static,
     {
         unsafe {
             audionimbus_sys::iplSourceRemove(source.raw_ptr(), self.raw_ptr());
@@ -424,7 +432,7 @@ where
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -499,7 +507,7 @@ where
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -643,11 +651,12 @@ where
     }
 }
 
-impl<T, R, P> Simulator<T, Direct, R, P>
+impl<T, R, P, RE> Simulator<T, Direct, R, P, RE>
 where
     T: RayTracer,
     R: 'static,
     P: 'static,
+    RE: 'static,
 {
     /// Specifies direct simulation parameters that are not associated with any particular source.
     ///
@@ -713,11 +722,12 @@ where
     }
 }
 
-impl<T, D, P> Simulator<T, D, Reflections, P>
+impl<T, D, P, RE> Simulator<T, D, Reflections, P, RE>
 where
     T: RayTracer,
     D: 'static,
     P: 'static,
+    RE: 'static,
 {
     /// Specifies reflections simulation parameters that are not associated with any particular source.
     ///
@@ -730,7 +740,7 @@ where
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -806,11 +816,12 @@ where
     }
 }
 
-impl<T, D, R> Simulator<T, D, R, Pathing>
+impl<T, D, R, RE> Simulator<T, D, R, Pathing, RE>
 where
     T: RayTracer,
     D: 'static,
     R: 'static,
+    RE: 'static,
 {
     /// Specifies pathing simulation parameters that are not associated with any particular source.
     ///
@@ -889,21 +900,22 @@ where
     }
 }
 
-impl<T: RayTracer, D, R, P> Drop for Simulator<T, D, R, P> {
+impl<T: RayTracer, D, R, P, RE> Drop for Simulator<T, D, R, P, RE> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSimulatorRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer, D, R, P> Send for Simulator<T, D, R, P> {}
-unsafe impl<T: RayTracer, D, R, P> Sync for Simulator<T, D, R, P> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Send for Simulator<T, D, R, P, RE> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Sync for Simulator<T, D, R, P, RE> {}
 
-impl<T, D, R, P> Clone for Simulator<T, D, R, P>
+impl<T, D, R, P, RE> Clone for Simulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
     R: 'static,
     P: 'static,
+    RE: 'static,
 {
     /// Retains an additional reference to the simulator.
     ///
@@ -926,6 +938,7 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         }
     }
 }
@@ -935,12 +948,12 @@ where
 /// # Examples
 ///
 /// ```
-/// # use audionimbus::{Context, Simulator, DirectSimulationSettings, ReflectionsSimulationSettings, PathingSimulationSettings, SimulationSettings};
+/// # use audionimbus::{Context, Simulator, DirectSimulationSettings, ConvolutionSettings, PathingSimulationSettings, SimulationSettings};
 /// let settings = SimulationSettings::new(48000, 1024, 2)
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     })
-///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+///     .with_reflections(ConvolutionSettings {
 ///         max_num_rays: 4096,
 ///         num_diffuse_samples: 32,
 ///         max_duration: 2.0,
@@ -953,7 +966,7 @@ where
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 #[derive(Clone, Debug)]
-pub struct SimulationSettings<T: RayTracer, D = (), R = (), P = ()> {
+pub struct SimulationSettings<T: RayTracer, D = (), R = (), P = (), RE = ()> {
     settings: audionimbus_sys::IPLSimulationSettings,
     open_cl_device: Option<OpenClDevice>,
     radeon_rays_device: Option<RadeonRaysDevice>,
@@ -962,9 +975,10 @@ pub struct SimulationSettings<T: RayTracer, D = (), R = (), P = ()> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
+    _reflection_effect: PhantomData<RE>,
 }
 
-impl SimulationSettings<DefaultRayTracer, (), (), ()> {
+impl SimulationSettings<DefaultRayTracer, (), (), (), ()> {
     /// Creates new simulation settings with all simulations disabled by default.
     pub const fn new(sampling_rate: u32, frame_size: u32, max_order: u32) -> Self {
         let settings = audionimbus_sys::IPLSimulationSettings {
@@ -997,13 +1011,14 @@ impl SimulationSettings<DefaultRayTracer, (), (), ()> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         }
     }
 }
 
-impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
+impl<D, R, P, RE> SimulationSettings<DefaultRayTracer, D, R, P, RE> {
     /// Switches to the Embree ray tracer.
-    pub fn with_embree(self) -> SimulationSettings<Embree, (), (), ()> {
+    pub fn with_embree(self) -> SimulationSettings<Embree, D, R, P, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -1022,6 +1037,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         }
     }
 
@@ -1035,7 +1051,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
         self,
         open_cl_device: OpenClDevice,
         radeon_rays_device: RadeonRaysDevice,
-    ) -> SimulationSettings<RadeonRays, (), (), ()> {
+    ) -> SimulationSettings<RadeonRays, D, R, P, RE> {
         let Self {
             mut settings,
             true_audio_next_device,
@@ -1054,6 +1070,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         }
     }
 
@@ -1065,7 +1082,7 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
     pub fn with_custom_ray_tracer(
         self,
         ray_batch_size: u32,
-    ) -> SimulationSettings<CustomRayTracer, (), (), ()> {
+    ) -> SimulationSettings<CustomRayTracer, D, R, P, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -1085,16 +1102,17 @@ impl<D, R, P> SimulationSettings<DefaultRayTracer, D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         }
     }
 }
 
-impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
+impl<T: RayTracer, D, R, P, RE> SimulationSettings<T, D, R, P, RE> {
     /// Enables direct simulation.
     pub fn with_direct(
         self,
         direct_settings: DirectSimulationSettings,
-    ) -> SimulationSettings<T, Direct, R, P> {
+    ) -> SimulationSettings<T, Direct, R, P, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -1103,6 +1121,7 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _ray_tracer,
             _reflections,
             _pathing,
+            _reflection_effect,
             ..
         } = self;
 
@@ -1118,126 +1137,23 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _direct: PhantomData,
             _reflections,
             _pathing,
+            _reflection_effect,
         }
     }
 
     /// Enables reflections simulation.
-    pub fn with_reflections(
+    pub fn with_reflections<A: ReflectionsAlgorithm>(
         self,
-        reflections_settings: ReflectionsSimulationSettings,
-    ) -> SimulationSettings<T, D, Reflections, P> {
-        let Self {
-            mut settings,
-            mut open_cl_device,
-            radeon_rays_device,
-            mut true_audio_next_device,
-            _ray_tracer,
-            _direct,
-            _pathing,
-            ..
-        } = self;
-
-        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
-
-        let (
-            reflection_effect_type,
-            max_num_rays,
-            num_diffuse_samples,
-            max_duration,
-            max_num_sources,
-            num_threads,
-        ) = match reflections_settings {
-            ReflectionsSimulationSettings::Convolution {
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-            ),
-            ReflectionsSimulationSettings::Parametric {
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC,
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-            ),
-            ReflectionsSimulationSettings::Hybrid {
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-            } => (
-                audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID,
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-            ),
-            ReflectionsSimulationSettings::TrueAudioNext {
-                max_num_rays,
-                num_diffuse_samples,
-                max_duration,
-                max_num_sources,
-                num_threads,
-                open_cl_device: ocl_device,
-                true_audio_next_device: tan_device,
-            } => {
-                settings.openCLDevice = ocl_device.raw_ptr();
-                settings.tanDevice = tan_device.raw_ptr();
-                open_cl_device = Some(ocl_device);
-                true_audio_next_device = Some(tan_device);
-
-                (
-                    audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN,
-                    max_num_rays,
-                    num_diffuse_samples,
-                    max_duration,
-                    max_num_sources,
-                    num_threads,
-                )
-            }
-        };
-
-        settings.reflectionType = reflection_effect_type;
-        settings.maxNumRays = max_num_rays as i32;
-        settings.numDiffuseSamples = num_diffuse_samples as i32;
-        settings.maxDuration = max_duration;
-        settings.maxNumSources = max_num_sources as i32;
-        settings.numThreads = num_threads as i32;
-
-        SimulationSettings {
-            settings,
-            open_cl_device,
-            radeon_rays_device,
-            true_audio_next_device,
-            _ray_tracer,
-            _direct,
-            _reflections: PhantomData,
-            _pathing,
-        }
+        algorithm_settings: A,
+    ) -> SimulationSettings<T, D, Reflections, P, A::EffectType> {
+        algorithm_settings.apply(self)
     }
 
     /// Enables pathing simulation.
     pub fn with_pathing(
         self,
         pathing_settings: PathingSimulationSettings,
-    ) -> SimulationSettings<T, D, R, Pathing> {
+    ) -> SimulationSettings<T, D, R, Pathing, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -1246,6 +1162,7 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _ray_tracer,
             _direct,
             _reflections,
+            _reflection_effect,
             ..
         } = self;
 
@@ -1261,6 +1178,7 @@ impl<T: RayTracer, D, R, P> SimulationSettings<T, D, R, P> {
             _direct,
             _reflections,
             _pathing: PhantomData,
+            _reflection_effect,
         }
     }
 
@@ -1314,107 +1232,294 @@ pub struct DirectSimulationSettings {
     pub max_num_occlusion_samples: u32,
 }
 
-/// Settings used for reflections simulation.
-#[derive(Debug, Clone)]
-pub enum ReflectionsSimulationSettings {
-    /// Multi-channel convolution reverb.
-    Convolution {
-        /// The maximum number of rays to trace from the listener when simulating reflections.
-        /// You can use different numbers of rays between simulation runs, but this is the maximum value.
-        /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
-        max_num_rays: u32,
+/// Algorithm used for reflections simulation.
+///
+/// See:
+/// - [`ConvolutionSettings`]
+/// - [`ParametricSettings`]
+/// - [`HybridSettings`]
+/// - [`TrueAudioNextSettings`]
+pub trait ReflectionsAlgorithm: Sealed {
+    /// The type of the algorithm.
+    type EffectType: ReflectionEffectType;
 
-        /// The number of directions to sample when generating diffusely reflected rays.
-        /// Increasing this value may increase the accuracy of diffuse reflections.
-        num_diffuse_samples: u32,
-
-        /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
-        /// You can change this value betweeen simulation runs, but this is the maximum value.
-        /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
-        max_duration: f32,
-
-        /// The maximum number of sources for which reflection simulations will be run at any given time.
-        max_num_sources: u32,
-
-        /// The number of threads used for real-time reflection simulations.
-        num_threads: u32,
-    },
-
-    /// Parametric (or artificial) reverb, using feedback delay networks.
-    Parametric {
-        /// The maximum number of rays to trace from the listener when simulating reflections.
-        /// You can use different numbers of rays between simulation runs, but this is the maximum value.
-        /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
-        max_num_rays: u32,
-
-        /// The number of directions to sample when generating diffusely reflected rays.
-        /// Increasing this value may increase the accuracy of diffuse reflections.
-        num_diffuse_samples: u32,
-
-        /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
-        /// You can change this value betweeen simulation runs, but this is the maximum value.
-        /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
-        max_duration: f32,
-
-        /// The maximum number of sources for which reflection simulations will be run at any given time.
-        max_num_sources: u32,
-
-        /// The number of threads used for real-time reflection simulations.
-        num_threads: u32,
-    },
-
-    /// A hybrid of convolution and parametric reverb.
-    Hybrid {
-        /// The maximum number of rays to trace from the listener when simulating reflections.
-        /// You can use different numbers of rays between simulation runs, but this is the maximum value.
-        /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
-        max_num_rays: u32,
-
-        /// The number of directions to sample when generating diffusely reflected rays.
-        /// Increasing this value may increase the accuracy of diffuse reflections.
-        num_diffuse_samples: u32,
-
-        /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
-        /// You can change this value betweeen simulation runs, but this is the maximum value.
-        /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
-        max_duration: f32,
-
-        /// The maximum number of sources for which reflection simulations will be run at any given time.
-        max_num_sources: u32,
-
-        /// The number of threads used for real-time reflection simulations.
-        num_threads: u32,
-    },
-
-    /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-    TrueAudioNext {
-        /// The maximum number of rays to trace from the listener when simulating reflections.
-        /// You can use different numbers of rays between simulation runs, but this is the maximum value.
-        /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
-        max_num_rays: u32,
-
-        /// The number of directions to sample when generating diffusely reflected rays.
-        /// Increasing this value may increase the accuracy of diffuse reflections.
-        num_diffuse_samples: u32,
-
-        /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
-        /// You can change this value betweeen simulation runs, but this is the maximum value.
-        /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
-        max_duration: f32,
-
-        /// The maximum number of sources for which reflection simulations will be run at any given time.
-        max_num_sources: u32,
-
-        /// The number of threads used for real-time reflection simulations.
-        num_threads: u32,
-
-        /// The OpenCL device being used.
-        open_cl_device: OpenClDevice,
-
-        /// The TrueAudio Next device being used.
-        true_audio_next_device: TrueAudioNextDevice,
-    },
+    /// Applies the algorithm settings to the specified simulation settings.
+    fn apply<T: RayTracer, D, R, P, RE>(
+        self,
+        settings: SimulationSettings<T, D, R, P, RE>,
+    ) -> SimulationSettings<T, D, Reflections, P, Self::EffectType>;
 }
+
+/// Settings for multi-channel convolution reverb.
+#[derive(Debug, Copy, Clone)]
+pub struct ConvolutionSettings {
+    /// The maximum number of rays to trace from the listener when simulating reflections.
+    /// You can use different numbers of rays between simulation runs, but this is the maximum value.
+    /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
+    pub max_num_rays: u32,
+
+    /// The number of directions to sample when generating diffusely reflected rays.
+    /// Increasing this value may increase the accuracy of diffuse reflections.
+    pub num_diffuse_samples: u32,
+
+    /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
+    /// You can change this value betweeen simulation runs, but this is the maximum value.
+    /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
+    pub max_duration: f32,
+
+    /// The maximum number of sources for which reflection simulations will be run at any given time.
+    pub max_num_sources: u32,
+
+    /// The number of threads used for real-time reflection simulations.
+    pub num_threads: u32,
+}
+
+impl ReflectionsAlgorithm for ConvolutionSettings {
+    type EffectType = Convolution;
+
+    fn apply<T: RayTracer, D, R, P, RE>(
+        self,
+        simulation_settings: SimulationSettings<T, D, R, P, RE>,
+    ) -> SimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let SimulationSettings {
+            mut settings,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
+            _ray_tracer,
+            _direct,
+            _pathing,
+            ..
+        } = simulation_settings;
+
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        settings.reflectionType =
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION;
+        settings.maxNumRays = self.max_num_rays as i32;
+        settings.numDiffuseSamples = self.num_diffuse_samples as i32;
+        settings.maxDuration = self.max_duration;
+        settings.maxNumSources = self.max_num_sources as i32;
+        settings.numThreads = self.num_threads as i32;
+
+        SimulationSettings {
+            settings,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
+            _ray_tracer,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+            _reflection_effect: PhantomData,
+        }
+    }
+}
+
+/// Settings for parametric (or artificial) reverb, using feedback delay networks.
+#[derive(Debug, Copy, Clone)]
+pub struct ParametricSettings {
+    /// The maximum number of rays to trace from the listener when simulating reflections.
+    /// You can use different numbers of rays between simulation runs, but this is the maximum value.
+    /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
+    pub max_num_rays: u32,
+
+    /// The number of directions to sample when generating diffusely reflected rays.
+    /// Increasing this value may increase the accuracy of diffuse reflections.
+    pub num_diffuse_samples: u32,
+
+    /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
+    /// You can change this value betweeen simulation runs, but this is the maximum value.
+    /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
+    pub max_duration: f32,
+
+    /// The maximum number of sources for which reflection simulations will be run at any given time.
+    pub max_num_sources: u32,
+
+    /// The number of threads used for real-time reflection simulations.
+    pub num_threads: u32,
+}
+
+impl ReflectionsAlgorithm for ParametricSettings {
+    type EffectType = Parametric;
+
+    fn apply<T: RayTracer, D, R, P, RE>(
+        self,
+        simulation_settings: SimulationSettings<T, D, R, P, RE>,
+    ) -> SimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let SimulationSettings {
+            mut settings,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
+            _ray_tracer,
+            _direct,
+            _pathing,
+            ..
+        } = simulation_settings;
+
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        settings.reflectionType =
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC;
+        settings.maxNumRays = self.max_num_rays as i32;
+        settings.numDiffuseSamples = self.num_diffuse_samples as i32;
+        settings.maxDuration = self.max_duration;
+        settings.maxNumSources = self.max_num_sources as i32;
+        settings.numThreads = self.num_threads as i32;
+
+        SimulationSettings {
+            settings,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
+            _ray_tracer,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+            _reflection_effect: PhantomData,
+        }
+    }
+}
+
+/// Settings for a hybrid of convolution and parametric reverb.
+#[derive(Debug, Copy, Clone)]
+pub struct HybridSettings {
+    /// The maximum number of rays to trace from the listener when simulating reflections.
+    /// You can use different numbers of rays between simulation runs, but this is the maximum value.
+    /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
+    pub max_num_rays: u32,
+
+    /// The number of directions to sample when generating diffusely reflected rays.
+    /// Increasing this value may increase the accuracy of diffuse reflections.
+    pub num_diffuse_samples: u32,
+
+    /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
+    /// You can change this value betweeen simulation runs, but this is the maximum value.
+    /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
+    pub max_duration: f32,
+
+    /// The maximum number of sources for which reflection simulations will be run at any given time.
+    pub max_num_sources: u32,
+
+    /// The number of threads used for real-time reflection simulations.
+    pub num_threads: u32,
+}
+
+impl ReflectionsAlgorithm for HybridSettings {
+    type EffectType = Hybrid;
+
+    fn apply<T: RayTracer, D, R, P, RE>(
+        self,
+        simulation_settings: SimulationSettings<T, D, R, P, RE>,
+    ) -> SimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let SimulationSettings {
+            mut settings,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
+            _ray_tracer,
+            _direct,
+            _pathing,
+            ..
+        } = simulation_settings;
+
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        settings.reflectionType =
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID;
+        settings.maxNumRays = self.max_num_rays as i32;
+        settings.numDiffuseSamples = self.num_diffuse_samples as i32;
+        settings.maxDuration = self.max_duration;
+        settings.maxNumSources = self.max_num_sources as i32;
+        settings.numThreads = self.num_threads as i32;
+
+        SimulationSettings {
+            settings,
+            open_cl_device,
+            radeon_rays_device,
+            true_audio_next_device,
+            _ray_tracer,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+            _reflection_effect: PhantomData,
+        }
+    }
+}
+
+/// Settings for a multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
+#[derive(Debug, Clone)]
+pub struct TrueAudioNextSettings {
+    /// The maximum number of rays to trace from the listener when simulating reflections.
+    /// You can use different numbers of rays between simulation runs, but this is the maximum value.
+    /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
+    pub max_num_rays: u32,
+
+    /// The number of directions to sample when generating diffusely reflected rays.
+    /// Increasing this value may increase the accuracy of diffuse reflections.
+    pub num_diffuse_samples: u32,
+
+    /// The maximum length (in seconds) of impulse responses generated by reflection simulations.
+    /// You can change this value betweeen simulation runs, but this is the maximum value.
+    /// Increasing this value results in longer, more accurate reverb tails, at the cost of increased CPU and memory usage.
+    pub max_duration: f32,
+
+    /// The maximum number of sources for which reflection simulations will be run at any given time.
+    pub max_num_sources: u32,
+
+    /// The number of threads used for real-time reflection simulations.
+    pub num_threads: u32,
+
+    /// The OpenCL device being used.
+    pub open_cl_device: OpenClDevice,
+
+    /// The TrueAudio Next device being used.
+    pub true_audio_next_device: TrueAudioNextDevice,
+}
+
+impl ReflectionsAlgorithm for TrueAudioNextSettings {
+    type EffectType = TrueAudioNext;
+
+    fn apply<T: RayTracer, D, R, P, RE>(
+        self,
+        simulation_settings: SimulationSettings<T, D, R, P, RE>,
+    ) -> SimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let SimulationSettings {
+            mut settings,
+            radeon_rays_device,
+            _ray_tracer,
+            _direct,
+            _pathing,
+            ..
+        } = simulation_settings;
+
+        settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
+        settings.reflectionType =
+            audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN;
+        settings.openCLDevice = self.open_cl_device.raw_ptr();
+        settings.tanDevice = self.true_audio_next_device.raw_ptr();
+        settings.maxNumRays = self.max_num_rays as i32;
+        settings.numDiffuseSamples = self.num_diffuse_samples as i32;
+        settings.maxDuration = self.max_duration;
+        settings.maxNumSources = self.max_num_sources as i32;
+        settings.numThreads = self.num_threads as i32;
+
+        SimulationSettings {
+            settings,
+            open_cl_device: Some(self.open_cl_device),
+            radeon_rays_device,
+            true_audio_next_device: Some(self.true_audio_next_device),
+            _ray_tracer,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+            _reflection_effect: PhantomData,
+        }
+    }
+}
+
+impl Sealed for ConvolutionSettings {}
+impl Sealed for ParametricSettings {}
+impl Sealed for HybridSettings {}
+impl Sealed for TrueAudioNextSettings {}
 
 /// Settings used for pathing simulation.
 #[derive(Debug, Copy, Clone)]
@@ -1491,6 +1596,13 @@ impl PathingCompatible<Pathing> for Pathing {}
 impl PathingCompatible<Pathing> for () {}
 impl PathingCompatible<()> for () {}
 
+/// Trait ensuring reflection effect compatibility.
+///
+/// If the source participates in reflections, its `RE` must match the simulator's.
+pub trait ReflectionEffectCompatible<SrcR, SimRE> {}
+impl<SrcRE, SimRE> ReflectionEffectCompatible<(), SimRE> for SrcRE {}
+impl<SimRE> ReflectionEffectCompatible<Reflections, SimRE> for SimRE {}
+
 /// A sound source, for the purposes of simulation.
 ///
 /// This object is used to specify various parameters for direct and indirect sound propagation simulation, and to retrieve the simulation results.
@@ -1502,7 +1614,7 @@ impl PathingCompatible<()> for () {}
 ///
 /// Generic over the types of simulation that may be run for this source.
 #[derive(Debug)]
-pub struct Source<D = (), R = (), P = ()> {
+pub struct Source<D = (), R = (), P = (), RE = ()> {
     inner: audionimbus_sys::IPLSource,
     shared: Arc<Mutex<SourceShared>>,
 
@@ -1524,6 +1636,7 @@ pub struct Source<D = (), R = (), P = ()> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
+    _reflection_effect: PhantomData<RE>,
 }
 
 /// Shared ownership of [`Source`] data across clones.
@@ -1538,11 +1651,12 @@ struct SourceShared {
     _pathing_probes: Option<ProbeBatch>,
 }
 
-impl<D, R, P> Source<D, R, P>
+impl<D, R, P, RE> Source<D, R, P, RE>
 where
     D: 'static,
     R: 'static,
     P: 'static,
+    RE: 'static,
 {
     /// Creates a new source and returns a handle to it.
     ///
@@ -1564,14 +1678,15 @@ where
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new<T>(simulator: &Simulator<T, D, R, P>) -> Result<Self, SteamAudioError>
+    pub fn try_new<T>(simulator: &Simulator<T, D, R, P, RE>) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
         D: 'static + DirectCompatible<D> + SimulationFlagsProvider,
         R: 'static + ReflectionsCompatible<R> + SimulationFlagsProvider,
         P: 'static + PathingCompatible<P> + SimulationFlagsProvider,
+        RE: 'static + ReflectionEffectCompatible<R, RE>,
     {
-        Self::try_new_subset::<T, D, R, P>(simulator)
+        Self::try_new_subset::<T, D, R, P, RE>(simulator)
     }
 
     /// Creates a new source and returns a handle to it.
@@ -1585,7 +1700,7 @@ where
     /// # let context = Context::default();
     /// let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     ///     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    ///     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    ///     .with_reflections(ConvolutionSettings {
     ///         max_num_rays: 4096,
     ///         num_diffuse_samples: 32,
     ///         max_duration: 2.0,
@@ -1603,17 +1718,19 @@ where
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new_subset<T, SimD, SimR, SimP>(
-        simulator: &Simulator<T, SimD, SimR, SimP>,
+    pub fn try_new_subset<T, SimD, SimR, SimP, SimRE>(
+        simulator: &Simulator<T, SimD, SimR, SimP, SimRE>,
     ) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
         SimD: 'static,
         SimR: 'static,
         SimP: 'static,
+        SimRE: 'static,
         D: 'static + DirectCompatible<SimD> + SimulationFlagsProvider,
         R: 'static + ReflectionsCompatible<SimR> + SimulationFlagsProvider,
         P: 'static + PathingCompatible<SimP> + SimulationFlagsProvider,
+        RE: 'static + ReflectionEffectCompatible<R, SimRE>,
     {
         let mut inner = std::ptr::null_mut();
 
@@ -1647,6 +1764,7 @@ where
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         };
 
         Ok(source)
@@ -1731,7 +1849,7 @@ where
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -1815,11 +1933,12 @@ where
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
-    pub fn get_outputs(&self) -> Result<SimulationOutputs<D, R, P>, SteamAudioError>
+    pub fn get_outputs(&self) -> Result<SimulationOutputs<D, R, P, RE>, SteamAudioError>
     where
         D: DirectCompatible<D> + SimulationFlagsProvider,
         R: ReflectionsCompatible<R> + SimulationFlagsProvider,
         P: PathingCompatible<P> + SimulationFlagsProvider,
+        RE: ReflectionEffectCompatible<R, RE>,
     {
         self.get_outputs_subset::<D, R, P>()
     }
@@ -1842,11 +1961,12 @@ where
     /// [`SimulationOutputs`].
     pub fn get_outputs_subset<OutD, OutR, OutP>(
         &self,
-    ) -> Result<SimulationOutputs<OutD, OutR, OutP>, SteamAudioError>
+    ) -> Result<SimulationOutputs<OutD, OutR, OutP, RE>, SteamAudioError>
     where
         OutD: DirectCompatible<D> + SimulationFlagsProvider,
         OutR: ReflectionsCompatible<R> + SimulationFlagsProvider,
         OutP: PathingCompatible<P> + SimulationFlagsProvider,
+        RE: ReflectionEffectCompatible<OutR, RE>,
     {
         let simulation_flags = OutD::flags() | OutR::flags() | OutP::flags();
 
@@ -1945,10 +2065,11 @@ where
     }
 }
 
-impl<R, P> Source<Direct, R, P>
+impl<R, P, RE> Source<Direct, R, P, RE>
 where
     R: 'static,
     P: 'static,
+    RE: 'static + ReflectionEffectCompatible<R, RE>,
     (): ReflectionsCompatible<R>,
     (): PathingCompatible<P>,
 {
@@ -2009,10 +2130,11 @@ where
     }
 }
 
-impl<D, P> Source<D, Reflections, P>
+impl<D, P, RE> Source<D, Reflections, P, RE>
 where
     D: 'static,
     P: 'static,
+    RE: 'static + ReflectionEffectType + ReflectionEffectCompatible<Reflections, RE>,
     (): DirectCompatible<D>,
     (): PathingCompatible<P>,
 {
@@ -2027,7 +2149,7 @@ where
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
-    /// #     .with_reflections(ReflectionsSimulationSettings::Convolution {
+    /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
@@ -2074,19 +2196,17 @@ where
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`SimulationOutputs`].
-    pub fn get_reflections_outputs<T>(&self) -> Result<ReflectionEffectParams<T>, SteamAudioError>
-    where
-        T: ReflectionEffectType,
-    {
+    pub fn get_reflections_outputs(&self) -> Result<ReflectionEffectParams<RE>, SteamAudioError> {
         self.get_outputs_subset::<(), Reflections, ()>()
             .map(|outputs| outputs.reflections())
     }
 }
 
-impl<D, R> Source<D, R, Pathing>
+impl<D, R, RE> Source<D, R, Pathing, RE>
 where
     D: 'static,
     R: 'static,
+    RE: 'static + ReflectionEffectCompatible<R, RE>,
     (): DirectCompatible<D>,
     (): ReflectionsCompatible<R>,
 {
@@ -2158,16 +2278,16 @@ where
     }
 }
 
-impl<D, R, P> Drop for Source<D, R, P> {
+impl<D, R, P, RE> Drop for Source<D, R, P, RE> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSourceRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<D, R, P> Send for Source<D, R, P> {}
-unsafe impl<D, R, P> Sync for Source<D, R, P> {}
+unsafe impl<D, R, P, RE> Send for Source<D, R, P, RE> {}
+unsafe impl<D, R, P, RE> Sync for Source<D, R, P, RE> {}
 
-impl<D, R, P> Clone for Source<D, R, P> {
+impl<D, R, P, RE> Clone for Source<D, R, P, RE> {
     /// Retains an additional reference to the source.
     ///
     /// The returned [`Source`] shares the same underlying Steam Audio object.
@@ -2183,6 +2303,7 @@ impl<D, R, P> Clone for Source<D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         }
     }
 }
@@ -3058,7 +3179,7 @@ pub struct ReflectionsSharedInputs {
 
 /// Simulation results for a source.
 #[derive(Debug)]
-pub struct SimulationOutputs<D, R, P> {
+pub struct SimulationOutputs<D, R, P, RE = ()> {
     inner: *mut audionimbus_sys::IPLSimulationOutputs,
 
     /// Retained pointer of the [`Source`] it originated from, to ensure the IR pointer remains
@@ -3068,19 +3189,22 @@ pub struct SimulationOutputs<D, R, P> {
     _direct: PhantomData<D>,
     _reflections: PhantomData<R>,
     _pathing: PhantomData<P>,
+    _reflection_effect: PhantomData<RE>,
 }
 
-impl<D, R, P> SimulationOutputs<D, R, P> {
-    fn try_allocate<SourceD, SourceR, SourceP>(
-        source: &Source<SourceD, SourceR, SourceP>,
+impl<D, R, P, RE> SimulationOutputs<D, R, P, RE> {
+    fn try_allocate<SourceD, SourceR, SourceP, SourceRE>(
+        source: &Source<SourceD, SourceR, SourceP, SourceRE>,
     ) -> Result<Self, SteamAudioError>
     where
         D: DirectCompatible<SourceD>,
         R: ReflectionsCompatible<SourceR>,
         P: PathingCompatible<SourceP>,
+        RE: ReflectionEffectCompatible<R, SourceRE>,
         SourceD: 'static,
         SourceR: 'static,
         SourceP: 'static,
+        SourceRE: 'static,
     {
         let ptr = unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
@@ -3100,6 +3224,7 @@ impl<D, R, P> SimulationOutputs<D, R, P> {
             _direct: PhantomData,
             _reflections: PhantomData,
             _pathing: PhantomData,
+            _reflection_effect: PhantomData,
         })
     }
 
@@ -3112,29 +3237,32 @@ impl<D, R, P> SimulationOutputs<D, R, P> {
     }
 }
 
-impl<R, P> SimulationOutputs<Direct, R, P> {
+impl<R, P, RE> SimulationOutputs<Direct, R, P, RE> {
     pub fn direct(&self) -> DirectEffectParams {
         unsafe { (*self.inner).direct.into() }
     }
 }
 
-impl<D, P> SimulationOutputs<D, Reflections, P> {
-    pub fn reflections<T: ReflectionEffectType>(&self) -> ReflectionEffectParams<T> {
+impl<D, P, RE> SimulationOutputs<D, Reflections, P, RE>
+where
+    RE: ReflectionEffectType,
+{
+    pub fn reflections(&self) -> ReflectionEffectParams<RE> {
         unsafe {
             ReflectionEffectParams::from_ffi_unchecked((*self.inner).reflections, self._source)
         }
     }
 }
 
-impl<D, R> SimulationOutputs<D, R, Pathing> {
+impl<D, R, RE> SimulationOutputs<D, R, Pathing, RE> {
     pub fn pathing(&self) -> PathEffectParams {
         unsafe { (*self.inner).pathing.into() }
     }
 }
 
-unsafe impl<D, R, P> Send for SimulationOutputs<D, R, P> {}
+unsafe impl<D, R, P, RE> Send for SimulationOutputs<D, R, P, RE> {}
 
-impl<D, R, P> Drop for SimulationOutputs<D, R, P> {
+impl<D, R, P, RE> Drop for SimulationOutputs<D, R, P, RE> {
     fn drop(&mut self) {
         unsafe {
             let layout = std::alloc::Layout::new::<audionimbus_sys::IPLSimulationOutputs>();
