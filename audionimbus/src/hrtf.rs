@@ -3,7 +3,13 @@
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{to_option_error, SteamAudioError};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{LazyLock, Mutex};
+
+/// A static mutex used to serialize HRTF creation across threads.
+///
+/// Steam Audio's `iplHRTFCreate()` function is not thread-safe, so this lock
+/// ensures that only one HRTF can be created at a time across the entire application.
+static HRTF_CREATION_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 /// A Head-Related Transfer Function (HRTF).
 ///
@@ -38,7 +44,7 @@ impl Hrtf {
         audio_settings: &AudioSettings,
         hrtf_settings: &HrtfSettings,
     ) -> Result<Self, SteamAudioError> {
-        let _guard = hrtf_creation_lock().lock().unwrap();
+        let _guard = HRTF_CREATION_LOCK.lock().unwrap();
 
         let mut hrtf = Self(std::ptr::null_mut());
 
@@ -239,15 +245,6 @@ impl From<HrtfInterpolation> for audionimbus_sys::IPLHRTFInterpolation {
             HrtfInterpolation::Bilinear => Self::IPL_HRTFINTERPOLATION_BILINEAR,
         }
     }
-}
-
-/// Returns a static mutex used to serialize HRTF creation across threads.
-///
-/// Steam Audio's `iplHRTFCreate()` function is not thread-safe, so this lock
-/// ensures that only one HRTF can be created at a time across the entire application.
-fn hrtf_creation_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
 }
 
 #[cfg(test)]
