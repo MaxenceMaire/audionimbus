@@ -75,6 +75,11 @@ impl ProbeArray {
         Ok(Sphere::from(ipl_sphere))
     }
 
+    /// Returns an iterator over the probes contained in the array.
+    pub fn probes(&self) -> impl Iterator<Item = Sphere> + '_ {
+        (0..self.num_probes()).map(|i| self.probe(i).unwrap())
+    }
+
     /// Returns the raw FFI pointer to the underlying probe array.
     ///
     /// This is intended for internal use and advanced scenarios.
