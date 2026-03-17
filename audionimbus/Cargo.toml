@@ -19,6 +19,8 @@ slotmap = "1.1.1"
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
+wiring = []
+default = ["wiring"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
