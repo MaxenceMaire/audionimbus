@@ -1,5 +1,7 @@
 mod direct;
 pub use direct::*;
+mod reflections_reverb;
+pub use reflections_reverb::*;
 
 /// Defines the simulation logic for a single step.
 pub trait SimulationStep<I>: Send + 'static
