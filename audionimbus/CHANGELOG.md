@@ -86,6 +86,7 @@
 
 - Implement `Sync` and `Clone` traits for `Hrtf`, `Scene`, `Source`, `Context`, `Simulator`, `ProbeArray`, `ProbeBatch`, `StaticMesh`, `EnergyField`, `EmbreeDevice`, `OpenClDevice`, `OpenClDeviceList`, `RadeonRaysDevice`, `InstancedMesh`, `Reconstructor`, `ImpulseResponse`, `ReflectionMixer`, `SerializedObject`, `TrueAudioNextDevice`, `PathEffect`, `DirectEffect`, `PanningEffect`, `BinauralEffect`, `ReflectionEffect`, `VirtualSurroundEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsEncodeEffect`, `AmbisonicsPanningEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsRotationEffect`.
 - Add `set_num_channels` and `set_impulse_response_size` setters to `ReflectionEffectParams`, with validation against maximums, and their respective `NumChannelsExceedsMaxError` and `ImpulseResponseSizeExceedsMaxError` errors.
+- Implement `From<Vector3>` for `[f32; 3]`.
 
 ### Removed
 

@@ -41,6 +41,12 @@ impl From<[f32; 3]> for Vector3 {
     }
 }
 
+impl From<Vector3> for [f32; 3] {
+    fn from(vector: Vector3) -> Self {
+        [vector.x, vector.y, vector.z]
+    }
+}
+
 impl From<Vector3> for audionimbus_sys::IPLVector3 {
     fn from(vector: Vector3) -> Self {
         Self {
