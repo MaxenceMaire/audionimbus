@@ -63,7 +63,7 @@ where
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
-/// Implemented by any type that can produce a `DirectInput` view.
+/// Implemented by any type that can produce a [`DirectInput`] view.
 pub trait AsDirectInput<D, R, P, RE>: Send + Sync + 'static
 where
     RE: ReflectionEffectCompatible<R, RE>,

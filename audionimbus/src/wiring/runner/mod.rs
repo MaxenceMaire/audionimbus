@@ -8,10 +8,12 @@ use std::sync::{
 
 mod direct;
 pub use direct::*;
+mod reflections;
+pub use reflections::*;
 mod reflections_reverb;
 pub use reflections_reverb::*;
 
-/// Drives a `SimulationStep` on a dedicated thread.
+/// Drives a [`SimulationStep`] on a dedicated thread.
 pub struct SimulationRunner<I, O> {
     input: Arc<ArcSwap<I>>,
     output: Arc<ArcSwap<ReusableOwned<O>>>,

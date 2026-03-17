@@ -1,5 +1,7 @@
 mod direct;
 pub use direct::*;
+mod reflections;
+pub use reflections::*;
 mod reflections_reverb;
 pub use reflections_reverb::*;
 
