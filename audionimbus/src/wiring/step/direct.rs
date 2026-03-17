@@ -11,7 +11,7 @@ pub struct DirectStep<T, R, P, RE>
 where
     T: RayTracer,
 {
-    simulator: Simulator<T, Direct, R, P, RE>,
+    pub simulator: Simulator<T, Direct, R, P, RE>,
 }
 
 impl<T, R, P, RE, I> SimulationStep<I> for DirectStep<T, R, P, RE>

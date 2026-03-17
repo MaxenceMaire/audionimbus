@@ -11,7 +11,7 @@ pub struct ReflectionsReverbStep<T, D, P, RE>
 where
     T: RayTracer,
 {
-    simulator: Simulator<T, D, Reflections, P, RE>,
+    pub simulator: Simulator<T, D, Reflections, P, RE>,
 }
 
 impl<T, D, P, RE, I> SimulationStep<I> for ReflectionsReverbStep<T, D, P, RE>
