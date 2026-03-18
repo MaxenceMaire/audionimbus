@@ -8,6 +8,8 @@ use std::sync::{
 
 mod direct;
 pub use direct::*;
+mod pathing;
+pub use pathing::*;
 mod reflections;
 pub use reflections::*;
 mod reflections_reverb;
