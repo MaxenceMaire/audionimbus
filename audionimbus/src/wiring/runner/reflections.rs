@@ -14,7 +14,6 @@ where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     pub sources: Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>,
-    pub listener: SourceWithInputs<D, R, P, RE>,
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
