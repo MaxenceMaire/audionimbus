@@ -17,10 +17,10 @@ pub struct Simulation<T, D, R, P, RE>
 where
     T: RayTracer,
 {
-    simulator: Simulator<T, D, R, P, RE>,
-    sources_pool: Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>,
-    initial_sources: Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>,
-    commit_needed: Arc<AtomicBool>,
+    pub simulator: Simulator<T, D, R, P, RE>,
+    pub sources_pool: Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>,
+    pub initial_sources: Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>,
+    pub commit_needed: Arc<AtomicBool>,
 }
 
 impl<T, D, R, P, RE> Simulation<T, D, R, P, RE>
