@@ -1234,6 +1234,11 @@ impl<T: RayTracer, D, R, P, RE> SimulationSettings<T, D, R, P, RE> {
     }
 }
 
+// SAFETY: The raw pointers in IPLSimulationSettings point to devices owned by the struct and
+// remain valid for its lifetime.
+unsafe impl<T: RayTracer, D, R, P, RE> Send for SimulationSettings<T, D, R, P, RE> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Sync for SimulationSettings<T, D, R, P, RE> {}
+
 /// Settings used for direct path simulation.
 #[derive(Debug, Copy, Clone)]
 pub struct DirectSimulationSettings {
