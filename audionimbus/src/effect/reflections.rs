@@ -168,22 +168,17 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// ```
 /// # use audionimbus::*;
 /// let context = Context::default();
-///
-/// const SAMPLING_RATE: u32 = 48_000;
-/// const FRAME_SIZE: u32 = 1024;
-/// let audio_settings = AudioSettings {
-///     sampling_rate: SAMPLING_RATE,
-///     frame_size: FRAME_SIZE,
-/// };
+/// let audio_settings = AudioSettings::default();
 ///
 /// // Create a simulator with reflections.
-/// let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, 1)
+/// let simulation_settings = SimulationSettings::new(&audio_settings)
 ///     .with_reflections(ConvolutionSettings {
 ///         max_num_rays: 4096,
 ///         num_diffuse_samples: 32,
 ///         max_duration: 2.0,
 ///         max_num_sources: 8,
 ///         num_threads: 2,
+///         max_order: 1,
 ///     });
 /// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
@@ -222,14 +217,14 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     &context,
 ///     &audio_settings,
 ///     &ReflectionEffectSettings {
-///         impulse_response_size: 2 * SAMPLING_RATE, // 2 seconds
+///         impulse_response_size: 2 * audio_settings.sampling_rate, // 2 seconds
 ///         num_channels: NUM_CHANNELS,
 ///     },
 /// )?;
 ///
-/// let input = vec![0.5; FRAME_SIZE as usize];
+/// let input = vec![0.5; audio_settings.frame_size as usize];
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
-/// let mut output = vec![0.0; (NUM_CHANNELS * FRAME_SIZE) as usize]; // 4 channels
+/// let mut output = vec![0.0; (NUM_CHANNELS * audio_settings.frame_size) as usize]; // 4 channels
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut output,
 ///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
@@ -247,21 +242,17 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// ```
 /// # use audionimbus::*;
 /// let context = Context::default();
-/// const SAMPLING_RATE: u32 = 48_000;
-/// const FRAME_SIZE: u32 = 1024;
-/// let audio_settings = AudioSettings {
-///     sampling_rate: SAMPLING_RATE,
-///     frame_size: FRAME_SIZE,
-/// };
+/// let audio_settings = AudioSettings::default();
 ///
 /// // Create simulator with reflections
-/// let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, 1)
+/// let simulation_settings = SimulationSettings::new(&audio_settings)
 ///     .with_reflections(ConvolutionSettings {
 ///         max_num_rays: 2048,
 ///         num_diffuse_samples: 32,
 ///         max_duration: 2.0,
 ///         max_num_sources: 8,
 ///         num_threads: 2,
+///         max_order: 1,
 ///     });
 /// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
 ///
@@ -307,14 +298,14 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///     &context,
 ///     &audio_settings,
 ///     &ReflectionEffectSettings {
-///         impulse_response_size: 2 * SAMPLING_RATE,
+///         impulse_response_size: 2 * audio_settings.sampling_rate,
 ///         num_channels: NUM_CHANNELS,
 ///     },
 /// )?;
 ///
-/// let input = vec![0.5; FRAME_SIZE as usize];
+/// let input = vec![0.5; audio_settings.frame_size as usize];
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
-/// let mut reverb_output = vec![0.0; (NUM_CHANNELS * FRAME_SIZE) as usize];
+/// let mut reverb_output = vec![0.0; (NUM_CHANNELS * audio_settings.frame_size) as usize];
 /// let output_buffer = AudioBuffer::try_with_data_and_settings(
 ///     &mut reverb_output,
 ///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
@@ -1104,25 +1095,20 @@ mod tests {
 
             #[test]
             fn test_valid() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1152,7 +1138,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1162,7 +1148,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let input_container = vec![0.5; FRAME_SIZE as usize];
+                let input_container = vec![0.5; audio_settings.frame_size as usize];
                 let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
 
                 let mut output_container =
@@ -1180,25 +1166,20 @@ mod tests {
 
             #[test]
             fn test_invalid_input_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1228,7 +1209,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1238,7 +1219,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut input_container = vec![0.5; 2 * FRAME_SIZE as usize];
+                let mut input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
                 let input_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut input_container,
                     AudioBufferSettings::with_num_channels(2),
@@ -1268,25 +1249,20 @@ mod tests {
 
             #[test]
             fn test_invalid_output_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1316,7 +1292,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1326,7 +1302,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let input_container = vec![0.5; FRAME_SIZE as usize];
+                let input_container = vec![0.5; audio_settings.frame_size as usize];
                 let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
 
                 let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
@@ -1355,25 +1331,20 @@ mod tests {
 
             #[test]
             fn test_valid() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1403,7 +1374,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1413,7 +1384,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let input_container = vec![0.5; FRAME_SIZE as usize];
+                let input_container = vec![0.5; audio_settings.frame_size as usize];
                 let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
 
                 let mut output_container =
@@ -1443,25 +1414,20 @@ mod tests {
 
             #[test]
             fn test_invalid_input_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1491,7 +1457,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1501,7 +1467,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut input_container = vec![0.5; 2 * FRAME_SIZE as usize];
+                let mut input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
                 let input_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut input_container,
                     AudioBufferSettings::with_num_channels(2),
@@ -1539,25 +1505,20 @@ mod tests {
 
             #[test]
             fn test_invalid_output_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1587,7 +1548,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1597,7 +1558,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut input_container = vec![0.5; FRAME_SIZE as usize];
+                let mut input_container = vec![0.5; audio_settings.frame_size as usize];
                 let input_buffer = AudioBuffer::try_with_data(&mut input_container).unwrap();
 
                 let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
@@ -1634,17 +1595,14 @@ mod tests {
 
             #[test]
             fn test_valid() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1654,7 +1612,8 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; (num_output_channels * FRAME_SIZE) as usize];
+                let mut output_container =
+                    vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
                 let output_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut output_container,
                     AudioBufferSettings::with_num_channels(num_output_channels),
@@ -1666,17 +1625,14 @@ mod tests {
 
             #[test]
             fn test_invalid_output_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1686,7 +1642,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; FRAME_SIZE as usize];
+                let mut output_container = vec![0.0; audio_settings.frame_size as usize];
                 let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
                 assert_eq!(
@@ -1704,17 +1660,14 @@ mod tests {
 
             #[test]
             fn test_valid() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1724,7 +1677,8 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; (num_output_channels * FRAME_SIZE) as usize];
+                let mut output_container =
+                    vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
                 let output_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut output_container,
                     AudioBufferSettings::with_num_channels(num_output_channels),
@@ -1745,17 +1699,14 @@ mod tests {
 
             #[test]
             fn test_invalid_output_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
                 let reflection_effect = ReflectionEffect::<Convolution>::try_new(
@@ -1765,7 +1716,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; FRAME_SIZE as usize];
+                let mut output_container = vec![0.0; audio_settings.frame_size as usize];
                 let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
                 let mixer = ReflectionMixer::try_new(
@@ -1790,15 +1741,13 @@ mod tests {
 
             #[test]
             fn test_clone() {
-                const SAMPLING_RATE: u32 = 48000;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 
@@ -1824,25 +1773,20 @@ mod tests {
 
             #[test]
             fn test_valid() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1872,7 +1816,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 
@@ -1883,7 +1827,8 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; (num_output_channels * FRAME_SIZE) as usize];
+                let mut output_container =
+                    vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
                 let output_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut output_container,
                     AudioBufferSettings::with_num_channels(num_output_channels),
@@ -1897,25 +1842,20 @@ mod tests {
 
             #[test]
             fn test_invalid_output_num_channels() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ConvolutionSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ConvolutionSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -1945,7 +1885,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 
@@ -1956,7 +1896,7 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; (2 * FRAME_SIZE) as usize];
+                let mut output_container = vec![0.0; (2 * audio_settings.frame_size) as usize];
                 let output_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut output_container,
                     AudioBufferSettings::with_num_channels(2),
@@ -1974,25 +1914,20 @@ mod tests {
 
             #[test]
             fn test_parametric_valid() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ParametricSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ParametricSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -2022,7 +1957,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 
@@ -2033,7 +1968,8 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut output_container = vec![0.0; (num_output_channels * FRAME_SIZE) as usize];
+                let mut output_container =
+                    vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
                 let output_buffer = AudioBuffer::try_with_data_and_settings(
                     &mut output_container,
                     AudioBufferSettings::with_num_channels(num_output_channels),
@@ -2047,25 +1983,20 @@ mod tests {
 
             #[test]
             fn test_parametric_at_least_one_channel() {
-                const SAMPLING_RATE: u32 = 48000;
-                const FRAME_SIZE: u32 = 1024;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-                const MAX_ORDER: u32 = 1;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-                let simulation_settings =
-                    SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER).with_reflections(
-                        ParametricSettings {
-                            max_num_rays: 4096,
-                            num_diffuse_samples: 32,
-                            max_duration: 2.0,
-                            max_num_sources: 8,
-                            num_threads: 1,
-                        },
-                    );
+                let simulation_settings = SimulationSettings::new(&audio_settings)
+                    .with_reflections(ParametricSettings {
+                        max_num_rays: 4096,
+                        num_diffuse_samples: 32,
+                        max_duration: 2.0,
+                        max_num_sources: 8,
+                        num_threads: 1,
+                        max_order: 1,
+                    });
                 let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
                 let scene = Scene::try_new(&context).unwrap();
@@ -2095,7 +2026,7 @@ mod tests {
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 
@@ -2107,7 +2038,7 @@ mod tests {
                 .unwrap();
 
                 // Test with 1 channel (minimum for parametric)
-                let mut output_container = vec![0.0; FRAME_SIZE as usize];
+                let mut output_container = vec![0.0; audio_settings.frame_size as usize];
                 let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
                 assert!(mixer
@@ -2121,16 +2052,14 @@ mod tests {
 
             #[test]
             fn test_reset() {
-                const SAMPLING_RATE: u32 = 48000;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 
@@ -2150,16 +2079,14 @@ mod tests {
 
             #[test]
             fn test_clone() {
-                const SAMPLING_RATE: u32 = 48000;
-                const IR_SIZE: u32 = 2 * SAMPLING_RATE;
-
                 let context = Context::default();
 
                 let audio_settings = AudioSettings::default();
+                let impulse_response_size = 2 * audio_settings.sampling_rate;
 
                 let num_output_channels = num_ambisonics_channels(1);
                 let reflection_effect_settings = ReflectionEffectSettings {
-                    impulse_response_size: IR_SIZE,
+                    impulse_response_size,
                     num_channels: num_output_channels,
                 };
 

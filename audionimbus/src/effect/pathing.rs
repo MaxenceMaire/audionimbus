@@ -40,15 +40,13 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// 5. Applying the path effect using the simulation output ([`SimulationOutputs::pathing`]) as params
 ///
 /// ```
-/// use audionimbus::*;
-///
-/// let context = Context::default();
-///
-/// const SAMPLING_RATE: u32 = 48_000;
-/// const FRAME_SIZE: u32 = 1024;
+/// # use audionimbus::*;
 /// const MAX_ORDER: u32 = 1;
 ///
-/// let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+///
+/// let simulation_settings = SimulationSettings::new(&audio_settings)
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     })
@@ -58,6 +56,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///         max_duration: 2.0,
 ///         max_num_sources: 8,
 ///         num_threads: 2,
+///         max_order: MAX_ORDER,
 ///     })
 ///     .with_pathing(PathingSimulationSettings {
 ///         num_visibility_samples: 4,
@@ -166,7 +165,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// };
 /// let mut path_effect = PathEffect::try_new(&context, &audio_settings, &path_effect_settings)?;
 ///
-/// let input = vec![0.5; FRAME_SIZE as usize];
+/// let input = vec![0.5; audio_settings.frame_size as usize];
 /// let input_buffer = AudioBuffer::try_with_data(&input)?;
 ///
 /// // Must have 4 channels (1st order Ambisonics) for this example.

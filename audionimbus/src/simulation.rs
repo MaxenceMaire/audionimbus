@@ -32,6 +32,7 @@
 //! outputs ([`Source::get_outputs`], [`Source::get_outputs_subset`], etc.) from an audio thread as
 //! it will block and cause audio glitches.
 
+use crate::audio_settings::AudioSettings;
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
 pub use crate::callback::PathingVisualizationCallback;
 use crate::context::Context;
@@ -113,14 +114,12 @@ impl SimulationFlagsProvider for () {
 /// Basic simulation workflow (shown with direct sound; reflections and pathing follow a similar pattern):
 ///
 /// ```
-/// # use audionimbus::{
-/// #     Context, Simulator, Scene, Source, SimulationFlags,
-/// #     DirectSimulationSettings, SimulationSettings, SimulationInputs, SimulationSharedInputs,
-/// #     CoordinateSystem, DirectSimulationParameters, ReflectionsSharedInputs, DistanceAttenuationModel,
-/// # };
+/// # use audionimbus::*;
 /// # let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+///
 /// // Create a simulator.
-/// let settings = SimulationSettings::new(48000, 1024, 2)
+/// let settings = SimulationSettings::new(&audio_settings)
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     });
@@ -221,9 +220,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use audionimbus::{Context, Simulator, SimulationSettings, DirectSimulationSettings, ConvolutionSettings, PathingSimulationSettings};
+    /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// let settings = SimulationSettings::new(48000, 1024, 2)
+    /// # let audio_settings = AudioSettings::default();
+    /// let settings = SimulationSettings::new(&audio_settings)
     ///     .with_direct(DirectSimulationSettings {
     ///         max_num_occlusion_samples: 4,
     ///     })
@@ -233,6 +233,7 @@ where
     ///         max_duration: 2.0,
     ///         max_num_sources: 8,
     ///         num_threads: 2,
+    ///         max_order: 1,
     ///     })
     ///     .with_pathing(PathingSimulationSettings {
     ///         num_visibility_samples: 4,
@@ -430,7 +431,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
     /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
@@ -438,6 +440,7 @@ where
     /// #         max_duration: 2.0,
     /// #         max_num_sources: 8,
     /// #         num_threads: 2,
+    /// #         max_order: 1,
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
@@ -505,7 +508,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
     /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
@@ -513,6 +517,7 @@ where
     /// #         max_duration: 2.0,
     /// #         max_num_sources: 8,
     /// #         num_threads: 2,
+    /// #         max_order: 1,
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
@@ -668,7 +673,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings {
     /// #         max_num_occlusion_samples: 4,
     /// #     });
@@ -739,13 +745,15 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
     /// #         max_num_sources: 8,
     /// #         num_threads: 1,
+    /// #         max_order: 1,
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
@@ -833,7 +841,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_pathing(PathingSimulationSettings {
     /// #         num_visibility_samples: 4,
     /// #     });
@@ -948,8 +957,9 @@ where
 /// # Examples
 ///
 /// ```
-/// # use audionimbus::{Context, Simulator, DirectSimulationSettings, ConvolutionSettings, PathingSimulationSettings, SimulationSettings};
-/// let settings = SimulationSettings::new(48000, 1024, 2)
+/// # use audionimbus::*;
+/// let audio_settings = AudioSettings::default();
+/// let settings = SimulationSettings::new(&audio_settings)
 ///     .with_direct(DirectSimulationSettings {
 ///         max_num_occlusion_samples: 4,
 ///     })
@@ -959,6 +969,7 @@ where
 ///         max_duration: 2.0,
 ///         max_num_sources: 8,
 ///         num_threads: 2,
+///         max_order: 1,
 ///     })
 ///     .with_pathing(PathingSimulationSettings {
 ///         num_visibility_samples: 4,
@@ -980,7 +991,7 @@ pub struct SimulationSettings<T: RayTracer, D = (), R = (), P = (), RE = ()> {
 
 impl SimulationSettings<DefaultRayTracer, (), (), (), ()> {
     /// Creates new simulation settings with all simulations disabled by default.
-    pub const fn new(sampling_rate: u32, frame_size: u32, max_order: u32) -> Self {
+    pub fn new(audio_settings: &AudioSettings) -> Self {
         let settings = audionimbus_sys::IPLSimulationSettings {
             flags: audionimbus_sys::IPLSimulationFlags(0),
             sceneType: audionimbus_sys::IPLSceneType::IPL_SCENETYPE_DEFAULT,
@@ -990,13 +1001,13 @@ impl SimulationSettings<DefaultRayTracer, (), (), (), ()> {
             maxNumRays: 0,
             numDiffuseSamples: 0,
             maxDuration: 0.0,
-            maxOrder: max_order as i32,
+            maxOrder: 0,
             maxNumSources: 0,
             numThreads: 0,
             rayBatchSize: 0,
             numVisSamples: 0,
-            samplingRate: sampling_rate as i32,
-            frameSize: frame_size as i32,
+            samplingRate: audio_settings.sampling_rate as i32,
+            frameSize: audio_settings.frame_size as i32,
             openCLDevice: std::ptr::null_mut(),
             radeonRaysDevice: std::ptr::null_mut(),
             tanDevice: std::ptr::null_mut(),
@@ -1272,6 +1283,17 @@ pub struct ConvolutionSettings {
 
     /// The number of threads used for real-time reflection simulations.
     pub num_threads: u32,
+
+    /// The maximum Ambisonic order of impulse responses generated by reflection simulations.
+    ///
+    /// This value is fixed for the lifetime of the simulator and determines how much memory
+    /// is allocated.
+    /// Higher orders result in more accurate directional variation in the simulated reflections,
+    /// at the cost of increased CPU and memory usage.
+    ///
+    /// The actual order used per simulation run can be set independently via
+    /// [`ReflectionsSharedInputs::order`], as long as it does not exceed this value.
+    pub max_order: u32,
 }
 
 impl ReflectionsAlgorithm for ConvolutionSettings {
@@ -1300,6 +1322,7 @@ impl ReflectionsAlgorithm for ConvolutionSettings {
         settings.maxDuration = self.max_duration;
         settings.maxNumSources = self.max_num_sources as i32;
         settings.numThreads = self.num_threads as i32;
+        settings.maxOrder = self.max_order as i32;
 
         SimulationSettings {
             settings,
@@ -1337,6 +1360,17 @@ pub struct ParametricSettings {
 
     /// The number of threads used for real-time reflection simulations.
     pub num_threads: u32,
+
+    /// The maximum Ambisonic order of impulse responses generated by reflection simulations.
+    ///
+    /// This value is fixed for the lifetime of the simulator and determines how much memory
+    /// is allocated.
+    /// Higher orders result in more accurate directional variation in the simulated reflections,
+    /// at the cost of increased CPU and memory usage.
+    ///
+    /// The actual order used per simulation run can be set independently via
+    /// [`ReflectionsSharedInputs::order`], as long as it does not exceed this value.
+    pub max_order: u32,
 }
 
 impl ReflectionsAlgorithm for ParametricSettings {
@@ -1365,6 +1399,7 @@ impl ReflectionsAlgorithm for ParametricSettings {
         settings.maxDuration = self.max_duration;
         settings.maxNumSources = self.max_num_sources as i32;
         settings.numThreads = self.num_threads as i32;
+        settings.maxOrder = self.max_order as i32;
 
         SimulationSettings {
             settings,
@@ -1402,6 +1437,17 @@ pub struct HybridSettings {
 
     /// The number of threads used for real-time reflection simulations.
     pub num_threads: u32,
+
+    /// The maximum Ambisonic order of impulse responses generated by reflection simulations.
+    ///
+    /// This value is fixed for the lifetime of the simulator and determines how much memory
+    /// is allocated.
+    /// Higher orders result in more accurate directional variation in the simulated reflections,
+    /// at the cost of increased CPU and memory usage.
+    ///
+    /// The actual order used per simulation run can be set independently via
+    /// [`ReflectionsSharedInputs::order`], as long as it does not exceed this value.
+    pub max_order: u32,
 }
 
 impl ReflectionsAlgorithm for HybridSettings {
@@ -1430,6 +1476,7 @@ impl ReflectionsAlgorithm for HybridSettings {
         settings.maxDuration = self.max_duration;
         settings.maxNumSources = self.max_num_sources as i32;
         settings.numThreads = self.num_threads as i32;
+        settings.maxOrder = self.max_order as i32;
 
         SimulationSettings {
             settings,
@@ -1473,6 +1520,17 @@ pub struct TrueAudioNextSettings {
 
     /// The TrueAudio Next device being used.
     pub true_audio_next_device: TrueAudioNextDevice,
+
+    /// The maximum Ambisonic order of impulse responses generated by reflection simulations.
+    ///
+    /// This value is fixed for the lifetime of the simulator and determines how much memory
+    /// is allocated.
+    /// Higher orders result in more accurate directional variation in the simulated reflections,
+    /// at the cost of increased CPU and memory usage.
+    ///
+    /// The actual order used per simulation run can be set independently via
+    /// [`ReflectionsSharedInputs::order`], as long as it does not exceed this value.
+    pub max_order: u32,
 }
 
 impl ReflectionsAlgorithm for TrueAudioNextSettings {
@@ -1501,6 +1559,7 @@ impl ReflectionsAlgorithm for TrueAudioNextSettings {
         settings.maxDuration = self.max_duration;
         settings.maxNumSources = self.max_num_sources as i32;
         settings.numThreads = self.num_threads as i32;
+        settings.maxOrder = self.max_order as i32;
 
         SimulationSettings {
             settings,
@@ -1667,7 +1726,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// // The source's type parameters determine which simulations may be run.
@@ -1698,7 +1758,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// let simulation_settings = SimulationSettings::new(&audio_settings)
     ///     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
     ///     .with_reflections(ConvolutionSettings {
     ///         max_num_rays: 4096,
@@ -1706,6 +1767,7 @@ where
     ///         max_duration: 2.0,
     ///         max_num_sources: 8,
     ///         num_threads: 1,
+    ///         max_order: 1,
     ///     });
     /// let simulator = Simulator::try_new(&context, &simulation_settings)?;
     ///
@@ -1796,7 +1858,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// let source = Source::try_new(&simulator)?;
@@ -1847,7 +1910,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 })
     /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
@@ -1855,6 +1919,7 @@ where
     /// #         max_duration: 2.0,
     /// #         max_num_sources: 8,
     /// #         num_threads: 1,
+    /// #         max_order: 1,
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
@@ -2083,7 +2148,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
@@ -2148,13 +2214,15 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_reflections(ConvolutionSettings {
     /// #         max_num_rays: 4096,
     /// #         num_diffuse_samples: 32,
     /// #         max_duration: 2.0,
     /// #         max_num_sources: 8,
     /// #         num_threads: 2,
+    /// #         max_order: 1,
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
@@ -2220,7 +2288,8 @@ where
     /// ```
     /// # use audionimbus::*;
     /// # let context = Context::default();
-    /// # let simulation_settings = SimulationSettings::new(48_000, 1024, 1)
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
     /// #     .with_pathing(PathingSimulationSettings {
     /// #         num_visibility_samples: 4,
     /// #     });
@@ -3377,7 +3446,8 @@ mod tests {
             #[test]
             fn test_clone() {
                 let context = Context::default();
-                let simulator_settings = SimulationSettings::new(48_000, 1024, 1);
+                let audio_settings = AudioSettings::default();
+                let simulator_settings = SimulationSettings::new(&audio_settings);
                 let simulator = Simulator::try_new(&context, &simulator_settings).unwrap();
                 let source = Source::try_new(&simulator).unwrap();
                 let clone = source.clone();
@@ -3394,7 +3464,8 @@ mod tests {
         #[test]
         fn test_simulator_clone() {
             let context = Context::default();
-            let settings = SimulationSettings::new(48_000, 1024, 1);
+            let audio_settings = AudioSettings::default();
+            let settings = SimulationSettings::new(&audio_settings);
             let simulator = Simulator::try_new(&context, &settings).unwrap();
             let clone = simulator.clone();
             assert_eq!(simulator.raw_ptr(), clone.raw_ptr());

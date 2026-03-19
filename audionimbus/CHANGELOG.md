@@ -33,6 +33,8 @@
 - `Simulator`, `SimulationSettings`, `Source`, and `SimulationOutputs` now carry a fifth generic parameter `RE` encoding the reflection algorithm at the type level.
 - Renamed `ProbeBatch::energy_field` to `copy_energy_field_into`. The method now takes `&mut EnergyField` as a parameter instead of returning a new `EnergyField`. 
 - Replace type of field `sh_coeffs` of `PathEffectParams` from `ShCoeffs` to `Vec<f32>` to prevent use-after-free error.
+- `SimulationSettings::new` now takes `&AudioSettings` instead of separate `sampling_rate`, `frame_size`, and `max_order` arguments.
+- `max_order` has been moved from `SimulationSettings::new` into each reflections algorithm settings struct (`ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, `TrueAudioNextSettings`).
 
 ### Added
 

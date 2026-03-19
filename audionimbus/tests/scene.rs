@@ -182,11 +182,9 @@ fn test_probe_generation() {
 #[test]
 pub fn test_baking() {
     let context = Context::default();
-    let sampling_rate = 48000;
-    let frame_size = 1024;
-    let max_order = 1;
+    let audio_settings = AudioSettings::default();
 
-    let simulation_settings = SimulationSettings::new(sampling_rate, frame_size, max_order)
+    let simulation_settings = SimulationSettings::new(&audio_settings)
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
@@ -196,6 +194,7 @@ pub fn test_baking() {
             max_duration: 2.0,
             max_num_sources: 8,
             num_threads: 2,
+            max_order: 1,
         })
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,

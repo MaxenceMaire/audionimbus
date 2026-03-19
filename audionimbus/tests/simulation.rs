@@ -8,11 +8,7 @@ fn test_simulation() {
     let context = Context::default();
     let audio_settings = AudioSettings::default();
 
-    let sampling_rate = 48000;
-    let frame_size = 1024;
-    let max_order = 1;
-
-    let simulation_settings = SimulationSettings::new(sampling_rate, frame_size, max_order)
+    let simulation_settings = SimulationSettings::new(&audio_settings)
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
@@ -22,6 +18,7 @@ fn test_simulation() {
             max_duration: 2.0,
             max_num_sources: 8,
             num_threads: 2,
+            max_order: 1,
         })
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
@@ -91,8 +88,9 @@ fn test_simulation() {
         .unwrap();
 
     let reflection_effect_settings = ReflectionEffectSettings {
-        impulse_response_size: 2 * sampling_rate, // 2.0f (IR duration) * 48000 (sampling rate)
-        num_channels: 4,                          // 1st order Ambisonics
+        // 2.0f (IR duration) * 48000 (sampling rate)
+        impulse_response_size: 2 * audio_settings.sampling_rate,
+        num_channels: num_ambisonics_channels(1),
     };
     let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
         &context,
@@ -104,7 +102,12 @@ fn test_simulation() {
     let frequency = 440.0;
     let amplitude = 0.5;
     let duration_secs = 0.1;
-    let sine_wave = sine_wave(frequency, amplitude, duration_secs, sampling_rate);
+    let sine_wave = sine_wave(
+        frequency,
+        amplitude,
+        duration_secs,
+        audio_settings.sampling_rate,
+    );
     // Must be mono.
     let input_buffer = AudioBuffer::try_with_data(&sine_wave).unwrap();
 
@@ -123,12 +126,9 @@ fn test_simulation() {
 #[test]
 fn test_pathing_without_probes() {
     let context = Context::default();
+    let audio_settings = AudioSettings::default();
 
-    const SAMPLING_RATE: u32 = 48_000;
-    const FRAME_SIZE: u32 = 1024;
-    const MAX_ORDER: u32 = 1;
-
-    let simulation_settings = SimulationSettings::new(SAMPLING_RATE, FRAME_SIZE, MAX_ORDER)
+    let simulation_settings = SimulationSettings::new(&audio_settings)
         .with_direct(DirectSimulationSettings {
             max_num_occlusion_samples: 4,
         })
@@ -138,6 +138,7 @@ fn test_pathing_without_probes() {
             max_duration: 2.0,
             max_num_sources: 8,
             num_threads: 2,
+            max_order: 1,
         })
         .with_pathing(PathingSimulationSettings {
             num_visibility_samples: 4,
@@ -248,17 +249,16 @@ fn test_pathing_without_probes() {
 #[test]
 fn test_reflections_without_scene() {
     let context = Context::default();
-    let sampling_rate = 48000;
-    let frame_size = 1024;
-    let max_order = 1;
+    let audio_settings = AudioSettings::default();
 
-    let simulation_settings = SimulationSettings::new(sampling_rate, frame_size, max_order)
-        .with_reflections(ConvolutionSettings {
+    let simulation_settings =
+        SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
             max_num_rays: 4096,
             num_diffuse_samples: 32,
             max_duration: 2.0,
             max_num_sources: 8,
             num_threads: 2,
+            max_order: 1,
         });
     let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 

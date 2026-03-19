@@ -14,7 +14,7 @@ pub struct AudioSettings {
 impl Default for AudioSettings {
     fn default() -> Self {
         Self {
-            sampling_rate: 48000,
+            sampling_rate: 48_000,
             frame_size: 1024,
         }
     }
