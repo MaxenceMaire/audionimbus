@@ -20,7 +20,7 @@ where
     D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
-    (): DirectCompatible<D> + PathingCompatible<P>,
+    (): DirectCompatible<D> + PathingCompatible<P> + DirectCompatible<()> + PathingCompatible<()>,
     I: AsReflectionsReverbInput<D, Reflections, P, RE>,
 {
     type Output = ReflectionsReverbOutput<RE>;
@@ -68,7 +68,7 @@ where
     /// The spatial audio sources whose reflections to simulate.
     pub sources: &'a [SourceWithInputs<D, R, P, RE>],
     /// The listener, used for listener-centric reverb simulation.
-    pub listener: &'a SourceWithInputs<D, R, P, RE>,
+    pub listener: &'a SourceWithInputs<(), R, (), RE>,
     /// Shared simulation inputs applying to all sources and the listener.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
@@ -89,7 +89,7 @@ where
     /// The spatial audio sources whose reflections to simulate.
     pub sources: Vec<SourceWithInputs<D, R, P, RE>>,
     /// The listener, used for listener-centric reverb simulation.
-    pub listener: SourceWithInputs<D, R, P, RE>,
+    pub listener: SourceWithInputs<(), R, (), RE>,
     /// Shared simulation inputs applying to all sources and the listener.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }

@@ -34,7 +34,7 @@ where
     /// simulation.
     pub fn spawn_reflections_reverb(
         &self,
-        listener: SourceWithInputs<D, Reflections, P, RE>,
+        listener: SourceWithInputs<(), Reflections, (), RE>,
     ) -> ReflectionsReverbSimulation<D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
             sources: self.initial_sources.clone(),
