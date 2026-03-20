@@ -62,6 +62,8 @@ impl<RE: ReflectionEffectType> Clear for ReflectionsOutput<RE> {
 
 impl<RE: ReflectionEffectType> Shrink for ReflectionsOutput<RE> {
     fn shrink(&mut self) {
-        if self.sources.capacity() > self.sources.len() * 3 {}
+        if self.sources.capacity() > self.sources.len() * 3 {
+            self.sources.shrink_to_fit();
+        }
     }
 }
