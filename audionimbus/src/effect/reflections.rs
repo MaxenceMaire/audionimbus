@@ -10,6 +10,10 @@ use crate::context::Context;
 use crate::device::true_audio_next::TrueAudioNextDevice;
 use crate::error::{to_option_error, SteamAudioError};
 use crate::ffi_wrapper::FFIWrapper;
+use crate::simulation::{
+    ConvolutionParameters, HybridParameters, ParametricParameters, ReflectionsSimulationParameters,
+    TrueAudioNextParameters,
+};
 use crate::Sealed;
 use crate::{ChannelPointers, ChannelRequirement};
 use std::marker::PhantomData;
@@ -73,6 +77,8 @@ impl CanUseReflectionMixer for TrueAudioNext {}
 /// - [`Hybrid`]: A hybrid of convolution and parametric reverb
 /// - [`TrueAudioNext`]: Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration
 pub trait ReflectionEffectType: Sealed {
+    type SimulationParameters: ReflectionsSimulationParameters + Default;
+
     /// Returns the FFI enum value for this reflection effect type.
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType;
 
@@ -92,6 +98,8 @@ pub trait ReflectionEffectType: Sealed {
 }
 
 impl ReflectionEffectType for Convolution {
+    type SimulationParameters = ConvolutionParameters;
+
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
         audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_CONVOLUTION
     }
@@ -102,6 +110,8 @@ impl ReflectionEffectType for Convolution {
 }
 
 impl ReflectionEffectType for Parametric {
+    type SimulationParameters = ParametricParameters;
+
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
         audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC
     }
@@ -122,6 +132,8 @@ impl ReflectionEffectType for Parametric {
 }
 
 impl ReflectionEffectType for Hybrid {
+    type SimulationParameters = HybridParameters;
+
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
         audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_HYBRID
     }
@@ -132,6 +144,8 @@ impl ReflectionEffectType for Hybrid {
 }
 
 impl ReflectionEffectType for TrueAudioNext {
+    type SimulationParameters = TrueAudioNextParameters;
+
     fn to_ffi_type() -> audionimbus_sys::IPLReflectionEffectType {
         audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_TAN
     }
@@ -189,7 +203,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// source.set_reflections_inputs(
 ///     &SimulationInputs::new(CoordinateSystem::default()).with_reflections(
-///         ReflectionsSimulationParameters::Convolution {
+///         ConvolutionParameters {
 ///             baked_data_identifier: None,
 ///         },
 ///     ),
@@ -270,7 +284,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// // Set source position to match listener position.
 /// reverb_source.set_reflections_inputs(
 ///     &SimulationInputs::new(listener_position) // Source at listener = reverb
-///         .with_reflections(ReflectionsSimulationParameters::Convolution {
+///         .with_reflections(ConvolutionParameters {
 ///             baked_data_identifier: None,
 ///         }),
 /// );

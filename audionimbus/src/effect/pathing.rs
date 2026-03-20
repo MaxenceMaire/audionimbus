@@ -139,7 +139,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///                 ),
 ///             ),
 ///     )
-///     .with_reflections(ReflectionsSimulationParameters::Convolution {
+///     .with_reflections(ConvolutionParameters {
 ///         baked_data_identifier: None,
 ///     })
 ///     .with_pathing(PathingSimulationParameters {

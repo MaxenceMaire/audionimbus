@@ -35,6 +35,7 @@
 - Replace type of field `sh_coeffs` of `PathEffectParams` from `ShCoeffs` to `Vec<f32>` to prevent use-after-free error.
 - `SimulationSettings::new` now takes `&AudioSettings` instead of separate `sampling_rate`, `frame_size`, and `max_order` arguments.
 - `max_order` has been moved from `SimulationSettings::new` into each reflections algorithm settings struct (`ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, `TrueAudioNextSettings`).
+- `ReflectionsSimulationParameters` enum replaced by individual structs `ConvolutionParameters`, `ParametricParameters`, `HybridParameters`, and `TrueAudioNextParameters`.
 
 ### Added
 
@@ -61,6 +62,8 @@
 - Implement `Default`, `Copy`, `Clone` for `Convolution`, `Parametric`, `Hybrid`, and `TrueAudioNext` marker types.
 - Split Wwise's `initialize` into two functions: `initialize` that initializes Wwise with default settings, and `initialize_with_settings` which takes user-provided `settings`.
 - Add method `ProbeArray::probes` which returns an iterator over the probes contained in the probe array.
+- Add `ReflectionsSimulationParameters` trait, implemented by `ConvolutionParameters`, `ParametricParameters`, `HybridParameters`, and `TrueAudioNextParameters`.
+- Add `ReflectionEffectType::SimulationParameters` associated type, linking each reflection effect type to its corresponding simulation parameters struct.
 
 ### Removed
 
@@ -77,6 +80,7 @@
 - Remove `From<&AmbisonicsDecodeEffectSettings>` for `IPLAmbisonicsDecodeEffectSettings`.
 - Remove `From<&PathEffectSettings>` for `IPLPathEffectSettings`.
 - Remove `ShCoeffs`.
+- Remove `ReflectionsSimulationParameters` enum.
 
 ## [0.13.0] - 2026-03-04
 

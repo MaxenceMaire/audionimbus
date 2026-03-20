@@ -1931,7 +1931,7 @@ where
     /// # let inputs = SimulationInputs::new(CoordinateSystem::default())
     /// #     .with_direct(DirectSimulationParameters::new()
     /// #         .with_distance_attenuation(DistanceAttenuationModel::default()))
-    /// #     .with_reflections(ReflectionsSimulationParameters::Convolution {
+    /// #     .with_reflections(ConvolutionParameters {
     /// #         baked_data_identifier: None,
     /// #     });
     /// // Direct simulation thread...
@@ -2232,7 +2232,7 @@ where
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
     /// let inputs = SimulationInputs::new(CoordinateSystem::default())
-    ///     .with_reflections(ReflectionsSimulationParameters::Convolution {
+    ///     .with_reflections(ConvolutionParameters {
     ///         baked_data_identifier: None,
     ///     });
     /// source.set_reflections_inputs(&inputs)?;
@@ -2388,11 +2388,13 @@ pub struct SimulationInputs<D = (), R = (), P = ()> {
     /// The position and orientation of this source.
     source: CoordinateSystem,
 
-    /// If `Some`, enables direct simulation. This includes distance attenuation, air absorption, directivity, occlusion, and transmission.
+    /// If `Some`, enables direct simulation.
+    /// This includes distance attenuation, air absorption, directivity, occlusion, and transmission.
     direct_simulation: Option<DirectSimulationParameters>,
 
-    /// If `Some`, enables reflections simulation. This includes both real-time and baked simulation.
-    reflections_simulation: Option<ReflectionsSimulationParameters>,
+    /// If `Some`, enables reflections simulation.
+    /// This includes both real-time and baked simulation.
+    reflections_simulation: Option<ReflectionsSimulationData>,
 
     /// If `Some`, enables pathing simulation.
     pathing_simulation: Option<PathingSimulationParameters>,
@@ -2445,9 +2447,9 @@ impl<D, R, P> SimulationInputs<D, R, P> {
     }
 
     /// Enables reflections simulation with the specified parameters.
-    pub fn with_reflections(
+    pub fn with_reflections<Params: ReflectionsSimulationParameters>(
         self,
-        params: ReflectionsSimulationParameters,
+        params: Params,
     ) -> SimulationInputs<D, Reflections, P> {
         let Self {
             source,
@@ -2461,7 +2463,7 @@ impl<D, R, P> SimulationInputs<D, R, P> {
         SimulationInputs {
             source,
             direct_simulation,
-            reflections_simulation: Some(params),
+            reflections_simulation: Some(params.into_data()),
             pathing_simulation,
             _direct,
             _reflections: PhantomData,
@@ -2512,7 +2514,7 @@ impl<D, R, P> SimulationInputs<D, R, P> {
         if self.reflections_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
         }
-        let reflections_data = ReflectionsSimulationData::from_params(self.reflections_simulation);
+        let reflections_data = self.reflections_simulation.unwrap_or_default();
 
         if self.pathing_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
@@ -2556,11 +2558,11 @@ impl<R, P> SimulationInputs<Direct, R, P> {
 
 impl<D, P> SimulationInputs<D, Reflections, P> {
     /// Sets the parameters to use for reflections simulation.
-    pub const fn set_reflections_simulation_parameters(
+    pub fn set_reflections_simulation_parameters<Params: ReflectionsSimulationParameters>(
         &mut self,
-        params: ReflectionsSimulationParameters,
+        params: Params,
     ) {
-        self.reflections_simulation.replace(params);
+        self.reflections_simulation.replace(params.into_data());
     }
 }
 
@@ -2657,50 +2659,176 @@ pub struct TransmissionParameters {
     pub num_transmission_rays: u32,
 }
 
-/// Reflections simulation parameters for a source.
-#[derive(Debug, Copy, Clone)]
-pub enum ReflectionsSimulationParameters {
-    /// Multi-channel convolution reverb.
-    Convolution {
-        /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
-        baked_data_identifier: Option<BakedDataIdentifier>,
-    },
+/// Trait implemented by all reflections simulation parameter structs.
+#[allow(private_bounds)]
+pub trait ReflectionsSimulationParameters: Sealed + IntoSimulationData {}
 
-    /// Parametric (or artificial) reverb, using feedback delay networks.
-    Parametric {
-        /// The reverb decay times for each frequency band are scaled by these values.
-        /// Set to `[1.0, 1.0, 1.0]` to use the simulated values without modification.
-        reverb_scale: [f32; 3],
+/// Types that can be converted into [`ReflectionsSimulationData`].
+trait IntoSimulationData {
+    /// Returns the intermediate representation of reflections simulation parameters.
+    fn into_data(self) -> ReflectionsSimulationData;
+}
 
-        /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
-        baked_data_identifier: Option<BakedDataIdentifier>,
-    },
+/// Multi-channel convolution reverb parameters.
+#[derive(Default, Clone, Debug)]
+pub struct ConvolutionParameters {
+    /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
+    pub baked_data_identifier: Option<BakedDataIdentifier>,
+}
 
-    /// A hybrid of convolution and parametric reverb.
-    Hybrid {
-        /// The reverb decay times for each frequency band are scaled by these values.
-        /// Set to `[1.0, 1.0, 1.0]` to use the simulated values without modification.
-        reverb_scale: [f32; 3],
+impl Sealed for ConvolutionParameters {}
+impl ReflectionsSimulationParameters for ConvolutionParameters {}
+impl IntoSimulationData for ConvolutionParameters {
+    fn into_data(self) -> ReflectionsSimulationData {
+        let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+            ),
+            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+        );
 
-        /// This is the length (in seconds) of impulse response to use for convolution reverb.
-        /// The rest of the impulse response will be used for parametric reverb estimation only.
-        /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
-        hybrid_reverb_transition_time: f32,
+        ReflectionsSimulationData {
+            baked,
+            baked_data_identifier,
+            reverb_scale: [0.0; 3],
+            hybrid_reverb_transition_time: 0.0,
+            hybrid_reverb_overlap_percent: 0.0,
+        }
+    }
+}
 
-        /// This is the amount of overlap between the convolution and parametric parts.
-        /// To ensure smooth transitions from the early convolution part to the late parametric part, the two are cross-faded towards the end of the convolution part.
-        /// For example, if `hybrid_reverb_transition_time` is 1.0, and `hybrid_reverb_overlap_percent` is 0.25, then the first 0.75 seconds are pure convolution, the next 0.25 seconds are a blend between convolution and parametric, and the portion of the tail beyond 1.0 second is pure parametric.
-        hybrid_reverb_overlap_percent: f32,
+/// Parameters for parametric (or artificial) reverb, using feedback delay networks.
+#[derive(Clone, Debug)]
+pub struct ParametricParameters {
+    /// The reverb decay times for each frequency band are scaled by these values.
+    /// Set to `[1.0, 1.0, 1.0]` to use the simulated values without modification.
+    pub reverb_scale: [f32; 3],
 
-        /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
-        baked_data_identifier: Option<BakedDataIdentifier>,
-    },
+    /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
+    pub baked_data_identifier: Option<BakedDataIdentifier>,
+}
 
-    /// Multi-channel convolution reverb, using AMD TrueAudio Next for GPU acceleration.
-    TrueAudioNext {
-        /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
-        baked_data_identifier: Option<BakedDataIdentifier>,
-    },
+impl Sealed for ParametricParameters {}
+impl ReflectionsSimulationParameters for ParametricParameters {}
+impl IntoSimulationData for ParametricParameters {
+    fn into_data(self) -> ReflectionsSimulationData {
+        let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+            ),
+            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+        );
+
+        ReflectionsSimulationData {
+            baked,
+            baked_data_identifier,
+            reverb_scale: self.reverb_scale,
+            hybrid_reverb_transition_time: 0.0,
+            hybrid_reverb_overlap_percent: 0.0,
+        }
+    }
+}
+
+impl Default for ParametricParameters {
+    fn default() -> Self {
+        Self {
+            reverb_scale: [1.0, 1.0, 1.0],
+            baked_data_identifier: None,
+        }
+    }
+}
+
+/// Parameters for a hybrid of convolution and parametric reverb.
+#[derive(Clone, Debug)]
+pub struct HybridParameters {
+    /// The reverb decay times for each frequency band are scaled by these values.
+    /// Set to `[1.0, 1.0, 1.0]` to use the simulated values without modification.
+    pub reverb_scale: [f32; 3],
+
+    /// This is the length (in seconds) of impulse response to use for convolution reverb.
+    /// The rest of the impulse response will be used for parametric reverb estimation only.
+    /// Increasing this value results in more accurate reflections, at the cost of increased CPU usage.
+    pub hybrid_reverb_transition_time: f32,
+
+    /// This is the amount of overlap between the convolution and parametric parts.
+    /// To ensure smooth transitions from the early convolution part to the late parametric part, the two are cross-faded towards the end of the convolution part.
+    /// For example, if `hybrid_reverb_transition_time` is 1.0, and `hybrid_reverb_overlap_percent` is 0.25, then the first 0.75 seconds are pure convolution, the next 0.25 seconds are a blend between convolution and parametric, and the portion of the tail beyond 1.0 second is pure parametric.
+    pub hybrid_reverb_overlap_percent: f32,
+
+    /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
+    pub baked_data_identifier: Option<BakedDataIdentifier>,
+}
+
+impl Sealed for HybridParameters {}
+impl ReflectionsSimulationParameters for HybridParameters {}
+impl IntoSimulationData for HybridParameters {
+    fn into_data(self) -> ReflectionsSimulationData {
+        let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+            ),
+            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+        );
+
+        ReflectionsSimulationData {
+            baked,
+            baked_data_identifier,
+            reverb_scale: self.reverb_scale,
+            hybrid_reverb_transition_time: self.hybrid_reverb_transition_time,
+            hybrid_reverb_overlap_percent: self.hybrid_reverb_overlap_percent,
+        }
+    }
+}
+
+impl Default for HybridParameters {
+    fn default() -> Self {
+        Self {
+            reverb_scale: [1.0, 1.0, 1.0],
+            hybrid_reverb_transition_time: 1.0,
+            hybrid_reverb_overlap_percent: 0.25,
+            baked_data_identifier: None,
+        }
+    }
+}
+
+/// Multi-channel convolution reverb parameters, using AMD TrueAudio Next for GPU acceleration.
+#[derive(Default, Clone, Debug)]
+pub struct TrueAudioNextParameters {
+    /// The optional identifier used to specify which layer of baked data to use for simulating reflections for this source.
+    pub baked_data_identifier: Option<BakedDataIdentifier>,
+}
+
+impl Sealed for TrueAudioNextParameters {}
+impl ReflectionsSimulationParameters for TrueAudioNextParameters {}
+impl IntoSimulationData for TrueAudioNextParameters {
+    fn into_data(self) -> ReflectionsSimulationData {
+        let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
+            (
+                audionimbus_sys::IPLbool::IPL_FALSE,
+                BakedDataIdentifier::Reflections {
+                    variation: BakedDataVariation::Reverb,
+                },
+            ),
+            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+        );
+
+        ReflectionsSimulationData {
+            baked,
+            baked_data_identifier,
+            reverb_scale: [0.0; 3],
+            hybrid_reverb_transition_time: 0.0,
+            hybrid_reverb_overlap_percent: 0.0,
+        }
+    }
 }
 
 /// Pathing simulation parameters for a source.
@@ -2883,63 +3011,13 @@ impl Default for DirectSimulationData {
 }
 
 /// Intermediate representation of reflections simulation parameters for FFI conversion.
+#[derive(Copy, Clone, Debug)]
 struct ReflectionsSimulationData {
     baked: audionimbus_sys::IPLbool,
     baked_data_identifier: BakedDataIdentifier,
     reverb_scale: [f32; 3],
     hybrid_reverb_transition_time: f32,
     hybrid_reverb_overlap_percent: f32,
-}
-
-impl ReflectionsSimulationData {
-    /// Converts optional reflections simulation parameters into concrete FFI-compatible data.
-    fn from_params(params: Option<ReflectionsSimulationParameters>) -> Self {
-        let Some(params) = params else {
-            return Self::default();
-        };
-
-        let (baked_data_id_opt, reverb_scale, transition_time, overlap_percent) = match params {
-            ReflectionsSimulationParameters::Convolution {
-                baked_data_identifier,
-            }
-            | ReflectionsSimulationParameters::TrueAudioNext {
-                baked_data_identifier,
-            } => (baked_data_identifier, [0.0; 3], 0.0, 0.0),
-            ReflectionsSimulationParameters::Parametric {
-                reverb_scale,
-                baked_data_identifier,
-            } => (baked_data_identifier, reverb_scale, 0.0, 0.0),
-            ReflectionsSimulationParameters::Hybrid {
-                reverb_scale,
-                hybrid_reverb_transition_time,
-                hybrid_reverb_overlap_percent,
-                baked_data_identifier,
-            } => (
-                baked_data_identifier,
-                reverb_scale,
-                hybrid_reverb_transition_time,
-                hybrid_reverb_overlap_percent,
-            ),
-        };
-
-        let (baked, baked_data_identifier) = baked_data_id_opt.map_or(
-            (
-                audionimbus_sys::IPLbool::IPL_FALSE,
-                BakedDataIdentifier::Reflections {
-                    variation: BakedDataVariation::Reverb,
-                },
-            ),
-            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
-        );
-
-        Self {
-            baked,
-            baked_data_identifier,
-            reverb_scale,
-            hybrid_reverb_transition_time: transition_time,
-            hybrid_reverb_overlap_percent: overlap_percent,
-        }
-    }
 }
 
 impl Default for ReflectionsSimulationData {
@@ -3228,7 +3306,9 @@ impl<D, R, P> From<&SimulationSharedInputs<D, R, P>>
     }
 }
 
-/// Reflections shared inputs, used as an argument to [`SimulationSharedInputs::with_reflections`].
+/// Reflections shared inputs.
+///
+/// Used as an argument to [`SimulationSharedInputs::with_reflections`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ReflectionsSharedInputs {
     /// The number of rays to trace from the listener.
