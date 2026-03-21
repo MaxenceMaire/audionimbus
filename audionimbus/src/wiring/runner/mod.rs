@@ -71,7 +71,7 @@ where
                 let input = input.load();
                 let mut out = pool.pull_owned(|| O::allocate(&**input));
                 out.clear();
-                step.run(&**input, &mut out);
+                step.run(&**input, &mut out).unwrap();
                 out.shrink();
                 output.store(Arc::new(out));
             }

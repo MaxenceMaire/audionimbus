@@ -1,5 +1,5 @@
 use super::super::SourceWithInputs;
-use super::SimulationStep;
+use super::{SimulationStep, SimulationStepError};
 use crate::effect::PathEffectParams;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -24,30 +24,29 @@ where
     I: AsPathingInput<D, R, Pathing, RE>,
 {
     type Output = Vec<PathEffectParams>;
+    type Error = SimulationStepError;
 
-    fn run(&mut self, frame: &I, output: &mut Self::Output) {
+    fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
         let input = frame.as_pathing_input();
 
         self.simulator
-            .set_shared_pathing_inputs(input.shared_inputs)
-            .unwrap();
+            .set_shared_pathing_inputs(input.shared_inputs)?;
 
         for SourceWithInputs {
             source,
             simulation_inputs,
         } in input.sources
         {
-            source.set_pathing_inputs(&simulation_inputs).unwrap();
+            source.set_pathing_inputs(&simulation_inputs)?;
         }
 
-        self.simulator.run_pathing().unwrap();
+        self.simulator.run_pathing()?;
 
-        output.extend(
-            input
-                .sources
-                .iter()
-                .map(|SourceWithInputs { source, .. }| source.get_pathing_outputs().unwrap()),
-        );
+        for SourceWithInputs { source, .. } in input.sources.iter() {
+            output.push(source.get_pathing_outputs()?);
+        }
+
+        Ok(())
     }
 }
 

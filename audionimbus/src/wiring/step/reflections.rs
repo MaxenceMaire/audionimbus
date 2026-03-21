@@ -1,5 +1,5 @@
 use super::super::SourceWithInputs;
-use super::SimulationStep;
+use super::{SimulationStep, SimulationStepError};
 use crate::effect::{ReflectionEffectParams, ReflectionEffectType};
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -24,30 +24,29 @@ where
     I: AsReflectionsInput<D, Reflections, P, RE>,
 {
     type Output = ReflectionsOutput<RE>;
+    type Error = SimulationStepError;
 
-    fn run(&mut self, frame: &I, output: &mut Self::Output) {
+    fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
         let input = frame.as_reflections_input();
 
         self.simulator
-            .set_shared_reflections_inputs(input.shared_inputs)
-            .unwrap();
+            .set_shared_reflections_inputs(input.shared_inputs)?;
 
         for SourceWithInputs {
             source,
             simulation_inputs,
         } in input.sources
         {
-            source.set_reflections_inputs(simulation_inputs).unwrap();
+            source.set_reflections_inputs(simulation_inputs)?;
         }
 
-        self.simulator.run_reflections().unwrap();
+        self.simulator.run_reflections()?;
 
-        output.sources.extend(
-            input
-                .sources
-                .iter()
-                .map(|SourceWithInputs { source, .. }| source.get_reflections_outputs().unwrap()),
-        );
+        for SourceWithInputs { source, .. } in input.sources.iter() {
+            output.sources.push(source.get_reflections_outputs()?);
+        }
+
+        Ok(())
     }
 }
 
