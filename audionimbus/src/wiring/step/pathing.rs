@@ -37,7 +37,7 @@ where
             simulation_inputs,
         } in input.sources
         {
-            source.set_pathing_inputs(&simulation_inputs)?;
+            source.set_pathing_inputs(simulation_inputs)?;
         }
 
         self.simulator.run_pathing()?;
