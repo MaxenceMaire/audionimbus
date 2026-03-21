@@ -107,9 +107,13 @@ unsafe impl<RE: ReflectionEffectType> Send for ReflectionsOutput<RE> {}
 
 /// # Safety
 ///
-/// It is technically unsafe because simulation threads might be rewriting the
-/// IR buffer that [`ReflectionEffectParams`] points to (impulse_response field)
-/// while the audio thread is still reading the previous version.
+/// `ReflectionsOutput` contains [`ReflectionEffectParams`] values that hold raw pointers to
+/// impulse response buffers managed internally by Steam Audio.
+/// When the simulation thread completes a new run, Steam Audio may overwrite these buffers before
+/// the audio thread has finished reading the previous snapshot.
 ///
-/// However the chance of an overlap is slim and a data race is likely inaudible.
+/// It can result in a single frame of corrupted reverb, which is inaudible in practice.
+///
+/// An alternative would be to copy the IR data on each simulation run, which is expensive.
+/// The tradeoff is deliberate.
 unsafe impl<RE: ReflectionEffectType> Sync for ReflectionsOutput<RE> {}
