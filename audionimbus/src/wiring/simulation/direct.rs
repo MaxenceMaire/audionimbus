@@ -41,6 +41,7 @@ where
             output.0.clone(),
             self.commit_needed.clone(),
             move || simulator_for_commit.commit(),
+            self.shutdown.clone(),
         )
         .spawn(DirectStep {
             simulator: self.simulator.clone(),

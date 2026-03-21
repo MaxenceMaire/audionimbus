@@ -36,6 +36,7 @@ where
             output.0.clone(),
             self.commit_needed.clone(),
             move || simulator_for_commit.commit(),
+            self.shutdown.clone(),
         )
         .spawn(PathingStep {
             simulator: self.simulator.clone(),

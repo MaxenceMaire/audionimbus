@@ -21,6 +21,7 @@ pub struct SimulationRunner<I, O> {
     output: Arc<ArcSwap<ReusableOwned<O>>>,
     commit_needed: Arc<AtomicBool>,
     on_commit: Box<dyn FnMut() + Send + 'static>,
+    shutdown: Arc<AtomicBool>,
 }
 
 impl<I, O> SimulationRunner<I, O>
@@ -34,12 +35,14 @@ where
         output: Arc<ArcSwap<ReusableOwned<O>>>,
         commit_needed: Arc<AtomicBool>,
         on_commit: impl FnMut() + Send + 'static,
+        shutdown: Arc<AtomicBool>,
     ) -> Self {
         Self {
             input,
             output,
             commit_needed,
             on_commit: Box::new(on_commit),
+            shutdown,
         }
     }
 
@@ -54,12 +57,17 @@ where
             output,
             commit_needed,
             mut on_commit,
+            shutdown,
         } = self;
 
         std::thread::spawn(move || {
             let pool = Arc::new(Pool::new(4, O::default));
 
             loop {
+                if shutdown.load(Ordering::Relaxed) {
+                    break;
+                }
+
                 // The first thread to catch the flag commits.
                 if commit_needed
                     .compare_exchange(true, false, Ordering::Acquire, Ordering::Relaxed)

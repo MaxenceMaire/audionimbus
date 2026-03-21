@@ -21,6 +21,7 @@ where
     pub sources_pool: Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>,
     pub initial_sources: Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>,
     pub commit_needed: Arc<AtomicBool>,
+    pub shutdown: Arc<AtomicBool>,
 }
 
 impl<T, D, R, P, RE> Simulation<T, D, R, P, RE>
@@ -31,12 +32,14 @@ where
         let sources_pool = Arc::new(Pool::new(4, Default::default));
         let initial_sources = Arc::new(sources_pool.pull_owned(Default::default));
         let commit_needed = Arc::new(AtomicBool::new(false));
+        let shutdown = Arc::new(AtomicBool::new(false));
 
         Self {
             simulator,
             sources_pool,
             initial_sources,
             commit_needed,
+            shutdown,
         }
     }
 }
