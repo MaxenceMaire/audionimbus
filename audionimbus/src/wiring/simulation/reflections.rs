@@ -1,4 +1,5 @@
-use super::super::{ReflectionsFrame, ReflectionsOutput, ReflectionsStep, SimulationRunner};
+use super::super::runner::{ReflectionsFrame, SimulationRunner};
+use super::super::step::{ReflectionsOutput, ReflectionsStep};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;

@@ -1,13 +1,13 @@
-use super::super::{
-    AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned, ReflectionsOutput, SharedSources,
-    SourcesGuard,
+use super::super::simulation::SharedSources;
+use super::super::step::{
+    AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned, ReflectionsOutput,
 };
-use super::{Allocate, Clear, Resolve, Shrink};
+use super::{Allocate, Clear, Resolve, Shrink, SourcesGuard};
 use crate::effect::ReflectionEffectType;
 use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationSharedInputs};
 
 #[cfg(doc)]
-use super::super::Simulation;
+use super::super::simulation::Simulation;
 
 /// Input frame for reflections simulation.
 pub struct ReflectionsFrame<D, R, P, RE>

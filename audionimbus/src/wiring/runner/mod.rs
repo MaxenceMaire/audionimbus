@@ -1,4 +1,10 @@
-use super::{SimulationStep, SourceWithInputs};
+//! Primitives for driving simulation steps on dedicated threads.
+//!
+//! The entry point is [`SimulationRunner`], which owns the thread loop, commit signalling, and
+//! lock-free input/output.
+
+use super::simulation::SourceWithInputs;
+use super::step::SimulationStep;
 use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
 use std::sync::{

@@ -1,3 +1,13 @@
+//! High-level simulation pipeline built on top of the [runner layer](super::runner).
+//!
+//! The entry point is [`Simulation`], which manages a shared source buffer and spawns typed
+//! simulation threads.
+//!
+//! For lower-level control, use [`SimulationRunner`] directly.
+
+#[cfg(doc)]
+use super::runner::SimulationRunner;
+
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{SimulationInputs, Simulator, Source};
 use arc_swap::ArcSwap;

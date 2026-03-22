@@ -1,10 +1,11 @@
-use super::super::{AsPathingInput, PathingInput, PathingInputOwned, SharedSources, SourcesGuard};
-use super::{Allocate, Resolve};
+use super::super::simulation::SharedSources;
+use super::super::step::{AsPathingInput, PathingInput, PathingInputOwned};
+use super::{Allocate, Resolve, SourcesGuard};
 use crate::effect::PathEffectParams;
 use crate::simulation::{Pathing, ReflectionEffectCompatible, SimulationSharedInputs};
 
 #[cfg(doc)]
-use super::super::Simulation;
+use super::super::simulation::Simulation;
 
 /// Input frame for pathing simulation.
 pub struct PathingFrame<D, R, P, RE>

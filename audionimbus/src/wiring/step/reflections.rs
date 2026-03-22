@@ -1,4 +1,4 @@
-use super::super::SourceWithInputs;
+use super::super::simulation::SourceWithInputs;
 use super::{SimulationStep, SimulationStepError};
 use crate::effect::{ReflectionEffectParams, ReflectionEffectType};
 use crate::ray_tracing::RayTracer;

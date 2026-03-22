@@ -1,10 +1,11 @@
-use super::super::{AsDirectInput, DirectInput, SharedSources, SourcesGuard};
-use super::{Allocate, Resolve};
+use super::super::simulation::SharedSources;
+use super::super::step::{AsDirectInput, DirectInput};
+use super::{Allocate, Resolve, SourcesGuard};
 use crate::effect::DirectEffectParams;
 use crate::simulation::{Direct, ReflectionEffectCompatible, SimulationSharedInputs};
 
 #[cfg(doc)]
-use super::super::Simulation;
+use super::super::simulation::Simulation;
 
 /// Input frame for direct simulation.
 pub struct DirectFrame<D, R, P, RE>

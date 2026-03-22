@@ -1,6 +1,5 @@
-use super::super::{
-    ReflectionsReverbFrame, ReflectionsReverbOutput, ReflectionsReverbStep, SimulationRunner,
-};
+use super::super::runner::{ReflectionsReverbFrame, SimulationRunner};
+use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep};
 use super::{SharedSimulationOutput, Simulation, SourceWithInputs};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;

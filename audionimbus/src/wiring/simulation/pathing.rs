@@ -1,4 +1,5 @@
-use super::super::{PathingFrame, PathingStep, SimulationRunner};
+use super::super::runner::{PathingFrame, SimulationRunner};
+use super::super::step::PathingStep;
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::PathEffectParams;
 use crate::ray_tracing::RayTracer;

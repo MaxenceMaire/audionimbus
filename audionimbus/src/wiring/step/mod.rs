@@ -1,3 +1,8 @@
+//! Simulation step implementations and their input/output types.
+//!
+//! Each step type ([`DirectStep`], [`ReflectionsStep`], [`ReflectionsReverbStep`],
+//! [`PathingStep`]) implements [`SimulationStep`].
+
 use crate::error::SteamAudioError;
 use crate::simulation::{ParameterValidationError, SimulationError};
 

@@ -19,10 +19,13 @@
 
 #[cfg(doc)]
 use crate::simulation::{Simulator, Source};
+#[cfg(doc)]
+use runner::SimulationRunner;
+#[cfg(doc)]
+use simulation::Simulation;
+#[cfg(doc)]
+use step::SimulationStep;
 
-mod runner;
-pub use runner::*;
-mod simulation;
-pub use simulation::*;
-mod step;
-pub use step::*;
+pub mod runner;
+pub mod simulation;
+pub mod step;

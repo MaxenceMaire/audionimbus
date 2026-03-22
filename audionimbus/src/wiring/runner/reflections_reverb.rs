@@ -1,13 +1,13 @@
-use super::super::{
-    AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbOutput, SharedSources,
-    SourceWithInputs, SourcesGuard,
+use super::super::simulation::{SharedSources, SourceWithInputs};
+use super::super::step::{
+    AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbOutput,
 };
-use super::{Allocate, Clear, Resolve, Shrink};
+use super::{Allocate, Clear, Resolve, Shrink, SourcesGuard};
 use crate::effect::ReflectionEffectType;
 use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationSharedInputs};
 
 #[cfg(doc)]
-use super::super::Simulation;
+use super::super::simulation::Simulation;
 
 /// Input frame for reflections and reverb simulation.
 pub struct ReflectionsReverbFrame<D, R, P, RE>

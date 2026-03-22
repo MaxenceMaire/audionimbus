@@ -1,4 +1,5 @@
-use super::super::{DirectFrame, DirectStep, SimulationRunner};
+use super::super::runner::{DirectFrame, SimulationRunner};
+use super::super::step::DirectStep;
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::{DirectEffectParams, ReflectionEffectType};
 use crate::ray_tracing::RayTracer;

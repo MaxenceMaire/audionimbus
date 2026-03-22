@@ -1,4 +1,4 @@
-use super::super::SourceWithInputs;
+use super::super::simulation::SourceWithInputs;
 use super::{SimulationStep, SimulationStepError};
 use crate::effect::PathEffectParams;
 use crate::ray_tracing::RayTracer;
