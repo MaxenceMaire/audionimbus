@@ -1,6 +1,4 @@
-use super::super::{
-    Allocate, ReflectionsFrame, ReflectionsOutput, ReflectionsStep, SimulationRunner,
-};
+use super::super::{ReflectionsFrame, ReflectionsOutput, ReflectionsStep, SimulationRunner};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
@@ -25,11 +23,10 @@ where
         + ReflectionEffectCompatible<Reflections, RE>
         + ReflectionEffectType,
     (): DirectCompatible<D> + PathingCompatible<P>,
-    ReflectionsOutput<RE>: Allocate<ReflectionsFrame<D, Reflections, P, RE>>,
 {
     pub fn spawn_reflections(&self) -> ReflectionsSimulation<D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsFrame {
-            sources: self.initial_sources.clone(),
+            sources: self.sources.clone(),
             shared_inputs: Default::default(),
         })));
 

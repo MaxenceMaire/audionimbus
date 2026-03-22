@@ -49,8 +49,10 @@ where
     /// Spawns a new simulation thread and returns its handle.
     pub fn spawn<S>(self, mut step: S) -> std::thread::JoinHandle<()>
     where
-        S: SimulationStep<I, Output = O>,
-        O: Allocate<I>,
+        I: Resolve,
+        for<'a> S: SimulationStep<<I as Resolve>::Resolved<'a>, Output = O>,
+        S: Send + 'static,
+        for<'a> O: Allocate<<I as Resolve>::Resolved<'a>>,
     {
         let Self {
             input,
@@ -76,10 +78,11 @@ where
                     on_commit();
                 }
 
-                let input = input.load();
-                let mut out = pool.pull_owned(|| O::allocate(&**input));
+                let frame = input.load();
+                let resolved = frame.resolve();
+                let mut out = pool.pull_owned(|| O::allocate(&resolved));
                 out.clear();
-                step.run(&**input, &mut out).unwrap();
+                step.run(&resolved, &mut out).unwrap();
                 out.shrink();
                 output.store(Arc::new(out));
             }
@@ -112,4 +115,12 @@ impl<T> Shrink for Vec<T> {
 pub trait Allocate<Input> {
     /// Allocates a fresh output buffer, using the input as a capacity hint.
     fn allocate(input: &Input) -> Self;
+}
+
+pub trait Resolve {
+    type Resolved<'a>
+    where
+        Self: 'a;
+
+    fn resolve(&self) -> Self::Resolved<'_>;
 }

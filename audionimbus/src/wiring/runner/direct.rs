@@ -1,7 +1,8 @@
-use super::super::{AsDirectInput, DirectInput, DirectInputOwned, SourceWithInputs};
-use super::Allocate;
+use super::super::{AsDirectInput, DirectInput, SourceWithInputs};
+use super::{Allocate, Resolve};
 use crate::effect::DirectEffectParams;
 use crate::simulation::{Direct, ReflectionEffectCompatible, SimulationSharedInputs};
+use arc_swap::ArcSwap;
 use object_pool::ReusableOwned;
 use std::sync::Arc;
 
@@ -10,39 +11,49 @@ pub struct DirectFrame<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    pub sources: Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>,
+    pub sources: Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<D, R, P, RE> AsDirectInput<D, R, P, RE> for DirectFrame<D, R, P, RE>
+impl<D, R, P, RE> Resolve for DirectFrame<D, R, P, RE>
 where
-    D: Send + Sync + 'static,
-    R: Send + Sync + 'static,
-    P: Send + Sync + 'static,
-    RE: Send + Sync + 'static + ReflectionEffectCompatible<R, RE>,
+    RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn as_direct_input(&self) -> DirectInput<'_, D, R, P, RE> {
-        DirectInput {
-            sources: self.sources.as_slice(),
+    type Resolved<'a>
+        = ResolvedDirectFrame<'a, D, R, P, RE>
+    where
+        Self: 'a;
+
+    fn resolve(&self) -> Self::Resolved<'_> {
+        ResolvedDirectFrame {
+            guard: self.sources.load(),
             shared_inputs: &self.shared_inputs,
         }
     }
 }
 
-impl<R, P, RE> Allocate<DirectFrame<Direct, R, P, RE>> for Vec<DirectEffectParams>
+pub struct ResolvedDirectFrame<'a, D, R, P, RE> {
+    guard: arc_swap::Guard<Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    shared_inputs: &'a SimulationSharedInputs<D, R, P>,
+}
+
+impl<D, R, P, RE> AsDirectInput<D, R, P, RE> for ResolvedDirectFrame<'_, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn allocate(input: &DirectFrame<Direct, R, P, RE>) -> Self {
-        Self::with_capacity(input.sources.len())
+    fn as_direct_input(&self) -> DirectInput<'_, D, R, P, RE> {
+        DirectInput {
+            sources: &self.guard,
+            shared_inputs: self.shared_inputs,
+        }
     }
 }
 
-impl<D, R, P, RE> Allocate<DirectInputOwned<D, R, P, RE>> for Vec<DirectEffectParams>
+impl<R, P, RE> Allocate<ResolvedDirectFrame<'_, Direct, R, P, RE>> for Vec<DirectEffectParams>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn allocate(input: &DirectInputOwned<D, R, P, RE>) -> Self {
-        Self::with_capacity(input.sources.len())
+    fn allocate(input: &ResolvedDirectFrame<'_, Direct, R, P, RE>) -> Self {
+        Self::with_capacity(input.guard.len())
     }
 }

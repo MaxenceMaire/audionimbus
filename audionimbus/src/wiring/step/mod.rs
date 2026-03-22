@@ -11,10 +11,7 @@ mod reflections_reverb;
 pub use reflections_reverb::*;
 
 /// Defines the simulation logic for a single step.
-pub trait SimulationStep<I>: Send + 'static
-where
-    I: Send + Sync + 'static,
-{
+pub trait SimulationStep<I>: Send + 'static {
     type Output: Send + Sync + 'static;
     type Error: std::error::Error;
 

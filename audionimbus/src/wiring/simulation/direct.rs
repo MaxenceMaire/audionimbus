@@ -1,4 +1,4 @@
-use super::super::{Allocate, DirectFrame, DirectStep, SimulationRunner};
+use super::super::{DirectFrame, DirectStep, SimulationRunner};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::{DirectEffectParams, ReflectionEffectType};
 use crate::ray_tracing::RayTracer;
@@ -23,11 +23,10 @@ where
         + ReflectionEffectCompatible<R, RE>
         + ReflectionEffectType,
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
-    Vec<DirectEffectParams>: Allocate<DirectFrame<Direct, R, P, RE>>,
 {
     pub fn spawn_direct(&self) -> DirectSimulation<R, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(DirectFrame {
-            sources: self.initial_sources.clone(),
+            sources: self.sources.clone(),
             shared_inputs: Default::default(),
         })));
 

@@ -1,4 +1,4 @@
-use super::super::{Allocate, PathingFrame, PathingStep, SimulationRunner};
+use super::super::{PathingFrame, PathingStep, SimulationRunner};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::PathEffectParams;
 use crate::ray_tracing::RayTracer;
@@ -17,12 +17,11 @@ where
     R: 'static + Send + Sync + Clone + Default + ReflectionsCompatible<R> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + Clone + Default + ReflectionEffectCompatible<R, RE>,
     (): DirectCompatible<D> + ReflectionsCompatible<R>,
-    Vec<PathEffectParams>: Allocate<PathingFrame<D, R, Pathing, RE>>,
 {
     /// Spawns a pathing simulation thread.
     pub fn spawn_pathing(&self) -> PathingSimulation<D, R, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(PathingFrame {
-            sources: self.initial_sources.clone(),
+            sources: self.sources.clone(),
             shared_inputs: Default::default(),
         })));
 

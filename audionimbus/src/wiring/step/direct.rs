@@ -63,7 +63,7 @@ where
 }
 
 /// Implemented by any type that can produce a [`DirectInput`] view.
-pub trait AsDirectInput<D, R, P, RE>: Send + Sync + 'static
+pub trait AsDirectInput<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
@@ -83,10 +83,7 @@ where
 
 impl<D, R, P, RE> AsDirectInput<D, R, P, RE> for DirectInputOwned<D, R, P, RE>
 where
-    D: Send + Sync + 'static,
-    R: Send + Sync + 'static,
-    P: Send + Sync + 'static,
-    RE: Send + Sync + 'static + ReflectionEffectCompatible<R, RE>,
+    RE: ReflectionEffectCompatible<R, RE>,
 {
     fn as_direct_input(&self) -> DirectInput<'_, D, R, P, RE> {
         DirectInput {

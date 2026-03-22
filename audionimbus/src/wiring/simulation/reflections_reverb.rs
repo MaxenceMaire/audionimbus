@@ -1,6 +1,5 @@
 use super::super::{
-    Allocate, ReflectionsReverbFrame, ReflectionsReverbOutput, ReflectionsReverbStep,
-    SimulationRunner,
+    ReflectionsReverbFrame, ReflectionsReverbOutput, ReflectionsReverbStep, SimulationRunner,
 };
 use super::{SharedSimulationOutput, Simulation, SourceWithInputs};
 use crate::effect::ReflectionEffectType;
@@ -26,7 +25,6 @@ where
         + ReflectionEffectCompatible<Reflections, RE>
         + ReflectionEffectType,
     (): DirectCompatible<D> + PathingCompatible<P>,
-    ReflectionsReverbOutput<RE>: Allocate<ReflectionsReverbFrame<D, Reflections, P, RE>>,
 {
     /// Spawns a reflections and reverb simulation thread.
     ///
@@ -37,7 +35,7 @@ where
         listener: SourceWithInputs<(), Reflections, (), RE>,
     ) -> ReflectionsReverbSimulation<D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
-            sources: self.initial_sources.clone(),
+            sources: self.sources.clone(),
             listener,
             shared_inputs: Default::default(),
         })));

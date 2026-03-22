@@ -63,7 +63,7 @@ where
 }
 
 /// Implemented by any type that can produce a [`ReflectionsInput`] view.
-pub trait AsReflectionsInput<D, R, P, RE>: Send + Sync + 'static
+pub trait AsReflectionsInput<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
@@ -83,10 +83,7 @@ where
 
 impl<D, R, P, RE> AsReflectionsInput<D, R, P, RE> for ReflectionsInputOwned<D, R, P, RE>
 where
-    D: Send + Sync + 'static,
-    R: Send + Sync + 'static,
-    P: Send + Sync + 'static,
-    RE: Send + Sync + 'static + ReflectionEffectCompatible<R, RE>,
+    RE: ReflectionEffectCompatible<R, RE>,
 {
     fn as_reflections_input(&self) -> ReflectionsInput<'_, D, R, P, RE> {
         ReflectionsInput {
