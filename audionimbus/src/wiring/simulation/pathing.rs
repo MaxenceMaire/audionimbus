@@ -68,8 +68,7 @@ mod tests {
     use super::*;
     use crate::*;
 
-    #[test]
-    fn test_spawn_and_shutdown() {
+    fn simulation() -> Simulation<DefaultRayTracer, (), (), Pathing, ()> {
         let context = Context::default();
         let audio_settings = AudioSettings::default();
         let simulation_settings =
@@ -122,7 +121,12 @@ mod tests {
         simulator.add_probe_batch(&probe_batch);
         simulator.commit();
 
-        let mut simulation = Simulation::new(simulator);
+        Simulation::new(simulator)
+    }
+
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let mut simulation = simulation();
         let pathing_simulation = simulation.spawn_pathing();
         simulation.shutdown();
         pathing_simulation
@@ -133,59 +137,7 @@ mod tests {
 
     #[test]
     fn test_initial_output_is_empty() {
-        let context = Context::default();
-        let audio_settings = AudioSettings::default();
-        let simulation_settings =
-            SimulationSettings::new(&audio_settings).with_pathing(PathingSimulationSettings {
-                num_visibility_samples: 4,
-            });
-        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-        let mut scene = Scene::try_new(&context).unwrap();
-        let vertices = vec![
-            Point::new(-10.0, 0.0, -10.0),
-            Point::new(10.0, 0.0, -10.0),
-            Point::new(10.0, 0.0, 10.0),
-            Point::new(-10.0, 0.0, 10.0),
-        ];
-        let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
-        let materials = vec![Material::default()];
-        let material_indices = vec![0usize, 0];
-        let static_mesh = StaticMesh::try_new(
-            &scene,
-            &StaticMeshSettings {
-                vertices: &vertices,
-                triangles: &triangles,
-                material_indices: &material_indices,
-                materials: &materials,
-            },
-        )
-        .unwrap();
-        scene.add_static_mesh(static_mesh);
-        scene.commit();
-        simulator.set_scene(&scene);
-
-        let mut probe_array = ProbeArray::try_new(&context).unwrap();
-        probe_array.generate_probes(
-            &scene,
-            &ProbeGenerationParams::UniformFloor {
-                spacing: 5.0,
-                height: 1.5,
-                transform: Matrix4::new([
-                    [20.0, 0.0, 0.0, 0.0],
-                    [0.0, 20.0, 0.0, 0.0],
-                    [0.0, 0.0, 20.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]),
-            },
-        );
-        let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
-        probe_batch.add_probe_array(&probe_array);
-        probe_batch.commit();
-        simulator.add_probe_batch(&probe_batch);
-        simulator.commit();
-
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = simulation();
         let pathing_simulation = simulation.spawn_pathing();
 
         assert!(pathing_simulation.output.load().is_empty());
