@@ -26,6 +26,8 @@ pub use pathing::*;
 ///
 /// Spawned simulation threads share the same sources, updated atomically by the game thread via
 /// [`Self::update`].
+///
+/// Uses memory pooling to avoid per-frame allocation.
 pub struct Simulation<T, D, R, P, RE>
 where
     T: RayTracer,
