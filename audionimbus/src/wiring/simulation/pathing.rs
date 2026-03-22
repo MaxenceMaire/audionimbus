@@ -49,7 +49,7 @@ where
     }
 }
 
-/// Running pathing simulation thread.
+/// A running pathing simulation thread.
 pub struct PathingSimulation<D, R, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,

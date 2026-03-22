@@ -7,10 +7,12 @@ use crate::simulation::{
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
 
+/// Runs pathing simulation.
 pub struct PathingStep<T, D, R, RE>
 where
     T: RayTracer,
 {
+    /// The [`Simulator`] used by the step.
     pub simulator: Simulator<T, D, R, Pathing, RE>,
 }
 
@@ -67,6 +69,7 @@ pub trait AsPathingInput<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    /// Returns a view of this type as [`PathingInput`].
     fn as_pathing_input(&self) -> PathingInput<'_, D, R, P, RE>;
 }
 

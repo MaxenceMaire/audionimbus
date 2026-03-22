@@ -12,9 +12,13 @@ pub use reflections_reverb::*;
 
 /// Defines the simulation logic for a single step.
 pub trait SimulationStep<I>: Send + 'static {
+    /// The output type produced by this step.
     type Output: Send + Sync + 'static;
+
+    /// The error type returned on step failure.
     type Error: std::error::Error;
 
+    /// Runs one iteration of the simulation step.
     fn run(&mut self, input: &I, output: &mut Self::Output) -> Result<(), Self::Error>;
 }
 

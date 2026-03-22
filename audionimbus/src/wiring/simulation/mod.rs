@@ -16,6 +16,16 @@ pub use reflections_reverb::*;
 mod pathing;
 pub use pathing::*;
 
+/// Simulation pipeline.
+///
+/// Spawns simulation threads via:
+/// - [`Self::spawn_direct`]
+/// - [`Self::spawn_reflections`]
+/// - [`Self::spawn_reflections_reverb`]
+/// - [`Self::spawn_pathing`]
+///
+/// Spawned simulation threads share the same sources, updated atomically by the game thread via
+/// [`Self::update`].
 pub struct Simulation<T, D, R, P, RE>
 where
     T: RayTracer,
@@ -31,6 +41,7 @@ impl<T, D, R, P, RE> Simulation<T, D, R, P, RE>
 where
     T: RayTracer,
 {
+    /// Creates a new simulation pipeline.
     pub fn new(simulator: Simulator<T, D, R, P, RE>) -> Self {
         let sources_pool = Arc::new(Pool::new(4, Default::default));
         let sources = Arc::new(ArcSwap::new(Arc::new(
@@ -50,7 +61,7 @@ where
 
     /// Updates the sources used by all simulation threads on their next run.
     ///
-    /// `f` receives a pooled `Vec` to populate.
+    /// `f` receives a pooled `Vec` to be populated.
     pub fn update<F>(&self, f: F)
     where
         F: FnOnce(&mut Vec<SourceWithInputs<D, R, P, RE>>),
@@ -61,10 +72,12 @@ where
         self.sources.store(Arc::new(sources));
     }
 
+    /// Signals all spawned simulation threads to commit on their next run.
     pub fn request_commit(&mut self) {
         self.commit_needed.store(true, Ordering::Relaxed);
     }
 
+    /// Signals all spawned simulation threads to stop.
     pub fn shutdown(&mut self) {
         self.shutdown.store(true, Ordering::Relaxed);
     }
@@ -80,4 +93,15 @@ pub struct SourceWithInputs<D, R, P, RE> {
 }
 
 /// Simulation output shared between a simulation thread and the audio thread.
-pub struct SharedSimulationOutput<T: 'static + Send + Sync>(pub Arc<ArcSwap<ReusableOwned<T>>>);
+pub struct SharedSimulationOutput<T: 'static + Send + Sync>(
+    pub(crate) Arc<ArcSwap<ReusableOwned<T>>>,
+);
+
+impl<T: 'static + Send + Sync> SharedSimulationOutput<T> {
+    /// Returns a snapshot of the latest simulation output.
+    ///
+    /// Safe to call from the audio thread concurrently with simulation writes.
+    pub fn load(&self) -> arc_swap::Guard<Arc<ReusableOwned<T>>> {
+        self.0.load()
+    }
+}

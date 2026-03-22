@@ -7,10 +7,12 @@ use crate::simulation::{
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
 
+/// Runs reflections and listener-centric reverb simulation simultaneously.
 pub struct ReflectionsReverbStep<T, D, P, RE>
 where
     T: RayTracer,
 {
+    /// The [`Simulator`] used by the step.
     pub simulator: Simulator<T, D, Reflections, P, RE>,
 }
 
@@ -76,6 +78,7 @@ pub trait AsReflectionsReverbInput<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    /// Returns a view of this type as [`ReflectionsReverbInput`].
     fn as_reflections_reverb_input(&self) -> ReflectionsReverbInput<'_, D, R, P, RE>;
 }
 

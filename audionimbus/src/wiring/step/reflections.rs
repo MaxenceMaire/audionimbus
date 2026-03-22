@@ -7,10 +7,12 @@ use crate::simulation::{
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
 
+/// Runs reflections simulation.
 pub struct ReflectionsStep<T, D, P, RE>
 where
     T: RayTracer,
 {
+    /// The [`Simulator`] used by the step.
     pub simulator: Simulator<T, D, Reflections, P, RE>,
 }
 
@@ -67,6 +69,7 @@ pub trait AsReflectionsInput<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    /// Returns a view of this type as [`ReflectionsInput`].
     fn as_reflections_input(&self) -> ReflectionsInput<'_, D, R, P, RE>;
 }
 

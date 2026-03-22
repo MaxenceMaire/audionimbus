@@ -28,8 +28,7 @@ where
 {
     /// Spawns a reflections and reverb simulation thread.
     ///
-    /// `listener` is the source placed at the listener's position, used for listener-centic reverb
-    /// simulation.
+    /// `listener` is the source placed at the listener's position, used for reverb simulation.
     pub fn spawn_reflections_reverb(
         &self,
         listener: SourceWithInputs<(), Reflections, (), RE>,
@@ -65,7 +64,7 @@ where
     }
 }
 
-/// Running reflections and reverb simulation thread.
+/// A running reflections and reverb simulation thread.
 pub struct ReflectionsReverbSimulation<D, P, RE>
 where
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,

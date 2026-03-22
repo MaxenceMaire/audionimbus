@@ -7,10 +7,12 @@ use crate::simulation::{
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
 
+/// Runs direct simulation.
 pub struct DirectStep<T, R, P, RE>
 where
     T: RayTracer,
 {
+    /// The [`Simulator`] used by the step.
     pub simulator: Simulator<T, Direct, R, P, RE>,
 }
 
@@ -67,6 +69,7 @@ pub trait AsDirectInput<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    /// Returns a view of this type as [`DirectInput`].
     fn as_direct_input(&self) -> DirectInput<'_, D, R, P, RE>;
 }
 

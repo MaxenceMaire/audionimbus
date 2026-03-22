@@ -24,6 +24,7 @@ where
         + ReflectionEffectType,
     (): DirectCompatible<D> + PathingCompatible<P>,
 {
+    /// Spawns a reflections simulation thread.
     pub fn spawn_reflections(&self) -> ReflectionsSimulation<D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsFrame {
             sources: self.sources.clone(),
@@ -55,7 +56,7 @@ where
     }
 }
 
-/// Running reflections simulation thread.
+/// A running reflections simulation thread.
 pub struct ReflectionsSimulation<D, P, RE>
 where
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,

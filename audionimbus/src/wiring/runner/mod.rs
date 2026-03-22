@@ -30,6 +30,14 @@ where
     O: Send + Sync + 'static + Default + Clear + Shrink,
 {
     /// Creates a new simulation runner.
+    ///
+    /// # Arguments
+    ///
+    /// - `input`: shared input frame updated each frame.
+    /// - `output`: shared output written after each simulation run.
+    /// - `commit_needed`: set to `true` to trigger a simulator commit on the next run.
+    /// - `on_commit`: called when the commit flag is set to `true`.
+    /// - `shutdown`: set to `true` to stop the thread after its current iteration.
     pub fn new(
         input: Arc<ArcSwap<I>>,
         output: Arc<ArcSwap<ReusableOwned<O>>>,
@@ -90,7 +98,9 @@ where
     }
 }
 
+/// Types that can be cleared.
 pub trait Clear {
+    /// Clears the type.
     fn clear(&mut self);
 }
 
@@ -100,7 +110,9 @@ impl<T> Clear for Vec<T> {
     }
 }
 
+/// Types whose capacity can be shrunk.
 pub trait Shrink {
+    /// Shrinks the capacity of the type.
     fn shrink(&mut self);
 }
 
@@ -112,15 +124,21 @@ impl<T> Shrink for Vec<T> {
     }
 }
 
+/// Types that can be preallocated.
 pub trait Allocate<Input> {
     /// Allocates a fresh output buffer, using the input as a capacity hint.
     fn allocate(input: &Input) -> Self;
 }
 
+/// Types that can be resolved into a borrowed frame.
+///
+/// Used to keep sources alive for the duration of the simulation.
 pub trait Resolve {
+    /// The resolved type, which borrows from `self` for lifetime `'a`.
     type Resolved<'a>
     where
         Self: 'a;
 
+    /// Returns a borrowed frame.
     fn resolve(&self) -> Self::Resolved<'_>;
 }

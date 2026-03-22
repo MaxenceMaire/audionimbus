@@ -9,12 +9,18 @@ use arc_swap::ArcSwap;
 use object_pool::ReusableOwned;
 use std::sync::Arc;
 
+#[cfg(doc)]
+use super::super::Simulation;
+
 /// Input frame for reflections simulation.
 pub struct ReflectionsFrame<D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    /// Shared reference to the current frame of sources, written by the game thread via
+    /// [`Simulation::update`].
     pub sources: Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    /// Shared simulation inputs.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
@@ -60,6 +66,9 @@ where
     }
 }
 
+/// A snapshot of a [`ReflectionsFrame`] for use during a single simulation step.
+///
+/// Keeps the sources alive for the duration of the step.
 pub struct ResolvedReflectionsFrame<'a, D, R, P, RE> {
     guard: arc_swap::Guard<Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
