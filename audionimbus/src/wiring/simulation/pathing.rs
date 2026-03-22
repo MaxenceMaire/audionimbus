@@ -9,7 +9,7 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 
 impl<T, D, R, RE> Simulation<T, D, R, Pathing, RE>
 where
@@ -20,7 +20,7 @@ where
     (): DirectCompatible<D> + ReflectionsCompatible<R>,
 {
     /// Spawns a pathing simulation thread.
-    pub fn spawn_pathing(&self) -> PathingSimulation<D, R, RE> {
+    pub fn spawn_pathing(&mut self) -> PathingSimulation<D, R, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(PathingFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -30,6 +30,9 @@ where
             Arc::new(Pool::new(1, Vec::default)).pull_owned(Vec::default),
         ))));
 
+        let paused = Arc::new((Mutex::new(false), Condvar::new()));
+        self.paused.push(paused.clone());
+
         let mut simulator_for_commit = self.simulator.clone();
         let handle = SimulationRunner::new(
             input.clone(),
@@ -37,6 +40,7 @@ where
             self.commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.shutdown.clone(),
+            paused.clone(),
         )
         .spawn(PathingStep {
             simulator: self.simulator.clone(),
@@ -46,6 +50,7 @@ where
             handle,
             input,
             output,
+            paused,
         }
     }
 }
@@ -61,6 +66,24 @@ where
     pub input: Arc<ArcSwap<PathingFrame<D, R, Pathing, RE>>>,
     /// Shared output, read by the audio thread.
     pub output: SharedSimulationOutput<Vec<PathEffectParams>>,
+    /// Pause flag.
+    pub paused: Arc<(Mutex<bool>, Condvar)>,
+}
+
+impl<D, R, RE> PathingSimulation<D, R, RE>
+where
+    RE: ReflectionEffectCompatible<R, RE>,
+{
+    /// Pauses the simulation thread after its current iteration completes.
+    pub fn pause(&self) {
+        *self.paused.0.lock().unwrap() = true;
+    }
+
+    /// Resumes a paused simulation thread.
+    pub fn resume(&self) {
+        *self.paused.0.lock().unwrap() = false;
+        self.paused.1.notify_one();
+    }
 }
 
 #[cfg(test)]

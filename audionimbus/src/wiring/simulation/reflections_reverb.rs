@@ -9,7 +9,7 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 
 impl<T, D, P, RE> Simulation<T, D, Reflections, P, RE>
 where
@@ -29,7 +29,7 @@ where
     ///
     /// `listener` is the source placed at the listener's position, used for reverb simulation.
     pub fn spawn_reflections_reverb(
-        &self,
+        &mut self,
         listener: SourceWithInputs<(), Reflections, (), RE>,
     ) -> ReflectionsReverbSimulation<D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
@@ -43,6 +43,9 @@ where
                 .pull_owned(ReflectionsReverbOutput::default),
         ))));
 
+        let paused = Arc::new((Mutex::new(false), Condvar::new()));
+        self.paused.push(paused.clone());
+
         let mut simulator_for_commit = self.simulator.clone();
         let handle = SimulationRunner::new(
             input.clone(),
@@ -50,6 +53,7 @@ where
             self.commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.shutdown.clone(),
+            paused.clone(),
         )
         .spawn(ReflectionsReverbStep {
             simulator: self.simulator.clone(),
@@ -59,6 +63,7 @@ where
             handle,
             input,
             output,
+            paused,
         }
     }
 }
@@ -74,6 +79,24 @@ where
     pub input: Arc<ArcSwap<ReflectionsReverbFrame<D, Reflections, P, RE>>>,
     /// Shared output, read by the audio thread.
     pub output: SharedSimulationOutput<ReflectionsReverbOutput<RE>>,
+    /// Pause flag.
+    pub paused: Arc<(Mutex<bool>, Condvar)>,
+}
+
+impl<D, P, RE> ReflectionsReverbSimulation<D, P, RE>
+where
+    RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
+{
+    /// Pauses the simulation thread after its current iteration completes.
+    pub fn pause(&self) {
+        *self.paused.0.lock().unwrap() = true;
+    }
+
+    /// Resumes a paused simulation thread.
+    pub fn resume(&self) {
+        *self.paused.0.lock().unwrap() = false;
+        self.paused.1.notify_one();
+    }
 }
 
 #[cfg(test)]

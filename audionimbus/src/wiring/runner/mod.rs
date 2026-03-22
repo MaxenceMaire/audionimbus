@@ -9,7 +9,7 @@ use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Condvar, Mutex,
 };
 
 mod direct;
@@ -28,6 +28,7 @@ pub struct SimulationRunner<I, O> {
     commit_needed: Arc<AtomicBool>,
     on_commit: Box<dyn FnMut() + Send + 'static>,
     shutdown: Arc<AtomicBool>,
+    paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
 impl<I, O> SimulationRunner<I, O>
@@ -44,12 +45,14 @@ where
     /// - `commit_needed`: set to `true` to trigger a simulator commit on the next run.
     /// - `on_commit`: called when the commit flag is set to `true`.
     /// - `shutdown`: set to `true` to stop the thread after its current iteration.
+    /// - `paused`: set to `true` to pause the thread after its current iteration.
     pub fn new(
         input: Arc<ArcSwap<I>>,
         output: Arc<ArcSwap<ReusableOwned<O>>>,
         commit_needed: Arc<AtomicBool>,
         on_commit: impl FnMut() + Send + 'static,
         shutdown: Arc<AtomicBool>,
+        paused: Arc<(Mutex<bool>, Condvar)>,
     ) -> Self {
         Self {
             input,
@@ -57,6 +60,7 @@ where
             commit_needed,
             on_commit: Box::new(on_commit),
             shutdown,
+            paused,
         }
     }
 
@@ -74,6 +78,7 @@ where
             commit_needed,
             mut on_commit,
             shutdown,
+            paused,
         } = self;
 
         std::thread::spawn(move || {
@@ -82,6 +87,14 @@ where
             loop {
                 if shutdown.load(Ordering::Relaxed) {
                     break;
+                }
+
+                {
+                    let (lock, condvar) = &*paused;
+                    let mut is_paused = lock.lock().unwrap();
+                    while *is_paused {
+                        is_paused = condvar.wait(is_paused).unwrap();
+                    }
                 }
 
                 // The first thread to catch the flag commits.

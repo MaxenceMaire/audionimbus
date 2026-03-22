@@ -14,7 +14,7 @@ use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Condvar, Mutex,
 };
 
 mod direct;
@@ -47,6 +47,7 @@ where
     sources: SharedSources<D, R, P, RE>,
     commit_needed: Arc<AtomicBool>,
     shutdown: Arc<AtomicBool>,
+    paused: Vec<Arc<(Mutex<bool>, Condvar)>>,
 }
 
 impl<T, D, R, P, RE> Simulation<T, D, R, P, RE>
@@ -61,6 +62,7 @@ where
         )));
         let commit_needed = Arc::new(AtomicBool::new(false));
         let shutdown = Arc::new(AtomicBool::new(false));
+        let paused = vec![];
 
         Self {
             simulator,
@@ -68,6 +70,7 @@ where
             sources,
             commit_needed,
             shutdown,
+            paused,
         }
     }
 
@@ -92,6 +95,24 @@ where
     /// Signals all spawned simulation threads to stop.
     pub fn shutdown(&mut self) {
         self.shutdown.store(true, Ordering::Relaxed);
+
+        // Wake paused threads so they can observe the shutdown flag.
+        self.resume();
+    }
+
+    /// Pauses the simulation threads after their current iteration completes.
+    pub fn pause(&self) {
+        for thread in &self.paused {
+            *thread.0.lock().unwrap() = true;
+        }
+    }
+
+    /// Resumes paused simulation threads.
+    pub fn resume(&self) {
+        for thread in &self.paused {
+            *thread.0.lock().unwrap() = false;
+            thread.1.notify_one();
+        }
     }
 }
 
