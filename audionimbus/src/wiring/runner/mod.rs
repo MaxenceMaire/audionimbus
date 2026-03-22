@@ -1,4 +1,4 @@
-use super::SimulationStep;
+use super::{SimulationStep, SourceWithInputs};
 use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
 use std::sync::{
@@ -142,3 +142,7 @@ pub trait Resolve {
     /// Returns a borrowed frame.
     fn resolve(&self) -> Self::Resolved<'_>;
 }
+
+/// A guard holding the source list alive for the duration of a simulation step.
+pub(crate) type SourcesGuard<D, R, P, RE> =
+    arc_swap::Guard<Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>;

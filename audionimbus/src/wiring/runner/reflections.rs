@@ -1,13 +1,10 @@
 use super::super::{
-    AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned, ReflectionsOutput,
-    SourceWithInputs,
+    AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned, ReflectionsOutput, SharedSources,
+    SourcesGuard,
 };
 use super::{Allocate, Clear, Resolve, Shrink};
 use crate::effect::ReflectionEffectType;
 use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationSharedInputs};
-use arc_swap::ArcSwap;
-use object_pool::ReusableOwned;
-use std::sync::Arc;
 
 #[cfg(doc)]
 use super::super::Simulation;
@@ -19,7 +16,7 @@ where
 {
     /// Shared reference to the current frame of sources, written by the game thread via
     /// [`Simulation::update`].
-    pub sources: Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    pub sources: SharedSources<D, R, P, RE>,
     /// Shared simulation inputs.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
@@ -70,7 +67,7 @@ where
 ///
 /// Keeps the sources alive for the duration of the step.
 pub struct ResolvedReflectionsFrame<'a, D, R, P, RE> {
-    guard: arc_swap::Guard<Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    guard: SourcesGuard<D, R, P, RE>,
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 

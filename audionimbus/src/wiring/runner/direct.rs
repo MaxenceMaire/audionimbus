@@ -1,10 +1,7 @@
-use super::super::{AsDirectInput, DirectInput, SourceWithInputs};
+use super::super::{AsDirectInput, DirectInput, SharedSources, SourcesGuard};
 use super::{Allocate, Resolve};
 use crate::effect::DirectEffectParams;
 use crate::simulation::{Direct, ReflectionEffectCompatible, SimulationSharedInputs};
-use arc_swap::ArcSwap;
-use object_pool::ReusableOwned;
-use std::sync::Arc;
 
 #[cfg(doc)]
 use super::super::Simulation;
@@ -16,7 +13,7 @@ where
 {
     /// Shared reference to the current frame of sources, written by the game thread via
     /// [`Simulation::update`].
-    pub sources: Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    pub sources: SharedSources<D, R, P, RE>,
     /// Shared simulation inputs.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
@@ -42,7 +39,7 @@ where
 ///
 /// Keeps the current sources alive for the duration of the step.
 pub struct ResolvedDirectFrame<'a, D, R, P, RE> {
-    guard: arc_swap::Guard<Arc<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    guard: SourcesGuard<D, R, P, RE>,
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 

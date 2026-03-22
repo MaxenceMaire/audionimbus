@@ -33,8 +33,8 @@ where
     T: RayTracer,
 {
     simulator: Simulator<T, D, R, P, RE>,
-    sources_pool: Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>,
-    sources: Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>,
+    sources_pool: SourcesPool<D, R, P, RE>,
+    sources: SharedSources<D, R, P, RE>,
     commit_needed: Arc<AtomicBool>,
     shutdown: Arc<AtomicBool>,
 }
@@ -93,6 +93,13 @@ pub struct SourceWithInputs<D, R, P, RE> {
     /// Simulation inputs for the associated source.
     pub simulation_inputs: SimulationInputs<D, R, P>,
 }
+
+/// A pool of source list buffers, shared across simulation threads.
+pub(crate) type SourcesPool<D, R, P, RE> = Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>;
+
+/// A shared, atomically-swappable source list.
+pub(crate) type SharedSources<D, R, P, RE> =
+    Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>;
 
 /// Simulation output shared between a simulation thread and the audio thread.
 pub struct SharedSimulationOutput<T: 'static + Send + Sync>(
