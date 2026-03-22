@@ -69,3 +69,66 @@ where
     /// Shared output, read by the audio thread.
     pub output: SharedSimulationOutput<ReflectionsOutput<RE>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let mut simulation = Simulation::new(simulator);
+        let reflections_simulation = simulation.spawn_reflections();
+        simulation.shutdown();
+        reflections_simulation
+            .handle
+            .join()
+            .expect("simulation thread panicked");
+    }
+
+    #[test]
+    fn test_initial_output_is_empty() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let mut simulation = Simulation::new(simulator);
+        let reflections_simulation = simulation.spawn_reflections();
+
+        assert!(reflections_simulation.output.load().sources.is_empty());
+
+        simulation.shutdown();
+        reflections_simulation
+            .handle
+            .join()
+            .expect("simulation thread panicked");
+    }
+}

@@ -75,3 +75,98 @@ where
     /// Shared output, read by the audio thread.
     pub output: SharedSimulationOutput<ReflectionsReverbOutput<RE>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let simulator_clone = simulator.clone();
+        let mut simulation = Simulation::new(simulator);
+
+        let listener_source =
+            Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
+        simulator_clone.add_source(&listener_source);
+        simulation.request_commit();
+
+        let listener = SourceWithInputs {
+            source: listener_source,
+            simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
+                ConvolutionParameters {
+                    baked_data_identifier: None,
+                },
+            ),
+        };
+
+        let reverb_simulation = simulation.spawn_reflections_reverb(listener);
+        simulation.shutdown();
+        reverb_simulation
+            .handle
+            .join()
+            .expect("simulation thread panicked");
+    }
+
+    #[test]
+    fn test_initial_listener_output_is_none() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let simulator_clone = simulator.clone();
+        let mut simulation = Simulation::new(simulator);
+
+        let listener_source =
+            Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
+        simulator_clone.add_source(&listener_source);
+        simulation.request_commit();
+
+        let listener = SourceWithInputs {
+            source: listener_source,
+            simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
+                ConvolutionParameters {
+                    baked_data_identifier: None,
+                },
+            ),
+        };
+
+        let reverb_simulation = simulation.spawn_reflections_reverb(listener);
+
+        assert!(reverb_simulation.output.load().listener.is_none());
+
+        simulation.shutdown();
+        reverb_simulation
+            .handle
+            .join()
+            .expect("simulation thread panicked");
+    }
+}
