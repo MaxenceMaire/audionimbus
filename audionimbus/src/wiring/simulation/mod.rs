@@ -124,3 +124,98 @@ impl<T: 'static + Send + Sync> SharedSimulationOutput<T> {
         self.0.load()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    #[test]
+    fn test_new() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let _simulation = Simulation::new(simulator);
+    }
+
+    #[test]
+    fn test_update_clears_buffer_between_calls() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let simulator_clone = simulator.clone();
+        let simulation = Simulation::new(simulator);
+
+        let source =
+            Source::<Direct, Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
+
+        simulation.update(|sources| {
+            sources.push(SourceWithInputs {
+                source: source.clone(),
+                simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
+                    .with_direct(DirectSimulationParameters::new())
+                    .with_reflections(ConvolutionParameters {
+                        baked_data_identifier: None,
+                    }),
+            });
+            assert_eq!(sources.len(), 1);
+        });
+
+        simulation.update(|sources| {
+            assert!(
+                sources.is_empty(),
+                "update should receive an empty buffer each call"
+            );
+        });
+    }
+
+    #[test]
+    fn test_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let mut simulation = Simulation::new(simulator);
+        let direct_simulation = simulation.spawn_direct();
+        simulation.shutdown();
+        direct_simulation
+            .handle
+            .join()
+            .expect("simulation thread panicked");
+    }
+}
