@@ -6,26 +6,44 @@ use crate::simulation::{
     DirectCompatible, Pathing, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
+use std::marker::PhantomData;
 
 /// Runs pathing simulation.
-pub struct PathingStep<T, D, R, RE>
+pub struct PathingStep<SourceId, T, D, R, RE>
 where
     T: RayTracer,
 {
     /// The [`Simulator`] used by the step.
-    pub simulator: Simulator<T, D, R, Pathing, RE>,
+    simulator: Simulator<T, D, R, Pathing, RE>,
+    _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, D, R, RE, I> SimulationStep<I> for PathingStep<T, D, R, RE>
+impl<T, D, R, RE> PathingStep<(), T, D, R, RE>
+where
+    T: RayTracer,
+{
+    /// Creates a new pathing simulation step.
+    pub fn new<SourceId>(
+        simulator: Simulator<T, D, R, Pathing, RE>,
+    ) -> PathingStep<SourceId, T, D, R, RE> {
+        PathingStep {
+            simulator,
+            _source_id: PhantomData,
+        }
+    }
+}
+
+impl<SourceId, T, D, R, RE, I> SimulationStep<I> for PathingStep<SourceId, T, D, R, RE>
 where
     T: 'static + RayTracer,
     D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
     R: 'static + Send + Sync + ReflectionsCompatible<R> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<R, RE>,
     (): DirectCompatible<D> + ReflectionsCompatible<R>,
-    I: AsPathingInput<D, R, Pathing, RE>,
+    SourceId: 'static + Clone + Send + Sync,
+    I: AsPathingInput<SourceId, D, R, Pathing, RE>,
 {
-    type Output = Vec<PathEffectParams>;
+    type Output = Vec<(SourceId, PathEffectParams)>;
     type Error = SimulationStepError;
 
     fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
@@ -36,7 +54,8 @@ where
 
         for SourceWithInputs {
             source,
-            simulation_inputs,
+            ref simulation_inputs,
+            ..
         } in input.sources
         {
             source.set_pathing_inputs(simulation_inputs)?;
@@ -44,8 +63,8 @@ where
 
         self.simulator.run_pathing()?;
 
-        for SourceWithInputs { source, .. } in input.sources.iter() {
-            output.push(source.get_pathing_outputs()?);
+        for SourceWithInputs { id, source, .. } in input.sources.iter() {
+            output.push((id.clone(), source.get_pathing_outputs()?));
         }
 
         Ok(())
@@ -54,41 +73,42 @@ where
 
 /// Pathing simulation inputs.
 #[derive(Debug)]
-pub struct PathingInput<'a, D, R, P, RE>
+pub struct PathingInput<'a, SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources whose paths to simulate.
-    pub sources: &'a [SourceWithInputs<D, R, P, RE>],
+    pub sources: &'a [SourceWithInputs<SourceId, D, R, P, RE>],
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
 /// Implemented by any type that can produce a [`PathingInput`] view.
-pub trait AsPathingInput<D, R, P, RE>
+pub trait AsPathingInput<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Returns a view of this type as [`PathingInput`].
-    fn as_pathing_input(&self) -> PathingInput<'_, D, R, P, RE>;
+    fn as_pathing_input(&self) -> PathingInput<'_, SourceId, D, R, P, RE>;
 }
 
 /// Owned input for pathing simulation.
-pub struct PathingInputOwned<D, R, P, RE>
+pub struct PathingInputOwned<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources whose paths to simulate.
-    pub sources: Vec<SourceWithInputs<D, R, P, RE>>,
+    pub sources: Vec<SourceWithInputs<SourceId, D, R, P, RE>>,
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<D, R, P, RE> AsPathingInput<D, R, P, RE> for PathingInputOwned<D, R, P, RE>
+impl<SourceId, D, R, P, RE> AsPathingInput<SourceId, D, R, P, RE>
+    for PathingInputOwned<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn as_pathing_input(&self) -> PathingInput<'_, D, R, P, RE> {
+    fn as_pathing_input(&self) -> PathingInput<'_, SourceId, D, R, P, RE> {
         PathingInput {
             sources: self.sources.as_slice(),
             shared_inputs: &self.shared_inputs,

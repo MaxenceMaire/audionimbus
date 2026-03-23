@@ -11,8 +11,9 @@ use arc_swap::ArcSwap;
 use object_pool::Pool;
 use std::sync::{Arc, Condvar, Mutex};
 
-impl<T, D, P, RE> Simulation<T, D, Reflections, P, RE>
+impl<SourceId, T, D, P, RE> Simulation<SourceId, T, D, Reflections, P, RE>
 where
+    SourceId: 'static + Send + Sync + Clone,
     T: 'static + RayTracer,
     D: 'static + Send + Sync + Clone + Default + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,
@@ -26,7 +27,7 @@ where
     (): DirectCompatible<D> + PathingCompatible<P>,
 {
     /// Spawns a reflections simulation thread.
-    pub fn spawn_reflections(&mut self) -> ReflectionsSimulation<D, P, RE> {
+    pub fn spawn_reflections(&mut self) -> ReflectionsSimulation<SourceId, D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -49,9 +50,7 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(ReflectionsStep {
-            simulator: self.simulator.clone(),
-        });
+        .spawn(ReflectionsStep::new::<SourceId>(self.simulator.clone()));
 
         ReflectionsSimulation {
             handle,
@@ -63,22 +62,24 @@ where
 }
 
 /// A running reflections simulation thread.
-pub struct ReflectionsSimulation<D, P, RE>
+pub struct ReflectionsSimulation<SourceId, D, P, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Thread handle.
     pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: Arc<ArcSwap<ReflectionsFrame<D, Reflections, P, RE>>>,
+    pub input: SharedReflectionsInput<SourceId, D, P, RE>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<ReflectionsOutput<RE>>,
+    pub output: SharedSimulationOutput<ReflectionsOutput<SourceId, RE>>,
     /// Pause flag.
     pub paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl<D, P, RE> ReflectionsSimulation<D, P, RE>
+impl<SourceId, D, P, RE> ReflectionsSimulation<SourceId, D, P, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Pauses the simulation thread after its current iteration completes.
@@ -92,6 +93,10 @@ where
         self.paused.1.notify_one();
     }
 }
+
+/// Shared, atomically-swappable input frame for a reflections simulation thread.
+type SharedReflectionsInput<SourceId, D, P, RE> =
+    Arc<ArcSwap<ReflectionsFrame<SourceId, D, Reflections, P, RE>>>;
 
 #[cfg(test)]
 mod tests {
@@ -116,7 +121,7 @@ mod tests {
         simulator.set_scene(&scene);
         simulator.commit();
 
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
         let reflections_simulation = simulation.spawn_reflections();
         simulation.shutdown();
         reflections_simulation
@@ -143,7 +148,7 @@ mod tests {
         simulator.set_scene(&scene);
         simulator.commit();
 
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
         let reflections_simulation = simulation.spawn_reflections();
 
         assert!(reflections_simulation.output.load().sources.is_empty());

@@ -38,16 +38,16 @@ pub use pathing::*;
 /// [`Self::update`].
 ///
 /// Uses memory pooling to avoid per-frame allocation.
-pub struct Simulation<T, D, R, P, RE>
+pub struct Simulation<SourceId, T, D, R, P, RE>
 where
     T: RayTracer,
 {
     /// The underlying simulator shared across all spawned simulation threads.
     pub simulator: Simulator<T, D, R, P, RE>,
     /// Pool of source buffers, reused across frames to avoid allocation.
-    pub sources_pool: SourcesPool<D, R, P, RE>,
+    pub sources_pool: SourcesPool<SourceId, D, R, P, RE>,
     /// The current source buffer, atomically swapped each frame via [`Self::update`].
-    pub sources: SharedSources<D, R, P, RE>,
+    pub sources: SharedSources<SourceId, D, R, P, RE>,
     /// Set to `true` via [`Self::request_commit`] to trigger a simulator commit on the next
     /// simulation run.
     pub commit_needed: Arc<AtomicBool>,
@@ -60,12 +60,14 @@ where
     pub paused: Vec<Arc<(Mutex<bool>, Condvar)>>,
 }
 
-impl<T, D, R, P, RE> Simulation<T, D, R, P, RE>
+impl<T, D, R, P, RE> Simulation<(), T, D, R, P, RE>
 where
     T: RayTracer,
 {
     /// Creates a new simulation pipeline.
-    pub fn new(simulator: Simulator<T, D, R, P, RE>) -> Self {
+    pub fn new<SourceId>(
+        simulator: Simulator<T, D, R, P, RE>,
+    ) -> Simulation<SourceId, T, D, R, P, RE> {
         let sources_pool = Arc::new(Pool::new(4, Default::default));
         let sources = Arc::new(ArcSwap::new(Arc::new(
             sources_pool.pull_owned(Default::default),
@@ -74,7 +76,7 @@ where
         let shutdown = Arc::new(AtomicBool::new(false));
         let paused = vec![];
 
-        Self {
+        Simulation {
             simulator,
             sources_pool,
             sources,
@@ -83,14 +85,19 @@ where
             paused,
         }
     }
+}
 
+impl<SourceId, T, D, R, P, RE> Simulation<SourceId, T, D, R, P, RE>
+where
+    T: RayTracer,
+{
     /// Returns a reference to the underlying simulator.
     pub fn simulator(&self) -> &Simulator<T, D, R, P, RE> {
         &self.simulator
     }
 
     /// Returns a reference to the sources pool.
-    pub fn sources_pool(&self) -> &SourcesPool<D, R, P, RE> {
+    pub fn sources_pool(&self) -> &SourcesPool<SourceId, D, R, P, RE> {
         &self.sources_pool
     }
 
@@ -99,7 +106,7 @@ where
     /// `f` receives a pooled `Vec` to be populated.
     pub fn update<F>(&self, f: F)
     where
-        F: FnOnce(&mut Vec<SourceWithInputs<D, R, P, RE>>),
+        F: FnOnce(&mut Vec<SourceWithInputs<SourceId, D, R, P, RE>>),
     {
         let mut sources = self.sources_pool.pull_owned(Vec::default);
         sources.clear();
@@ -138,7 +145,9 @@ where
 
 /// A pair of source and simulation inputs.
 #[derive(Clone, Debug)]
-pub struct SourceWithInputs<D, R, P, RE> {
+pub struct SourceWithInputs<SourceId, D, R, P, RE> {
+    /// Source identifier.
+    pub id: SourceId,
     /// Spatial audio source.
     pub source: Source<D, R, P, RE>,
     /// Simulation inputs for the associated source.
@@ -146,11 +155,12 @@ pub struct SourceWithInputs<D, R, P, RE> {
 }
 
 /// A pool of source list buffers, shared across simulation threads.
-pub type SourcesPool<D, R, P, RE> = Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>;
+pub type SourcesPool<SourceId, D, R, P, RE> =
+    Arc<Pool<Vec<SourceWithInputs<SourceId, D, R, P, RE>>>>;
 
 /// A shared, atomically-swappable source list.
-pub type SharedSources<D, R, P, RE> =
-    Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>;
+pub type SharedSources<SourceId, D, R, P, RE> =
+    Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<SourceId, D, R, P, RE>>>>>;
 
 /// Simulation output shared between a simulation thread and the audio thread.
 pub struct SharedSimulationOutput<T: 'static + Send + Sync>(
@@ -188,7 +198,7 @@ mod tests {
                 max_order: 1,
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-        let _simulation = Simulation::new(simulator);
+        let _simulation = Simulation::new::<()>(simulator);
     }
 
     #[test]
@@ -209,13 +219,14 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let simulator_clone = simulator.clone();
-        let simulation = Simulation::new(simulator);
+        let simulation = Simulation::new::<()>(simulator);
 
         let source =
             Source::<Direct, Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
 
         simulation.update(|sources| {
             sources.push(SourceWithInputs {
+                id: (),
                 source: source.clone(),
                 simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
                     .with_direct(DirectSimulationParameters::new())
@@ -251,7 +262,7 @@ mod tests {
                 max_order: 1,
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
         let direct_simulation = simulation.spawn_direct();
         simulation.shutdown();
         direct_simulation

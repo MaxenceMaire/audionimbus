@@ -357,7 +357,7 @@ fn test_wiring_simulation() {
     simulator.commit();
 
     let simulator_clone = simulator.clone();
-    let mut simulation = Simulation::new(simulator);
+    let mut simulation = Simulation::new::<()>(simulator);
 
     let source =
         Source::<Direct, Reflections, Pathing, Convolution>::try_new(&simulator_clone).unwrap();
@@ -371,6 +371,7 @@ fn test_wiring_simulation() {
 
     simulation.update(|sources| {
         sources.push(SourceWithInputs {
+            id: (),
             source: source.clone(),
             simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
                 .with_direct(
@@ -396,6 +397,7 @@ fn test_wiring_simulation() {
     });
 
     let listener = SourceWithInputs {
+        id: (),
         source: listener_source,
         simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
             ConvolutionParameters {

@@ -11,8 +11,9 @@ use arc_swap::ArcSwap;
 use object_pool::Pool;
 use std::sync::{Arc, Condvar, Mutex};
 
-impl<T, R, P, RE> Simulation<T, Direct, R, P, RE>
+impl<SourceId, T, R, P, RE> Simulation<SourceId, T, Direct, R, P, RE>
 where
+    SourceId: 'static + Send + Sync + Clone,
     T: 'static + RayTracer,
     R: 'static + Send + Sync + Clone + Default + ReflectionsCompatible<R> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,
@@ -26,15 +27,16 @@ where
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
 {
     /// Spawns a direct simulation thread.
-    pub fn spawn_direct(&mut self) -> DirectSimulation<R, P, RE> {
+    pub fn spawn_direct(&mut self) -> DirectSimulation<SourceId, R, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(DirectFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
         })));
 
-        let output = SharedSimulationOutput::<Vec<DirectEffectParams>>(Arc::new(ArcSwap::new(
-            Arc::new(Arc::new(Pool::new(1, Vec::default)).pull_owned(Vec::default)),
-        )));
+        let output =
+            SharedSimulationOutput::<Vec<(SourceId, DirectEffectParams)>>(Arc::new(ArcSwap::new(
+                Arc::new(Arc::new(Pool::new(1, Vec::default)).pull_owned(Vec::default)),
+            )));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
         self.paused.push(paused.clone());
@@ -48,9 +50,7 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(DirectStep {
-            simulator: self.simulator.clone(),
-        });
+        .spawn(DirectStep::new::<SourceId>(self.simulator.clone()));
 
         DirectSimulation {
             handle,
@@ -62,22 +62,24 @@ where
 }
 
 /// A running direct simulation thread.
-pub struct DirectSimulation<R, P, RE>
+pub struct DirectSimulation<SourceId, R, P, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Thread handle.
     pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: Arc<ArcSwap<DirectFrame<Direct, R, P, RE>>>,
+    pub input: SharedDirectInput<SourceId, R, P, RE>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<Vec<DirectEffectParams>>,
+    pub output: SharedSimulationOutput<Vec<(SourceId, DirectEffectParams)>>,
     /// Pause flag.
     pub paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl<R, P, RE> DirectSimulation<R, P, RE>
+impl<SourceId, R, P, RE> DirectSimulation<SourceId, R, P, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Pauses the simulation thread after its current iteration completes.
@@ -91,6 +93,9 @@ where
         self.paused.1.notify_one();
     }
 }
+
+/// Shared, atomically-swappable input frame for a direct simulation thread.
+type SharedDirectInput<SourceId, R, P, RE> = Arc<ArcSwap<DirectFrame<SourceId, Direct, R, P, RE>>>;
 
 #[cfg(test)]
 mod tests {
@@ -114,7 +119,7 @@ mod tests {
                 max_order: 1,
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
         let direct_simulation = simulation.spawn_direct();
         simulation.shutdown();
         direct_simulation
@@ -140,7 +145,7 @@ mod tests {
                 max_order: 1,
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
         let direct_simulation = simulation.spawn_direct();
 
         assert!(direct_simulation.output.load().is_empty());

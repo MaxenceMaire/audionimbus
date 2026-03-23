@@ -10,35 +10,36 @@ use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationShare
 use super::super::simulation::Simulation;
 
 /// Input frame for reflections simulation.
-pub struct ReflectionsFrame<D, R, P, RE>
+pub struct ReflectionsFrame<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Shared reference to the current frame of sources, written by the game thread via
     /// [`Simulation::update`].
-    pub sources: SharedSources<D, R, P, RE>,
+    pub sources: SharedSources<SourceId, D, R, P, RE>,
     /// Shared simulation inputs.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<D, P, RE> Allocate<ReflectionsInputOwned<D, Reflections, P, RE>> for ReflectionsOutput<RE>
+impl<SourceId, D, P, RE> Allocate<ReflectionsInputOwned<SourceId, D, Reflections, P, RE>>
+    for ReflectionsOutput<SourceId, RE>
 where
     RE: ReflectionEffectType + ReflectionEffectCompatible<Reflections, RE>,
 {
-    fn allocate(input: &ReflectionsInputOwned<D, Reflections, P, RE>) -> Self {
+    fn allocate(input: &ReflectionsInputOwned<SourceId, D, Reflections, P, RE>) -> Self {
         Self {
             sources: Vec::with_capacity(input.sources.len()),
         }
     }
 }
 
-impl<RE: ReflectionEffectType> Clear for ReflectionsOutput<RE> {
+impl<SourceId, RE: ReflectionEffectType> Clear for ReflectionsOutput<SourceId, RE> {
     fn clear(&mut self) {
         self.sources.clear();
     }
 }
 
-impl<RE: ReflectionEffectType> Shrink for ReflectionsOutput<RE> {
+impl<SourceId, RE: ReflectionEffectType> Shrink for ReflectionsOutput<SourceId, RE> {
     fn shrink(&mut self) {
         if self.sources.capacity() > self.sources.len() * 3 {
             self.sources.shrink_to_fit();
@@ -46,12 +47,12 @@ impl<RE: ReflectionEffectType> Shrink for ReflectionsOutput<RE> {
     }
 }
 
-impl<D, R, P, RE> Resolve for ReflectionsFrame<D, R, P, RE>
+impl<SourceId, D, R, P, RE> Resolve for ReflectionsFrame<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     type Resolved<'a>
-        = ResolvedReflectionsFrame<'a, D, R, P, RE>
+        = ResolvedReflectionsFrame<'a, SourceId, D, R, P, RE>
     where
         Self: 'a;
 
@@ -66,16 +67,17 @@ where
 /// A snapshot of a [`ReflectionsFrame`] for use during a single simulation step.
 ///
 /// Keeps the sources alive for the duration of the step.
-pub struct ResolvedReflectionsFrame<'a, D, R, P, RE> {
-    guard: SourcesGuard<D, R, P, RE>,
+pub struct ResolvedReflectionsFrame<'a, SourceId, D, R, P, RE> {
+    guard: SourcesGuard<SourceId, D, R, P, RE>,
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
-impl<D, R, P, RE> AsReflectionsInput<D, R, P, RE> for ResolvedReflectionsFrame<'_, D, R, P, RE>
+impl<SourceId, D, R, P, RE> AsReflectionsInput<SourceId, D, R, P, RE>
+    for ResolvedReflectionsFrame<'_, SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn as_reflections_input(&self) -> ReflectionsInput<'_, D, R, P, RE> {
+    fn as_reflections_input(&self) -> ReflectionsInput<'_, SourceId, D, R, P, RE> {
         ReflectionsInput {
             sources: &self.guard,
             shared_inputs: self.shared_inputs,
@@ -83,12 +85,12 @@ where
     }
 }
 
-impl<D, P, RE> Allocate<ResolvedReflectionsFrame<'_, D, Reflections, P, RE>>
-    for ReflectionsOutput<RE>
+impl<SourceId, D, P, RE> Allocate<ResolvedReflectionsFrame<'_, SourceId, D, Reflections, P, RE>>
+    for ReflectionsOutput<SourceId, RE>
 where
     RE: ReflectionEffectType + ReflectionEffectCompatible<Reflections, RE>,
 {
-    fn allocate(input: &ResolvedReflectionsFrame<'_, D, Reflections, P, RE>) -> Self {
+    fn allocate(input: &ResolvedReflectionsFrame<'_, SourceId, D, Reflections, P, RE>) -> Self {
         Self {
             sources: Vec::with_capacity(input.guard.len()),
         }

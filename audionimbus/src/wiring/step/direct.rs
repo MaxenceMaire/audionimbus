@@ -6,26 +6,44 @@ use crate::simulation::{
     Direct, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
+use std::marker::PhantomData;
 
 /// Runs direct simulation.
-pub struct DirectStep<T, R, P, RE>
+pub struct DirectStep<SourceId, T, R, P, RE>
 where
     T: RayTracer,
 {
     /// The [`Simulator`] used by the step.
-    pub simulator: Simulator<T, Direct, R, P, RE>,
+    simulator: Simulator<T, Direct, R, P, RE>,
+    _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, R, P, RE, I> SimulationStep<I> for DirectStep<T, R, P, RE>
+impl<T, R, P, RE> DirectStep<(), T, R, P, RE>
+where
+    T: RayTracer,
+{
+    /// Creates a new direct simulation step.
+    pub fn new<SourceId>(
+        simulator: Simulator<T, Direct, R, P, RE>,
+    ) -> DirectStep<SourceId, T, R, P, RE> {
+        DirectStep {
+            simulator,
+            _source_id: PhantomData,
+        }
+    }
+}
+
+impl<SourceId, T, R, P, RE, I> SimulationStep<I> for DirectStep<SourceId, T, R, P, RE>
 where
     T: 'static + RayTracer,
     R: 'static + Send + Sync + ReflectionsCompatible<R> + SimulationFlagsProvider,
     P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<R, RE> + ReflectionEffectType,
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
-    I: AsDirectInput<Direct, R, P, RE>,
+    I: AsDirectInput<SourceId, Direct, R, P, RE>,
+    SourceId: 'static + Clone + Send + Sync,
 {
-    type Output = Vec<DirectEffectParams>;
+    type Output = Vec<(SourceId, DirectEffectParams)>;
     type Error = SimulationStepError;
 
     fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
@@ -36,7 +54,8 @@ where
 
         for SourceWithInputs {
             source,
-            simulation_inputs,
+            ref simulation_inputs,
+            ..
         } in input.sources
         {
             source.set_direct_inputs(simulation_inputs)?;
@@ -44,8 +63,8 @@ where
 
         self.simulator.run_direct();
 
-        for SourceWithInputs { source, .. } in input.sources.iter() {
-            output.push(source.get_direct_outputs()?);
+        for SourceWithInputs { id, source, .. } in input.sources.iter() {
+            output.push((id.clone(), source.get_direct_outputs()?));
         }
 
         Ok(())
@@ -54,41 +73,42 @@ where
 
 /// Direct simulation inputs.
 #[derive(Debug)]
-pub struct DirectInput<'a, D, R, P, RE>
+pub struct DirectInput<'a, SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources to simulate.
-    pub sources: &'a [SourceWithInputs<D, R, P, RE>],
+    pub sources: &'a [SourceWithInputs<SourceId, D, R, P, RE>],
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
 /// Implemented by any type that can produce a [`DirectInput`] view.
-pub trait AsDirectInput<D, R, P, RE>
+pub trait AsDirectInput<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Returns a view of this type as [`DirectInput`].
-    fn as_direct_input(&self) -> DirectInput<'_, D, R, P, RE>;
+    fn as_direct_input(&self) -> DirectInput<'_, SourceId, D, R, P, RE>;
 }
 
 /// Owned input for direct simulation.
-pub struct DirectInputOwned<D, R, P, RE>
+pub struct DirectInputOwned<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources to simulate.
-    pub sources: Vec<SourceWithInputs<D, R, P, RE>>,
+    pub sources: Vec<SourceWithInputs<SourceId, D, R, P, RE>>,
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<D, R, P, RE> AsDirectInput<D, R, P, RE> for DirectInputOwned<D, R, P, RE>
+impl<SourceId, D, R, P, RE> AsDirectInput<SourceId, D, R, P, RE>
+    for DirectInputOwned<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn as_direct_input(&self) -> DirectInput<'_, D, R, P, RE> {
+    fn as_direct_input(&self) -> DirectInput<'_, SourceId, D, R, P, RE> {
         DirectInput {
             sources: self.sources.as_slice(),
             shared_inputs: &self.shared_inputs,

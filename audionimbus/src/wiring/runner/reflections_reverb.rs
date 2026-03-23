@@ -10,27 +10,27 @@ use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationShare
 use super::super::simulation::Simulation;
 
 /// Input frame for reflections and reverb simulation.
-pub struct ReflectionsReverbFrame<D, R, P, RE>
+pub struct ReflectionsReverbFrame<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Shared reference to the current frame of sources, written by the game thread via
     /// [`Simulation::update`].
-    pub sources: SharedSources<D, R, P, RE>,
+    pub sources: SharedSources<SourceId, D, R, P, RE>,
     /// Listener source.
-    pub listener: SourceWithInputs<(), R, (), RE>,
+    pub listener: SourceWithInputs<(), (), R, (), RE>,
     /// Shared simulation inputs.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<RE: ReflectionEffectType> Clear for ReflectionsReverbOutput<RE> {
+impl<SourceId, RE: ReflectionEffectType> Clear for ReflectionsReverbOutput<SourceId, RE> {
     fn clear(&mut self) {
         self.sources.clear();
         self.listener = None;
     }
 }
 
-impl<RE: ReflectionEffectType> Shrink for ReflectionsReverbOutput<RE> {
+impl<SourceId, RE: ReflectionEffectType> Shrink for ReflectionsReverbOutput<SourceId, RE> {
     fn shrink(&mut self) {
         if self.sources.capacity() > self.sources.len() * 3 {
             self.sources.shrink_to_fit();
@@ -38,12 +38,12 @@ impl<RE: ReflectionEffectType> Shrink for ReflectionsReverbOutput<RE> {
     }
 }
 
-impl<D, R, P, RE> Resolve for ReflectionsReverbFrame<D, R, P, RE>
+impl<SourceId, D, R, P, RE> Resolve for ReflectionsReverbFrame<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     type Resolved<'a>
-        = ResolvedReflectionsReverbFrame<'a, D, R, P, RE>
+        = ResolvedReflectionsReverbFrame<'a, SourceId, D, R, P, RE>
     where
         Self: 'a;
 
@@ -59,18 +59,18 @@ where
 /// A snapshot of a [`ReflectionsReverbFrame`] for use during a single simulation step.
 ///
 /// Keeps the sources alive for the duration of the step.
-pub struct ResolvedReflectionsReverbFrame<'a, D, R, P, RE> {
-    guard: SourcesGuard<D, R, P, RE>,
-    listener: &'a SourceWithInputs<(), R, (), RE>,
+pub struct ResolvedReflectionsReverbFrame<'a, SourceId, D, R, P, RE> {
+    guard: SourcesGuard<SourceId, D, R, P, RE>,
+    listener: &'a SourceWithInputs<(), (), R, (), RE>,
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
-impl<D, R, P, RE> AsReflectionsReverbInput<D, R, P, RE>
-    for ResolvedReflectionsReverbFrame<'_, D, R, P, RE>
+impl<SourceId, D, R, P, RE> AsReflectionsReverbInput<SourceId, D, R, P, RE>
+    for ResolvedReflectionsReverbFrame<'_, SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn as_reflections_reverb_input(&self) -> ReflectionsReverbInput<'_, D, R, P, RE> {
+    fn as_reflections_reverb_input(&self) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE> {
         ReflectionsReverbInput {
             sources: &self.guard,
             listener: self.listener,
@@ -79,12 +79,15 @@ where
     }
 }
 
-impl<D, P, RE> Allocate<ResolvedReflectionsReverbFrame<'_, D, Reflections, P, RE>>
-    for ReflectionsReverbOutput<RE>
+impl<SourceId, D, P, RE>
+    Allocate<ResolvedReflectionsReverbFrame<'_, SourceId, D, Reflections, P, RE>>
+    for ReflectionsReverbOutput<SourceId, RE>
 where
     RE: ReflectionEffectType + ReflectionEffectCompatible<Reflections, RE>,
 {
-    fn allocate(input: &ResolvedReflectionsReverbFrame<'_, D, Reflections, P, RE>) -> Self {
+    fn allocate(
+        input: &ResolvedReflectionsReverbFrame<'_, SourceId, D, Reflections, P, RE>,
+    ) -> Self {
         Self {
             sources: Vec::with_capacity(input.guard.len()),
             listener: None,

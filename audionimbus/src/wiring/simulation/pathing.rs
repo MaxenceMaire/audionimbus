@@ -11,8 +11,9 @@ use arc_swap::ArcSwap;
 use object_pool::Pool;
 use std::sync::{Arc, Condvar, Mutex};
 
-impl<T, D, R, RE> Simulation<T, D, R, Pathing, RE>
+impl<SourceId, T, D, R, RE> Simulation<SourceId, T, D, R, Pathing, RE>
 where
+    SourceId: 'static + Send + Sync + Clone,
     T: 'static + RayTracer,
     D: 'static + Send + Sync + Clone + Default + DirectCompatible<D> + SimulationFlagsProvider,
     R: 'static + Send + Sync + Clone + Default + ReflectionsCompatible<R> + SimulationFlagsProvider,
@@ -20,7 +21,7 @@ where
     (): DirectCompatible<D> + ReflectionsCompatible<R>,
 {
     /// Spawns a pathing simulation thread.
-    pub fn spawn_pathing(&mut self) -> PathingSimulation<D, R, RE> {
+    pub fn spawn_pathing(&mut self) -> PathingSimulation<SourceId, D, R, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(PathingFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -42,9 +43,7 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(PathingStep {
-            simulator: self.simulator.clone(),
-        });
+        .spawn(PathingStep::new::<SourceId>(self.simulator.clone()));
 
         PathingSimulation {
             handle,
@@ -56,22 +55,24 @@ where
 }
 
 /// A running pathing simulation thread.
-pub struct PathingSimulation<D, R, RE>
+pub struct PathingSimulation<SourceId, D, R, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Thread handle.
     pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: Arc<ArcSwap<PathingFrame<D, R, Pathing, RE>>>,
+    pub input: SharedPathingInput<SourceId, D, R, RE>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<Vec<PathEffectParams>>,
+    pub output: SharedSimulationOutput<Vec<(SourceId, PathEffectParams)>>,
     /// Pause flag.
     pub paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl<D, R, RE> PathingSimulation<D, R, RE>
+impl<SourceId, D, R, RE> PathingSimulation<SourceId, D, R, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Pauses the simulation thread after its current iteration completes.
@@ -86,12 +87,16 @@ where
     }
 }
 
+/// Shared, atomically-swappable input frame for a pathing simulation thread.
+type SharedPathingInput<SourceId, D, R, RE> =
+    Arc<ArcSwap<PathingFrame<SourceId, D, R, Pathing, RE>>>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::*;
 
-    fn simulation() -> Simulation<DefaultRayTracer, (), (), Pathing, ()> {
+    fn simulation() -> Simulation<(), DefaultRayTracer, (), (), Pathing, ()> {
         let context = Context::default();
         let audio_settings = AudioSettings::default();
         let simulation_settings =
@@ -144,7 +149,7 @@ mod tests {
         simulator.add_probe_batch(&probe_batch);
         simulator.commit();
 
-        Simulation::new(simulator)
+        Simulation::new::<()>(simulator)
     }
 
     #[test]

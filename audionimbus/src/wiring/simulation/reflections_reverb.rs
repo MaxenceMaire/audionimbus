@@ -11,8 +11,9 @@ use arc_swap::ArcSwap;
 use object_pool::Pool;
 use std::sync::{Arc, Condvar, Mutex};
 
-impl<T, D, P, RE> Simulation<T, D, Reflections, P, RE>
+impl<SourceId, T, D, P, RE> Simulation<SourceId, T, D, Reflections, P, RE>
 where
+    SourceId: 'static + Send + Sync + Clone,
     T: 'static + RayTracer,
     D: 'static + Send + Sync + Clone + Default + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,
@@ -30,8 +31,8 @@ where
     /// `listener` is the source placed at the listener's position, used for reverb simulation.
     pub fn spawn_reflections_reverb(
         &mut self,
-        listener: SourceWithInputs<(), Reflections, (), RE>,
-    ) -> ReflectionsReverbSimulation<D, P, RE> {
+        listener: SourceWithInputs<(), (), Reflections, (), RE>,
+    ) -> ReflectionsReverbSimulation<SourceId, D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
             sources: self.sources.clone(),
             listener,
@@ -55,9 +56,9 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(ReflectionsReverbStep {
-            simulator: self.simulator.clone(),
-        });
+        .spawn(ReflectionsReverbStep::new::<SourceId>(
+            self.simulator.clone(),
+        ));
 
         ReflectionsReverbSimulation {
             handle,
@@ -69,22 +70,24 @@ where
 }
 
 /// A running reflections and reverb simulation thread.
-pub struct ReflectionsReverbSimulation<D, P, RE>
+pub struct ReflectionsReverbSimulation<SourceId, D, P, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Thread handle.
     pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: Arc<ArcSwap<ReflectionsReverbFrame<D, Reflections, P, RE>>>,
+    pub input: SharedReflectionsReverbInput<SourceId, D, P, RE>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<ReflectionsReverbOutput<RE>>,
+    pub output: SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>>,
     /// Pause flag.
     pub paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl<D, P, RE> ReflectionsReverbSimulation<D, P, RE>
+impl<SourceId, D, P, RE> ReflectionsReverbSimulation<SourceId, D, P, RE>
 where
+    SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Pauses the simulation thread after its current iteration completes.
@@ -98,6 +101,10 @@ where
         self.paused.1.notify_one();
     }
 }
+
+/// Shared, atomically-swappable input frame for a reflections and reverb simulation thread.
+type SharedReflectionsReverbInput<SourceId, D, P, RE> =
+    Arc<ArcSwap<ReflectionsReverbFrame<SourceId, D, Reflections, P, RE>>>;
 
 #[cfg(test)]
 mod tests {
@@ -123,7 +130,7 @@ mod tests {
         simulator.commit();
 
         let simulator_clone = simulator.clone();
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
 
         let listener_source =
             Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
@@ -131,6 +138,7 @@ mod tests {
         simulation.request_commit();
 
         let listener = SourceWithInputs {
+            id: (),
             source: listener_source,
             simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
                 ConvolutionParameters {
@@ -166,7 +174,7 @@ mod tests {
         simulator.commit();
 
         let simulator_clone = simulator.clone();
-        let mut simulation = Simulation::new(simulator);
+        let mut simulation = Simulation::new::<()>(simulator);
 
         let listener_source =
             Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
@@ -174,6 +182,7 @@ mod tests {
         simulation.request_commit();
 
         let listener = SourceWithInputs {
+            id: (),
             source: listener_source,
             simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
                 ConvolutionParameters {
