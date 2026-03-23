@@ -42,12 +42,22 @@ pub struct Simulation<T, D, R, P, RE>
 where
     T: RayTracer,
 {
-    simulator: Simulator<T, D, R, P, RE>,
-    sources_pool: SourcesPool<D, R, P, RE>,
-    sources: SharedSources<D, R, P, RE>,
-    commit_needed: Arc<AtomicBool>,
-    shutdown: Arc<AtomicBool>,
-    paused: Vec<Arc<(Mutex<bool>, Condvar)>>,
+    /// The underlying simulator shared across all spawned simulation threads.
+    pub simulator: Simulator<T, D, R, P, RE>,
+    /// Pool of source buffers, reused across frames to avoid allocation.
+    pub sources_pool: SourcesPool<D, R, P, RE>,
+    /// The current source buffer, atomically swapped each frame via [`Self::update`].
+    pub sources: SharedSources<D, R, P, RE>,
+    /// Set to `true` via [`Self::request_commit`] to trigger a simulator commit on the next
+    /// simulation run.
+    pub commit_needed: Arc<AtomicBool>,
+    /// Set to `true` via [`Self::shutdown`] to stop all spawned simulation threads after their
+    /// current iteration.
+    pub shutdown: Arc<AtomicBool>,
+    /// Pause flags for each spawned simulation thread, in spawn order.
+    ///
+    /// Simulation threads can be paused via [`Self::pause`] and resumed via [`Self::resume`].
+    pub paused: Vec<Arc<(Mutex<bool>, Condvar)>>,
 }
 
 impl<T, D, R, P, RE> Simulation<T, D, R, P, RE>
@@ -72,6 +82,16 @@ where
             shutdown,
             paused,
         }
+    }
+
+    /// Returns a reference to the underlying simulator.
+    pub fn simulator(&self) -> &Simulator<T, D, R, P, RE> {
+        &self.simulator
+    }
+
+    /// Returns a reference to the sources pool.
+    pub fn sources_pool(&self) -> &SourcesPool<D, R, P, RE> {
+        &self.sources_pool
     }
 
     /// Updates the sources used by all simulation threads on their next run.
@@ -126,10 +146,10 @@ pub struct SourceWithInputs<D, R, P, RE> {
 }
 
 /// A pool of source list buffers, shared across simulation threads.
-pub(crate) type SourcesPool<D, R, P, RE> = Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>;
+pub type SourcesPool<D, R, P, RE> = Arc<Pool<Vec<SourceWithInputs<D, R, P, RE>>>>;
 
 /// A shared, atomically-swappable source list.
-pub(crate) type SharedSources<D, R, P, RE> =
+pub type SharedSources<D, R, P, RE> =
     Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<D, R, P, RE>>>>>;
 
 /// Simulation output shared between a simulation thread and the audio thread.
