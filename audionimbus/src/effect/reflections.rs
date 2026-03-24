@@ -896,11 +896,13 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
             None
         } else {
             Some(TrueAudioNextDevice(
-                audionimbus_sys::iplTrueAudioNextDeviceRetain(params.tanDevice),
+                // SAFETY: Safety invariants upheld by the caller.
+                unsafe { audionimbus_sys::iplTrueAudioNextDeviceRetain(params.tanDevice) },
             ))
         };
 
-        let source = audionimbus_sys::iplSourceRetain(source);
+        // SAFETY: Safety invariants upheld by the caller.
+        let source = unsafe { audionimbus_sys::iplSourceRetain(source) };
 
         let num_channels = params.numChannels as u32;
         let impulse_response_size = params.irSize as u32;

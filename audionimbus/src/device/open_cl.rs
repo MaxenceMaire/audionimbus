@@ -415,7 +415,8 @@ unsafe fn cstr_to_string(ptr: *const std::ffi::c_char) -> Result<String, std::st
         return Ok(String::new());
     }
 
-    let c_str = std::ffi::CStr::from_ptr(ptr);
+    // SAFETY: Safety invariants upheld by the caller.
+    let c_str = unsafe { std::ffi::CStr::from_ptr(ptr) };
     c_str.to_str().map(ToString::to_string)
 }
 
