@@ -164,4 +164,4 @@ pub trait Resolve {
 
 /// A guard holding the source list alive for the duration of a simulation step.
 pub(crate) type SourcesGuard<SourceId, D, R, P, RE> =
-    arc_swap::Guard<Arc<ReusableOwned<Vec<SourceWithInputs<SourceId, D, R, P, RE>>>>>;
+    arc_swap::Guard<Arc<ReusableOwned<Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>>>>;

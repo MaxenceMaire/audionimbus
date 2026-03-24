@@ -106,7 +106,7 @@ where
     /// `f` receives a pooled `Vec` to be populated.
     pub fn update<F>(&self, f: F)
     where
-        F: FnOnce(&mut Vec<SourceWithInputs<SourceId, D, R, P, RE>>),
+        F: FnOnce(&mut Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>),
     {
         let mut sources = self.sources_pool.pull_owned(Vec::default);
         sources.clear();
@@ -145,9 +145,7 @@ where
 
 /// A pair of source and simulation inputs.
 #[derive(Clone, Debug)]
-pub struct SourceWithInputs<SourceId, D, R, P, RE> {
-    /// Source identifier.
-    pub id: SourceId,
+pub struct SourceWithInputs<D, R, P, RE> {
     /// Spatial audio source.
     pub source: Source<D, R, P, RE>,
     /// Simulation inputs for the associated source.
@@ -156,11 +154,11 @@ pub struct SourceWithInputs<SourceId, D, R, P, RE> {
 
 /// A pool of source list buffers, shared across simulation threads.
 pub type SourcesPool<SourceId, D, R, P, RE> =
-    Arc<Pool<Vec<SourceWithInputs<SourceId, D, R, P, RE>>>>;
+    Arc<Pool<Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>>>;
 
 /// A shared, atomically-swappable source list.
 pub type SharedSources<SourceId, D, R, P, RE> =
-    Arc<ArcSwap<ReusableOwned<Vec<SourceWithInputs<SourceId, D, R, P, RE>>>>>;
+    Arc<ArcSwap<ReusableOwned<Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>>>>;
 
 /// Simulation output shared between a simulation thread and the audio thread.
 pub struct SharedSimulationOutput<T: 'static + Send + Sync>(
@@ -225,15 +223,17 @@ mod tests {
             Source::<Direct, Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
 
         simulation.update(|sources| {
-            sources.push(SourceWithInputs {
-                id: (),
-                source: source.clone(),
-                simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
-                    .with_direct(DirectSimulationParameters::new())
-                    .with_reflections(ConvolutionParameters {
-                        baked_data_identifier: None,
-                    }),
-            });
+            sources.push((
+                (),
+                SourceWithInputs {
+                    source: source.clone(),
+                    simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
+                        .with_direct(DirectSimulationParameters::new())
+                        .with_reflections(ConvolutionParameters {
+                            baked_data_identifier: None,
+                        }),
+                },
+            ));
             assert_eq!(sources.len(), 1);
         });
 

@@ -370,34 +370,35 @@ fn test_wiring_simulation() {
     simulation.request_commit();
 
     simulation.update(|sources| {
-        sources.push(SourceWithInputs {
-            id: (),
-            source: source.clone(),
-            simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
-                .with_direct(
-                    DirectSimulationParameters::new()
-                        .with_distance_attenuation(DistanceAttenuationModel::default())
-                        .with_air_absorption(AirAbsorptionModel::default())
-                        .with_directivity(Directivity::default()),
-                )
-                .with_reflections(ConvolutionParameters {
-                    baked_data_identifier: None,
-                })
-                .with_pathing(PathingSimulationParameters {
-                    pathing_probes: probe_batch.clone(),
-                    visibility_radius: 1.0,
-                    visibility_threshold: 0.1,
-                    visibility_range: 50.0,
-                    pathing_order: 1,
-                    enable_validation: false,
-                    find_alternate_paths: false,
-                    deviation: DeviationModel::Default,
-                }),
-        });
+        sources.push((
+            (),
+            SourceWithInputs {
+                source: source.clone(),
+                simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
+                    .with_direct(
+                        DirectSimulationParameters::new()
+                            .with_distance_attenuation(DistanceAttenuationModel::default())
+                            .with_air_absorption(AirAbsorptionModel::default())
+                            .with_directivity(Directivity::default()),
+                    )
+                    .with_reflections(ConvolutionParameters {
+                        baked_data_identifier: None,
+                    })
+                    .with_pathing(PathingSimulationParameters {
+                        pathing_probes: probe_batch.clone(),
+                        visibility_radius: 1.0,
+                        visibility_threshold: 0.1,
+                        visibility_range: 50.0,
+                        pathing_order: 1,
+                        enable_validation: false,
+                        find_alternate_paths: false,
+                        deviation: DeviationModel::Default,
+                    }),
+            },
+        ));
     });
 
     let listener = SourceWithInputs {
-        id: (),
         source: listener_source,
         simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
             ConvolutionParameters {

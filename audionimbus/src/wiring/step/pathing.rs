@@ -52,18 +52,20 @@ where
         self.simulator
             .set_shared_pathing_inputs(input.shared_inputs)?;
 
-        for SourceWithInputs {
-            source,
-            ref simulation_inputs,
-            ..
-        } in input.sources
+        for (
+            _,
+            SourceWithInputs {
+                source,
+                ref simulation_inputs,
+            },
+        ) in input.sources
         {
             source.set_pathing_inputs(simulation_inputs)?;
         }
 
         self.simulator.run_pathing()?;
 
-        for SourceWithInputs { id, source, .. } in input.sources.iter() {
+        for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
             output.push((id.clone(), source.get_pathing_outputs()?));
         }
 
@@ -78,7 +80,7 @@ where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources whose paths to simulate.
-    pub sources: &'a [SourceWithInputs<SourceId, D, R, P, RE>],
+    pub sources: &'a [(SourceId, SourceWithInputs<D, R, P, RE>)],
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
@@ -98,7 +100,7 @@ where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources whose paths to simulate.
-    pub sources: Vec<SourceWithInputs<SourceId, D, R, P, RE>>,
+    pub sources: Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>,
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }

@@ -31,7 +31,7 @@ where
     /// `listener` is the source placed at the listener's position, used for reverb simulation.
     pub fn spawn_reflections_reverb(
         &mut self,
-        listener: SourceWithInputs<(), (), Reflections, (), RE>,
+        listener: SourceWithInputs<(), Reflections, (), RE>,
     ) -> ReflectionsReverbSimulation<SourceId, D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
             sources: self.sources.clone(),
@@ -138,7 +138,6 @@ mod tests {
         simulation.request_commit();
 
         let listener = SourceWithInputs {
-            id: (),
             source: listener_source,
             simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
                 ConvolutionParameters {
@@ -182,7 +181,6 @@ mod tests {
         simulation.request_commit();
 
         let listener = SourceWithInputs {
-            id: (),
             source: listener_source,
             simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
                 ConvolutionParameters {
