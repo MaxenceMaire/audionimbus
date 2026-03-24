@@ -586,22 +586,19 @@ where
     fn acquire_locks_for_flags(&self, flags: SimulationFlags) -> Vec<MutexGuard<'_, ()>> {
         let mut guards = Vec::new();
 
-        if flags.contains(SimulationFlags::DIRECT) {
-            if let Some(lock) = &self.direct_lock {
+        if flags.contains(SimulationFlags::DIRECT)
+            && let Some(lock) = &self.direct_lock {
                 guards.push(lock.lock().unwrap());
-            }
         }
 
-        if flags.contains(SimulationFlags::REFLECTIONS) {
-            if let Some(lock) = &self.reflections_lock {
+        if flags.contains(SimulationFlags::REFLECTIONS)
+            && let Some(lock) = &self.reflections_lock {
                 guards.push(lock.lock().unwrap());
-            }
         }
 
-        if flags.contains(SimulationFlags::PATHING) {
-            if let Some(lock) = &self.pathing_lock {
+        if flags.contains(SimulationFlags::PATHING)
+            && let Some(lock) = &self.pathing_lock {
                 guards.push(lock.lock().unwrap());
-            }
         }
 
         guards
@@ -622,23 +619,21 @@ where
         };
 
         // Validate num_rays.
-        if let Some(max) = self.max_num_rays {
-            if reflections_inputs.num_rays > max {
+        if let Some(max) = self.max_num_rays
+            && reflections_inputs.num_rays > max {
                 return Err(ParameterValidationError::NumRaysExceedsMax {
                     requested: reflections_inputs.num_rays,
                     max,
                 });
-            }
         }
 
         // Validate duration.
-        if let Some(max) = self.max_duration {
-            if reflections_inputs.duration > max {
+        if let Some(max) = self.max_duration
+            && reflections_inputs.duration > max {
                 return Err(ParameterValidationError::DurationExceedsMax {
                     requested: reflections_inputs.duration,
                     max,
                 });
-            }
         }
 
         Ok(())
@@ -2069,22 +2064,19 @@ where
     fn acquire_locks_for_flags(&self, flags: SimulationFlags) -> Vec<MutexGuard<'_, ()>> {
         let mut guards = Vec::new();
 
-        if flags.contains(SimulationFlags::DIRECT) {
-            if let Some(lock) = &self.direct_lock {
+        if flags.contains(SimulationFlags::DIRECT)
+            && let Some(lock) = &self.direct_lock {
                 guards.push(lock.lock().unwrap());
-            }
         }
 
-        if flags.contains(SimulationFlags::REFLECTIONS) {
-            if let Some(lock) = &self.reflections_lock {
+        if flags.contains(SimulationFlags::REFLECTIONS)
+            && let Some(lock) = &self.reflections_lock {
                 guards.push(lock.lock().unwrap());
-            }
         }
 
-        if flags.contains(SimulationFlags::PATHING) {
-            if let Some(lock) = &self.pathing_lock {
+        if flags.contains(SimulationFlags::PATHING)
+            && let Some(lock) = &self.pathing_lock {
                 guards.push(lock.lock().unwrap());
-            }
         }
 
         guards

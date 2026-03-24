@@ -461,8 +461,8 @@ impl ClosestHitCallback {
         };
         let result = callback(ray, min_distance, max_distance);
 
-        if let Some(hit_result) = result {
-            if !hit.is_null() {
+        if let Some(hit_result) = result
+            && !hit.is_null() {
                 // SAFETY: `hit` is non-null and points to a valid `IPLHit` output slot.
                 unsafe {
                     *hit = audionimbus_sys::IPLHit {
@@ -474,7 +474,6 @@ impl ClosestHitCallback {
                         material: std::ptr::null_mut(),
                     };
                 }
-            }
         }
     }
 }
