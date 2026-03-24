@@ -1,7 +1,7 @@
 //! TrueAudio Next convolution engine.
 
 use super::open_cl::OpenClDevice;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 
 /// Application-wide state for the TrueAudio Next convolution engine.
 ///

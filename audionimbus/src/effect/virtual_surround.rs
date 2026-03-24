@@ -5,7 +5,7 @@ use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::{ChannelPointers, ChannelRequirement, Hrtf};
 

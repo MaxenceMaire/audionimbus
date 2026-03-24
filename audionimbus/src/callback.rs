@@ -262,7 +262,8 @@ impl DirectivityCallback {
         // Storing it in thread-local storage ensures exclusive access per thread.
         // Only one directivity calculation can run at a time per thread.
         // The pointee remains valid for the duration of this call.
-        let callback = unsafe { &*(callback_ptr as *const Arc<dyn Fn(Vector3) -> f32 + Send + Sync>) };
+        let callback =
+            unsafe { &*(callback_ptr as *const Arc<dyn Fn(Vector3) -> f32 + Send + Sync>) };
 
         let direction = Vector3::from_ffi(direction);
         callback(direction)
@@ -462,18 +463,19 @@ impl ClosestHitCallback {
         let result = callback(ray, min_distance, max_distance);
 
         if let Some(hit_result) = result
-            && !hit.is_null() {
-                // SAFETY: `hit` is non-null and points to a valid `IPLHit` output slot.
-                unsafe {
-                    *hit = audionimbus_sys::IPLHit {
-                        distance: hit_result.distance,
-                        triangleIndex: hit_result.triangle_index.map(|i| i as i32).unwrap_or(-1),
-                        objectIndex: hit_result.object_index.map(|i| i as i32).unwrap_or(-1),
-                        materialIndex: hit_result.material_index.map(|i| i as i32).unwrap_or(-1),
-                        normal: hit_result.normal.into(),
-                        material: std::ptr::null_mut(),
-                    };
-                }
+            && !hit.is_null()
+        {
+            // SAFETY: `hit` is non-null and points to a valid `IPLHit` output slot.
+            unsafe {
+                *hit = audionimbus_sys::IPLHit {
+                    distance: hit_result.distance,
+                    triangleIndex: hit_result.triangle_index.map(|i| i as i32).unwrap_or(-1),
+                    objectIndex: hit_result.object_index.map(|i| i as i32).unwrap_or(-1),
+                    materialIndex: hit_result.material_index.map(|i| i as i32).unwrap_or(-1),
+                    normal: hit_result.normal.into(),
+                    material: std::ptr::null_mut(),
+                };
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Global context management and configuration.
 
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::version::SteamAudioVersion;
 
 /// A context object, which controls low-level operations of Steam Audio.

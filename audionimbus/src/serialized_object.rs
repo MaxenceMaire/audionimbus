@@ -1,5 +1,5 @@
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 
 #[cfg(doc)]
 use crate::geometry::Scene;

@@ -1,7 +1,7 @@
 //! Path baking.
 
 use super::BakedDataIdentifier;
-use super::{BakeError, BAKE_LOCK};
+use super::{BAKE_LOCK, BakeError};
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::geometry::Scene;
@@ -274,9 +274,11 @@ pub mod tests {
                 num_threads: 1,
             };
 
-            assert!(baker
-                .bake(&context, &mut probe_batch, &scene, params)
-                .is_ok());
+            assert!(
+                baker
+                    .bake(&context, &mut probe_batch, &scene, params)
+                    .is_ok()
+            );
         }
 
         // With progress callback
@@ -299,17 +301,19 @@ pub mod tests {
                 num_threads: 1,
             };
 
-            assert!(baker
-                .bake_with_progress_callback(
-                    &context,
-                    &mut probe_batch,
-                    &scene,
-                    params,
-                    ProgressCallback::new(|progress| {
-                        println!("pathing bake progress: {:.1}%", progress * 100.0);
-                    }),
-                )
-                .is_ok());
+            assert!(
+                baker
+                    .bake_with_progress_callback(
+                        &context,
+                        &mut probe_batch,
+                        &scene,
+                        params,
+                        ProgressCallback::new(|progress| {
+                            println!("pathing bake progress: {:.1}%", progress * 100.0);
+                        }),
+                    )
+                    .is_ok()
+            );
         }
     }
 }

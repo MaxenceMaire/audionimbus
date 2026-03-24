@@ -1,7 +1,7 @@
 //! Embree ray tracing.
 
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 
 /// Application-wide state for the Embree ray tracer.
 ///

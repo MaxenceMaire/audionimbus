@@ -2,7 +2,7 @@
 
 use crate::context::Context;
 use crate::energy_field::EnergyField;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::impulse_response::ImpulseResponse;
 
 /// An object that can convert energy fields to impulse responses.
@@ -254,10 +254,7 @@ impl std::fmt::Display for ReconstructorError {
             Self::DurationExceedsMax {
                 duration,
                 max_duration,
-            } => write!(
-                f,
-                "duration {duration} exceeds max duration {max_duration}"
-            ),
+            } => write!(f, "duration {duration} exceeds max duration {max_duration}"),
             Self::OrderExceedsMax { order, max_order } => {
                 write!(f, "order {order} exceeds max order {max_order}")
             }

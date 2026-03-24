@@ -190,14 +190,16 @@ fn test_convert_ambisonics_into() {
     )
     .unwrap();
 
-    assert!(n3d_buffer
-        .convert_ambisonics_into(
-            &context,
-            AmbisonicsType::N3D,
-            AmbisonicsType::SN3D,
-            &mut sn3d_buffer,
-        )
-        .is_ok());
+    assert!(
+        n3d_buffer
+            .convert_ambisonics_into(
+                &context,
+                AmbisonicsType::N3D,
+                AmbisonicsType::SN3D,
+                &mut sn3d_buffer,
+            )
+            .is_ok()
+    );
 
     // Output should be written into sn3d_buffer.
     assert_ne!(sn3d_data[0], 0.0);

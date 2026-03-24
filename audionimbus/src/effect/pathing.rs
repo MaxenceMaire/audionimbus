@@ -5,7 +5,7 @@ use super::{EffectError, SpeakerLayout};
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
@@ -532,9 +532,11 @@ mod tests {
                 normalize_eq: false,
             };
 
-            assert!(path_effect
-                .apply(&path_effect_params, &input_buffer, &output_buffer)
-                .is_ok());
+            assert!(
+                path_effect
+                    .apply(&path_effect_params, &input_buffer, &output_buffer)
+                    .is_ok()
+            );
         }
 
         #[test]

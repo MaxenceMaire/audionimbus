@@ -1,7 +1,7 @@
 //! OpenCL backend.
 
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use std::string::ToString;
 
 /// Application-wide state for OpenCL.

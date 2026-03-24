@@ -1482,14 +1482,16 @@ mod tests {
             )
             .unwrap();
 
-            assert!(buffer1
-                .convert_ambisonics_into(
-                    &context,
-                    AmbisonicsType::N3D,
-                    AmbisonicsType::FuMa,
-                    &mut buffer2,
-                )
-                .is_ok());
+            assert!(
+                buffer1
+                    .convert_ambisonics_into(
+                        &context,
+                        AmbisonicsType::N3D,
+                        AmbisonicsType::FuMa,
+                        &mut buffer2,
+                    )
+                    .is_ok()
+            );
         }
 
         #[test]

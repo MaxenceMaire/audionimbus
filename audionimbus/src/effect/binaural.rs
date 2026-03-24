@@ -1,11 +1,11 @@
 //! Binaural rendering using Head-Related Transfer Functions (HRTF).
 
-use super::audio_effect_state::AudioEffectState;
 use super::EffectError;
+use super::audio_effect_state::AudioEffectState;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
 use crate::hrtf::{Hrtf, HrtfInterpolation};

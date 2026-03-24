@@ -32,6 +32,7 @@
 //! outputs ([`Source::get_outputs`], [`Source::get_outputs_subset`], etc.) from an audio thread as
 //! it will block and cause audio glitches.
 
+use crate::Sealed;
 use crate::audio_settings::AudioSettings;
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
 pub use crate::callback::PathingVisualizationCallback;
@@ -44,7 +45,7 @@ use crate::effect::{
     Convolution, DirectEffectParams, Hybrid, Parametric, PathEffectParams, ReflectionEffectParams,
     TrueAudioNext,
 };
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::geometry::{CoordinateSystem, Scene};
 use crate::model::air_absorption::AirAbsorptionModel;
 use crate::model::deviation::DeviationModel;
@@ -52,7 +53,6 @@ use crate::model::directivity::Directivity;
 use crate::model::distance_attenuation::DistanceAttenuationModel;
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
-use crate::Sealed;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -587,18 +587,21 @@ where
         let mut guards = Vec::new();
 
         if flags.contains(SimulationFlags::DIRECT)
-            && let Some(lock) = &self.direct_lock {
-                guards.push(lock.lock().unwrap());
+            && let Some(lock) = &self.direct_lock
+        {
+            guards.push(lock.lock().unwrap());
         }
 
         if flags.contains(SimulationFlags::REFLECTIONS)
-            && let Some(lock) = &self.reflections_lock {
-                guards.push(lock.lock().unwrap());
+            && let Some(lock) = &self.reflections_lock
+        {
+            guards.push(lock.lock().unwrap());
         }
 
         if flags.contains(SimulationFlags::PATHING)
-            && let Some(lock) = &self.pathing_lock {
-                guards.push(lock.lock().unwrap());
+            && let Some(lock) = &self.pathing_lock
+        {
+            guards.push(lock.lock().unwrap());
         }
 
         guards
@@ -620,20 +623,22 @@ where
 
         // Validate num_rays.
         if let Some(max) = self.max_num_rays
-            && reflections_inputs.num_rays > max {
-                return Err(ParameterValidationError::NumRaysExceedsMax {
-                    requested: reflections_inputs.num_rays,
-                    max,
-                });
+            && reflections_inputs.num_rays > max
+        {
+            return Err(ParameterValidationError::NumRaysExceedsMax {
+                requested: reflections_inputs.num_rays,
+                max,
+            });
         }
 
         // Validate duration.
         if let Some(max) = self.max_duration
-            && reflections_inputs.duration > max {
-                return Err(ParameterValidationError::DurationExceedsMax {
-                    requested: reflections_inputs.duration,
-                    max,
-                });
+            && reflections_inputs.duration > max
+        {
+            return Err(ParameterValidationError::DurationExceedsMax {
+                requested: reflections_inputs.duration,
+                max,
+            });
         }
 
         Ok(())
@@ -2065,18 +2070,21 @@ where
         let mut guards = Vec::new();
 
         if flags.contains(SimulationFlags::DIRECT)
-            && let Some(lock) = &self.direct_lock {
-                guards.push(lock.lock().unwrap());
+            && let Some(lock) = &self.direct_lock
+        {
+            guards.push(lock.lock().unwrap());
         }
 
         if flags.contains(SimulationFlags::REFLECTIONS)
-            && let Some(lock) = &self.reflections_lock {
-                guards.push(lock.lock().unwrap());
+            && let Some(lock) = &self.reflections_lock
+        {
+            guards.push(lock.lock().unwrap());
         }
 
         if flags.contains(SimulationFlags::PATHING)
-            && let Some(lock) = &self.pathing_lock {
-                guards.push(lock.lock().unwrap());
+            && let Some(lock) = &self.pathing_lock
+        {
+            guards.push(lock.lock().unwrap());
         }
 
         guards

@@ -1,7 +1,7 @@
 //! Reflections backing.
 
 use super::BakedDataIdentifier;
-use super::{BakeError, BAKE_LOCK};
+use super::{BAKE_LOCK, BakeError};
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
@@ -365,9 +365,11 @@ pub mod tests {
                 bake_batch_size: 8,
             };
 
-            assert!(baker
-                .bake(&context, &mut probe_batch, &scene, params)
-                .is_ok());
+            assert!(
+                baker
+                    .bake(&context, &mut probe_batch, &scene, params)
+                    .is_ok()
+            );
         }
 
         // Parametric
@@ -394,9 +396,11 @@ pub mod tests {
                 bake_batch_size: 4,
             };
 
-            assert!(baker
-                .bake(&context, &mut probe_batch, &scene, params)
-                .is_ok());
+            assert!(
+                baker
+                    .bake(&context, &mut probe_batch, &scene, params)
+                    .is_ok()
+            );
         }
 
         // Both flags
@@ -424,9 +428,11 @@ pub mod tests {
                 bake_batch_size: 4,
             };
 
-            assert!(baker
-                .bake(&context, &mut probe_batch, &scene, params)
-                .is_ok());
+            assert!(
+                baker
+                    .bake(&context, &mut probe_batch, &scene, params)
+                    .is_ok()
+            );
         }
 
         // Static source
@@ -458,9 +464,11 @@ pub mod tests {
                 bake_batch_size: 4,
             };
 
-            assert!(baker
-                .bake(&context, &mut probe_batch, &scene, params)
-                .is_ok());
+            assert!(
+                baker
+                    .bake(&context, &mut probe_batch, &scene, params)
+                    .is_ok()
+            );
         }
 
         // With progress callback
@@ -487,17 +495,19 @@ pub mod tests {
                 bake_batch_size: 4,
             };
 
-            assert!(baker
-                .bake_with_progress_callback(
-                    &context,
-                    &mut probe_batch,
-                    &scene,
-                    params,
-                    ProgressCallback::new(|progress| {
-                        println!("baking progress: {:.1}%", progress * 100.0);
-                    }),
-                )
-                .is_ok());
+            assert!(
+                baker
+                    .bake_with_progress_callback(
+                        &context,
+                        &mut probe_batch,
+                        &scene,
+                        params,
+                        ProgressCallback::new(|progress| {
+                            println!("baking progress: {:.1}%", progress * 100.0);
+                        }),
+                    )
+                    .is_ok()
+            );
         }
     }
 }
