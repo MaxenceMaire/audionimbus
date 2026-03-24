@@ -137,9 +137,12 @@ impl SimulationFlagsProvider for () {
 /// simulator.add_source(&source);
 ///
 /// // Configure simulation parameters.
-/// let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
-///     .with_direct(DirectSimulationParameters::new()
-///         .with_distance_attenuation(DistanceAttenuationModel::default()));
+/// let simulation_inputs = SimulationInputs {
+///     source: CoordinateSystem::default(),
+///     parameters: SimulationParameters::new()
+///         .with_direct(DirectSimulationParameters::new()
+///             .with_distance_attenuation(DistanceAttenuationModel::default()))
+/// };
 /// source.set_direct_inputs(&simulation_inputs);
 ///
 /// // Set shared parameters.
@@ -1868,9 +1871,12 @@ where
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// let source = Source::try_new(&simulator)?;
-    /// let inputs = SimulationInputs::new(CoordinateSystem::default())
-    ///     .with_direct(DirectSimulationParameters::new()
-    ///         .with_distance_attenuation(DistanceAttenuationModel::default()));
+    /// let inputs = SimulationInputs {
+    ///     source: CoordinateSystem::default(),
+    ///     parameters: SimulationParameters::new()
+    ///         .with_direct(DirectSimulationParameters::new()
+    ///             .with_distance_attenuation(DistanceAttenuationModel::default()))
+    /// };
     /// source.set_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -1928,12 +1934,15 @@ where
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
-    /// # let inputs = SimulationInputs::new(CoordinateSystem::default())
-    /// #     .with_direct(DirectSimulationParameters::new()
-    /// #         .with_distance_attenuation(DistanceAttenuationModel::default()))
-    /// #     .with_reflections(ConvolutionParameters {
-    /// #         baked_data_identifier: None,
-    /// #     });
+    /// # let inputs = SimulationInputs {
+    /// #     source: CoordinateSystem::default(),
+    /// #     parameters: SimulationParameters::new()
+    /// #         .with_direct(DirectSimulationParameters::new()
+    /// #             .with_distance_attenuation(DistanceAttenuationModel::default()))
+    /// #         .with_reflections(ConvolutionParameters {
+    /// #             baked_data_identifier: None,
+    /// #         })
+    /// # };
     /// // Direct simulation thread...
     /// source.set_inputs_subset::<Direct, (), (), _, _, _>(&inputs)?;
     ///
@@ -1970,6 +1979,7 @@ where
 
         let mut shared = self.shared.lock().unwrap();
         (shared.deviation_model, shared._pathing_probes) = inputs
+            .parameters
             .pathing_simulation
             .as_ref()
             .map(|p| (Some(p.deviation.clone()), Some(p.pathing_probes.clone())))
@@ -2090,7 +2100,7 @@ where
         InR: ReflectionsCompatible<R>,
         InP: PathingCompatible<P>,
     {
-        let Some(direct_params) = &inputs.direct_simulation else {
+        let Some(direct_params) = &inputs.parameters.direct_simulation else {
             return Ok(());
         };
 
@@ -2158,9 +2168,12 @@ where
     /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
-    /// let inputs = SimulationInputs::new(CoordinateSystem::default())
-    ///     .with_direct(DirectSimulationParameters::new()
-    ///         .with_distance_attenuation(DistanceAttenuationModel::default()));
+    /// let inputs = SimulationInputs {
+    ///     source: CoordinateSystem::default(),
+    ///     parameters: SimulationParameters::new()
+    ///         .with_direct(DirectSimulationParameters::new()
+    ///             .with_distance_attenuation(DistanceAttenuationModel::default())),
+    /// };
     /// source.set_direct_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -2231,10 +2244,13 @@ where
     /// #     });
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
-    /// let inputs = SimulationInputs::new(CoordinateSystem::default())
-    ///     .with_reflections(ConvolutionParameters {
-    ///         baked_data_identifier: None,
-    ///     });
+    /// let inputs = SimulationInputs {
+    ///     source: CoordinateSystem::default(),
+    ///     parameters: SimulationParameters::new()
+    ///         .with_reflections(ConvolutionParameters {
+    ///             baked_data_identifier: None,
+    ///         })
+    /// };
     /// source.set_reflections_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -2301,17 +2317,20 @@ where
     /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
     /// # let source = Source::try_new(&simulator)?;
     /// # let pathing_probes = ProbeBatch::try_new(&context).unwrap();
-    /// let inputs = SimulationInputs::new(CoordinateSystem::default())
-    ///     .with_pathing(PathingSimulationParameters {
-    ///         pathing_probes,
-    ///         visibility_radius: 1.0,
-    ///         visibility_threshold: 10.0,
-    ///         visibility_range: 10.0,
-    ///         pathing_order: 1,
-    ///         enable_validation: true,
-    ///         find_alternate_paths: true,
-    ///         deviation: DeviationModel::default(),
-    ///     });
+    /// let inputs = SimulationInputs {
+    ///     source: CoordinateSystem::default(),
+    ///     parameters: SimulationParameters::new()
+    ///         .with_pathing(PathingSimulationParameters {
+    ///             pathing_probes,
+    ///             visibility_radius: 1.0,
+    ///             visibility_threshold: 10.0,
+    ///             visibility_range: 10.0,
+    ///             pathing_order: 1,
+    ///             enable_validation: true,
+    ///             find_alternate_paths: true,
+    ///             deviation: DeviationModel::default(),
+    ///         }),
+    /// };
     /// source.set_pathing_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -2382,144 +2401,37 @@ impl<D, R, P, RE> Clone for Source<D, R, P, RE> {
     }
 }
 
-/// Simulation parameters for a source.
-#[derive(Clone, Debug)]
+/// Simulation inputs for a source.
+#[derive(Clone, Default, Debug)]
 pub struct SimulationInputs<D = (), R = (), P = ()> {
     /// The position and orientation of this source.
-    source: CoordinateSystem,
+    pub source: CoordinateSystem,
 
-    /// If `Some`, enables direct simulation.
-    /// This includes distance attenuation, air absorption, directivity, occlusion, and transmission.
-    direct_simulation: Option<DirectSimulationParameters>,
-
-    /// If `Some`, enables reflections simulation.
-    /// This includes both real-time and baked simulation.
-    reflections_simulation: Option<ReflectionsSimulationData>,
-
-    /// If `Some`, enables pathing simulation.
-    pathing_simulation: Option<PathingSimulationParameters>,
-
-    _direct: PhantomData<D>,
-    _reflections: PhantomData<R>,
-    _pathing: PhantomData<P>,
-}
-
-impl SimulationInputs {
-    /// Crates new [`SimulationInputs`] with all simulations disabled by default.
-    ///
-    /// # Arguments
-    ///
-    /// - `source`: The position and orientation of the source.
-    pub fn new(source: CoordinateSystem) -> Self {
-        Self {
-            source,
-            direct_simulation: None,
-            reflections_simulation: None,
-            pathing_simulation: None,
-            _direct: PhantomData,
-            _reflections: PhantomData,
-            _pathing: PhantomData,
-        }
-    }
+    /// Simulation parameters for the source.
+    pub parameters: SimulationParameters<D, R, P>,
 }
 
 impl<D, R, P> SimulationInputs<D, R, P> {
-    /// Enables direct simulation with the specified parameters.
-    pub fn with_direct(self, params: DirectSimulationParameters) -> SimulationInputs<Direct, R, P> {
-        let Self {
-            source,
-            reflections_simulation,
-            pathing_simulation,
-            _reflections,
-            _pathing,
-            ..
-        } = self;
-
-        SimulationInputs {
-            source,
-            direct_simulation: Some(params),
-            reflections_simulation,
-            pathing_simulation,
-            _direct: PhantomData,
-            _reflections,
-            _pathing,
-        }
-    }
-
-    /// Enables reflections simulation with the specified parameters.
-    pub fn with_reflections<Params: ReflectionsSimulationParameters>(
-        self,
-        params: Params,
-    ) -> SimulationInputs<D, Reflections, P> {
-        let Self {
-            source,
-            direct_simulation,
-            pathing_simulation,
-            _direct,
-            _pathing,
-            ..
-        } = self;
-
-        SimulationInputs {
-            source,
-            direct_simulation,
-            reflections_simulation: Some(params.into_data()),
-            pathing_simulation,
-            _direct,
-            _reflections: PhantomData,
-            _pathing,
-        }
-    }
-
-    /// Enables pathing simulation with the specified parameters.
-    pub fn with_pathing(
-        self,
-        params: PathingSimulationParameters,
-    ) -> SimulationInputs<D, R, Pathing> {
-        let Self {
-            source,
-            direct_simulation,
-            reflections_simulation,
-            _direct,
-            _reflections,
-            ..
-        } = self;
-
-        SimulationInputs {
-            source,
-            direct_simulation,
-            reflections_simulation,
-            pathing_simulation: Some(params),
-            _direct,
-            _reflections,
-            _pathing: PhantomData,
-        }
-    }
-
-    /// Sets the position and orientation of the source.
-    pub const fn set_source(&mut self, source: CoordinateSystem) {
-        self.source = source;
-    }
-
     fn to_ffi(&self) -> audionimbus_sys::IPLSimulationInputs {
         let mut flags = audionimbus_sys::IPLSimulationFlags(0);
 
         let source = self.source.into();
 
-        if self.direct_simulation.is_some() {
+        if self.parameters.direct_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
         }
-        let direct_data = DirectSimulationData::from_params(&self.direct_simulation);
+        let direct_data = DirectSimulationData::from_params(&self.parameters.direct_simulation);
 
-        if self.reflections_simulation.is_some() {
+        if self.parameters.reflections_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_REFLECTIONS;
         }
-        let reflections_data = self.reflections_simulation.unwrap_or_default();
+        let reflections_data = self.parameters.reflections_simulation.unwrap_or_default();
 
-        if self.pathing_simulation.is_some() {
+        if self.parameters.pathing_simulation.is_some() {
             flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
         }
-        let pathing_data = PathingSimulationData::from_params(self.pathing_simulation.as_ref());
+        let pathing_data =
+            PathingSimulationData::from_params(self.parameters.pathing_simulation.as_ref());
 
         audionimbus_sys::IPLSimulationInputs {
             flags,
@@ -2549,14 +2461,118 @@ impl<D, R, P> SimulationInputs<D, R, P> {
     }
 }
 
-impl<R, P> SimulationInputs<Direct, R, P> {
+/// Simulation parameters for a source.
+#[derive(Clone, Default, Debug)]
+pub struct SimulationParameters<D = (), R = (), P = ()> {
+    /// If `Some`, enables direct simulation.
+    /// This includes distance attenuation, air absorption, directivity, occlusion, and transmission.
+    direct_simulation: Option<DirectSimulationParameters>,
+
+    /// If `Some`, enables reflections simulation.
+    /// This includes both real-time and baked simulation.
+    reflections_simulation: Option<ReflectionsSimulationData>,
+
+    /// If `Some`, enables pathing simulation.
+    pathing_simulation: Option<PathingSimulationParameters>,
+
+    _direct: PhantomData<D>,
+    _reflections: PhantomData<R>,
+    _pathing: PhantomData<P>,
+}
+
+impl SimulationParameters {
+    /// Creates new [`SimulationParameters`].
+    pub fn new() -> Self {
+        Self {
+            direct_simulation: None,
+            reflections_simulation: None,
+            pathing_simulation: None,
+            _direct: PhantomData,
+            _reflections: PhantomData,
+            _pathing: PhantomData,
+        }
+    }
+}
+
+impl<D, R, P> SimulationParameters<D, R, P> {
+    /// Enables direct simulation with the specified parameters.
+    pub fn with_direct(
+        self,
+        params: DirectSimulationParameters,
+    ) -> SimulationParameters<Direct, R, P> {
+        let Self {
+            reflections_simulation,
+            pathing_simulation,
+            _reflections,
+            _pathing,
+            ..
+        } = self;
+
+        SimulationParameters {
+            direct_simulation: Some(params),
+            reflections_simulation,
+            pathing_simulation,
+            _direct: PhantomData,
+            _reflections,
+            _pathing,
+        }
+    }
+
+    /// Enables reflections simulation with the specified parameters.
+    pub fn with_reflections<Params: ReflectionsSimulationParameters>(
+        self,
+        params: Params,
+    ) -> SimulationParameters<D, Reflections, P> {
+        let Self {
+            direct_simulation,
+            pathing_simulation,
+            _direct,
+            _pathing,
+            ..
+        } = self;
+
+        SimulationParameters {
+            direct_simulation,
+            reflections_simulation: Some(params.into_data()),
+            pathing_simulation,
+            _direct,
+            _reflections: PhantomData,
+            _pathing,
+        }
+    }
+
+    /// Enables pathing simulation with the specified parameters.
+    pub fn with_pathing(
+        self,
+        params: PathingSimulationParameters,
+    ) -> SimulationParameters<D, R, Pathing> {
+        let Self {
+            direct_simulation,
+            reflections_simulation,
+            _direct,
+            _reflections,
+            ..
+        } = self;
+
+        SimulationParameters {
+            direct_simulation,
+            reflections_simulation,
+            pathing_simulation: Some(params),
+            _direct,
+            _reflections,
+            _pathing: PhantomData,
+        }
+    }
+}
+
+impl<R, P> SimulationParameters<Direct, R, P> {
     /// Sets the parameters to use for direct simulation.
     pub fn set_direct_simulation_parameters(&mut self, params: DirectSimulationParameters) {
         self.direct_simulation.replace(params);
     }
 }
 
-impl<D, P> SimulationInputs<D, Reflections, P> {
+impl<D, P> SimulationParameters<D, Reflections, P> {
     /// Sets the parameters to use for reflections simulation.
     pub fn set_reflections_simulation_parameters<Params: ReflectionsSimulationParameters>(
         &mut self,
@@ -2566,7 +2582,7 @@ impl<D, P> SimulationInputs<D, Reflections, P> {
     }
 }
 
-impl<D, R> SimulationInputs<D, R, Pathing> {
+impl<D, R> SimulationParameters<D, R, Pathing> {
     /// Sets the parameters to use for path simulation.
     pub fn set_pathing_simulation_parameters(&mut self, params: PathingSimulationParameters) {
         self.pathing_simulation.replace(params);

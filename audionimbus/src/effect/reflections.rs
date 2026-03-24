@@ -202,11 +202,15 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let mut source = Source::try_new(&simulator)?;
 ///
 /// source.set_reflections_inputs(
-///     &SimulationInputs::new(CoordinateSystem::default()).with_reflections(
-///         ConvolutionParameters {
-///             baked_data_identifier: None,
-///         },
-///     ),
+///     &SimulationInputs {
+///         source: CoordinateSystem::default(),
+///         parameters: SimulationParameters::new()
+///             .with_reflections(
+///                 ConvolutionParameters {
+///                     baked_data_identifier: None,
+///                 },
+///             ),
+///     }
 /// );
 ///
 /// simulator.add_source(&source);
@@ -283,10 +287,13 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// // Set source position to match listener position.
 /// reverb_source.set_reflections_inputs(
-///     &SimulationInputs::new(listener_position) // Source at listener = reverb
-///         .with_reflections(ConvolutionParameters {
-///             baked_data_identifier: None,
-///         }),
+///     &SimulationInputs {
+///         source: listener_position, // Source at listener = reverb
+///         parameters: SimulationParameters::new()
+///             .with_reflections(ConvolutionParameters {
+///                 baked_data_identifier: None,
+///             }),
+///     }
 /// );
 ///
 /// simulator.add_source(&reverb_source);

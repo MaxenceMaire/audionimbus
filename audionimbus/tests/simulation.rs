@@ -31,38 +31,41 @@ fn test_simulation() {
     let source = Source::try_new(&simulator).unwrap();
 
     let pathing_probes = ProbeBatch::try_new(&context).unwrap();
-    let simulation_inputs = SimulationInputs::new(CoordinateSystem {
-        right: Vector3::new(1.0, 0.0, 0.0),
-        up: Vector3::new(0.0, 1.0, 0.0),
-        ahead: Vector3::new(0.0, 0.0, 1.0),
-        origin: Vector3::new(0.0, 0.0, 0.0),
-    })
-    .with_direct(
-        DirectSimulationParameters::new()
-            .with_distance_attenuation(DistanceAttenuationModel::default())
-            .with_air_absorption(AirAbsorptionModel::default())
-            .with_directivity(Directivity::default())
-            .with_occlusion(
-                Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
-                    TransmissionParameters {
-                        num_transmission_rays: 1,
-                    },
-                ),
-            ),
-    )
-    .with_reflections(ConvolutionParameters {
-        baked_data_identifier: None,
-    })
-    .with_pathing(PathingSimulationParameters {
-        pathing_probes,
-        visibility_radius: 1.0,
-        visibility_threshold: 10.0,
-        visibility_range: 10.0,
-        pathing_order: 1,
-        enable_validation: true,
-        find_alternate_paths: true,
-        deviation: DeviationModel::default(),
-    });
+    let simulation_inputs = SimulationInputs {
+        source: CoordinateSystem {
+            right: Vector3::new(1.0, 0.0, 0.0),
+            up: Vector3::new(0.0, 1.0, 0.0),
+            ahead: Vector3::new(0.0, 0.0, 1.0),
+            origin: Vector3::new(0.0, 0.0, 0.0),
+        },
+        parameters: SimulationParameters::new()
+            .with_direct(
+                DirectSimulationParameters::new()
+                    .with_distance_attenuation(DistanceAttenuationModel::default())
+                    .with_air_absorption(AirAbsorptionModel::default())
+                    .with_directivity(Directivity::default())
+                    .with_occlusion(
+                        Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
+                            TransmissionParameters {
+                                num_transmission_rays: 1,
+                            },
+                        ),
+                    ),
+            )
+            .with_reflections(ConvolutionParameters {
+                baked_data_identifier: None,
+            })
+            .with_pathing(PathingSimulationParameters {
+                pathing_probes,
+                visibility_radius: 1.0,
+                visibility_threshold: 10.0,
+                visibility_range: 10.0,
+                pathing_order: 1,
+                enable_validation: true,
+                find_alternate_paths: true,
+                deviation: DeviationModel::default(),
+            }),
+    };
     source.set_direct_inputs(&simulation_inputs).unwrap();
 
     simulator.add_source(&source);
@@ -209,33 +212,36 @@ fn test_pathing_without_probes() {
         .unwrap();
 
     let source = Source::try_new(&simulator).unwrap();
-    let simulation_inputs = SimulationInputs::new(CoordinateSystem::default())
-        .with_direct(
-            DirectSimulationParameters::new()
-                .with_distance_attenuation(DistanceAttenuationModel::default())
-                .with_air_absorption(AirAbsorptionModel::default())
-                .with_directivity(Directivity::default())
-                .with_occlusion(
-                    Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
-                        TransmissionParameters {
-                            num_transmission_rays: 1,
-                        },
+    let simulation_inputs = SimulationInputs {
+        source: CoordinateSystem::default(),
+        parameters: SimulationParameters::new()
+            .with_direct(
+                DirectSimulationParameters::new()
+                    .with_distance_attenuation(DistanceAttenuationModel::default())
+                    .with_air_absorption(AirAbsorptionModel::default())
+                    .with_directivity(Directivity::default())
+                    .with_occlusion(
+                        Occlusion::new(OcclusionAlgorithm::Raycast).with_transmission(
+                            TransmissionParameters {
+                                num_transmission_rays: 1,
+                            },
+                        ),
                     ),
-                ),
-        )
-        .with_reflections(ConvolutionParameters {
-            baked_data_identifier: None,
-        })
-        .with_pathing(PathingSimulationParameters {
-            pathing_probes,
-            visibility_radius: 1.0,
-            visibility_threshold: 10.0,
-            visibility_range: 10.0,
-            pathing_order: 1,
-            enable_validation: true,
-            find_alternate_paths: true,
-            deviation: DeviationModel::default(),
-        });
+            )
+            .with_reflections(ConvolutionParameters {
+                baked_data_identifier: None,
+            })
+            .with_pathing(PathingSimulationParameters {
+                pathing_probes,
+                visibility_radius: 1.0,
+                visibility_threshold: 10.0,
+                visibility_range: 10.0,
+                pathing_order: 1,
+                enable_validation: true,
+                find_alternate_paths: true,
+                deviation: DeviationModel::default(),
+            }),
+    };
     source.set_pathing_inputs(&simulation_inputs).unwrap();
     simulator.add_source(&source);
 

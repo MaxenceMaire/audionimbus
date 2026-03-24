@@ -36,6 +36,7 @@
 - `SimulationSettings::new` now takes `&AudioSettings` instead of separate `sampling_rate`, `frame_size`, and `max_order` arguments.
 - `max_order` has been moved from `SimulationSettings::new` into each reflections algorithm settings struct (`ConvolutionSettings`, `ParametricSettings`, `HybridSettings`, `TrueAudioNextSettings`).
 - `ReflectionsSimulationParameters` enum replaced by individual structs `ConvolutionParameters`, `ParametricParameters`, `HybridParameters`, and `TrueAudioNextParameters`.
+- Restructured `SimulationInputs` into public fields `source: CoordinateSystem` and `parameters: SimulationParameters`. The builder methods (`with_direct`, `with_reflections`, `with_pathing`) and the `set_*` mutating methods have moved to `SimulationParameters`.
 
 ### Added
 
@@ -43,7 +44,6 @@
 - Implement `Clone` for all models (`AirAbsorptionModel`, `DeviationModel`, `Directivity`, `DistanceAttenuationModel`).
 - Implement `Clone` for `SimulationInputs`, `DirectSimulationParameters`, `PathingSimulationParameters`.
 - Implement `Copy`, `Clone` for `AudioEffectState`.
-- Add `SimulationInputs::set_source` to update the source position and orientation in place.
 - Add `SimulationInputs::set_direct_simulation_parameters`, `set_reflections_simulation_parameters`, and `set_pathing_simulation_parameters` to update simulation parameters in place without rebuilding the struct.
 - Implement `Copy`, `Clone` for `Direct`, `Reflections`, and `Pathing` marker types.
 - Implement `Default` for `Direct`, `Reflections`, `Pathing`.
@@ -64,6 +64,7 @@
 - Add method `ProbeArray::probes` which returns an iterator over the probes contained in the probe array.
 - Add `ReflectionsSimulationParameters` trait, implemented by `ConvolutionParameters`, `ParametricParameters`, `HybridParameters`, and `TrueAudioNextParameters`.
 - Add `ReflectionEffectType::SimulationParameters` associated type, linking each reflection effect type to its corresponding simulation parameters struct.
+- Add `SimulationParameters` struct, extracted from `SimulationInputs`, carrying the typed simulation parameters and builder methods (`with_direct`, `with_reflections`, `with_pathing`).
 
 ### Removed
 
@@ -81,6 +82,8 @@
 - Remove `From<&PathEffectSettings>` for `IPLPathEffectSettings`.
 - Remove `ShCoeffs`.
 - Remove `ReflectionsSimulationParameters` enum.
+- Remove `SimulationInputs::new`. Use struct literal syntax instead.
+- Remove `SimulationInputs::set_source`. The `source` field is now public and can be set directly.
 
 ## [0.13.0] - 2026-03-04
 
