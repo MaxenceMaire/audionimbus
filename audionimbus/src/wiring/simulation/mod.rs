@@ -227,11 +227,14 @@ mod tests {
                 (),
                 SourceWithInputs {
                     source: source.clone(),
-                    simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
-                        .with_direct(DirectSimulationParameters::new())
-                        .with_reflections(ConvolutionParameters {
-                            baked_data_identifier: None,
-                        }),
+                    simulation_inputs: SimulationInputs {
+                        source: CoordinateSystem::default(),
+                        parameters: SimulationParameters::new()
+                            .with_direct(DirectSimulationParameters::new())
+                            .with_reflections(ConvolutionParameters {
+                                baked_data_identifier: None,
+                            }),
+                    },
                 },
             ));
             assert_eq!(sources.len(), 1);

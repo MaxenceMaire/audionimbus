@@ -374,41 +374,35 @@ fn test_wiring_simulation() {
             (),
             SourceWithInputs {
                 source: source.clone(),
-                simulation_inputs: SimulationInputs::new(CoordinateSystem::default())
-                    .with_direct(
-                        DirectSimulationParameters::new()
-                            .with_distance_attenuation(DistanceAttenuationModel::default())
-                            .with_air_absorption(AirAbsorptionModel::default())
-                            .with_directivity(Directivity::default()),
-                    )
-                    .with_reflections(ConvolutionParameters {
-                        baked_data_identifier: None,
-                    })
-                    .with_pathing(PathingSimulationParameters {
-                        pathing_probes: probe_batch.clone(),
-                        visibility_radius: 1.0,
-                        visibility_threshold: 0.1,
-                        visibility_range: 50.0,
-                        pathing_order: 1,
-                        enable_validation: false,
-                        find_alternate_paths: false,
-                        deviation: DeviationModel::Default,
-                    }),
+                simulation_inputs: SimulationInputs {
+                    source: CoordinateSystem::default(),
+                    parameters: SimulationParameters::new()
+                        .with_direct(
+                            DirectSimulationParameters::new()
+                                .with_distance_attenuation(DistanceAttenuationModel::default())
+                                .with_air_absorption(AirAbsorptionModel::default())
+                                .with_directivity(Directivity::default()),
+                        )
+                        .with_reflections(ConvolutionParameters {
+                            baked_data_identifier: None,
+                        })
+                        .with_pathing(PathingSimulationParameters {
+                            pathing_probes: probe_batch.clone(),
+                            visibility_radius: 1.0,
+                            visibility_threshold: 0.1,
+                            visibility_range: 50.0,
+                            pathing_order: 1,
+                            enable_validation: false,
+                            find_alternate_paths: false,
+                            deviation: DeviationModel::Default,
+                        }),
+                },
             },
         ));
     });
 
-    let listener = SourceWithInputs {
-        source: listener_source,
-        simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
-            ConvolutionParameters {
-                baked_data_identifier: None,
-            },
-        ),
-    };
-
     let direct_simulation = simulation.spawn_direct();
-    let reverb_simulation = simulation.spawn_reflections_reverb(listener);
+    let reverb_simulation = simulation.spawn_reflections_reverb();
     let pathing_simulation = simulation.spawn_pathing();
 
     std::thread::sleep(Duration::from_millis(200));
@@ -418,11 +412,35 @@ fn test_wiring_simulation() {
     let reverb_output = reverb_simulation.output.load();
     assert_eq!(reverb_output.sources.len(), 1);
     assert!(
-        reverb_output.listener.is_some(),
-        "listener reverb output should be populated after at least one simulation run"
+        reverb_output.listener.is_none(),
+        "listener should be None initially"
     );
 
     assert_eq!(pathing_simulation.output.load().len(), 1);
+
+    let listener = SourceWithInputs {
+        source: listener_source.clone(),
+        simulation_inputs: SimulationInputs {
+            source: CoordinateSystem::default(),
+            parameters: SimulationParameters::new().with_reflections(ConvolutionParameters {
+                baked_data_identifier: None,
+            }),
+        },
+    };
+    reverb_simulation
+        .input
+        .store(std::sync::Arc::new(ReflectionsReverbFrame {
+            sources: simulation.sources.clone(),
+            listener: Some(listener),
+            shared_inputs: Default::default(),
+        }));
+
+    std::thread::sleep(Duration::from_millis(200));
+
+    assert!(
+        reverb_simulation.output.load().listener.is_some(),
+        "listener should be Some after it is provided"
+    );
 
     simulation.shutdown();
     direct_simulation

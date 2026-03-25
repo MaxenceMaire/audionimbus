@@ -18,7 +18,7 @@ where
     /// [`Simulation::update`].
     pub sources: SharedSources<SourceId, D, R, P, RE>,
     /// Listener source.
-    pub listener: SourceWithInputs<(), R, (), RE>,
+    pub listener: Option<SourceWithInputs<(), R, (), RE>>,
     /// Shared simulation inputs.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
@@ -50,7 +50,7 @@ where
     fn resolve(&self) -> Self::Resolved<'_> {
         ResolvedReflectionsReverbFrame {
             guard: self.sources.load(),
-            listener: &self.listener,
+            listener: self.listener.as_ref(),
             shared_inputs: &self.shared_inputs,
         }
     }
@@ -61,7 +61,7 @@ where
 /// Keeps the sources alive for the duration of the step.
 pub struct ResolvedReflectionsReverbFrame<'a, SourceId, D, R, P, RE> {
     guard: SourcesGuard<SourceId, D, R, P, RE>,
-    listener: &'a SourceWithInputs<(), R, (), RE>,
+    listener: Option<&'a SourceWithInputs<(), R, (), RE>>,
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 

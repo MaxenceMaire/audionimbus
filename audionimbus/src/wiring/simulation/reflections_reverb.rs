@@ -1,6 +1,6 @@
 use super::super::runner::{ReflectionsReverbFrame, SimulationRunner};
 use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep};
-use super::{SharedSimulationOutput, Simulation, SourceWithInputs};
+use super::{SharedSimulationOutput, Simulation};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -27,15 +27,10 @@ where
     (): DirectCompatible<D> + PathingCompatible<P>,
 {
     /// Spawns a reflections and reverb simulation thread.
-    ///
-    /// `listener` is the source placed at the listener's position, used for reverb simulation.
-    pub fn spawn_reflections_reverb(
-        &mut self,
-        listener: SourceWithInputs<(), Reflections, (), RE>,
-    ) -> ReflectionsReverbSimulation<SourceId, D, P, RE> {
+    pub fn spawn_reflections_reverb(&mut self) -> ReflectionsReverbSimulation<SourceId, D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
             sources: self.sources.clone(),
-            listener,
+            listener: None,
             shared_inputs: Default::default(),
         })));
 
@@ -137,16 +132,7 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_commit();
 
-        let listener = SourceWithInputs {
-            source: listener_source,
-            simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
-                ConvolutionParameters {
-                    baked_data_identifier: None,
-                },
-            ),
-        };
-
-        let reverb_simulation = simulation.spawn_reflections_reverb(listener);
+        let reverb_simulation = simulation.spawn_reflections_reverb();
         simulation.shutdown();
         reverb_simulation
             .handle
@@ -180,16 +166,7 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_commit();
 
-        let listener = SourceWithInputs {
-            source: listener_source,
-            simulation_inputs: SimulationInputs::new(CoordinateSystem::default()).with_reflections(
-                ConvolutionParameters {
-                    baked_data_identifier: None,
-                },
-            ),
-        };
-
-        let reverb_simulation = simulation.spawn_reflections_reverb(listener);
+        let reverb_simulation = simulation.spawn_reflections_reverb();
 
         assert!(reverb_simulation.output.load().listener.is_none());
 

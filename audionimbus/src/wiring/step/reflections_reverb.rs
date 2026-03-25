@@ -63,10 +63,11 @@ where
             source.set_reflections_inputs(simulation_inputs)?;
         }
 
-        input
-            .listener
-            .source
-            .set_reflections_inputs(&input.listener.simulation_inputs)?;
+        if let Some(listener) = input.listener {
+            listener
+                .source
+                .set_reflections_inputs(&listener.simulation_inputs)?;
+        }
 
         self.simulator.run_reflections()?;
 
@@ -76,7 +77,9 @@ where
                 .push((id.clone(), source.get_reflections_outputs()?));
         }
 
-        output.listener = Some(input.listener.source.get_reflections_outputs()?);
+        if let Some(listener) = input.listener {
+            output.listener = Some(listener.source.get_reflections_outputs()?);
+        }
 
         Ok(())
     }
@@ -91,7 +94,7 @@ where
     /// The spatial audio sources whose reflections to simulate.
     pub sources: &'a [(SourceId, SourceWithInputs<D, R, P, RE>)],
     /// The listener, used for listener-centric reverb simulation.
-    pub listener: &'a SourceWithInputs<(), R, (), RE>,
+    pub listener: Option<&'a SourceWithInputs<(), R, (), RE>>,
     /// Shared simulation inputs applying to all sources and the listener.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
@@ -113,7 +116,7 @@ where
     /// The spatial audio sources whose reflections to simulate.
     pub sources: Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>,
     /// The listener, used for listener-centric reverb simulation.
-    pub listener: SourceWithInputs<(), R, (), RE>,
+    pub listener: Option<SourceWithInputs<(), R, (), RE>>,
     /// Shared simulation inputs applying to all sources and the listener.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
@@ -126,7 +129,7 @@ where
     fn as_reflections_reverb_input(&self) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE> {
         ReflectionsReverbInput {
             sources: self.sources.as_slice(),
-            listener: &self.listener,
+            listener: self.listener.as_ref(),
             shared_inputs: &self.shared_inputs,
         }
     }
@@ -138,7 +141,9 @@ pub struct ReflectionsReverbOutput<SourceId, RE: ReflectionEffectType> {
     /// Per-source reflection effect params.
     pub sources: Vec<(SourceId, ReflectionEffectParams<RE>)>,
     /// Listener-centric reverb.
-    /// `None` until the first simulation run completes.
+    ///
+    /// `None` if no listener is present in the scene, or until the first simulation run with a
+    /// listener completes.
     pub listener: Option<ReflectionEffectParams<RE>>,
 }
 
