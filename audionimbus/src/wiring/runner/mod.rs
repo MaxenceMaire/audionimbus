@@ -8,8 +8,8 @@ use super::step::SimulationStep;
 use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Condvar, Mutex,
+    atomic::{AtomicBool, Ordering},
 };
 
 mod direct;
