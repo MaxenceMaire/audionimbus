@@ -56,7 +56,7 @@ where
             _,
             SourceWithInputs {
                 source,
-                ref simulation_inputs,
+                simulation_inputs,
             },
         ) in input.sources
         {
