@@ -2,7 +2,7 @@
 
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use std::sync::{LazyLock, Mutex};
 
 /// A static mutex used to serialize HRTF creation across threads.

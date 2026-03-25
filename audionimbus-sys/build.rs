@@ -186,8 +186,10 @@ fn install_steam_audio(
         if !zip_path.exists() {
             println!("cargo:warning=Downloading Steam Audio {version}...");
             download_file(
-                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_{version}.zip"),
-                &zip_path
+                &format!(
+                    "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_{version}.zip"
+                ),
+                &zip_path,
             )?;
         }
 
@@ -233,8 +235,10 @@ fn install_fmod_integration(
         if !zip_path.exists() {
             println!("cargo:warning=Downloading Steam Audio FMOD integration {version}...");
             download_file(
-                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_fmod_{version}.zip"),
-                &zip_path
+                &format!(
+                    "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_fmod_{version}.zip"
+                ),
+                &zip_path,
             )?;
         }
 
@@ -288,8 +292,10 @@ fn install_wwise_integration(
         if !zip_path.exists() {
             println!("cargo:warning=Downloading Steam Audio Wwise integration {version}...");
             download_file(
-                &format!("https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_wwise_{version}.zip"),
-                &zip_path
+                &format!(
+                    "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_wwise_{version}.zip"
+                ),
+                &zip_path,
             )?;
         }
 

@@ -1,5 +1,5 @@
 use super::{Matrix, Scene};
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 
 /// A triangle mesh that can be moved (translated), rotated, or scaled, but cannot deform.
 ///

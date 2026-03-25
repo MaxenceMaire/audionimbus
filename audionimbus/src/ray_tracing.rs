@@ -1,8 +1,8 @@
 //! Ray tracing implementations.
 
+use crate::Sealed;
 use crate::callback::CustomRayTracingUserData;
 use crate::device::{EmbreeDevice, RadeonRaysDevice};
-use crate::Sealed;
 use std::fmt::Debug;
 use std::sync::Arc;
 

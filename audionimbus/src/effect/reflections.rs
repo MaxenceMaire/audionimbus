@@ -1,20 +1,20 @@
 //! Room acoustics and reverberation effects.
 
+use super::EffectError;
 use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
 use super::error::{ImpulseResponseSizeExceedsMaxError, NumChannelsExceedsMaxError};
-use super::EffectError;
+use crate::Sealed;
 use crate::audio_buffer::{AudioBuffer, Sample};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::device::true_audio_next::TrueAudioNextDevice;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::simulation::{
     ConvolutionParameters, HybridParameters, ParametricParameters, ReflectionsSimulationParameters,
     TrueAudioNextParameters,
 };
-use crate::Sealed;
 use crate::{ChannelPointers, ChannelRequirement};
 use std::marker::PhantomData;
 
@@ -896,11 +896,13 @@ impl<T: ReflectionEffectType> ReflectionEffectParams<T> {
             None
         } else {
             Some(TrueAudioNextDevice(
-                audionimbus_sys::iplTrueAudioNextDeviceRetain(params.tanDevice),
+                // SAFETY: Safety invariants upheld by the caller.
+                unsafe { audionimbus_sys::iplTrueAudioNextDeviceRetain(params.tanDevice) },
             ))
         };
 
-        let source = audionimbus_sys::iplSourceRetain(source);
+        // SAFETY: Safety invariants upheld by the caller.
+        let source = unsafe { audionimbus_sys::iplSourceRetain(source) };
 
         let num_channels = params.numChannels as u32;
         let impulse_response_size = params.irSize as u32;
@@ -1180,9 +1182,11 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(reflection_effect
-                    .apply(&reflection_effect_params, &input_buffer, &output_buffer)
-                    .is_ok());
+                assert!(
+                    reflection_effect
+                        .apply(&reflection_effect_params, &input_buffer, &output_buffer)
+                        .is_ok()
+                );
             }
 
             #[test]
@@ -1423,14 +1427,16 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(reflection_effect
-                    .apply_into_mixer(
-                        &reflection_effect_params,
-                        &input_buffer,
-                        &output_buffer,
-                        &mixer
-                    )
-                    .is_ok());
+                assert!(
+                    reflection_effect
+                        .apply_into_mixer(
+                            &reflection_effect_params,
+                            &input_buffer,
+                            &output_buffer,
+                            &mixer
+                        )
+                        .is_ok()
+                );
             }
 
             #[test]
@@ -1713,9 +1719,11 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(reflection_effect
-                    .tail_into_mixer(&output_buffer, &mixer)
-                    .is_ok());
+                assert!(
+                    reflection_effect
+                        .tail_into_mixer(&output_buffer, &mixer)
+                        .is_ok()
+                );
             }
 
             #[test]
@@ -1856,9 +1864,11 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(mixer
-                    .apply(&mut reflection_effect_params, &output_buffer)
-                    .is_ok());
+                assert!(
+                    mixer
+                        .apply(&mut reflection_effect_params, &output_buffer)
+                        .is_ok()
+                );
             }
 
             #[test]
@@ -1997,9 +2007,11 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(mixer
-                    .apply(&mut reflection_effect_params, &output_buffer)
-                    .is_ok());
+                assert!(
+                    mixer
+                        .apply(&mut reflection_effect_params, &output_buffer)
+                        .is_ok()
+                );
             }
 
             #[test]
@@ -2062,9 +2074,11 @@ mod tests {
                 let mut output_container = vec![0.0; audio_settings.frame_size as usize];
                 let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
 
-                assert!(mixer
-                    .apply(&mut reflection_effect_params, &output_buffer)
-                    .is_ok());
+                assert!(
+                    mixer
+                        .apply(&mut reflection_effect_params, &output_buffer)
+                        .is_ok()
+                );
             }
         }
 

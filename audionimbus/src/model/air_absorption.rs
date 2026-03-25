@@ -2,7 +2,7 @@
 
 pub use crate::callback::AirAbsorptionCallback;
 use crate::context::Context;
-use crate::{geometry, Equalizer};
+use crate::{Equalizer, geometry};
 
 /// An air absorption model that can be used for modeling frequency-dependent attenuation of sound over distance.
 #[derive(Clone, Debug, Default)]

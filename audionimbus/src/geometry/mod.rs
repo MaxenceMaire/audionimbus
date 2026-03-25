@@ -95,8 +95,8 @@ pub use ray::Ray;
 
 mod scene;
 pub use scene::{
-    relative_direction, InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, Scene,
-    StaticMeshHandle,
+    InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, Scene, StaticMeshHandle,
+    relative_direction,
 };
 
 mod static_mesh;

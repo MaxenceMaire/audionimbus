@@ -34,7 +34,10 @@ macro_rules! callback {
                 $($arg: <$arg_ty as $crate::callback::FfiConvert>::FfiType,)*
                 user_data: *mut c_void,
             ) $(-> <$ret as $crate::callback::FfiConvert>::FfiType)? {
-                let callback = &*(user_data as *const Arc<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>);
+                // SAFETY: `user_data` was set in `as_raw_parts()`.
+                // The pointer is non-null and correctly aligned.
+                // The pointee remains valid for the duration of this call.
+                let callback = unsafe { &*(user_data as *const Arc<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>) };
 
                 $(let $arg = <$arg_ty as $crate::callback::FfiConvert>::from_ffi($arg);)*
 
@@ -254,7 +257,14 @@ impl DirectivityCallback {
         _user_data: *mut c_void,
     ) -> f32 {
         let callback_ptr = DIRECTIVITY_CALLBACK_PTR.get();
-        let callback = &*(callback_ptr as *const Arc<dyn Fn(Vector3) -> f32 + Send + Sync>);
+
+        // SAFETY: `callback_ptr` was stored in `as_raw_parts()`.
+        // Storing it in thread-local storage ensures exclusive access per thread.
+        // Only one directivity calculation can run at a time per thread.
+        // The pointee remains valid for the duration of this call.
+        let callback =
+            unsafe { &*(callback_ptr as *const Arc<dyn Fn(Vector3) -> f32 + Send + Sync>) };
+
         let direction = Vector3::from_ffi(direction);
         callback(direction)
     }
@@ -438,17 +448,25 @@ impl ClosestHitCallback {
         hit: *mut audionimbus_sys::IPLHit,
         user_data: *mut c_void,
     ) {
-        let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
+        // SAFETY: `user_data` was set in `CustomRayTracingCallbacks::as_ffi_settings()`.
+        // The pointer is non-null and correctly aligned.
+        // The caller holds the returned `Arc<CustomRayTracingUserData>` and is responsible for
+        // keeping it alive for as long as the scene is in use.
+        let all_callbacks = unsafe { &*(user_data as *const CustomRayTracingUserData) };
         let callback = &all_callbacks.closest_hit;
         let ray = if ray.is_null() {
             Ray::default()
         } else {
-            Ray::from(*ray)
+            // SAFETY: `ray` is non-null and is a valid pointer.
+            Ray::from(unsafe { *ray })
         };
         let result = callback(ray, min_distance, max_distance);
 
-        if let Some(hit_result) = result {
-            if !hit.is_null() {
+        if let Some(hit_result) = result
+            && !hit.is_null()
+        {
+            // SAFETY: `hit` is non-null and points to a valid `IPLHit` output slot.
+            unsafe {
                 *hit = audionimbus_sys::IPLHit {
                     distance: hit_result.distance,
                     triangleIndex: hit_result.triangle_index.map(|i| i as i32).unwrap_or(-1),
@@ -511,17 +529,25 @@ impl AnyHitCallback {
         occluded: *mut u8,
         user_data: *mut c_void,
     ) {
-        let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
+        // SAFETY: `user_data` was set in `CustomRayTracingCallbacks::as_ffi_settings()`.
+        // The pointer is non-null and correctly aligned.
+        // The caller holds the returned `Arc<CustomRayTracingUserData>` and is responsible for
+        // keeping it alive for as long as the scene is in use.
+        let all_callbacks = unsafe { &*(user_data as *const CustomRayTracingUserData) };
         let callback = &all_callbacks.any_hit;
         let ray = if ray.is_null() {
             Ray::default()
         } else {
-            Ray::from(*ray)
+            // SAFETY: `ray` is non-null and is a valid pointer.
+            Ray::from(unsafe { *ray })
         };
         let result = callback(ray, min_distance, max_distance);
 
         if !occluded.is_null() {
-            *occluded = if result { 1 } else { 0 };
+            // SAFETY: `occluded` is non-null and points to a valid `u8` output slot.
+            unsafe {
+                *occluded = if result { 1 } else { 0 };
+            }
         }
     }
 }
@@ -574,7 +600,11 @@ impl BatchedClosestHitCallback {
         hits: *mut audionimbus_sys::IPLHit,
         user_data: *mut c_void,
     ) {
-        let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
+        // SAFETY: `user_data` was set in `CustomRayTracingCallbacks::as_ffi_settings()`.
+        // The pointer is non-null and correctly aligned.
+        // The caller holds the returned `Arc<CustomRayTracingUserData>` and is responsible for
+        // keeping it alive for as long as the scene is in use.
+        let all_callbacks = unsafe { &*(user_data as *const CustomRayTracingUserData) };
         let callback = &all_callbacks.batched_closest_hit;
 
         if num_rays <= 0
@@ -587,31 +617,40 @@ impl BatchedClosestHitCallback {
         }
 
         let num_rays = num_rays as usize;
-        let rays_slice = std::slice::from_raw_parts(rays, num_rays)
+        // SAFETY: All three pointers are non-null and `num_rays > 0`.
+        // Steam Audio guarantees each points to a contiguous, valid array of exactly `num_rays`
+        // elements for the duration of this call.
+        let rays_slice = unsafe { std::slice::from_raw_parts(rays, num_rays) }
             .iter()
             .map(|&r| Ray::from(r))
             .collect::<Vec<_>>();
-        let min_distances_slice = std::slice::from_raw_parts(min_distances, num_rays);
-        let max_distances_slice = std::slice::from_raw_parts(max_distances, num_rays);
+        let min_distances_slice = unsafe { std::slice::from_raw_parts(min_distances, num_rays) };
+        let max_distances_slice = unsafe { std::slice::from_raw_parts(max_distances, num_rays) };
 
         let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
 
         for (i, result) in results.iter().enumerate().take(num_rays) {
             if let Some(hit_result) = result {
-                *hits.add(i) = audionimbus_sys::IPLHit {
-                    distance: hit_result.distance,
-                    triangleIndex: hit_result
-                        .triangle_index
-                        .map(|idx| idx as i32)
-                        .unwrap_or(-1),
-                    objectIndex: hit_result.object_index.map(|idx| idx as i32).unwrap_or(-1),
-                    materialIndex: hit_result
-                        .material_index
-                        .map(|idx| idx as i32)
-                        .unwrap_or(-1),
-                    normal: hit_result.normal.into(),
-                    material: std::ptr::null_mut(),
-                };
+                // SAFETY: `hits` is non-null and points to a contiguous array of `num_rays`
+                // `IPLHit` elements.
+                // `i < num_rays` (enforced by `.take(num_rays)`), so `hits.add(i)` is within
+                // bounds.
+                unsafe {
+                    *hits.add(i) = audionimbus_sys::IPLHit {
+                        distance: hit_result.distance,
+                        triangleIndex: hit_result
+                            .triangle_index
+                            .map(|idx| idx as i32)
+                            .unwrap_or(-1),
+                        objectIndex: hit_result.object_index.map(|idx| idx as i32).unwrap_or(-1),
+                        materialIndex: hit_result
+                            .material_index
+                            .map(|idx| idx as i32)
+                            .unwrap_or(-1),
+                        normal: hit_result.normal.into(),
+                        material: std::ptr::null_mut(),
+                    };
+                }
             }
         }
     }
@@ -665,7 +704,11 @@ impl BatchedAnyHitCallback {
         occluded: *mut u8,
         user_data: *mut c_void,
     ) {
-        let all_callbacks = &*(user_data as *const CustomRayTracingUserData);
+        // SAFETY: `user_data` was set in `CustomRayTracingCallbacks::as_ffi_settings()`.
+        // The pointer is non-null and correctly aligned.
+        // The caller holds the returned `Arc<CustomRayTracingUserData>` and is responsible for
+        // keeping it alive for as long as the scene is in use.
+        let all_callbacks = unsafe { &*(user_data as *const CustomRayTracingUserData) };
         let callback = &all_callbacks.batched_any_hit;
 
         if num_rays <= 0
@@ -678,17 +721,26 @@ impl BatchedAnyHitCallback {
         }
 
         let num_rays = num_rays as usize;
-        let rays_slice = std::slice::from_raw_parts(rays, num_rays)
+        // SAFETY: All three pointers are non-null and `num_rays > 0`.
+        // Steam Audio guarantees each points to a contiguous, valid array of exactly `num_rays`
+        // elements for the duration of this call.
+        let rays_slice = unsafe { std::slice::from_raw_parts(rays, num_rays) }
             .iter()
             .map(|&r| Ray::from(r))
             .collect::<Vec<_>>();
-        let min_distances_slice = std::slice::from_raw_parts(min_distances, num_rays);
-        let max_distances_slice = std::slice::from_raw_parts(max_distances, num_rays);
+        let min_distances_slice = unsafe { std::slice::from_raw_parts(min_distances, num_rays) };
+        let max_distances_slice = unsafe { std::slice::from_raw_parts(max_distances, num_rays) };
 
         let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
 
         for (i, &result) in results.iter().enumerate().take(num_rays) {
-            *occluded.add(i) = if result { 1 } else { 0 };
+            // SAFETY: `occluded` is non-null and points to a contiguous array of `num_rays` `u8`
+            // elements.
+            // `i < num_rays` (enforced by `.take(num_rays)`), so `occluded.add(i)` is within
+            // bounds.
+            unsafe {
+                *occluded.add(i) = if result { 1 } else { 0 };
+            }
         }
     }
 }

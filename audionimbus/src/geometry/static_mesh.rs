@@ -1,6 +1,6 @@
 use super::{Material, Point, Scene, Triangle};
 use crate::callback::ProgressCallback;
-use crate::error::{to_option_error, SteamAudioError};
+use crate::error::{SteamAudioError, to_option_error};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;
 use std::marker::PhantomData;
