@@ -75,6 +75,11 @@ where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    /// Updates the input frame used on the simulation thread's next run.
+    pub fn set_input(&self, frame: PathingFrame<SourceId, D, R, Pathing, RE>) {
+        self.input.store(Arc::new(frame));
+    }
+
     /// Pauses the simulation thread after its current iteration completes.
     pub fn pause(&self) {
         *self.paused.0.lock().unwrap() = true;

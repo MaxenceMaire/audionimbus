@@ -85,6 +85,11 @@ where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
+    /// Updates the input frame used on the next run.
+    pub fn set_input(&self, frame: ReflectionsReverbFrame<SourceId, D, Reflections, P, RE>) {
+        self.input.store(Arc::new(frame));
+    }
+
     /// Pauses the simulation thread after its current iteration completes.
     pub fn pause(&self) {
         *self.paused.0.lock().unwrap() = true;

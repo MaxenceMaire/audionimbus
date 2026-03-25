@@ -427,13 +427,11 @@ fn test_wiring_simulation() {
             }),
         },
     };
-    reverb_simulation
-        .input
-        .store(std::sync::Arc::new(ReflectionsReverbFrame {
-            sources: simulation.sources.clone(),
-            listener: Some(listener),
-            shared_inputs: Default::default(),
-        }));
+    reverb_simulation.set_input(ReflectionsReverbFrame {
+        sources: simulation.sources.clone(),
+        listener: Some(listener),
+        shared_inputs: Default::default(),
+    });
 
     std::thread::sleep(Duration::from_millis(200));
 
