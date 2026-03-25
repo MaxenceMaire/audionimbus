@@ -1,5 +1,5 @@
 use super::super::simulation::SourceWithInputs;
-use super::{SimulationStep, SimulationStepError};
+use super::{SimulationStep, SimulationStepError, SourceEntries};
 use crate::effect::{DirectEffectParams, ReflectionEffectType};
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -80,7 +80,7 @@ where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources to simulate.
-    pub sources: &'a [(SourceId, SourceWithInputs<D, R, P, RE>)],
+    pub sources: &'a SourceEntries<SourceId, D, R, P, RE>,
     /// Shared simulation inputs applying to all sources.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }

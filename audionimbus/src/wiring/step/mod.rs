@@ -3,6 +3,7 @@
 //! Each step type ([`DirectStep`], [`ReflectionsStep`], [`ReflectionsReverbStep`],
 //! [`PathingStep`]) implements [`SimulationStep`].
 
+use super::SourceWithInputs;
 use crate::error::SteamAudioError;
 use crate::simulation::{ParameterValidationError, SimulationError};
 
@@ -67,3 +68,6 @@ impl From<SimulationError> for SimulationStepError {
         Self::Simulation(error)
     }
 }
+
+/// A slice of sources paired with their simulation inputs.
+pub type SourceEntries<SourceId, D, R, P, RE> = [(SourceId, SourceWithInputs<D, R, P, RE>)];
