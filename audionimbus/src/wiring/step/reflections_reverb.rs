@@ -9,13 +9,13 @@ use crate::simulation::{
 use std::marker::PhantomData;
 
 /// Runs reflections and listener-centric reverb simulation simultaneously.
-pub struct ReflectionsReverbStep<SourceId, T, D, P, RE>
+pub struct ReflectionsReverbStep<SourceId, T, D, P, RE, LD = (), LP = ()>
 where
     T: RayTracer,
 {
     /// The [`Simulator`] used by the step.
     simulator: Simulator<T, D, Reflections, P, RE>,
-    _source_id: PhantomData<fn() -> SourceId>,
+    _source_id: PhantomData<fn() -> (SourceId, LD, LP)>,
 }
 
 impl<T, D, P, RE> ReflectionsReverbStep<(), T, D, P, RE>
@@ -33,15 +33,23 @@ where
     }
 }
 
-impl<SourceId, T, D, P, RE, I> SimulationStep<I> for ReflectionsReverbStep<SourceId, T, D, P, RE>
+impl<SourceId, T, D, P, RE, LD, LP, I> SimulationStep<I>
+    for ReflectionsReverbStep<SourceId, T, D, P, RE, LD, LP>
 where
     T: 'static + RayTracer,
     D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
-    (): DirectCompatible<D> + PathingCompatible<P> + DirectCompatible<()> + PathingCompatible<()>,
+    LD: 'static + Send + Sync + DirectCompatible<LD> + SimulationFlagsProvider,
+    LP: 'static + Send + Sync + PathingCompatible<LP> + SimulationFlagsProvider,
+    (): DirectCompatible<D>
+        + PathingCompatible<P>
+        + DirectCompatible<()>
+        + PathingCompatible<()>
+        + DirectCompatible<LD>
+        + PathingCompatible<LP>,
     SourceId: 'static + Clone + Send + Sync,
-    I: AsReflectionsReverbInput<SourceId, D, Reflections, P, RE>,
+    I: AsReflectionsReverbInput<SourceId, D, Reflections, P, RE, LD, LP>,
 {
     type Output = ReflectionsReverbOutput<SourceId, RE>;
     type Error = SimulationStepError;
@@ -87,46 +95,50 @@ where
 
 /// Reflections and reverb simulation inputs.
 #[derive(Debug)]
-pub struct ReflectionsReverbInput<'a, SourceId, D, R, P, RE>
+pub struct ReflectionsReverbInput<'a, SourceId, D, R, P, RE, LD = (), LP = ()>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources whose reflections to simulate.
     pub sources: &'a [(SourceId, SourceWithInputs<D, R, P, RE>)],
     /// The listener, used for listener-centric reverb simulation.
-    pub listener: Option<&'a SourceWithInputs<(), R, (), RE>>,
+    pub listener: Option<&'a SourceWithInputs<LD, R, LP, RE>>,
     /// Shared simulation inputs applying to all sources and the listener.
     pub shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
 /// Implemented by any type that can produce a [`ReflectionsReverbInput`] view.
-pub trait AsReflectionsReverbInput<SourceId, D, R, P, RE>
+pub trait AsReflectionsReverbInput<SourceId, D, R, P, RE, LD = (), LP = ()>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Returns a view of this type as [`ReflectionsReverbInput`].
-    fn as_reflections_reverb_input(&self) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE>;
+    fn as_reflections_reverb_input(
+        &self,
+    ) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE, LD, LP>;
 }
 
 /// Owned input for reflections and reverb simulation.
-pub struct ReflectionsReverbInputOwned<SourceId, D, R, P, RE>
+pub struct ReflectionsReverbInputOwned<SourceId, D, R, P, RE, LD = (), LP = ()>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// The spatial audio sources whose reflections to simulate.
     pub sources: Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>,
     /// The listener, used for listener-centric reverb simulation.
-    pub listener: Option<SourceWithInputs<(), R, (), RE>>,
+    pub listener: Option<SourceWithInputs<LD, R, LP, RE>>,
     /// Shared simulation inputs applying to all sources and the listener.
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<SourceId, D, R, P, RE> AsReflectionsReverbInput<SourceId, D, R, P, RE>
-    for ReflectionsReverbInputOwned<SourceId, D, R, P, RE>
+impl<SourceId, D, R, P, RE, LD, LP> AsReflectionsReverbInput<SourceId, D, R, P, RE, LD, LP>
+    for ReflectionsReverbInputOwned<SourceId, D, R, P, RE, LD, LP>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    fn as_reflections_reverb_input(&self) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE> {
+    fn as_reflections_reverb_input(
+        &self,
+    ) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE, LD, LP> {
         ReflectionsReverbInput {
             sources: self.sources.as_slice(),
             listener: self.listener.as_ref(),
