@@ -2,6 +2,11 @@
 //!
 //! The entry point is [`SimulationRunner`], which owns the thread loop, commit signalling, and
 //! lock-free input/output.
+//!
+//! Most projects should start with [`Simulation`](super::simulation::Simulation), which composes
+//! [`SimulationRunner`] internally and handles all the wiring for you.
+//! Reach for [`SimulationRunner`] directly when you need to drive a custom
+//! [`SimulationRunner`](super::step::SimulationStep).
 
 use super::simulation::SourceWithInputs;
 use super::step::SimulationStep;
