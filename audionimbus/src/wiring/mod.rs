@@ -26,7 +26,7 @@
 //! - Simulation threads: Spawned by [`Simulation::spawn_direct`] and similar methods; runs continuously,
 //!   picking up the latest sources on each iteration.
 //! - Audio thread: Reads the most recent simulation outputs available and applies the
-//! corresponding effects.
+//!   corresponding effects.
 //!
 //! ```
 //! # use audionimbus::wiring::*;
