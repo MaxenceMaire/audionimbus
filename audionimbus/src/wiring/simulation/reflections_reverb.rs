@@ -27,10 +27,17 @@ where
     (): DirectCompatible<D> + PathingCompatible<P>,
 {
     /// Spawns a reflections and reverb simulation thread.
-    pub fn spawn_reflections_reverb(&mut self) -> ReflectionsReverbSimulation<SourceId, D, P, RE> {
+    pub fn spawn_reflections_reverb<LD, LP>(
+        &mut self,
+    ) -> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
+    where
+        LD: 'static + Send + Sync + DirectCompatible<LD> + SimulationFlagsProvider,
+        LP: 'static + Send + Sync + PathingCompatible<LP> + SimulationFlagsProvider,
+        (): DirectCompatible<LD> + PathingCompatible<LP>,
+    {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
             sources: self.sources.clone(),
-            listener: None::<SourceWithInputs<D, Reflections, P, RE>>,
+            listener: None::<SourceWithInputs<LD, Reflections, LP, RE>>,
             shared_inputs: Default::default(),
         })));
 
@@ -65,7 +72,7 @@ where
 }
 
 /// A running reflections and reverb simulation thread.
-pub struct ReflectionsReverbSimulation<SourceId, D, P, RE>
+pub struct ReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P>
 where
     SourceId: 'static + Send + Sync,
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
@@ -73,20 +80,25 @@ where
     /// Thread handle.
     pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: SharedReflectionsReverbInput<SourceId, D, P, RE>,
+    pub input: SharedReflectionsReverbInput<SourceId, D, P, RE, LD, LP>,
     /// Shared output, read by the audio thread.
     pub output: SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>>,
     /// Pause flag.
     pub paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl<SourceId, D, P, RE> ReflectionsReverbSimulation<SourceId, D, P, RE>
+impl<SourceId, D, P, RE, LD, LP> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
 where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
+    LD: Send + Sync,
+    LP: Send + Sync,
 {
     /// Updates the input frame used on the next run.
-    pub fn set_input(&self, frame: ReflectionsReverbFrame<SourceId, D, Reflections, P, RE>) {
+    pub fn set_input(
+        &self,
+        frame: ReflectionsReverbFrame<SourceId, D, Reflections, P, RE, LD, LP>,
+    ) {
         self.input.store(Arc::new(frame));
     }
 
@@ -103,8 +115,8 @@ where
 }
 
 /// Shared, atomically-swappable input frame for a reflections and reverb simulation thread.
-type SharedReflectionsReverbInput<SourceId, D, P, RE> =
-    Arc<ArcSwap<ReflectionsReverbFrame<SourceId, D, Reflections, P, RE>>>;
+type SharedReflectionsReverbInput<SourceId, D, P, RE, LD = D, LP = P> =
+    Arc<ArcSwap<ReflectionsReverbFrame<SourceId, D, Reflections, P, RE, LD, LP>>>;
 
 #[cfg(test)]
 mod tests {
@@ -137,7 +149,7 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_commit();
 
-        let reverb_simulation = simulation.spawn_reflections_reverb();
+        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>();
         simulation.shutdown();
         reverb_simulation
             .handle
@@ -171,7 +183,7 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_commit();
 
-        let reverb_simulation = simulation.spawn_reflections_reverb();
+        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>();
 
         assert!(reverb_simulation.output.load().listener.is_none());
 

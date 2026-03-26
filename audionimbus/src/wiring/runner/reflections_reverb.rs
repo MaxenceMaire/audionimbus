@@ -66,11 +66,14 @@ pub struct ResolvedReflectionsReverbFrame<'a, SourceId, D, R, P, RE, LD, LP> {
     shared_inputs: &'a SimulationSharedInputs<D, R, P>,
 }
 
-impl<SourceId, D, R, P, RE, LD, LP> AsReflectionsReverbInput<SourceId, D, R, P, RE, LD, LP>
+impl<SourceId, D, R, P, RE, LD, LP> AsReflectionsReverbInput<SourceId, D, R, P, RE>
     for ResolvedReflectionsReverbFrame<'_, SourceId, D, R, P, RE, LD, LP>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    type LD = LD;
+    type LP = LP;
+
     fn as_reflections_reverb_input(
         &self,
     ) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE, LD, LP> {

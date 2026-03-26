@@ -9,15 +9,13 @@ use crate::simulation::{
 use std::marker::PhantomData;
 
 /// Runs reflections and listener-centric reverb simulation simultaneously.
-pub struct ReflectionsReverbStep<SourceId, T, D, P, RE, LD = D, LP = P>
+pub struct ReflectionsReverbStep<SourceId, T, D, P, RE>
 where
     T: RayTracer,
 {
     /// The [`Simulator`] used by the step.
     simulator: Simulator<T, D, Reflections, P, RE>,
     _source_id: PhantomData<fn() -> SourceId>,
-    _listener_direct: PhantomData<fn() -> LD>,
-    _listener_pathing: PhantomData<fn() -> LP>,
 }
 
 impl<T, D, P, RE> ReflectionsReverbStep<(), T, D, P, RE>
@@ -31,29 +29,24 @@ where
         ReflectionsReverbStep {
             simulator,
             _source_id: PhantomData,
-            _listener_direct: PhantomData,
-            _listener_pathing: PhantomData,
         }
     }
 }
 
-impl<SourceId, T, D, P, RE, LD, LP, I> SimulationStep<I>
-    for ReflectionsReverbStep<SourceId, T, D, P, RE, LD, LP>
+impl<SourceId, T, D, P, RE, I> SimulationStep<I> for ReflectionsReverbStep<SourceId, T, D, P, RE>
 where
     T: 'static + RayTracer,
     D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
-    LD: 'static + Send + Sync + DirectCompatible<LD> + SimulationFlagsProvider,
-    LP: 'static + Send + Sync + PathingCompatible<LP> + SimulationFlagsProvider,
     (): DirectCompatible<D>
         + PathingCompatible<P>
-        + DirectCompatible<()>
-        + PathingCompatible<()>
-        + DirectCompatible<LD>
-        + PathingCompatible<LP>,
+        + DirectCompatible<I::LD>
+        + PathingCompatible<I::LP>,
     SourceId: 'static + Clone + Send + Sync,
-    I: AsReflectionsReverbInput<SourceId, D, Reflections, P, RE, LD, LP>,
+    I: AsReflectionsReverbInput<SourceId, D, Reflections, P, RE>,
+    I::LD: 'static + Send + Sync + DirectCompatible<I::LD> + SimulationFlagsProvider,
+    I::LP: 'static + Send + Sync + PathingCompatible<I::LP> + SimulationFlagsProvider,
 {
     type Output = ReflectionsReverbOutput<SourceId, RE>;
     type Error = SimulationStepError;
@@ -99,7 +92,7 @@ where
 
 /// Reflections and reverb simulation inputs.
 #[derive(Debug)]
-pub struct ReflectionsReverbInput<'a, SourceId, D, R, P, RE, LD = (), LP = ()>
+pub struct ReflectionsReverbInput<'a, SourceId, D, R, P, RE, LD = D, LP = P>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
@@ -112,18 +105,21 @@ where
 }
 
 /// Implemented by any type that can produce a [`ReflectionsReverbInput`] view.
-pub trait AsReflectionsReverbInput<SourceId, D, R, P, RE, LD = (), LP = ()>
+pub trait AsReflectionsReverbInput<SourceId, D, R, P, RE>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    type LD;
+    type LP;
+
     /// Returns a view of this type as [`ReflectionsReverbInput`].
     fn as_reflections_reverb_input(
         &self,
-    ) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE, LD, LP>;
+    ) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE, Self::LD, Self::LP>;
 }
 
 /// Owned input for reflections and reverb simulation.
-pub struct ReflectionsReverbInputOwned<SourceId, D, R, P, RE, LD = (), LP = ()>
+pub struct ReflectionsReverbInputOwned<SourceId, D, R, P, RE, LD = D, LP = P>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
@@ -135,11 +131,14 @@ where
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<SourceId, D, R, P, RE, LD, LP> AsReflectionsReverbInput<SourceId, D, R, P, RE, LD, LP>
+impl<SourceId, D, R, P, RE, LD, LP> AsReflectionsReverbInput<SourceId, D, R, P, RE>
     for ReflectionsReverbInputOwned<SourceId, D, R, P, RE, LD, LP>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {
+    type LD = LD;
+    type LP = LP;
+
     fn as_reflections_reverb_input(
         &self,
     ) -> ReflectionsReverbInput<'_, SourceId, D, R, P, RE, LD, LP> {
