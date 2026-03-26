@@ -1,7 +1,7 @@
 use super::super::runner::{DirectFrame, SimulationRunner};
 use super::super::step::DirectStep;
 use super::{SharedSimulationOutput, Simulation};
-use crate::effect::{DirectEffectParams, ReflectionEffectType};
+use crate::effect::DirectEffectParams;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
     Direct, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
@@ -17,13 +17,7 @@ where
     T: 'static + RayTracer,
     R: 'static + Send + Sync + Clone + Default + ReflectionsCompatible<R> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,
-    RE: 'static
-        + Send
-        + Sync
-        + Clone
-        + Default
-        + ReflectionEffectCompatible<R, RE>
-        + ReflectionEffectType,
+    RE: 'static + Send + Sync + Clone + Default + ReflectionEffectCompatible<R, RE>,
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
 {
     /// Spawns a direct simulation thread.

@@ -1,6 +1,6 @@
 use super::super::simulation::SourceWithInputs;
 use super::{SimulationStep, SimulationStepError, SourceEntries};
-use crate::effect::{DirectEffectParams, ReflectionEffectType};
+use crate::effect::DirectEffectParams;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
     Direct, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
@@ -38,7 +38,7 @@ where
     T: 'static + RayTracer,
     R: 'static + Send + Sync + ReflectionsCompatible<R> + SimulationFlagsProvider,
     P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
-    RE: 'static + Send + Sync + ReflectionEffectCompatible<R, RE> + ReflectionEffectType,
+    RE: 'static + Send + Sync + ReflectionEffectCompatible<R, RE>,
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
     I: AsDirectInput<SourceId, Direct, R, P, RE>,
     SourceId: 'static + Clone + Send + Sync,
