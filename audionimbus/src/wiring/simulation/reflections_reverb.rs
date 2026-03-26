@@ -1,6 +1,6 @@
 use super::super::runner::{ReflectionsReverbFrame, SimulationRunner};
 use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep};
-use super::{SharedSimulationOutput, Simulation};
+use super::{SharedSimulationOutput, Simulation, SourceWithInputs};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -30,7 +30,7 @@ where
     pub fn spawn_reflections_reverb(&mut self) -> ReflectionsReverbSimulation<SourceId, D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
             sources: self.sources.clone(),
-            listener: None,
+            listener: None::<SourceWithInputs<D, Reflections, P, RE>>,
             shared_inputs: Default::default(),
         })));
 

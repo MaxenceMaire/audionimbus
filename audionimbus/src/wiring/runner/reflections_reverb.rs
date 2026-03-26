@@ -10,7 +10,7 @@ use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationShare
 use super::super::simulation::Simulation;
 
 /// Input frame for reflections and reverb simulation.
-pub struct ReflectionsReverbFrame<SourceId, D, R, P, RE, LD = (), LP = ()>
+pub struct ReflectionsReverbFrame<SourceId, D, R, P, RE, LD = D, LP = P>
 where
     RE: ReflectionEffectCompatible<R, RE>,
 {

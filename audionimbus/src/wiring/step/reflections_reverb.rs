@@ -9,7 +9,7 @@ use crate::simulation::{
 use std::marker::PhantomData;
 
 /// Runs reflections and listener-centric reverb simulation simultaneously.
-pub struct ReflectionsReverbStep<SourceId, T, D, P, RE, LD = (), LP = ()>
+pub struct ReflectionsReverbStep<SourceId, T, D, P, RE, LD = D, LP = P>
 where
     T: RayTracer,
 {
