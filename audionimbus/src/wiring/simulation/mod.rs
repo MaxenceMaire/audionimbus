@@ -111,6 +111,9 @@ where
     T: RayTracer,
 {
     /// Creates a new simulation pipeline.
+    ///
+    /// `SourceId` is the identifier type for audio sources.
+    /// It enables mapping each output back to its originating source.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, R, P, RE>,
     ) -> Simulation<SourceId, T, D, R, P, RE> {
