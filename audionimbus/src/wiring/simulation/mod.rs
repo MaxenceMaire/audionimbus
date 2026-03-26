@@ -38,6 +38,52 @@ pub use pathing::*;
 /// [`Self::update`].
 ///
 /// Uses memory pooling to avoid per-frame allocation.
+///
+/// # Type parameters
+///
+/// | Parameter | Role |
+/// |---|---|
+/// | `SourceId` | Identifier type for audio sources (e.g. `u32`) |
+/// | `T` | Ray tracer backend |
+/// | `D` | Direct simulation mode ([`Direct`](crate::simulation::Direct) or `()`) |
+/// | `R` | Reflections mode ([`Reflections`](crate::simulation::Reflections) or `()`) |
+/// | `P` | Pathing mode ([`Pathing`](crate::simulation::Pathing) or `()`) |
+/// | `RE` | Reflection effect type (see [`ReflectionEffectType`](crate::effect::ReflectionEffectType)) |
+///
+/// Using [`()`](primitive@unit) for a mode disables it.
+///
+/// # Example
+///
+/// ```no_run
+/// # use audionimbus::wiring::*;
+/// # use audionimbus::*;
+/// # let context = Context::default();
+/// # let audio_settings = AudioSettings::default();
+/// let simulation_settings = SimulationSettings::new(&audio_settings)
+///     .with_direct(DirectSimulationSettings {
+///         max_num_occlusion_samples: 32,
+///     })
+///     .with_reflections(ConvolutionSettings {
+///         max_num_rays: 4096,
+///         num_diffuse_samples: 32,
+///         max_duration: 2.0,
+///         max_num_sources: 8,
+///         num_threads: 2,
+///         max_order: 2,
+///     });
+///
+/// let mut simulator = Simulator::try_new(&context, &simulation_settings)?;
+///
+/// // `u32` is the source ID type. Any `Clone + Send + Sync` type works.
+/// let mut simulation = Simulation::new::<u32>(simulator);
+/// let direct_simulation = simulation.spawn_direct();
+/// let reflections_simulation = simulation.spawn_reflections();
+///
+/// simulation.shutdown();
+/// direct_simulation.handle.join().expect("direct thread panicked");
+/// reflections_simulation.handle.join().expect("reflections thread panicked");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub struct Simulation<SourceId, T, D, R, P, RE>
 where
     T: RayTracer,
