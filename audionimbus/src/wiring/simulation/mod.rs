@@ -45,9 +45,9 @@ pub use pathing::*;
 /// |---|---|
 /// | `SourceId` | Identifier type for audio sources (e.g. `u32`) |
 /// | `T` | Ray tracer backend |
-/// | `D` | Direct simulation mode ([`Direct`](crate::simulation::Direct) or `()`) |
-/// | `R` | Reflections mode ([`Reflections`](crate::simulation::Reflections) or `()`) |
-/// | `P` | Pathing mode ([`Pathing`](crate::simulation::Pathing) or `()`) |
+/// | `D` | Direct simulation mode ([`Direct`](crate::simulation::Direct) or [`()`](primitive@unit)) |
+/// | `R` | Reflections mode ([`Reflections`](crate::simulation::Reflections) or [`()`](primitive@unit)) |
+/// | `P` | Pathing mode ([`Pathing`](crate::simulation::Pathing) or [`()`](primitive@unit)) |
 /// | `RE` | Reflection effect type (see [`ReflectionEffectType`](crate::effect::ReflectionEffectType)) |
 ///
 /// Using [`()`](primitive@unit) for a mode disables it.
