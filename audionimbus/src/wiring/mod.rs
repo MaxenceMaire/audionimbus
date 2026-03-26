@@ -28,7 +28,7 @@
 //! - Audio thread: Reads the most recent simulation outputs available and applies the
 //! corresponding effects.
 //!
-//! ```no_run
+//! ```
 //! # use audionimbus::wiring::*;
 //! # use audionimbus::*;
 //! # let context = Context::default();
@@ -125,7 +125,7 @@
 //! If no sources are active (e.g. during a loading screen), you can pause all spawned threads
 //! without tearing them down:
 //!
-//! ```no_run
+//! ```
 //! # use audionimbus::wiring::*;
 //! # use audionimbus::*;
 //! # let context = Context::default();

@@ -54,7 +54,7 @@ pub use pathing::*;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 /// # use audionimbus::wiring::*;
 /// # use audionimbus::*;
 /// # let context = Context::default();
@@ -152,7 +152,37 @@ where
 
     /// Updates the sources used by all simulation threads on their next run.
     ///
-    /// `f` receives a pooled `Vec` to be populated.
+    /// `f` receives a pooled `Vec` to populate with the new frame's `(SourceId, SourceWithInputs)`
+    /// pairs.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use audionimbus::wiring::*;
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let audio_settings = AudioSettings::default();
+    /// # let simulation_settings = SimulationSettings::new(&audio_settings)
+    /// #     .with_direct(DirectSimulationSettings { max_num_occlusion_samples: 4 });
+    /// # let simulator = Simulator::try_new(&context, &simulation_settings)?;
+    /// # let source = Source::<Direct, (), (), ()>::try_new(&simulator)?;
+    /// # let simulation = Simulation::new::<u32>(simulator);
+    /// # let transform = CoordinateSystem::default();
+    /// simulation.update(|sources| {
+    ///     sources.push((
+    ///         42,
+    ///         SourceWithInputs {
+    ///             source: source.clone(),
+    ///             simulation_inputs: SimulationInputs {
+    ///                 source: transform,
+    ///                 parameters: SimulationParameters::new()
+    ///                     .with_direct(DirectSimulationParameters::default()),
+    ///             },
+    ///         },
+    ///     ));
+    /// });
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn update<F>(&self, f: F)
     where
         F: FnOnce(&mut Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>),
