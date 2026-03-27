@@ -79,7 +79,7 @@
 //! # let listener_transform = CoordinateSystem::default();
 //! # let source_a_transform = CoordinateSystem::default();
 //! # let source_b_transform = CoordinateSystem::default();
-//! simulation.update(|sources| {
+//! simulation.update_sources(|sources| {
 //!     for (id, source, transform) in [
 //!         (0, &source_a, source_a_transform),
 //!         (1, &source_b, source_b_transform),

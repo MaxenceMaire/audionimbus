@@ -168,7 +168,7 @@ where
     /// # let source = Source::<Direct, (), (), ()>::try_new(&simulator)?;
     /// # let simulation = Simulation::new::<u32>(simulator);
     /// # let transform = CoordinateSystem::default();
-    /// simulation.update(|sources| {
+    /// simulation.update_sources(|sources| {
     ///     sources.push((
     ///         42,
     ///         SourceWithInputs {
@@ -183,7 +183,7 @@ where
     /// });
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn update<F>(&self, f: F)
+    pub fn update_sources<F>(&self, f: F)
     where
         F: FnOnce(&mut Vec<(SourceId, SourceWithInputs<D, R, P, RE>)>),
     {
@@ -301,7 +301,7 @@ mod tests {
         let source =
             Source::<Direct, Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
 
-        simulation.update(|sources| {
+        simulation.update_sources(|sources| {
             sources.push((
                 (),
                 SourceWithInputs {
@@ -319,7 +319,7 @@ mod tests {
             assert_eq!(sources.len(), 1);
         });
 
-        simulation.update(|sources| {
+        simulation.update_sources(|sources| {
             assert!(
                 sources.is_empty(),
                 "update should receive an empty buffer each call"

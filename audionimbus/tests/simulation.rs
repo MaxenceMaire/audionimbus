@@ -369,7 +369,7 @@ fn test_wiring_simulation() {
 
     simulation.request_commit();
 
-    simulation.update(|sources| {
+    simulation.update_sources(|sources| {
         sources.push((
             (),
             SourceWithInputs {
