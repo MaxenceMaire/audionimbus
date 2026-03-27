@@ -47,13 +47,13 @@ struct SceneShared<T: RayTracer> {
     static_meshes: SlotMap<DefaultKey, StaticMesh<T>>,
 
     /// Used to keep instanced meshes alive for the lifetime of the scene.
-    instanced_meshes: SlotMap<DefaultKey, InstancedMesh>,
+    instanced_meshes: SlotMap<DefaultKey, InstancedMesh<T>>,
 
     /// Static meshes to be dropped by the next call to [`Self::commit`].
     static_meshes_to_remove: Vec<StaticMesh<T>>,
 
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
-    instanced_meshes_to_remove: Vec<InstancedMesh>,
+    instanced_meshes_to_remove: Vec<InstancedMesh<T>>,
 
     /// Keeps the device alive for the lifetime of the scene.
     _device: T::Device,
@@ -576,7 +576,7 @@ impl<T: RayTracer> Scene<T> {
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn add_instanced_mesh(&mut self, instanced_mesh: InstancedMesh) -> InstancedMeshHandle {
+    pub fn add_instanced_mesh(&mut self, instanced_mesh: InstancedMesh<T>) -> InstancedMeshHandle {
         unsafe {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }

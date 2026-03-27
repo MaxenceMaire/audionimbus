@@ -38,6 +38,7 @@
 - `ReflectionsSimulationParameters` enum replaced by individual structs `ConvolutionParameters`, `ParametricParameters`, `HybridParameters`, and `TrueAudioNextParameters`.
 - Restructured `SimulationInputs` into public fields `source: CoordinateSystem` and `parameters: SimulationParameters`. The builder methods (`with_direct`, `with_reflections`, `with_pathing`) and the `set_*` mutating methods have moved to `SimulationParameters`.
 - Migrated crate edition from 2021 to 2024.
+- Made `StaticMesh` and `InstancedMesh` generic over the ray tracer implementation.
 
 ### Added
 

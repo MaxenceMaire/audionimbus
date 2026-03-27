@@ -29,7 +29,10 @@ impl<T: RayTracer> StaticMesh<T> {
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new(scene: &Scene, settings: &StaticMeshSettings) -> Result<Self, SteamAudioError> {
+    pub fn try_new(
+        scene: &Scene<T>,
+        settings: &StaticMeshSettings,
+    ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
 
         let mut vertices: Vec<audionimbus_sys::IPLVector3> = settings
@@ -94,7 +97,7 @@ impl<T: RayTracer> StaticMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load(
-        scene: &Scene,
+        scene: &Scene<T>,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(scene, serialized_object, None)
@@ -108,7 +111,7 @@ impl<T: RayTracer> StaticMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_with_progress_callback(
-        scene: &Scene,
+        scene: &Scene<T>,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
@@ -127,7 +130,7 @@ impl<T: RayTracer> StaticMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if loading fails.
     fn load_with_optional_progress_callback(
-        scene: &Scene,
+        scene: &Scene<T>,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {

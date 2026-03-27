@@ -1,5 +1,7 @@
 use super::{Matrix, Scene};
 use crate::error::{SteamAudioError, to_option_error};
+use crate::ray_tracing::RayTracer;
+use std::marker::PhantomData;
 
 /// A triangle mesh that can be moved (translated), rotated, or scaled, but cannot deform.
 ///
@@ -13,19 +15,22 @@ use crate::error::{SteamAudioError, to_option_error};
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
-pub struct InstancedMesh(audionimbus_sys::IPLInstancedMesh);
+pub struct InstancedMesh<T> {
+    inner: audionimbus_sys::IPLInstancedMesh,
+    _marker: PhantomData<T>,
+}
 
-impl InstancedMesh {
+impl<T: RayTracer> InstancedMesh<T> {
     /// Creates a new instanced mesh and returns a handle to it.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
-        scene: &Scene,
+        scene: &Scene<T>,
         settings: &InstancedMeshSettings,
     ) -> Result<Self, SteamAudioError> {
-        let mut instanced_mesh = Self(std::ptr::null_mut());
+        let mut inner = std::ptr::null_mut();
 
         let mut instanced_mesh_settings_ffi = audionimbus_sys::IPLInstancedMeshSettings {
             subScene: settings.sub_scene.raw_ptr(),
@@ -36,13 +41,18 @@ impl InstancedMesh {
             audionimbus_sys::iplInstancedMeshCreate(
                 scene.raw_ptr(),
                 &raw mut instanced_mesh_settings_ffi,
-                instanced_mesh.raw_ptr_mut(),
+                &raw mut inner,
             )
         };
 
         if let Some(error) = to_option_error(status) {
             return Err(error);
         }
+
+        let instanced_mesh = Self {
+            inner,
+            _marker: PhantomData,
+        };
 
         Ok(instanced_mesh)
     }
@@ -51,33 +61,36 @@ impl InstancedMesh {
     ///
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr(&self) -> audionimbus_sys::IPLInstancedMesh {
-        self.0
+        self.inner
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLInstancedMesh {
-        &mut self.0
+        &mut self.inner
     }
 }
 
-impl Drop for InstancedMesh {
+impl<T> Drop for InstancedMesh<T> {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplInstancedMeshRelease(&raw mut self.0) }
+        unsafe { audionimbus_sys::iplInstancedMeshRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl Send for InstancedMesh {}
-unsafe impl Sync for InstancedMesh {}
+unsafe impl<T: RayTracer> Send for InstancedMesh<T> {}
+unsafe impl<T: RayTracer> Sync for InstancedMesh<T> {}
 
-impl Clone for InstancedMesh {
+impl<T: RayTracer> Clone for InstancedMesh<T> {
     /// Retains an additional reference to the instanced mesh.
     ///
     /// The returned [`InstancedMesh`] shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The instanced mesh will not be destroyed until all references are released.
-        Self(unsafe { audionimbus_sys::iplInstancedMeshRetain(self.0) })
+        Self {
+            inner: unsafe { audionimbus_sys::iplInstancedMeshRetain(self.inner) },
+            _marker: PhantomData,
+        }
     }
 }
 
