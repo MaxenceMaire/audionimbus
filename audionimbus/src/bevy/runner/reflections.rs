@@ -17,6 +17,10 @@ impl Runner for RunnerReflections {
     type SimulationType = Reflections;
 }
 
+impl ToRunner for Reflections {
+    type Runner = RunnerReflectionsReverb;
+}
+
 impl<C> Spawn<C> for RunnerReflections
 where
     C: SimulationConfiguration<Reflections = Reflections>,

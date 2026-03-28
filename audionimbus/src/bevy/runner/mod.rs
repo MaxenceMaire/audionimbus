@@ -33,14 +33,6 @@ impl ToRunner for () {
     type Runner = ();
 }
 
-impl ToRunner for Reflections {
-    type Runner = RunnerReflectionsReverb;
-}
-
-impl ToRunner for Pathing {
-    type Runner = RunnerPathing;
-}
-
 pub trait Spawn<C: SimulationConfiguration> {
     fn spawn(world: &mut World);
 }

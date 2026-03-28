@@ -18,6 +18,10 @@ impl Runner for RunnerPathing {
     type SimulationType = Pathing;
 }
 
+impl ToRunner for Pathing {
+    type Runner = RunnerPathing;
+}
+
 impl<C> Spawn<C> for RunnerPathing
 where
     C: SimulationConfiguration<Pathing = Pathing>,
