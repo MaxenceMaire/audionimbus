@@ -67,6 +67,12 @@
 - Add `ReflectionsSimulationParameters` trait, implemented by `ConvolutionParameters`, `ParametricParameters`, `HybridParameters`, and `TrueAudioNextParameters`.
 - Add `ReflectionEffectType::SimulationParameters` associated type, linking each reflection effect type to its corresponding simulation parameters struct.
 - Add `SimulationParameters` struct, extracted from `SimulationInputs`, carrying the typed simulation parameters and builder methods (`with_direct`, `with_reflections`, `with_pathing`).
+- Add `wiring` feature (enabled by default) providing high-level simulation abstractions for multi-threaded simulation.
+    - `Simulation`: manages a shared, lock-free source buffer and spawns typed simulation threads via `spawn_direct`, `spawn_reflections`, `spawn_reflections_reverb`, and `spawn_pathing`. Sources are published by the game thread each frame via `update_sources` and consumed by simulation threads without blocking the audio thread.
+    - `SimulationRunner`: lower-level primitive for driving a custom `SimulationStep` on a dedicated thread, with lock-free input/output and pooling.
+    - `SimulationStep` trait: defines the simulation logic for a single step; implemented by `DirectStep`, `ReflectionsStep`, `ReflectionsReverbStep`, and `PathingStep`.
+    - `DirectSimulation`, `ReflectionsSimulation`, `ReflectionsReverbSimulation`, `PathingSimulation`: running simulation thread handles, each exposing a `set_input`, `pause`, and `resume` method.
+    - `SharedSimulationOutput`: lock-free handle to read outputs from the audio thread concurrently with simulation writes.
 
 ### Removed
 

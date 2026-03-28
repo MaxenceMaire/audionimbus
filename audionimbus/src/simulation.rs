@@ -31,6 +31,8 @@
 //! Never set inputs ([`Source::set_inputs`], [`Source::set_inputs_subset`], etc.) or retrieve
 //! outputs ([`Source::get_outputs`], [`Source::get_outputs_subset`], etc.) from an audio thread as
 //! it will block and cause audio glitches.
+//!
+//! Refer to the `wiring` feature to help set up this architecture and avoid common pitfalls.
 
 use crate::Sealed;
 use crate::audio_settings::AudioSettings;

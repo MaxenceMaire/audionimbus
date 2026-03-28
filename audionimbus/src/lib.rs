@@ -273,6 +273,8 @@ mod sealed;
 pub mod simulation;
 pub mod version;
 use sealed::Sealed;
+#[cfg(feature = "wiring")]
+pub mod wiring;
 
 #[cfg(feature = "fmod")]
 pub mod fmod;

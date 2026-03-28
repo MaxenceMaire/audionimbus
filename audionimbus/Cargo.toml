@@ -11,14 +11,18 @@ repository = "https://github.com/MaxenceMaire/audionimbus"
 readme = "README.md"
 
 [dependencies]
+arc-swap = { version = "1.8.2", optional = true }
 audionimbus-sys = { version = "4.8.1", path = "../audionimbus-sys" }
 bitflags = "2.9"
+object-pool = { version = "0.6.0", optional = true }
 slotmap = "1.1.1"
 
 [features]
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
+wiring = ["dep:arc-swap", "dep:object-pool"]
+default = ["wiring"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

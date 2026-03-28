@@ -1,4 +1,6 @@
+use audionimbus::wiring::*;
 use audionimbus::*;
+use std::time::Duration;
 
 mod common;
 use common::sine_wave;
@@ -286,4 +288,169 @@ fn test_reflections_without_scene() {
         simulator.run_reflections(),
         Err(SimulationError::ReflectionsWithoutScene)
     );
+}
+
+#[test]
+fn test_wiring_simulation() {
+    let context = Context::default();
+    let audio_settings = AudioSettings::default();
+
+    let simulation_settings = SimulationSettings::new(&audio_settings)
+        .with_direct(DirectSimulationSettings {
+            max_num_occlusion_samples: 4,
+        })
+        .with_reflections(ConvolutionSettings {
+            max_num_rays: 128,
+            num_diffuse_samples: 8,
+            max_duration: 0.5,
+            max_num_sources: 8,
+            num_threads: 1,
+            max_order: 1,
+        })
+        .with_pathing(PathingSimulationSettings {
+            num_visibility_samples: 4,
+        });
+    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+    let mut scene = Scene::try_new(&context).unwrap();
+    let vertices = vec![
+        Point::new(-10.0, 0.0, -10.0),
+        Point::new(10.0, 0.0, -10.0),
+        Point::new(10.0, 0.0, 10.0),
+        Point::new(-10.0, 0.0, 10.0),
+    ];
+    let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
+    let materials = vec![Material::default()];
+    let material_indices = vec![0usize, 0];
+    let static_mesh = StaticMesh::try_new(
+        &scene,
+        &StaticMeshSettings {
+            vertices: &vertices,
+            triangles: &triangles,
+            material_indices: &material_indices,
+            materials: &materials,
+        },
+    )
+    .unwrap();
+    scene.add_static_mesh(static_mesh);
+    scene.commit();
+    simulator.set_scene(&scene);
+
+    let mut probe_array = ProbeArray::try_new(&context).unwrap();
+    probe_array.generate_probes(
+        &scene,
+        &ProbeGenerationParams::UniformFloor {
+            spacing: 5.0,
+            height: 1.5,
+            transform: Matrix4::new([
+                [20.0, 0.0, 0.0, 0.0],
+                [0.0, 20.0, 0.0, 0.0],
+                [0.0, 0.0, 20.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]),
+        },
+    );
+    let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+    probe_batch.add_probe_array(&probe_array);
+    probe_batch.commit();
+    simulator.add_probe_batch(&probe_batch);
+    simulator.commit();
+
+    let simulator_clone = simulator.clone();
+    let mut simulation = Simulation::new::<()>(simulator);
+
+    let source =
+        Source::<Direct, Reflections, Pathing, Convolution>::try_new(&simulator_clone).unwrap();
+    simulator_clone.add_source(&source);
+
+    let listener_source =
+        Source::<(), Reflections, (), Convolution>::try_new_subset(&simulator_clone).unwrap();
+    simulator_clone.add_source(&listener_source);
+
+    simulation.request_commit();
+
+    simulation.update_sources(|sources| {
+        sources.push((
+            (),
+            SourceWithInputs {
+                source: source.clone(),
+                simulation_inputs: SimulationInputs {
+                    source: CoordinateSystem::default(),
+                    parameters: SimulationParameters::new()
+                        .with_direct(
+                            DirectSimulationParameters::new()
+                                .with_distance_attenuation(DistanceAttenuationModel::default())
+                                .with_air_absorption(AirAbsorptionModel::default())
+                                .with_directivity(Directivity::default()),
+                        )
+                        .with_reflections(ConvolutionParameters {
+                            baked_data_identifier: None,
+                        })
+                        .with_pathing(PathingSimulationParameters {
+                            pathing_probes: probe_batch.clone(),
+                            visibility_radius: 1.0,
+                            visibility_threshold: 0.1,
+                            visibility_range: 50.0,
+                            pathing_order: 1,
+                            enable_validation: false,
+                            find_alternate_paths: false,
+                            deviation: DeviationModel::Default,
+                        }),
+                },
+            },
+        ));
+    });
+
+    let direct_simulation = simulation.spawn_direct();
+    let reverb_simulation = simulation.spawn_reflections_reverb();
+    let pathing_simulation = simulation.spawn_pathing();
+
+    std::thread::sleep(Duration::from_millis(200));
+
+    assert_eq!(direct_simulation.output.load().len(), 1);
+
+    let reverb_output = reverb_simulation.output.load();
+    assert_eq!(reverb_output.sources.len(), 1);
+    assert!(
+        reverb_output.listener.is_none(),
+        "listener should be None initially"
+    );
+
+    assert_eq!(pathing_simulation.output.load().len(), 1);
+
+    let listener = SourceWithInputs {
+        source: listener_source.clone(),
+        simulation_inputs: SimulationInputs {
+            source: CoordinateSystem::default(),
+            parameters: SimulationParameters::new().with_reflections(ConvolutionParameters {
+                baked_data_identifier: None,
+            }),
+        },
+    };
+    reverb_simulation.set_input(ReflectionsReverbFrame {
+        sources: simulation.sources.clone(),
+        listener: Some(listener),
+        shared_inputs: Default::default(),
+    });
+
+    std::thread::sleep(Duration::from_millis(200));
+
+    assert!(
+        reverb_simulation.output.load().listener.is_some(),
+        "listener should be Some after it is provided"
+    );
+
+    simulation.shutdown();
+    direct_simulation
+        .handle
+        .join()
+        .expect("direct simulation thread panicked");
+    reverb_simulation
+        .handle
+        .join()
+        .expect("reverb simulation thread panicked");
+    pathing_simulation
+        .handle
+        .join()
+        .expect("pathing simulation thread panicked");
 }
