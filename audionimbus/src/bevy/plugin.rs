@@ -1,6 +1,7 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
-use super::{Simulation, SimulationSharedInputs, SpatialAudioSet, sync_sources};
+use super::system_set::SpatialAudioSet;
+use super::{Simulation, SimulationSharedInputs, sync_sources};
 use crate::context::Context;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionsCompatible, SimulationFlagsProvider,

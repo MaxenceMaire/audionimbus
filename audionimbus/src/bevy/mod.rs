@@ -1,25 +1,21 @@
 use crate::geometry::CoordinateSystem;
 use crate::simulation::{SimulationInputs, SimulationParameters};
 use crate::wiring::SourceWithInputs;
-use bevy::prelude::{Entity, Query, Res, Resource, SystemSet, Transform, Without};
+use bevy::prelude::{Entity, Query, Res, Resource, Transform, Without};
 
 pub mod configuration;
 pub mod plugin;
 pub mod runner;
 pub mod simulation;
 pub mod source;
+pub mod system_set;
 
 pub use configuration::*;
 pub use plugin::*;
 pub use runner::*;
 pub use simulation::*;
 pub use source::*;
-
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum SpatialAudioSet {
-    SyncSources,
-    SyncFrames,
-}
+pub use system_set::*;
 
 #[derive(Resource, Debug)]
 pub struct SimulationSharedInputs<C: SimulationConfiguration = DefaultSimulationConfiguration>(
