@@ -1,3 +1,5 @@
+//! Bevy integration for AudioNimbus.
+
 pub mod configuration;
 pub mod plugin;
 pub mod runner;

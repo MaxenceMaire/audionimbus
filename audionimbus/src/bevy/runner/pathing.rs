@@ -1,7 +1,9 @@
+//! Pathing simulation runner.
+
 use super::super::configuration::SimulationConfiguration;
 use super::super::simulation::{Simulation, SimulationSharedInputs};
 use super::super::system_set::SpatialAudioSet;
-use super::{Runner, Spawn, SyncFrame};
+use super::{Runner, Spawn, SyncFrame, ToRunner};
 use crate::effect::pathing::PathEffectParams;
 use crate::sealed::Sealed;
 use crate::simulation::{DirectCompatible, Pathing, ReflectionsCompatible};
@@ -11,6 +13,7 @@ use bevy::prelude::{
 };
 use std::ops::{Deref, DerefMut};
 
+/// Runner for pathing simulation.
 pub struct RunnerPathing;
 
 impl Sealed for RunnerPathing {}
@@ -63,6 +66,7 @@ fn sync_pathing_frame<C>(
     });
 }
 
+/// Resource wrapping a [`wiring::PathingSimulation`](crate::wiring::PathingSimulation).
 #[derive(Resource)]
 pub struct PathingSimulation<C: SimulationConfiguration>(
     pub crate::wiring::PathingSimulation<Entity, C::Direct, C::Reflections, C::ReflectionEffect>,

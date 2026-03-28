@@ -1,8 +1,9 @@
+//! Runner typestate: marker types that map simulation modes to dedicated threads.
+
 use super::configuration::SimulationConfiguration;
 use super::simulation::Simulation;
 use super::source::{Listener, Source, SourceParameters};
 use crate::sealed::Sealed;
-use crate::simulation::{Pathing, Reflections};
 use crate::simulation::{SimulationInputs, SimulationParameters};
 use crate::wiring::SourceWithInputs;
 use bevy::prelude::{App, Entity, Query, Res, Transform, Without, World};
@@ -17,6 +18,10 @@ pub use pathing::*;
 pub use reflections::*;
 pub use reflections_reverb::*;
 
+/// Marker trait for a simulation runner.
+///
+/// The associated [`SimulationType`](Runner::SimulationType) links a runner to the simulation mode
+/// it drives.
 pub trait Runner: Sealed {
     type SimulationType;
 }
@@ -25,6 +30,7 @@ impl Runner for () {
     type SimulationType = ();
 }
 
+/// Maps a simulation mode type to its [`Runner`].
 pub trait ToRunner {
     type Runner: Runner;
 }
@@ -33,6 +39,7 @@ impl ToRunner for () {
     type Runner = ();
 }
 
+/// Spawns a simulation thread and inserts its resource into the world.
 pub trait Spawn<C: SimulationConfiguration> {
     fn spawn(world: &mut World);
 }
@@ -41,6 +48,7 @@ impl<C: SimulationConfiguration> Spawn<C> for () {
     fn spawn(_world: &mut World) {}
 }
 
+/// Registers the frame-sync system for a simulation thread.
 pub trait SyncFrame<C: SimulationConfiguration>: Sealed {
     fn add_systems(app: &mut App);
 }

@@ -1,3 +1,5 @@
+//! Simulation type configuration.
+
 use crate::effect::reflections::{Convolution, ReflectionEffectType};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::simulation::{
@@ -5,7 +7,7 @@ use crate::simulation::{
     ReflectionsCompatible, SimulationFlagsProvider,
 };
 
-/// Bundles simulation type parameters.
+/// Bundles the type parameters that define a simulation pipeline.
 pub trait SimulationConfiguration: 'static + Send + Sync {
     type RayTracer: 'static + RayTracer + Send + Sync;
     type Direct: 'static
@@ -38,6 +40,8 @@ pub trait SimulationConfiguration: 'static + Send + Sync {
         + Default;
 }
 
+/// Default simulation configuration: [`DefaultRayTracer`], direct, reflections via convolution, no
+/// pathing.
 pub struct DefaultSimulationConfiguration;
 
 impl SimulationConfiguration for DefaultSimulationConfiguration {

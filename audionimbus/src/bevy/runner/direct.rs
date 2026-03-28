@@ -1,3 +1,5 @@
+//! Direct simulation runner.
+
 use super::super::configuration::SimulationConfiguration;
 use super::super::simulation::{Simulation, SimulationSharedInputs};
 use super::super::system_set::SpatialAudioSet;
@@ -11,6 +13,7 @@ use bevy::prelude::{
 };
 use std::ops::{Deref, DerefMut};
 
+/// Runner for direct (occlusion, attenuation) simulation.
 pub struct RunnerDirect;
 
 impl Sealed for RunnerDirect {}
@@ -63,6 +66,7 @@ fn sync_direct_frame<C>(
     });
 }
 
+/// Resource wrapping a [`wiring::DirectSimulation`](crate::wiring::DirectSimulation).
 #[derive(Resource)]
 pub struct DirectSimulation<C: SimulationConfiguration>(
     pub crate::wiring::DirectSimulation<Entity, C::Reflections, C::Pathing, C::ReflectionEffect>,

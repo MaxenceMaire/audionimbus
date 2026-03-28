@@ -1,8 +1,10 @@
+//! Reflections and reverb simulation runner.
+
 use super::super::configuration::SimulationConfiguration;
 use super::super::simulation::{Simulation, SimulationSharedInputs};
 use super::super::source::{Listener, Source, SourceParameters};
 use super::super::system_set::SpatialAudioSet;
-use super::{Runner, Spawn, SyncFrame};
+use super::{Runner, Spawn, SyncFrame, ToRunner};
 use crate::sealed::Sealed;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, Reflections, SimulationInputs, SimulationParameters,
@@ -14,11 +16,16 @@ use bevy::prelude::{
 };
 use std::ops::{Deref, DerefMut};
 
+/// Runner for reflections and listener-centric reverb simulation.
 pub struct RunnerReflectionsReverb;
 
 impl Sealed for RunnerReflectionsReverb {}
 impl Runner for RunnerReflectionsReverb {
     type SimulationType = Reflections;
+}
+
+impl ToRunner for Reflections {
+    type Runner = RunnerReflectionsReverb;
 }
 
 impl<C> Spawn<C> for RunnerReflectionsReverb
@@ -86,6 +93,7 @@ fn sync_reflections_reverb_frame<C>(
     });
 }
 
+/// Resource wrapping a [`wiring::ReflectionsReverbSimulation`](crate::wiring::ReflectionsReverbSimulation).
 #[derive(Resource)]
 pub struct ReflectionsReverbSimulation<C: SimulationConfiguration>(
     pub  crate::wiring::ReflectionsReverbSimulation<

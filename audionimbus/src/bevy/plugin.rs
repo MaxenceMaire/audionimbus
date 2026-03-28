@@ -1,14 +1,29 @@
+//! Bevy plugin and shared simulation inputs resource.
+
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner, sync_sources};
 use super::simulation::{Simulation, SimulationSharedInputs};
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
 use crate::simulation::{
-    DirectCompatible, PathingCompatible, ReflectionsCompatible, SimulationFlagsProvider,
-    SimulationSettings, Simulator,
+    Direct, DirectCompatible, PathingCompatible, Reflections, ReflectionsCompatible,
+    SimulationFlagsProvider, SimulationSettings, Simulator,
 };
 use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate};
 
+#[cfg(doc)]
+use super::runner::{RunnerReflections, RunnerReflectionsReverb};
+
+/// Bevy plugin that sets up the AudioNimbus spatial audio pipeline.
+///
+/// # Type parameters
+///
+/// | Parameter | Role |
+/// |---|---|
+/// | `C` | Simulation configuration (see [`SimulationConfiguration`]) |
+/// | `RD` | Direct runner (`RunnerDirect` or `()`) |
+/// | `RR` | Reflections runner (`RunnerReflections`, `RunnerReflectionsReverb`, or `()`) |
+/// | `RP` | Pathing runner (`RunnerPathing` or `()`) |
 pub struct Plugin<
     C: SimulationConfiguration = DefaultSimulationConfiguration,
     RD: Runner = (),
@@ -25,17 +40,39 @@ pub struct Plugin<
     _phantom: std::marker::PhantomData<(RD, RR, RP)>,
 }
 
-impl<C, RD, RR, RP> Plugin<C, RD, RR, RP>
-where
-    C: SimulationConfiguration,
-    C::Direct: ToRunner<Runner = RD>,
-    C::Reflections: ToRunner<Runner = RR>,
-    C::Pathing: ToRunner<Runner = RP>,
-    RD: Runner,
-    RR: Runner,
-    RP: Runner,
+impl
+    Plugin<
+        DefaultSimulationConfiguration,
+        <Direct as ToRunner>::Runner,
+        <Reflections as ToRunner>::Runner,
+        <() as ToRunner>::Runner,
+    >
 {
+    /// Creates a new plugin using [`DefaultSimulationConfiguration`].
+    ///
+    /// Use [`with_config`](Plugin::with_config) to supply a custom [`SimulationConfiguration`].
     pub fn new(
+        simulation_settings: SimulationSettings<
+            <DefaultSimulationConfiguration as SimulationConfiguration>::RayTracer,
+            <DefaultSimulationConfiguration as SimulationConfiguration>::Direct,
+            <DefaultSimulationConfiguration as SimulationConfiguration>::Reflections,
+            <DefaultSimulationConfiguration as SimulationConfiguration>::Pathing,
+            <DefaultSimulationConfiguration as SimulationConfiguration>::ReflectionEffect,
+        >,
+    ) -> Self {
+        Self {
+            simulation_settings,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl Plugin<DefaultSimulationConfiguration, (), (), ()> {
+    /// Creates a new plugin with a custom [`SimulationConfiguration`].
+    ///
+    /// Runners are inferred from the configuration's simulation modes.
+    /// Use [`with_runners`](Plugin::with_runners) to override them.
+    pub fn with_config<C>(
         simulation_settings: SimulationSettings<
             C::RayTracer,
             C::Direct,
@@ -43,8 +80,19 @@ where
             C::Pathing,
             C::ReflectionEffect,
         >,
-    ) -> Self {
-        Self {
+    ) -> Plugin<
+        C,
+        <C::Direct as ToRunner>::Runner,
+        <C::Reflections as ToRunner>::Runner,
+        <C::Pathing as ToRunner>::Runner,
+    >
+    where
+        C: SimulationConfiguration,
+        C::Direct: ToRunner,
+        C::Reflections: ToRunner,
+        C::Pathing: ToRunner,
+    {
+        Plugin {
             simulation_settings,
             _phantom: std::marker::PhantomData,
         }
@@ -58,6 +106,43 @@ where
     RR: Runner,
     RP: Runner,
 {
+    /// Overrides the inferred runners with explicit runner types.
+    ///
+    /// Use this when the default [`ToRunner`] mapping doesn't match your needs, for example to use
+    /// [`RunnerReflections`] instead of the default [`RunnerReflectionsReverb`] when you don't
+    /// need listener-centric reverb.
+    ///
+    /// ```rust
+    /// # use audionimbus::*;
+    /// # use audionimbus::bevy::*;
+    /// #
+    /// # let audio_settings = AudioSettings::default();
+    /// # let settings = SimulationSettings::new(&audio_settings)
+    /// #     .with_direct(DirectSimulationSettings {
+    /// #         max_num_occlusion_samples: 4,
+    /// #     })
+    /// #     .with_reflections(ConvolutionSettings {
+    /// #         max_num_rays: 4096,
+    /// #         num_diffuse_samples: 32,
+    /// #         max_duration: 2.0,
+    /// #         max_num_sources: 8,
+    /// #         num_threads: 2,
+    /// #         max_order: 1,
+    /// #     });
+    /// #
+    /// # pub struct MyConfig;
+    /// #
+    /// # impl SimulationConfiguration for MyConfig {
+    /// #     type RayTracer = DefaultRayTracer;
+    /// #     type Direct = Direct;
+    /// #     type Reflections = Reflections;
+    /// #     type Pathing = ();
+    /// #     type ReflectionEffect = Convolution;
+    /// # }
+    /// Plugin::with_config::<MyConfig>(settings)
+    ///     .with_runners::<RunnerDirect, RunnerReflections, ()>();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn with_runners<RD2, RR2, RP2>(self) -> Plugin<C, RD2, RR2, RP2>
     where
         RD2: Runner<SimulationType = RD::SimulationType>,
@@ -109,7 +194,7 @@ where
 
         let simulator = Simulator::try_new(&context, &self.simulation_settings)
             .expect("failed to create simulator");
-        let simulation = crate::wiring::Simulation::new::<Entity>(simulator);
+        let simulation = crate::wiring::simulation::Simulation::new::<Entity>(simulator);
 
         world.insert_resource(Simulation::<C>(simulation));
         world.insert_resource(SimulationSharedInputs::<C>::default());
