@@ -22,7 +22,7 @@
 //! The example below wires up direct (occlusion/attenuation) and reflections simulation
 //! for a small scene with two sources.
 //! It mirrors a typical game-loop structure [split into separate threads](crate::simulation#multi-threading-architecture):
-//! - Game thread: Calls [`Simulation::update`] each frame to publish the latest sources.
+//! - Game thread: Calls [`Simulation::update_sources`] each frame to publish the latest sources.
 //! - Simulation threads: Spawned by [`Simulation::spawn_direct`] and similar methods; runs continuously,
 //!   picking up the latest sources on each iteration.
 //! - Audio thread: Reads the most recent simulation outputs available and applies the

@@ -35,7 +35,7 @@ pub use pathing::*;
 /// - [`Self::spawn_pathing`]
 ///
 /// Spawned simulation threads share the same sources, updated atomically by the game thread via
-/// [`Self::update`].
+/// [`Self::update_sources`].
 ///
 /// Uses memory pooling to avoid per-frame allocation.
 ///
@@ -92,7 +92,7 @@ where
     pub simulator: Simulator<T, D, R, P, RE>,
     /// Pool of source buffers, reused across frames to avoid allocation.
     pub sources_pool: SourcesPool<SourceId, D, R, P, RE>,
-    /// The current source buffer, atomically swapped each frame via [`Self::update`].
+    /// The current source buffer, atomically swapped each frame via [`Self::update_sources`].
     pub sources: SharedSources<SourceId, D, R, P, RE>,
     /// Set to `true` via [`Self::request_commit`] to trigger a simulator commit on the next
     /// simulation run.

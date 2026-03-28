@@ -15,7 +15,7 @@ where
     RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Shared reference to the current frame of sources, written by the game thread via
-    /// [`Simulation::update`].
+    /// [`Simulation::update_sources`].
     pub sources: SharedSources<SourceId, D, R, P, RE>,
     /// Listener source.
     pub listener: Option<SourceWithInputs<LD, R, LP, RE>>,
