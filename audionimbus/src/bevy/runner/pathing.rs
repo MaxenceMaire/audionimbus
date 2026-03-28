@@ -1,5 +1,6 @@
 use super::super::configuration::SimulationConfiguration;
-use super::super::{Simulation, SimulationSharedInputs, SpatialAudioSet};
+use super::super::simulation::{Simulation, SimulationSharedInputs};
+use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame};
 use crate::effect::pathing::PathEffectParams;
 use crate::sealed::Sealed;

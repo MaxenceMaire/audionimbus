@@ -1,5 +1,7 @@
 use super::super::configuration::SimulationConfiguration;
-use super::super::{Simulation, SimulationSharedInputs, Source, SourceParameters, SpatialAudioSet};
+use super::super::simulation::{Simulation, SimulationSharedInputs};
+use super::super::source::{Listener, Source, SourceParameters};
+use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame};
 use crate::sealed::Sealed;
 use crate::simulation::{
@@ -7,8 +9,8 @@ use crate::simulation::{
 };
 use crate::wiring::{Allocate, ReflectionsReverbFrame, ReflectionsReverbOutput, SourceWithInputs};
 use bevy::prelude::{
-    App, Component, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, Transform, With,
-    World, resource_exists,
+    App, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, Transform, With, World,
+    resource_exists,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -110,8 +112,3 @@ impl<C: SimulationConfiguration> DerefMut for ReflectionsReverbSimulation<C> {
         &mut self.0
     }
 }
-
-/// The listener used for reverb simulation.
-#[derive(Component, Debug)]
-#[component(storage = "SparseSet")]
-pub struct Listener;

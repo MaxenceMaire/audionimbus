@@ -1,6 +1,6 @@
 use super::configuration::SimulationConfiguration;
 use super::simulation::Simulation;
-use super::source::{Source, SourceParameters};
+use super::source::{Listener, Source, SourceParameters};
 use crate::sealed::Sealed;
 use crate::simulation::{Pathing, Reflections};
 use crate::simulation::{SimulationInputs, SimulationParameters};

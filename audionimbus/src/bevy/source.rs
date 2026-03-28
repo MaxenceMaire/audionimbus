@@ -11,3 +11,8 @@ pub struct Source<C: SimulationConfiguration = DefaultSimulationConfiguration>(
 pub struct SourceParameters<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub SimulationParameters<C::Direct, C::Reflections, C::Pathing>,
 );
+
+/// The listener used for reverb simulation.
+#[derive(Component, Debug)]
+#[component(storage = "SparseSet")]
+pub struct Listener;
