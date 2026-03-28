@@ -281,3 +281,6 @@ pub mod fmod;
 
 #[cfg(feature = "wwise")]
 pub mod wwise;
+
+#[cfg(feature = "bevy")]
+pub mod bevy;

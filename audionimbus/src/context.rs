@@ -4,6 +4,9 @@ use crate::error::{SteamAudioError, to_option_error};
 use crate::version::SteamAudioVersion;
 use std::hash::{Hash, Hasher};
 
+#[cfg(feature = "bevy")]
+use bevy::prelude::Resource;
+
 /// A context object, which controls low-level operations of Steam Audio.
 ///
 /// Typically, a context is specified once during the execution of the client program, before calling any other API functions.
@@ -27,6 +30,7 @@ use std::hash::{Hash, Hasher};
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "bevy", derive(Resource))]
 pub struct Context(pub(crate) audionimbus_sys::IPLContext);
 
 impl Context {
