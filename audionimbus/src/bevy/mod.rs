@@ -1,209 +1,21 @@
 use crate::context::Context;
-use crate::effect::direct::DirectEffectParams;
-use crate::effect::pathing::PathEffectParams;
 use crate::geometry::CoordinateSystem;
-use crate::sealed::Sealed;
 use crate::simulation::{
-    Direct, DirectCompatible, Pathing, PathingCompatible, Reflections, ReflectionsCompatible,
-    SimulationFlagsProvider, SimulationInputs, SimulationParameters, SimulationSettings, Simulator,
+    DirectCompatible, PathingCompatible, ReflectionsCompatible, SimulationFlagsProvider,
+    SimulationInputs, SimulationParameters, SimulationSettings, Simulator,
 };
-use crate::wiring::{
-    Allocate, DirectFrame, PathingFrame, ReflectionsFrame, ReflectionsOutput,
-    ReflectionsReverbFrame, ReflectionsReverbOutput, SourceWithInputs,
-};
+use crate::wiring::SourceWithInputs;
 use bevy::prelude::{
     App, Component, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, SystemSet,
-    Transform, With, Without, World, resource_exists,
+    Transform, Without,
 };
 use std::ops::{Deref, DerefMut};
 
 pub mod configuration;
 pub use configuration::*;
 
-pub struct RunnerDirect;
-pub struct RunnerReflections;
-pub struct RunnerReflectionsReverb;
-pub struct RunnerPathing;
-
-pub trait Runner: Sealed {
-    type SimulationType;
-}
-
-impl Runner for () {
-    type SimulationType = ();
-}
-
-impl Sealed for RunnerDirect {}
-impl Runner for RunnerDirect {
-    type SimulationType = Direct;
-}
-
-impl Sealed for RunnerReflections {}
-impl Runner for RunnerReflections {
-    type SimulationType = Reflections;
-}
-
-impl Sealed for RunnerReflectionsReverb {}
-impl Runner for RunnerReflectionsReverb {
-    type SimulationType = Reflections;
-}
-
-impl Sealed for RunnerPathing {}
-impl Runner for RunnerPathing {
-    type SimulationType = Pathing;
-}
-
-pub trait ToRunner {
-    type Runner: Runner;
-}
-
-impl ToRunner for () {
-    type Runner = ();
-}
-
-impl ToRunner for Direct {
-    type Runner = RunnerDirect;
-}
-
-impl ToRunner for Reflections {
-    type Runner = RunnerReflectionsReverb;
-}
-
-impl ToRunner for Pathing {
-    type Runner = RunnerPathing;
-}
-
-pub trait Spawn<C: SimulationConfiguration> {
-    fn spawn(world: &mut World);
-}
-
-impl<C: SimulationConfiguration> Spawn<C> for () {
-    fn spawn(_world: &mut World) {}
-}
-
-impl<C> Spawn<C> for RunnerDirect
-where
-    C: SimulationConfiguration<Direct = Direct>,
-    Vec<DirectEffectParams>:
-        Allocate<DirectFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>>,
-    (): ReflectionsCompatible<<C as SimulationConfiguration>::Reflections>
-        + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
-{
-    fn spawn(world: &mut World) {
-        let runner = world.resource_mut::<Simulation<C>>().spawn_direct();
-        world.insert_resource(DirectSimulation::<C>(runner));
-    }
-}
-
-impl<C> Spawn<C> for RunnerReflections
-where
-    C: SimulationConfiguration<Reflections = Reflections>,
-    ReflectionsOutput<Entity, C::ReflectionEffect>: Allocate<
-        ReflectionsFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
-    >,
-    (): DirectCompatible<<C as SimulationConfiguration>::Direct>
-        + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
-{
-    fn spawn(world: &mut World) {
-        let runner = world.resource_mut::<Simulation<C>>().spawn_reflections();
-        world.insert_resource(ReflectionsSimulation::<C>(runner));
-    }
-}
-
-impl<C> Spawn<C> for RunnerReflectionsReverb
-where
-    C: SimulationConfiguration<Reflections = Reflections>,
-    ReflectionsReverbOutput<Entity, C::ReflectionEffect>: Allocate<
-        ReflectionsReverbFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
-    >,
-    (): DirectCompatible<<C as SimulationConfiguration>::Direct>
-        + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
-{
-    fn spawn(world: &mut World) {
-        let runner = world
-            .resource_mut::<Simulation<C>>()
-            .spawn_reflections_reverb();
-        world.insert_resource(ReflectionsReverbSimulation::<C>(runner));
-    }
-}
-
-impl<C> Spawn<C> for RunnerPathing
-where
-    C: SimulationConfiguration<Pathing = Pathing>,
-    Vec<PathEffectParams>:
-        Allocate<PathingFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>>,
-    (): ReflectionsCompatible<<C as SimulationConfiguration>::Reflections>
-        + DirectCompatible<<C as SimulationConfiguration>::Direct>,
-{
-    fn spawn(world: &mut World) {
-        let runner = world.resource_mut::<Simulation<C>>().spawn_pathing();
-        world.insert_resource(PathingSimulation::<C>(runner));
-    }
-}
-
-pub trait SyncFrame<C: SimulationConfiguration>: Sealed {
-    fn add_systems(app: &mut App);
-}
-
-impl<C: SimulationConfiguration> SyncFrame<C> for () {
-    fn add_systems(_app: &mut App) {}
-}
-
-impl<C> SyncFrame<C> for RunnerDirect
-where
-    C: SimulationConfiguration<Direct = Direct>,
-{
-    fn add_systems(app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            sync_direct_frame::<C>
-                .run_if(resource_exists::<DirectSimulation<C>>)
-                .in_set(SpatialAudioSet::SyncFrames),
-        );
-    }
-}
-
-impl<C> SyncFrame<C> for RunnerReflections
-where
-    C: SimulationConfiguration<Reflections = Reflections>,
-{
-    fn add_systems(app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            sync_reflections_frame::<C>
-                .run_if(resource_exists::<ReflectionsSimulation<C>>)
-                .in_set(SpatialAudioSet::SyncFrames),
-        );
-    }
-}
-
-impl<C> SyncFrame<C> for RunnerReflectionsReverb
-where
-    C: SimulationConfiguration<Reflections = Reflections>,
-{
-    fn add_systems(app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            sync_reflections_reverb_frame::<C>
-                .run_if(resource_exists::<ReflectionsReverbSimulation<C>>)
-                .in_set(SpatialAudioSet::SyncFrames),
-        );
-    }
-}
-
-impl<C> SyncFrame<C> for RunnerPathing
-where
-    C: SimulationConfiguration<Pathing = Pathing>,
-{
-    fn add_systems(app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            sync_pathing_frame::<C>
-                .run_if(resource_exists::<PathingSimulation<C>>)
-                .in_set(SpatialAudioSet::SyncFrames),
-        );
-    }
-}
+pub mod runner;
+pub use runner::*;
 
 pub struct Plugin<
     C: SimulationConfiguration = DefaultSimulationConfiguration,
@@ -330,7 +142,7 @@ where
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-enum SpatialAudioSet {
+pub enum SpatialAudioSet {
     SyncSources,
     SyncFrames,
 }
@@ -360,89 +172,8 @@ impl<C: SimulationConfiguration> Deref for Simulation<C> {
         &self.0
     }
 }
+
 impl<C: SimulationConfiguration> DerefMut for Simulation<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-#[derive(Resource)]
-pub struct DirectSimulation<C: SimulationConfiguration>(
-    pub crate::wiring::DirectSimulation<Entity, C::Reflections, C::Pathing, C::ReflectionEffect>,
-);
-
-impl<C: SimulationConfiguration> Deref for DirectSimulation<C> {
-    type Target =
-        crate::wiring::DirectSimulation<Entity, C::Reflections, C::Pathing, C::ReflectionEffect>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<C: SimulationConfiguration> DerefMut for DirectSimulation<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-#[derive(Resource)]
-pub struct ReflectionsSimulation<C: SimulationConfiguration>(
-    pub crate::wiring::ReflectionsSimulation<Entity, C::Direct, C::Pathing, C::ReflectionEffect>,
-);
-
-impl<C: SimulationConfiguration> Deref for ReflectionsSimulation<C> {
-    type Target =
-        crate::wiring::ReflectionsSimulation<Entity, C::Direct, C::Pathing, C::ReflectionEffect>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<C: SimulationConfiguration> DerefMut for ReflectionsSimulation<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-#[derive(Resource)]
-pub struct ReflectionsReverbSimulation<C: SimulationConfiguration>(
-    pub  crate::wiring::ReflectionsReverbSimulation<
-        Entity,
-        C::Direct,
-        C::Pathing,
-        C::ReflectionEffect,
-    >,
-);
-
-impl<C: SimulationConfiguration> Deref for ReflectionsReverbSimulation<C> {
-    type Target = crate::wiring::ReflectionsReverbSimulation<
-        Entity,
-        C::Direct,
-        C::Pathing,
-        C::ReflectionEffect,
-    >;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<C: SimulationConfiguration> DerefMut for ReflectionsReverbSimulation<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-#[derive(Resource)]
-pub struct PathingSimulation<C: SimulationConfiguration>(
-    pub crate::wiring::PathingSimulation<Entity, C::Direct, C::Reflections, C::ReflectionEffect>,
-);
-
-impl<C: SimulationConfiguration> Deref for PathingSimulation<C> {
-    type Target =
-        crate::wiring::PathingSimulation<Entity, C::Direct, C::Reflections, C::ReflectionEffect>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<C: SimulationConfiguration> DerefMut for PathingSimulation<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -469,11 +200,6 @@ impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
     }
 }
 
-/// The listener used for reverb simulation.
-#[derive(Component, Debug)]
-#[component(storage = "SparseSet")]
-pub struct Listener;
-
 fn sync_sources<C: SimulationConfiguration>(
     mut query: Query<
         (Entity, &Transform, &Source<C>, Option<&SourceParameters<C>>),
@@ -497,79 +223,6 @@ fn sync_sources<C: SimulationConfiguration>(
                 },
             ));
         }
-    });
-}
-
-fn sync_direct_frame<C>(
-    simulation: Res<Simulation<C>>,
-    direct: Res<DirectSimulation<C>>,
-    shared_inputs: Res<SimulationSharedInputs<C>>,
-) where
-    C: SimulationConfiguration<Direct = Direct>,
-{
-    direct.set_input(DirectFrame {
-        sources: simulation.sources.clone(),
-        shared_inputs: shared_inputs.0.clone(),
-    });
-}
-
-fn sync_reflections_frame<C>(
-    simulation: Res<Simulation<C>>,
-    reflections: Res<ReflectionsSimulation<C>>,
-    shared_inputs: Res<SimulationSharedInputs<C>>,
-) where
-    C: SimulationConfiguration<Reflections = Reflections>,
-{
-    reflections.set_input(ReflectionsFrame {
-        sources: simulation.sources.clone(),
-        shared_inputs: shared_inputs.0.clone(),
-    });
-}
-
-fn sync_reflections_reverb_frame<C>(
-    query: Query<(&Transform, &Source<C>, Option<&SourceParameters<C>>), With<Listener>>,
-    simulation: Res<Simulation<C>>,
-    reflections_reverb: Res<ReflectionsReverbSimulation<C>>,
-    shared_inputs: Res<SimulationSharedInputs<C>>,
-) where
-    C: SimulationConfiguration<Reflections = Reflections>,
-{
-    let mut query_iter = query.iter();
-
-    #[cfg(debug_assertions)]
-    if query_iter.len() > 1 {
-        eprintln!("warning: found more than one listener; picking first item");
-    }
-
-    let listener =
-        query_iter.next().map(
-            |(transform, source, simulation_parameters)| SourceWithInputs {
-                source: source.0.clone(),
-                simulation_inputs: SimulationInputs {
-                    source: coordinate_system_from_transform(*transform),
-                    parameters: simulation_parameters
-                        .map_or_else(SimulationParameters::default, |params| params.0.clone()),
-                },
-            },
-        );
-
-    reflections_reverb.set_input(ReflectionsReverbFrame {
-        sources: simulation.sources.clone(),
-        listener,
-        shared_inputs: shared_inputs.0.clone(),
-    });
-}
-
-fn sync_pathing_frame<C>(
-    simulation: Res<Simulation<C>>,
-    pathing: Res<PathingSimulation<C>>,
-    shared_inputs: Res<SimulationSharedInputs<C>>,
-) where
-    C: SimulationConfiguration<Pathing = Pathing>,
-{
-    pathing.set_input(PathingFrame {
-        sources: simulation.sources.clone(),
-        shared_inputs: shared_inputs.0.clone(),
     });
 }
 
