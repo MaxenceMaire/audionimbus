@@ -1,5 +1,8 @@
 use super::{Point, Vector3};
 
+#[cfg(feature = "bevy")]
+use bevy::prelude::Transform;
+
 /// A 3D coordinate system, expressed relative to a canonical coordinate system.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct CoordinateSystem {
@@ -45,6 +48,18 @@ impl From<audionimbus_sys::IPLCoordinateSpace3> for CoordinateSystem {
             up: coordinate_system.up.into(),
             ahead: coordinate_system.ahead.into(),
             origin: coordinate_system.origin.into(),
+        }
+    }
+}
+
+#[cfg(feature = "bevy")]
+impl From<Transform> for CoordinateSystem {
+    fn from(transform: Transform) -> Self {
+        Self {
+            right: transform.right().to_array().into(),
+            up: transform.up().to_array().into(),
+            ahead: transform.forward().to_array().into(),
+            origin: transform.translation.to_array().into(),
         }
     }
 }

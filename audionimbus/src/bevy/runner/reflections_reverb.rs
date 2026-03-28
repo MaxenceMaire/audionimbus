@@ -1,8 +1,5 @@
 use super::super::configuration::SimulationConfiguration;
-use super::super::{
-    Simulation, SimulationSharedInputs, Source, SourceParameters, SpatialAudioSet,
-    coordinate_system_from_transform,
-};
+use super::super::{Simulation, SimulationSharedInputs, Source, SourceParameters, SpatialAudioSet};
 use super::{Runner, Spawn, SyncFrame};
 use crate::sealed::Sealed;
 use crate::simulation::{
@@ -73,7 +70,7 @@ fn sync_reflections_reverb_frame<C>(
             |(transform, source, simulation_parameters)| SourceWithInputs {
                 source: source.0.clone(),
                 simulation_inputs: SimulationInputs {
-                    source: coordinate_system_from_transform(*transform),
+                    source: (*transform).into(),
                     parameters: simulation_parameters
                         .map_or_else(SimulationParameters::default, |params| params.0.clone()),
                 },

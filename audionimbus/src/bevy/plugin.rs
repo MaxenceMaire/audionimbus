@@ -1,5 +1,4 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
-use super::coordinate_system_from_transform;
 use super::runner::Listener;
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::Simulation;
@@ -161,7 +160,7 @@ fn sync_sources<C: SimulationConfiguration>(
     simulation.0.update_sources(|snapshot| {
         for (entity, transform, source, simulation_parameters) in query.iter_mut() {
             let simulation_inputs = SimulationInputs {
-                source: coordinate_system_from_transform(*transform),
+                source: (*transform).into(),
                 parameters: simulation_parameters
                     .map_or_else(SimulationParameters::default, |params| params.0.clone()),
             };
