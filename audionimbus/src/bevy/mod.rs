@@ -2,52 +2,21 @@ use crate::geometry::CoordinateSystem;
 use crate::simulation::{SimulationInputs, SimulationParameters};
 use crate::wiring::SourceWithInputs;
 use bevy::prelude::{Component, Entity, Query, Res, Resource, SystemSet, Transform, Without};
-use std::ops::{Deref, DerefMut};
 
 pub mod configuration;
 pub mod plugin;
 pub mod runner;
+pub mod simulation;
 
 pub use configuration::*;
 pub use plugin::*;
 pub use runner::*;
+pub use simulation::*;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpatialAudioSet {
     SyncSources,
     SyncFrames,
-}
-
-#[derive(Resource)]
-pub struct Simulation<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub  crate::wiring::Simulation<
-        Entity,
-        C::RayTracer,
-        C::Direct,
-        C::Reflections,
-        C::Pathing,
-        C::ReflectionEffect,
-    >,
-);
-
-impl<C: SimulationConfiguration> Deref for Simulation<C> {
-    type Target = crate::wiring::Simulation<
-        Entity,
-        C::RayTracer,
-        C::Direct,
-        C::Reflections,
-        C::Pathing,
-        C::ReflectionEffect,
-    >;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<C: SimulationConfiguration> DerefMut for Simulation<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 #[derive(Component, Clone, Debug)]
