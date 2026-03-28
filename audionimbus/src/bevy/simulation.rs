@@ -33,3 +33,14 @@ impl<C: SimulationConfiguration> DerefMut for Simulation<C> {
         &mut self.0
     }
 }
+
+#[derive(Resource, Debug)]
+pub struct SimulationSharedInputs<C: SimulationConfiguration = DefaultSimulationConfiguration>(
+    pub crate::simulation::SimulationSharedInputs<C::Direct, C::Reflections, C::Pathing>,
+);
+
+impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
+    fn default() -> Self {
+        Self(crate::simulation::SimulationSharedInputs::default())
+    }
+}

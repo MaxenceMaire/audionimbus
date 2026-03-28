@@ -1,7 +1,7 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::runner::Listener;
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
-use super::simulation::Simulation;
+use super::simulation::{Simulation, SimulationSharedInputs};
 use super::source::{Source, SourceParameters};
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
@@ -11,9 +11,7 @@ use crate::simulation::{
 };
 use crate::simulation::{SimulationInputs, SimulationParameters};
 use crate::wiring::SourceWithInputs;
-use bevy::prelude::{
-    App, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, Transform, Without,
-};
+use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Transform, Without};
 
 pub struct Plugin<
     C: SimulationConfiguration = DefaultSimulationConfiguration,
@@ -136,17 +134,6 @@ where
         RD::add_systems(app);
         RR::add_systems(app);
         RP::add_systems(app);
-    }
-}
-
-#[derive(Resource, Debug)]
-pub struct SimulationSharedInputs<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub crate::simulation::SimulationSharedInputs<C::Direct, C::Reflections, C::Pathing>,
-);
-
-impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
-    fn default() -> Self {
-        Self(crate::simulation::SimulationSharedInputs::default())
     }
 }
 
