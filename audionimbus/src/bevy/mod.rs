@@ -1,14 +1,11 @@
 use crate::context::Context;
 use crate::effect::direct::DirectEffectParams;
 use crate::effect::pathing::PathEffectParams;
-use crate::effect::reflections::{Convolution, ReflectionEffectType};
 use crate::geometry::CoordinateSystem;
-use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::sealed::Sealed;
 use crate::simulation::{
-    Direct, DirectCompatible, Pathing, PathingCompatible, ReflectionEffectCompatible, Reflections,
-    ReflectionsCompatible, SimulationFlagsProvider, SimulationInputs, SimulationParameters,
-    SimulationSettings, Simulator,
+    Direct, DirectCompatible, Pathing, PathingCompatible, Reflections, ReflectionsCompatible,
+    SimulationFlagsProvider, SimulationInputs, SimulationParameters, SimulationSettings, Simulator,
 };
 use crate::wiring::{
     Allocate, DirectFrame, PathingFrame, ReflectionsFrame, ReflectionsOutput,
@@ -20,48 +17,8 @@ use bevy::prelude::{
 };
 use std::ops::{Deref, DerefMut};
 
-/// Bundles simulation type parameters.
-pub trait SimulationConfiguration: 'static + Send + Sync {
-    type RayTracer: 'static + RayTracer + Send + Sync;
-    type Direct: 'static
-        + DirectCompatible<Self::Direct>
-        + SimulationFlagsProvider
-        + Send
-        + Sync
-        + Clone
-        + Default;
-    type Reflections: 'static
-        + ReflectionsCompatible<Self::Reflections>
-        + SimulationFlagsProvider
-        + Send
-        + Sync
-        + Clone
-        + Default;
-    type Pathing: 'static
-        + PathingCompatible<Self::Pathing>
-        + SimulationFlagsProvider
-        + Send
-        + Sync
-        + Clone
-        + Default;
-    type ReflectionEffect: 'static
-        + ReflectionEffectCompatible<Self::Reflections, Self::ReflectionEffect>
-        + ReflectionEffectType
-        + Send
-        + Sync
-        + Clone
-        + Default;
-}
-
-pub struct DefaultSimulationConfiguration;
-
-impl SimulationConfiguration for DefaultSimulationConfiguration {
-    type RayTracer = DefaultRayTracer;
-    type Direct = Direct;
-    type Reflections = Reflections;
-    type Pathing = ();
-    type ReflectionEffect = Convolution;
-}
+pub mod configuration;
+pub use configuration::*;
 
 pub struct RunnerDirect;
 pub struct RunnerReflections;
