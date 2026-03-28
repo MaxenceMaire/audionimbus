@@ -253,6 +253,12 @@ impl<T: 'static + Send + Sync> SharedSimulationOutput<T> {
     }
 }
 
+impl<T: 'static + Send + Sync> Clone for SharedSimulationOutput<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
