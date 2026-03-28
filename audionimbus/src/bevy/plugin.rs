@@ -1,13 +1,20 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
+use super::coordinate_system_from_transform;
+use super::runner::Listener;
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
+use super::simulation::Simulation;
+use super::source::{Source, SourceParameters};
 use super::system_set::SpatialAudioSet;
-use super::{Simulation, SimulationSharedInputs, sync_sources};
 use crate::context::Context;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionsCompatible, SimulationFlagsProvider,
     SimulationSettings, Simulator,
 };
-use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate};
+use crate::simulation::{SimulationInputs, SimulationParameters};
+use crate::wiring::SourceWithInputs;
+use bevy::prelude::{
+    App, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, Transform, Without,
+};
 
 pub struct Plugin<
     C: SimulationConfiguration = DefaultSimulationConfiguration,
@@ -131,4 +138,41 @@ where
         RR::add_systems(app);
         RP::add_systems(app);
     }
+}
+
+#[derive(Resource, Debug)]
+pub struct SimulationSharedInputs<C: SimulationConfiguration = DefaultSimulationConfiguration>(
+    pub crate::simulation::SimulationSharedInputs<C::Direct, C::Reflections, C::Pathing>,
+);
+
+impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
+    fn default() -> Self {
+        Self(crate::simulation::SimulationSharedInputs::default())
+    }
+}
+
+fn sync_sources<C: SimulationConfiguration>(
+    mut query: Query<
+        (Entity, &Transform, &Source<C>, Option<&SourceParameters<C>>),
+        Without<Listener>,
+    >,
+    simulation: Res<Simulation<C>>,
+) {
+    simulation.0.update_sources(|snapshot| {
+        for (entity, transform, source, simulation_parameters) in query.iter_mut() {
+            let simulation_inputs = SimulationInputs {
+                source: coordinate_system_from_transform(*transform),
+                parameters: simulation_parameters
+                    .map_or_else(SimulationParameters::default, |params| params.0.clone()),
+            };
+
+            snapshot.push((
+                entity,
+                SourceWithInputs {
+                    source: source.0.clone(),
+                    simulation_inputs,
+                },
+            ));
+        }
+    });
 }
