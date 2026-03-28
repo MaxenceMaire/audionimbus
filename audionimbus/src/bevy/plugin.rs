@@ -1,17 +1,13 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
-use super::runner::Listener;
-use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
+use super::runner::{Runner, Spawn, SyncFrame, ToRunner, sync_sources};
 use super::simulation::{Simulation, SimulationSharedInputs};
-use super::source::{Source, SourceParameters};
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionsCompatible, SimulationFlagsProvider,
     SimulationSettings, Simulator,
 };
-use crate::simulation::{SimulationInputs, SimulationParameters};
-use crate::wiring::SourceWithInputs;
-use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Transform, Without};
+use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate};
 
 pub struct Plugin<
     C: SimulationConfiguration = DefaultSimulationConfiguration,
@@ -135,30 +131,4 @@ where
         RR::add_systems(app);
         RP::add_systems(app);
     }
-}
-
-fn sync_sources<C: SimulationConfiguration>(
-    mut query: Query<
-        (Entity, &Transform, &Source<C>, Option<&SourceParameters<C>>),
-        Without<Listener>,
-    >,
-    simulation: Res<Simulation<C>>,
-) {
-    simulation.0.update_sources(|snapshot| {
-        for (entity, transform, source, simulation_parameters) in query.iter_mut() {
-            let simulation_inputs = SimulationInputs {
-                source: (*transform).into(),
-                parameters: simulation_parameters
-                    .map_or_else(SimulationParameters::default, |params| params.0.clone()),
-            };
-
-            snapshot.push((
-                entity,
-                SourceWithInputs {
-                    source: source.0.clone(),
-                    simulation_inputs,
-                },
-            ));
-        }
-    });
 }
