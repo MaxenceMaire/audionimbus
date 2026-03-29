@@ -48,3 +48,11 @@ impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
         Self(crate::simulation::SimulationSharedInputs::default())
     }
 }
+
+/// Identifies a simulation thread.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SimulationThread {
+    Direct,
+    Reflections,
+    Pathing,
+}

@@ -1,13 +1,14 @@
 //! Direct simulation runner.
 
 use super::super::configuration::SimulationConfiguration;
-use super::super::simulation::{Simulation, SimulationSharedInputs};
+use super::super::error::{SimulationErrorEvent, SimulationErrorSender};
+use super::super::simulation::{Simulation, SimulationSharedInputs, SimulationThread};
 use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame, ToRunner};
 use crate::effect::direct::DirectEffectParams;
 use crate::sealed::Sealed;
 use crate::simulation::{Direct, PathingCompatible, ReflectionsCompatible};
-use crate::wiring::{Allocate, DirectFrame};
+use crate::wiring::{Allocate, DirectFrame, SimulationStepError};
 use bevy::prelude::{
     App, Entity, IntoScheduleConfigs, PostUpdate, Res, Resource, World, resource_exists,
 };
@@ -34,7 +35,17 @@ where
         + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
 {
     fn spawn(world: &mut World) {
-        let runner = world.resource_mut::<Simulation<C>>().spawn_direct();
+        let error_sender = world.resource::<SimulationErrorSender>().0.clone();
+
+        let runner = world.resource_mut::<Simulation<C>>().spawn_direct(
+            move |error: SimulationStepError| {
+                let _ = error_sender.try_send(SimulationErrorEvent {
+                    thread: SimulationThread::Direct,
+                    error,
+                });
+            },
+        );
+
         world.insert_resource(DirectSimulation::<C>(runner));
     }
 }

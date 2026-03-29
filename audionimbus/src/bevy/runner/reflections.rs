@@ -1,12 +1,13 @@
 //! Reflections simulation runner.
 
 use super::super::configuration::SimulationConfiguration;
-use super::super::simulation::{Simulation, SimulationSharedInputs};
+use super::super::error::{SimulationErrorEvent, SimulationErrorSender};
+use super::super::simulation::{Simulation, SimulationSharedInputs, SimulationThread};
 use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame};
 use crate::sealed::Sealed;
 use crate::simulation::{DirectCompatible, PathingCompatible, Reflections};
-use crate::wiring::{Allocate, ReflectionsFrame, ReflectionsOutput};
+use crate::wiring::{Allocate, ReflectionsFrame, ReflectionsOutput, SimulationStepError};
 use bevy::prelude::{
     App, Entity, IntoScheduleConfigs, PostUpdate, Res, Resource, World, resource_exists,
 };
@@ -30,7 +31,17 @@ where
         + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
 {
     fn spawn(world: &mut World) {
-        let runner = world.resource_mut::<Simulation<C>>().spawn_reflections();
+        let error_sender = world.resource::<SimulationErrorSender>().0.clone();
+
+        let runner = world.resource_mut::<Simulation<C>>().spawn_reflections(
+            move |error: SimulationStepError| {
+                let _ = error_sender.try_send(SimulationErrorEvent {
+                    thread: SimulationThread::Direct,
+                    error,
+                });
+            },
+        );
+
         world.insert_resource(ReflectionsSimulation::<C>(runner));
     }
 }

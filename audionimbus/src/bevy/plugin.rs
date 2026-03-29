@@ -1,6 +1,7 @@
 //! Bevy plugin and shared simulation inputs resource.
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
+use super::error::{error_channel, propagate_simulation_errors};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner, sync_sources};
 use super::simulation::{Simulation, SimulationSharedInputs};
 use super::system_set::SpatialAudioSet;
@@ -199,17 +200,25 @@ where
         world.insert_resource(Simulation::<C>(simulation));
         world.insert_resource(SimulationSharedInputs::<C>::default());
 
+        let (sender, receiver) = error_channel();
+        world.insert_resource(sender);
+        world.insert_non_send_resource(receiver);
+
         RD::spawn(world);
         RR::spawn(world);
         RP::spawn(world);
 
         app.configure_sets(
             PostUpdate,
-            SpatialAudioSet::SyncSources.before(SpatialAudioSet::SyncFrames),
+            (SpatialAudioSet::SyncSources, SpatialAudioSet::SyncFrames).chain(),
         );
+
         app.add_systems(
             PostUpdate,
-            sync_sources::<C>.in_set(SpatialAudioSet::SyncSources),
+            (
+                sync_sources::<C>.in_set(SpatialAudioSet::SyncSources),
+                propagate_simulation_errors.in_set(SpatialAudioSet::PropagateErrors),
+            ),
         );
 
         RD::add_systems(app);

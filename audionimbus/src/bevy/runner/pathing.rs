@@ -1,13 +1,14 @@
 //! Pathing simulation runner.
 
 use super::super::configuration::SimulationConfiguration;
-use super::super::simulation::{Simulation, SimulationSharedInputs};
+use super::super::error::{SimulationErrorEvent, SimulationErrorSender};
+use super::super::simulation::{Simulation, SimulationSharedInputs, SimulationThread};
 use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame, ToRunner};
 use crate::effect::pathing::PathEffectParams;
 use crate::sealed::Sealed;
 use crate::simulation::{DirectCompatible, Pathing, ReflectionsCompatible};
-use crate::wiring::{Allocate, PathingFrame};
+use crate::wiring::{Allocate, PathingFrame, SimulationStepError};
 use bevy::prelude::{
     App, Entity, IntoScheduleConfigs, PostUpdate, Res, Resource, World, resource_exists,
 };
@@ -34,7 +35,17 @@ where
         + DirectCompatible<<C as SimulationConfiguration>::Direct>,
 {
     fn spawn(world: &mut World) {
-        let runner = world.resource_mut::<Simulation<C>>().spawn_pathing();
+        let error_sender = world.resource::<SimulationErrorSender>().0.clone();
+
+        let runner = world.resource_mut::<Simulation<C>>().spawn_pathing(
+            move |error: SimulationStepError| {
+                let _ = error_sender.try_send(SimulationErrorEvent {
+                    thread: SimulationThread::Direct,
+                    error,
+                });
+            },
+        );
+
         world.insert_resource(PathingSimulation::<C>(runner));
     }
 }
