@@ -3446,7 +3446,7 @@ impl<D, R, P, RE> Drop for SimulationOutputs<D, R, P, RE> {
 }
 
 /// Errors that can occur during simulation operations.
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum SimulationError {
     /// Attempted to run pathing simulation without any probe batches committed.
     ///
@@ -3479,7 +3479,7 @@ impl std::fmt::Display for SimulationError {
 }
 
 /// Errors that can occur during parameter validation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ParameterValidationError {
     /// Number of occlusion samples exceeds the maximum set during initialization.
     OcclusionSamplesExceedsMax {

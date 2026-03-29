@@ -73,6 +73,8 @@
     - `SimulationStep` trait: defines the simulation logic for a single step; implemented by `DirectStep`, `ReflectionsStep`, `ReflectionsReverbStep`, and `PathingStep`.
     - `DirectSimulation`, `ReflectionsSimulation`, `ReflectionsReverbSimulation`, `PathingSimulation`: running simulation thread handles, each exposing a `set_input`, `pause`, and `resume` method.
     - `SharedSimulationOutput`: lock-free handle to read outputs from the audio thread concurrently with simulation writes.
+- Implement `Copy`, `Clone` for `SimulationError`.
+- Implement `Copy` for `ParameterValidationError`.
 
 ### Removed
 
