@@ -2,8 +2,9 @@
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::error::{error_channel, propagate_simulation_errors};
-use super::runner::{Runner, Spawn, SyncFrame, ToRunner, sync_sources};
+use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::{Simulation, SimulationSharedInputs};
+use super::source::sync_sources;
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
 use crate::simulation::{

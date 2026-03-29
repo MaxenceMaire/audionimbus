@@ -1,11 +1,10 @@
 //! Components for spatial audio sources.
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
-use crate::simulation::SimulationParameters;
-use bevy::prelude::Component;
-
-#[cfg(doc)]
-use bevy::prelude::Transform;
+use super::simulation::Simulation;
+use crate::simulation::{SimulationInputs, SimulationParameters};
+use crate::wiring::SourceWithInputs;
+use bevy::prelude::{Component, Entity, Query, Res, Transform, Without};
 
 /// Spatial audio source component.
 ///
@@ -31,3 +30,30 @@ pub struct SourceParameters<C: SimulationConfiguration = DefaultSimulationConfig
 #[derive(Component, Debug)]
 #[component(storage = "SparseSet")]
 pub struct Listener;
+
+/// Publishes a new snapshot of sources.
+pub(crate) fn sync_sources<C: SimulationConfiguration>(
+    mut query: Query<
+        (Entity, &Transform, &Source<C>, Option<&SourceParameters<C>>),
+        Without<Listener>,
+    >,
+    simulation: Res<Simulation<C>>,
+) {
+    simulation.0.update_sources(|snapshot| {
+        for (entity, transform, source, simulation_parameters) in query.iter_mut() {
+            let simulation_inputs = SimulationInputs {
+                source: (*transform).into(),
+                parameters: simulation_parameters
+                    .map_or_else(SimulationParameters::default, |params| params.0.clone()),
+            };
+
+            snapshot.push((
+                entity,
+                SourceWithInputs {
+                    source: source.0.clone(),
+                    simulation_inputs,
+                },
+            ));
+        }
+    });
+}
