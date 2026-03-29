@@ -69,8 +69,11 @@
 //!
 //! // Spawn one thread per simulation type.
 //! // Each thread shares the same list of sources that the game thread writes every frame.
-//! let direct_simulation = simulation.spawn_direct();
-//! let reflections_simulation = simulation.spawn_reflections();
+//! let on_error = |error| {
+//!     eprintln!("{error}");
+//! };
+//! let direct_simulation = simulation.spawn_direct(on_error);
+//! let reflections_simulation = simulation.spawn_reflections(on_error);
 //!
 //! // Game thread loop (runs every frame)
 //! // Publish the world-state snapshot for this frame.
@@ -136,7 +139,9 @@
 //! #     });
 //! # let simulator = Simulator::try_new(&context, &simulation_settings)?;
 //! # let mut simulation = Simulation::new::<()>(simulator);
-//! # let direct_simulator = simulation.spawn_direct();
+//! # let direct_simulator = simulation.spawn_direct(|error| {
+//! #     eprintln!("{error}");
+//! # });
 //! // Pause all simulation threads.
 //! simulation.pause();
 //!

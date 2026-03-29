@@ -1,5 +1,5 @@
 use super::super::runner::{ReflectionsFrame, SimulationRunner};
-use super::super::step::{ReflectionsOutput, ReflectionsStep};
+use super::super::step::{ReflectionsOutput, ReflectionsStep, SimulationStepError};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
@@ -27,7 +27,10 @@ where
     (): DirectCompatible<D> + PathingCompatible<P>,
 {
     /// Spawns a reflections simulation thread.
-    pub fn spawn_reflections(&mut self) -> ReflectionsSimulation<SourceId, D, P, RE> {
+    pub fn spawn_reflections(
+        &mut self,
+        on_error: impl Fn(SimulationStepError) + Send + 'static,
+    ) -> ReflectionsSimulation<SourceId, D, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -50,7 +53,10 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(ReflectionsStep::new::<SourceId>(self.simulator.clone()));
+        .spawn(
+            ReflectionsStep::new::<SourceId>(self.simulator.clone()),
+            on_error,
+        );
 
         ReflectionsSimulation {
             handle,
@@ -127,7 +133,9 @@ mod tests {
         simulator.commit();
 
         let mut simulation = Simulation::new::<()>(simulator);
-        let reflections_simulation = simulation.spawn_reflections();
+        let reflections_simulation = simulation.spawn_reflections(|error| {
+            eprintln!("{error}");
+        });
         simulation.shutdown();
         reflections_simulation
             .handle
@@ -154,7 +162,9 @@ mod tests {
         simulator.commit();
 
         let mut simulation = Simulation::new::<()>(simulator);
-        let reflections_simulation = simulation.spawn_reflections();
+        let reflections_simulation = simulation.spawn_reflections(|error| {
+            eprintln!("{error}");
+        });
 
         assert!(reflections_simulation.output.load().sources.is_empty());
 

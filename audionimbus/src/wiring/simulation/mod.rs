@@ -76,8 +76,11 @@ pub use pathing::*;
 ///
 /// // `u32` is the source ID type. Any `Clone + Send + Sync` type works.
 /// let mut simulation = Simulation::new::<u32>(simulator);
-/// let direct_simulation = simulation.spawn_direct();
-/// let reflections_simulation = simulation.spawn_reflections();
+/// let on_error = |error| {
+///     eprintln!("{error}");
+/// };
+/// let direct_simulation = simulation.spawn_direct(on_error);
+/// let reflections_simulation = simulation.spawn_reflections(on_error);
 ///
 /// simulation.shutdown();
 /// direct_simulation.handle.join().expect("direct thread panicked");
@@ -351,7 +354,9 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut simulation = Simulation::new::<()>(simulator);
-        let direct_simulation = simulation.spawn_direct();
+        let direct_simulation = simulation.spawn_direct(|error| {
+            eprintln!("{error}");
+        });
         simulation.shutdown();
         direct_simulation
             .handle

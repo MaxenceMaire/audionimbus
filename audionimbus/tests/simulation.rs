@@ -401,9 +401,12 @@ fn test_wiring_simulation() {
         ));
     });
 
-    let direct_simulation = simulation.spawn_direct();
-    let reverb_simulation = simulation.spawn_reflections_reverb();
-    let pathing_simulation = simulation.spawn_pathing();
+    let on_error = |error| {
+        eprintln!("{error}");
+    };
+    let direct_simulation = simulation.spawn_direct(on_error);
+    let reverb_simulation = simulation.spawn_reflections_reverb(on_error);
+    let pathing_simulation = simulation.spawn_pathing(on_error);
 
     std::thread::sleep(Duration::from_millis(200));
 

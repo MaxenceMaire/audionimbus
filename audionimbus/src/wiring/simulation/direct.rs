@@ -1,5 +1,5 @@
 use super::super::runner::{DirectFrame, SimulationRunner};
-use super::super::step::DirectStep;
+use super::super::step::{DirectStep, SimulationStepError};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::DirectEffectParams;
 use crate::ray_tracing::RayTracer;
@@ -21,7 +21,10 @@ where
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
 {
     /// Spawns a direct simulation thread.
-    pub fn spawn_direct(&mut self) -> DirectSimulation<SourceId, R, P, RE> {
+    pub fn spawn_direct(
+        &mut self,
+        on_error: impl Fn(SimulationStepError) + Send + 'static,
+    ) -> DirectSimulation<SourceId, R, P, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(DirectFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -44,7 +47,10 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(DirectStep::new::<SourceId>(self.simulator.clone()));
+        .spawn(
+            DirectStep::new::<SourceId>(self.simulator.clone()),
+            on_error,
+        );
 
         DirectSimulation {
             handle,
@@ -119,7 +125,9 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut simulation = Simulation::new::<()>(simulator);
-        let direct_simulation = simulation.spawn_direct();
+        let direct_simulation = simulation.spawn_direct(|error| {
+            eprintln!("{error}");
+        });
         simulation.shutdown();
         direct_simulation
             .handle
@@ -145,7 +153,9 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut simulation = Simulation::new::<()>(simulator);
-        let direct_simulation = simulation.spawn_direct();
+        let direct_simulation = simulation.spawn_direct(|error| {
+            eprintln!("{error}");
+        });
 
         assert!(direct_simulation.output.load().is_empty());
 

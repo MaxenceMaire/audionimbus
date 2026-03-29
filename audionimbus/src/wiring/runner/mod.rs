@@ -70,12 +70,17 @@ where
     }
 
     /// Spawns a new simulation thread and returns its handle.
-    pub fn spawn<S>(self, mut step: S) -> std::thread::JoinHandle<()>
+    pub fn spawn<S, E>(
+        self,
+        mut step: S,
+        on_error: impl Fn(E) + Send + 'static,
+    ) -> std::thread::JoinHandle<()>
     where
         I: Resolve,
-        for<'a> S: SimulationStep<<I as Resolve>::Resolved<'a>, Output = O>,
+        for<'a> S: SimulationStep<<I as Resolve>::Resolved<'a>, Output = O, Error = E>,
         S: Send + 'static,
         for<'a> O: Allocate<<I as Resolve>::Resolved<'a>>,
+        E: Send + 'static,
     {
         let Self {
             input,
@@ -114,9 +119,14 @@ where
                 let resolved = frame.resolve();
                 let mut out = pool.pull_owned(|| O::allocate(&resolved));
                 out.clear();
-                step.run(&resolved, &mut out).unwrap();
-                out.shrink();
-                output.store(Arc::new(out));
+
+                match step.run(&resolved, &mut out) {
+                    Ok(()) => {
+                        out.shrink();
+                        output.store(Arc::new(out));
+                    }
+                    Err(error) => on_error(error),
+                }
             }
         })
     }

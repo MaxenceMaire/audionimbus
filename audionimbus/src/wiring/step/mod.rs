@@ -29,7 +29,7 @@ pub trait SimulationStep<I>: Send + 'static {
 }
 
 /// Errors that can occur during a simulation step.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum SimulationStepError {
     /// Parameter validation error.
     ParameterValidation(ParameterValidationError),

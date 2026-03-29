@@ -1,5 +1,5 @@
 use super::super::runner::{ReflectionsReverbFrame, SimulationRunner};
-use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep};
+use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep, SimulationStepError};
 use super::{SharedSimulationOutput, Simulation, SourceWithInputs};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
@@ -29,6 +29,7 @@ where
     /// Spawns a reflections and reverb simulation thread.
     pub fn spawn_reflections_reverb<LD, LP>(
         &mut self,
+        on_error: impl Fn(SimulationStepError) + Send + 'static,
     ) -> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
     where
         LD: 'static + Send + Sync + DirectCompatible<LD> + SimulationFlagsProvider,
@@ -58,9 +59,10 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(ReflectionsReverbStep::new::<SourceId>(
-            self.simulator.clone(),
-        ));
+        .spawn(
+            ReflectionsReverbStep::new::<SourceId>(self.simulator.clone()),
+            on_error,
+        );
 
         ReflectionsReverbSimulation {
             handle,
@@ -149,7 +151,9 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_commit();
 
-        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>();
+        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
+            eprintln!("{error}");
+        });
         simulation.shutdown();
         reverb_simulation
             .handle
@@ -183,7 +187,9 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_commit();
 
-        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>();
+        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
+            eprintln!("{error}");
+        });
 
         assert!(reverb_simulation.output.load().listener.is_none());
 

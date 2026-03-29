@@ -1,5 +1,5 @@
 use super::super::runner::{PathingFrame, SimulationRunner};
-use super::super::step::PathingStep;
+use super::super::step::{PathingStep, SimulationStepError};
 use super::{SharedSimulationOutput, Simulation};
 use crate::effect::PathEffectParams;
 use crate::ray_tracing::RayTracer;
@@ -21,7 +21,10 @@ where
     (): DirectCompatible<D> + ReflectionsCompatible<R>,
 {
     /// Spawns a pathing simulation thread.
-    pub fn spawn_pathing(&mut self) -> PathingSimulation<SourceId, D, R, RE> {
+    pub fn spawn_pathing(
+        &mut self,
+        on_error: impl Fn(SimulationStepError) + Send + 'static,
+    ) -> PathingSimulation<SourceId, D, R, RE> {
         let input = Arc::new(ArcSwap::new(Arc::new(PathingFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -43,7 +46,10 @@ where
             self.shutdown.clone(),
             paused.clone(),
         )
-        .spawn(PathingStep::new::<SourceId>(self.simulator.clone()));
+        .spawn(
+            PathingStep::new::<SourceId>(self.simulator.clone()),
+            on_error,
+        );
 
         PathingSimulation {
             handle,
@@ -160,7 +166,9 @@ mod tests {
     #[test]
     fn test_spawn_and_shutdown() {
         let mut simulation = simulation();
-        let pathing_simulation = simulation.spawn_pathing();
+        let pathing_simulation = simulation.spawn_pathing(|error| {
+            eprintln!("{error}");
+        });
         simulation.shutdown();
         pathing_simulation
             .handle
@@ -171,7 +179,9 @@ mod tests {
     #[test]
     fn test_initial_output_is_empty() {
         let mut simulation = simulation();
-        let pathing_simulation = simulation.spawn_pathing();
+        let pathing_simulation = simulation.spawn_pathing(|error| {
+            eprintln!("{error}");
+        });
 
         assert!(pathing_simulation.output.load().is_empty());
 
