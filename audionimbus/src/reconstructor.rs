@@ -204,13 +204,13 @@ impl From<&ReconstructorSharedInputs> for audionimbus_sys::IPLReconstructorShare
 }
 
 /// The inputs for a single reconstruction operation.
-#[derive(Debug)]
-pub struct ReconstructorInputs<'a> {
+#[derive(Debug, Clone)]
+pub struct ReconstructorInputs {
     /// The energy field from which to reconstruct an impulse response.
-    pub energy_field: &'a EnergyField,
+    pub energy_field: EnergyField,
 }
 
-impl From<&ReconstructorInputs<'_>> for audionimbus_sys::IPLReconstructorInputs {
+impl From<&ReconstructorInputs> for audionimbus_sys::IPLReconstructorInputs {
     fn from(reconstructor_inputs: &ReconstructorInputs) -> Self {
         Self {
             energyField: reconstructor_inputs.energy_field.raw_ptr(),
@@ -307,9 +307,7 @@ mod tests {
                 },
             )
             .unwrap();
-            let inputs = vec![ReconstructorInputs {
-                energy_field: &energy_field,
-            }];
+            let inputs = vec![ReconstructorInputs { energy_field }];
 
             let mut impulse_response = ImpulseResponse::try_new(
                 &context,
@@ -356,9 +354,7 @@ mod tests {
                 },
             )
             .unwrap();
-            let inputs = vec![ReconstructorInputs {
-                energy_field: &energy_field,
-            }];
+            let inputs = vec![ReconstructorInputs { energy_field }];
 
             let mut impulse_response = ImpulseResponse::try_new(
                 &context,
@@ -409,9 +405,7 @@ mod tests {
                 },
             )
             .unwrap();
-            let inputs = vec![ReconstructorInputs {
-                energy_field: &energy_field,
-            }];
+            let inputs = vec![ReconstructorInputs { energy_field }];
 
             let mut impulse_response = ImpulseResponse::try_new(
                 &context,
@@ -462,11 +456,9 @@ mod tests {
             .unwrap();
             let inputs = vec![
                 ReconstructorInputs {
-                    energy_field: &energy_field,
+                    energy_field: energy_field.clone(),
                 },
-                ReconstructorInputs {
-                    energy_field: &energy_field,
-                },
+                ReconstructorInputs { energy_field },
             ];
 
             let mut impulse_response = ImpulseResponse::try_new(

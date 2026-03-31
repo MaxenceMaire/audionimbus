@@ -41,6 +41,7 @@
 - Made `StaticMesh` and `InstancedMesh` generic over the ray tracer implementation.
 - `InstancedMeshSettings` now takes the subscene handle by value instead of by reference.
 - `BinauralEffectSettings`, `BinauralEffectParams`, `Spatialization`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings` and `AmbisonicsDecodeEffectParams` now take the HRTF handle by value instead of by reference.
+- `ReconstructorInputs` not takes the `EnergyField` handle by value instead of by reference.
 
 ### Added
 
@@ -77,7 +78,7 @@
     - `SharedSimulationOutput`: lock-free handle to read outputs from the audio thread concurrently with simulation writes.
 - Implement `Copy`, `Clone` for `SimulationError`.
 - Implement `Copy` for `ParameterValidationError`.
-- Implement `Clone` for `Spatialization`, `PathEffectSettings`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings` and `AmbisonicsDecodeEffectParams`.
+- Implement `Clone` for `Spatialization`, `PathEffectSettings`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings`, `AmbisonicsDecodeEffectParams` and `ReconstructorInputs`.
 
 ### Removed
 
