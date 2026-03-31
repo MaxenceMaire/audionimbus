@@ -2,9 +2,12 @@
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::simulation::Simulation;
-use crate::simulation::{SimulationInputs, SimulationParameters};
+use crate::simulation::{
+    DirectCompatible, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
+    SimulationFlagsProvider, SimulationInputs, SimulationParameters,
+};
 use crate::wiring::SourceWithInputs;
-use bevy::prelude::{Component, Entity, Query, Res, Transform, Without};
+use bevy::prelude::{Add, Component, Entity, On, Query, Remove, Res, ResMut, Transform, Without};
 
 /// Spatial audio source component.
 ///
@@ -23,6 +26,38 @@ pub struct Source<C: SimulationConfiguration = DefaultSimulationConfiguration>(
 pub struct SourceParameters<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub SimulationParameters<C::Direct, C::Reflections, C::Pathing>,
 );
+
+/// Adds a `Source` to the simulator and requests a commit when it is spawned.
+pub fn on_source_added<C: SimulationConfiguration>(
+    event: On<Add, Source<C>>,
+    query: Query<&Source<C>>,
+    mut simulation: ResMut<Simulation<C>>,
+) where
+    C::Direct: DirectCompatible<C::Direct> + SimulationFlagsProvider,
+    C::Reflections: ReflectionsCompatible<C::Reflections> + SimulationFlagsProvider,
+    C::Pathing: PathingCompatible<C::Pathing> + SimulationFlagsProvider,
+    C::ReflectionEffect: ReflectionEffectCompatible<C::Reflections, C::ReflectionEffect>,
+{
+    let source = query.get(event.entity).unwrap();
+    simulation.0.simulator.add_source(&source.0);
+    simulation.0.request_commit();
+}
+
+/// Removes a `Source` from the simulator and requests a commit when it is removed.
+pub fn on_source_removed<C: SimulationConfiguration>(
+    event: On<Remove, Source<C>>,
+    query: Query<&Source<C>>,
+    mut simulation: ResMut<Simulation<C>>,
+) where
+    C::Direct: DirectCompatible<C::Direct> + SimulationFlagsProvider,
+    C::Reflections: ReflectionsCompatible<C::Reflections> + SimulationFlagsProvider,
+    C::Pathing: PathingCompatible<C::Pathing> + SimulationFlagsProvider,
+    C::ReflectionEffect: ReflectionEffectCompatible<C::Reflections, C::ReflectionEffect>,
+{
+    let source = query.get(event.entity).unwrap();
+    simulation.0.simulator.remove_source(&source.0);
+    simulation.0.request_commit();
+}
 
 /// Marks an entity as the listener for reverb simulation.
 ///

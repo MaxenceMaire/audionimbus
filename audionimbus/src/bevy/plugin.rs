@@ -4,7 +4,7 @@ use super::configuration::{DefaultSimulationConfiguration, SimulationConfigurati
 use super::error::{error_channel, propagate_simulation_errors};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::{Simulation, SimulationSharedInputs};
-use super::source::sync_sources;
+use super::source::{on_source_added, on_source_removed, sync_sources};
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
 use crate::simulation::{
@@ -225,5 +225,8 @@ where
         RD::add_systems(app);
         RR::add_systems(app);
         RP::add_systems(app);
+
+        app.add_observer(on_source_added::<C>);
+        app.add_observer(on_source_removed::<C>);
     }
 }
