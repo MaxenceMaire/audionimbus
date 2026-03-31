@@ -33,14 +33,14 @@
 //! let mut effect = BinauralEffect::try_new(
 //!     &context,
 //!     &audio_settings,
-//!     &BinauralEffectSettings { hrtf: &hrtf },
+//!     &BinauralEffectSettings { hrtf: hrtf.clone() },
 //! )?;
 //!
 //! let params = BinauralEffectParams {
 //!     direction: Direction::new(1.0, 0.0, 0.0), // Sound from the right
 //!     interpolation: HrtfInterpolation::Nearest,
 //!     spatial_blend: 1.0,
-//!     hrtf: &hrtf,
+//!     hrtf,
 //!     peak_delays: None,
 //! };
 //!

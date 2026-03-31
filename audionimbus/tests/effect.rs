@@ -31,7 +31,7 @@ fn test_binaural_effect() {
 
     let hrtf = Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
 
-    let binaural_effect_settings = effect::BinauralEffectSettings { hrtf: &hrtf };
+    let binaural_effect_settings = effect::BinauralEffectSettings { hrtf: hrtf.clone() };
 
     let mut binaural_effect =
         effect::BinauralEffect::try_new(&context, &audio_settings, &binaural_effect_settings)
@@ -41,7 +41,7 @@ fn test_binaural_effect() {
         direction: geometry::Direction::new(1.0, 1.0, 1.0),
         interpolation: HrtfInterpolation::Nearest,
         spatial_blend: 1.0,
-        hrtf: &hrtf,
+        hrtf,
         peak_delays: None,
     };
 

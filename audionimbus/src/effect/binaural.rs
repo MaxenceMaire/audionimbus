@@ -32,14 +32,14 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let mut effect = BinauralEffect::try_new(
 ///     &context,
 ///     &audio_settings,
-///     &BinauralEffectSettings { hrtf: &hrtf },
+///     &BinauralEffectSettings { hrtf: hrtf.clone() },
 /// )?;
 ///
 /// let params = BinauralEffectParams {
 ///     direction: Direction::new(1.0, 0.0, 0.0), // Sound from the right
 ///     interpolation: HrtfInterpolation::Nearest,
 ///     spatial_blend: 1.0,
-///     hrtf: &hrtf,
+///     hrtf,
 ///     peak_delays: None,
 /// };
 ///
@@ -215,12 +215,12 @@ impl Clone for BinauralEffect {
 
 /// Settings used to create a binaural effect.
 #[derive(Debug)]
-pub struct BinauralEffectSettings<'a> {
+pub struct BinauralEffectSettings {
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 }
 
-impl From<&BinauralEffectSettings<'_>> for audionimbus_sys::IPLBinauralEffectSettings {
+impl From<&BinauralEffectSettings> for audionimbus_sys::IPLBinauralEffectSettings {
     fn from(settings: &BinauralEffectSettings) -> Self {
         Self {
             hrtf: settings.hrtf.raw_ptr(),
@@ -230,7 +230,7 @@ impl From<&BinauralEffectSettings<'_>> for audionimbus_sys::IPLBinauralEffectSet
 
 /// Parameters for applying an ambisonics binaural effect to an audio buffer.
 #[derive(Debug)]
-pub struct BinauralEffectParams<'a> {
+pub struct BinauralEffectParams {
     /// Unit vector pointing from the listener towards the source.
     pub direction: Direction,
 
@@ -244,14 +244,14 @@ pub struct BinauralEffectParams<'a> {
     pub spatial_blend: f32,
 
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 
     /// Optional left- and right-ear peak delays for the HRTF used to spatialize the input audio.
     /// Can be None, in which case peak delays will not be written.
     pub peak_delays: Option<[f32; 2]>,
 }
 
-impl BinauralEffectParams<'_> {
+impl BinauralEffectParams {
     pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLBinauralEffectParams, Self> {
         let peak_delays_ptr = self
             .peak_delays
@@ -288,7 +288,7 @@ mod tests {
             let mut effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf: hrtf.clone() },
             )
             .unwrap();
 
@@ -296,7 +296,7 @@ mod tests {
                 direction: Direction::new(1.0, 0.0, 0.0),
                 interpolation: HrtfInterpolation::Nearest,
                 spatial_blend: 1.0,
-                hrtf: &hrtf,
+                hrtf,
                 peak_delays: None,
             };
 
@@ -321,7 +321,7 @@ mod tests {
             let mut effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf: hrtf.clone() },
             )
             .unwrap();
 
@@ -329,7 +329,7 @@ mod tests {
                 direction: Direction::new(1.0, 0.0, 0.0),
                 interpolation: HrtfInterpolation::Nearest,
                 spatial_blend: 1.0,
-                hrtf: &hrtf,
+                hrtf,
                 peak_delays: None,
             };
 
@@ -358,7 +358,7 @@ mod tests {
             let mut effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf: hrtf.clone() },
             )
             .unwrap();
 
@@ -366,7 +366,7 @@ mod tests {
                 direction: Direction::new(1.0, 0.0, 0.0),
                 interpolation: HrtfInterpolation::Nearest,
                 spatial_blend: 1.0,
-                hrtf: &hrtf,
+                hrtf,
                 peak_delays: None,
             };
 
@@ -402,7 +402,7 @@ mod tests {
             let mut effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf: hrtf.clone() },
             )
             .unwrap();
 
@@ -410,7 +410,7 @@ mod tests {
                 direction: Direction::new(1.0, 0.0, 0.0),
                 interpolation: HrtfInterpolation::Nearest,
                 spatial_blend: 1.0,
-                hrtf: &hrtf,
+                hrtf,
                 peak_delays: None,
             };
 
@@ -446,7 +446,7 @@ mod tests {
             let effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf },
             )
             .unwrap();
 
@@ -469,7 +469,7 @@ mod tests {
             let effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf },
             )
             .unwrap();
 
@@ -502,7 +502,7 @@ mod tests {
             let effect = BinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &BinauralEffectSettings { hrtf: &hrtf },
+                &BinauralEffectSettings { hrtf },
             )
             .unwrap();
             let clone = effect.clone();

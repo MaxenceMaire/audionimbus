@@ -179,7 +179,7 @@
 //! let mut binaural_effect = BinauralEffect::try_new(
 //!     &context,
 //!     &audio_settings,
-//!     &BinauralEffectSettings { hrtf: &hrtf },
+//!     &BinauralEffectSettings { hrtf: hrtf.clone() },
 //! )?;
 //!
 //! // Generate an input frame (in this case, a single-channel sine wave).
@@ -210,7 +210,7 @@
 //!     ),
 //!     interpolation: HrtfInterpolation::Nearest,
 //!     spatial_blend: 1.0,
-//!     hrtf: &hrtf,
+//!     hrtf,
 //!     peak_delays: None,
 //! };
 //! let _effect_state =

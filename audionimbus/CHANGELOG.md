@@ -40,6 +40,7 @@
 - Migrated crate edition from 2021 to 2024.
 - Made `StaticMesh` and `InstancedMesh` generic over the ray tracer implementation.
 - `InstancedMeshSettings` now takes the subscene handle by value instead of by reference.
+- `BinauralEffectSettings` and `BinauralEffectParams` now take the HRTF handle by value instead of by reference.
 
 ### Added
 
