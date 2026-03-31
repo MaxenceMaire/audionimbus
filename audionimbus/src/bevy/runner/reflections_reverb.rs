@@ -15,8 +15,8 @@ use crate::wiring::{
     SourceWithInputs,
 };
 use bevy::prelude::{
-    App, Entity, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, Transform, With, World,
-    resource_exists,
+    App, Entity, GlobalTransform, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, With,
+    World, resource_exists,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -72,7 +72,7 @@ where
 }
 
 fn sync_reflections_reverb_frame<C>(
-    query: Query<(&Transform, &Source<C>, Option<&SourceParameters<C>>), With<Listener>>,
+    query: Query<(&GlobalTransform, &Source<C>, Option<&SourceParameters<C>>), With<Listener>>,
     simulation: Res<Simulation<C>>,
     reflections_reverb: Res<ReflectionsReverbSimulation<C>>,
     shared_inputs: Res<SimulationSharedInputs<C>>,
@@ -86,12 +86,13 @@ fn sync_reflections_reverb_frame<C>(
         eprintln!("warning: found more than one listener; picking first item");
     }
 
-    let listener =
-        query_iter.next().map(
-            |(transform, source, simulation_parameters)| SourceWithInputs {
+    let listener = query_iter
+        .next()
+        .map(
+            |(global_transform, source, simulation_parameters)| SourceWithInputs {
                 source: source.0.clone(),
                 simulation_inputs: SimulationInputs {
-                    source: (*transform).into(),
+                    source: (*global_transform).into(),
                     parameters: simulation_parameters
                         .map_or_else(SimulationParameters::default, |params| params.0.clone()),
                 },

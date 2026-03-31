@@ -11,7 +11,7 @@ use crate::simulation::{
     Direct, DirectCompatible, PathingCompatible, Reflections, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationSettings, Simulator,
 };
-use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate};
+use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate, TransformSystems};
 
 #[cfg(doc)]
 use super::runner::{RunnerReflections, RunnerReflectionsReverb};
@@ -211,7 +211,11 @@ where
 
         app.configure_sets(
             PostUpdate,
-            (SpatialAudioSet::SyncSources, SpatialAudioSet::SyncFrames).chain(),
+            (
+                SpatialAudioSet::SyncSources.after(TransformSystems::Propagate),
+                SpatialAudioSet::SyncFrames,
+            )
+                .chain(),
         );
 
         app.add_systems(

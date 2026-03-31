@@ -7,11 +7,13 @@ use crate::simulation::{
     SimulationFlagsProvider, SimulationInputs, SimulationParameters,
 };
 use crate::wiring::SourceWithInputs;
-use bevy::prelude::{Add, Component, Entity, On, Query, Remove, Res, ResMut, Transform, Without};
+use bevy::prelude::{
+    Add, Component, Entity, GlobalTransform, On, Query, Remove, Res, ResMut, Without,
+};
 
 /// Spatial audio source component.
 ///
-/// Attach this to any entity that should emit sound. The entity's [`Transform`] is used as the
+/// Attach this to any entity that should emit sound. The entity's [`GlobalTransform`] is used as the
 /// source position each frame.
 #[derive(Component, Clone, Debug)]
 pub struct Source<C: SimulationConfiguration = DefaultSimulationConfiguration>(
@@ -69,15 +71,20 @@ pub struct Listener;
 /// Publishes a new snapshot of sources.
 pub(crate) fn sync_sources<C: SimulationConfiguration>(
     mut query: Query<
-        (Entity, &Transform, &Source<C>, Option<&SourceParameters<C>>),
+        (
+            Entity,
+            &GlobalTransform,
+            &Source<C>,
+            Option<&SourceParameters<C>>,
+        ),
         Without<Listener>,
     >,
     simulation: Res<Simulation<C>>,
 ) {
     simulation.0.update_sources(|snapshot| {
-        for (entity, transform, source, simulation_parameters) in query.iter_mut() {
+        for (entity, global_transform, source, simulation_parameters) in query.iter_mut() {
             let simulation_inputs = SimulationInputs {
-                source: (*transform).into(),
+                source: (*global_transform).into(),
                 parameters: simulation_parameters
                     .map_or_else(SimulationParameters::default, |params| params.0.clone()),
             };
