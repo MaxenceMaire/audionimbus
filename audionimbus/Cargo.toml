@@ -24,7 +24,7 @@ wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
 wiring = ["dep:arc-swap", "dep:object-pool"]
 default = ["wiring"]
-bevy = ["dep:bevy"]
+bevy = ["dep:bevy", "wiring"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
