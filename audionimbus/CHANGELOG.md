@@ -40,7 +40,7 @@
 - Migrated crate edition from 2021 to 2024.
 - Made `StaticMesh` and `InstancedMesh` generic over the ray tracer implementation.
 - `InstancedMeshSettings` now takes the subscene handle by value instead of by reference.
-- `BinauralEffectSettings` and `BinauralEffectParams` now take the HRTF handle by value instead of by reference.
+- `BinauralEffectSettings`, `BinauralEffectParams` and `Spatialization` now take the HRTF handle by value instead of by reference.
 
 ### Added
 
@@ -77,6 +77,7 @@
     - `SharedSimulationOutput`: lock-free handle to read outputs from the audio thread concurrently with simulation writes.
 - Implement `Copy`, `Clone` for `SimulationError`.
 - Implement `Copy` for `ParameterValidationError`.
+- Implement `Clone` for `Spatialization` and `PathEffectSettings`.
 
 ### Removed
 

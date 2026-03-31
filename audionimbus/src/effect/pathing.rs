@@ -382,8 +382,8 @@ impl Clone for PathEffect {
 }
 
 /// Settings used to create a path effect.
-#[derive(Debug)]
-pub struct PathEffectSettings<'a> {
+#[derive(Debug, Clone)]
+pub struct PathEffectSettings {
     /// The maximum ambisonics order that will be used by output audio buffers.
     pub max_order: u32,
 
@@ -392,17 +392,17 @@ pub struct PathEffectSettings<'a> {
     /// If `None`, this effect will render un-spatialized (and un-rotated) Ambisonic audio.
     /// Setting this to `None` is mainly useful only if you plan to mix multiple Ambisonic buffers and/or apply additional processing to the Ambisonic audio before spatialization.
     /// If you plan to immediately spatialize the output of the path effect, setting this value to `Some` can result in significant performance improvements.
-    pub spatialization: Option<Spatialization<'a>>,
+    pub spatialization: Option<Spatialization>,
 }
 
 /// Spatialization settings.
-#[derive(Debug)]
-pub struct Spatialization<'a> {
+#[derive(Debug, Clone)]
+pub struct Spatialization {
     /// The speaker layout to use when spatializing.
     pub speaker_layout: SpeakerLayout,
 
     /// The HRTF to use when spatializing.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 }
 
 /// Parameters for applying a path effect to an audio buffer.
