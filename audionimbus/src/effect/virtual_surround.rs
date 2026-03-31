@@ -38,11 +38,11 @@ use crate::{ChannelPointers, ChannelRequirement, Hrtf};
 ///     &audio_settings,
 ///     &VirtualSurroundEffectSettings {
 ///         speaker_layout: SpeakerLayout::Surround7_1,
-///         hrtf: &hrtf,
+///         hrtf: hrtf.clone(),
 ///     },
 /// )?;
 ///
-/// let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+/// let params = VirtualSurroundEffectParams { hrtf };
 ///
 /// const FRAME_SIZE: usize = 1024;
 /// let input = vec![0.5; 8 * FRAME_SIZE]; // 8 channels
@@ -243,23 +243,23 @@ impl Clone for VirtualSurroundEffect {
 }
 
 /// Settings used to create a virtual surround effect.
-#[derive(Debug)]
-pub struct VirtualSurroundEffectSettings<'a> {
+#[derive(Debug, Clone)]
+pub struct VirtualSurroundEffectSettings {
     /// The speaker layout that will be used by input audio buffers.
     pub speaker_layout: SpeakerLayout,
 
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 }
 
 /// Parameters for applying a virtual surround effect to an audio buffer.
-#[derive(Debug)]
-pub struct VirtualSurroundEffectParams<'a> {
+#[derive(Debug, Clone)]
+pub struct VirtualSurroundEffectParams {
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 }
 
-impl VirtualSurroundEffectParams<'_> {
+impl VirtualSurroundEffectParams {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLVirtualSurroundEffectParams, Self> {
@@ -290,12 +290,12 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                 },
             )
             .unwrap();
 
-            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+            let params = VirtualSurroundEffectParams { hrtf };
 
             let input = vec![0.5; 2 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -325,12 +325,12 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Surround7_1,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                 },
             )
             .unwrap();
 
-            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+            let params = VirtualSurroundEffectParams { hrtf };
 
             let input = vec![0.5; 8 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -360,12 +360,12 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Surround5_1,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                 },
             )
             .unwrap();
 
-            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+            let params = VirtualSurroundEffectParams { hrtf };
 
             let input = vec![0.5; 2 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -401,12 +401,12 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                 },
             )
             .unwrap();
 
-            let params = VirtualSurroundEffectParams { hrtf: &hrtf };
+            let params = VirtualSurroundEffectParams { hrtf };
 
             let input = vec![0.5; 2 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -446,7 +446,7 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf,
                 },
             )
             .unwrap();
@@ -472,7 +472,7 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf,
                 },
             )
             .unwrap();
@@ -508,7 +508,7 @@ mod tests {
                 &audio_settings,
                 &VirtualSurroundEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf,
                 },
             )
             .unwrap();
