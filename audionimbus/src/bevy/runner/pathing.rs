@@ -40,7 +40,7 @@ where
         let runner = world.resource_mut::<Simulation<C>>().spawn_pathing(
             move |error: SimulationStepError| {
                 let _ = error_sender.try_send(SimulationErrorEvent {
-                    thread: SimulationThread::Direct,
+                    thread: SimulationThread::Pathing,
                     error,
                 });
             },

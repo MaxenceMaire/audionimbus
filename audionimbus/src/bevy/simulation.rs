@@ -54,5 +54,6 @@ impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
 pub enum SimulationThread {
     Direct,
     Reflections,
+    ReflectionsReverb,
     Pathing,
 }

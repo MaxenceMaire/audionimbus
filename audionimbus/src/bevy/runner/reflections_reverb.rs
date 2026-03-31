@@ -48,7 +48,7 @@ where
             .resource_mut::<Simulation<C>>()
             .spawn_reflections_reverb(move |error: SimulationStepError| {
                 let _ = error_sender.try_send(SimulationErrorEvent {
-                    thread: SimulationThread::Direct,
+                    thread: SimulationThread::ReflectionsReverb,
                     error,
                 });
             });
