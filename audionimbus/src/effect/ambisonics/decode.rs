@@ -33,7 +33,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///     &audio_settings,
 ///     &AmbisonicsDecodeEffectSettings {
 ///         speaker_layout: SpeakerLayout::Stereo,
-///         hrtf: &hrtf,
+///         hrtf: hrtf.clone(),
 ///         max_order: 1,
 ///         rendering: Rendering::Binaural,
 ///     },
@@ -41,7 +41,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///
 /// let params = AmbisonicsDecodeEffectParams {
 ///     order: 1,
-///     hrtf: &hrtf,
+///     hrtf,
 ///     orientation: CoordinateSystem::default(),
 /// };
 ///
@@ -280,13 +280,13 @@ impl Clone for AmbisonicsDecodeEffect {
 }
 
 /// Settings used to create an ambisonics decode effect.
-#[derive(Debug)]
-pub struct AmbisonicsDecodeEffectSettings<'a> {
+#[derive(Debug, Clone)]
+pub struct AmbisonicsDecodeEffectSettings {
     /// The speaker layout that will be used by output audio buffers.
     pub speaker_layout: SpeakerLayout,
 
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 
     /// The maximum ambisonics order that will be used by input audio buffers.
     pub max_order: u32,
@@ -296,15 +296,15 @@ pub struct AmbisonicsDecodeEffectSettings<'a> {
 }
 
 /// Parameters for applying an ambisonics decode effect to an audio buffer.
-#[derive(Debug)]
-pub struct AmbisonicsDecodeEffectParams<'a> {
+#[derive(Debug, Clone)]
+pub struct AmbisonicsDecodeEffectParams {
     /// Ambisonic order of the input buffer.
     ///
     /// May be less than the `max_order` specified when creating the effect, in which case the effect will process fewer input channels, reducing CPU usage.
     pub order: u32,
 
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 
     /// The orientation of the listener.
     pub orientation: CoordinateSystem,
@@ -339,7 +339,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                     rendering: Rendering::Binaural,
                 },
@@ -348,7 +348,7 @@ mod tests {
 
             let params = AmbisonicsDecodeEffectParams {
                 order: 1,
-                hrtf: &hrtf,
+                hrtf,
                 orientation: CoordinateSystem::default(),
             };
 
@@ -381,7 +381,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Surround7_1,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                     rendering: Rendering::Panning,
                 },
@@ -390,7 +390,7 @@ mod tests {
 
             let params = AmbisonicsDecodeEffectParams {
                 order: 1,
-                hrtf: &hrtf,
+                hrtf,
                 orientation: CoordinateSystem::default(),
             };
 
@@ -423,7 +423,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                     rendering: Rendering::Binaural,
                 },
@@ -432,7 +432,7 @@ mod tests {
 
             let params = AmbisonicsDecodeEffectParams {
                 order: 1,
-                hrtf: &hrtf,
+                hrtf,
                 orientation: CoordinateSystem::default(),
             };
 
@@ -471,7 +471,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                     rendering: Rendering::Binaural,
                 },
@@ -480,7 +480,7 @@ mod tests {
 
             let params = AmbisonicsDecodeEffectParams {
                 order: 1,
-                hrtf: &hrtf,
+                hrtf,
                 orientation: CoordinateSystem::default(),
             };
 
@@ -523,7 +523,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf,
                     max_order: 1,
                     rendering: Rendering::Binaural,
                 },
@@ -552,7 +552,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf,
                     max_order: 1,
                     rendering: Rendering::Binaural,
                 },
@@ -590,7 +590,7 @@ mod tests {
                 &audio_settings,
                 &AmbisonicsDecodeEffectSettings {
                     speaker_layout: SpeakerLayout::Stereo,
-                    hrtf: &hrtf,
+                    hrtf,
                     max_order: 1,
                     rendering: Rendering::Binaural,
                 },

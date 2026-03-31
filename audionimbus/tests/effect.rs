@@ -127,7 +127,7 @@ fn test_ambisonics_decode_effect() {
 
     let ambisonics_decode_effect_settings = effect::AmbisonicsDecodeEffectSettings {
         speaker_layout: SpeakerLayout::Mono,
-        hrtf: &hrtf,
+        hrtf: hrtf.clone(),
         max_order: 0,
         rendering: Rendering::Binaural,
     };
@@ -141,7 +141,7 @@ fn test_ambisonics_decode_effect() {
 
     let ambisonics_decode_effect_params = effect::AmbisonicsDecodeEffectParams {
         order: 0,
-        hrtf: &hrtf,
+        hrtf,
         orientation: geometry::CoordinateSystem::default(),
     };
 
