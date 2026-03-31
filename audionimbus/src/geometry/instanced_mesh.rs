@@ -96,9 +96,9 @@ impl<T: RayTracer> Clone for InstancedMesh<T> {
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug, Clone)]
-pub struct InstancedMeshSettings<'a> {
+pub struct InstancedMeshSettings {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: &'a Scene,
+    pub sub_scene: Scene,
 
     /// Local-to-world transform that places the instance within the parent scene.
     pub transform: Matrix<f32, 4, 4>,
@@ -122,7 +122,7 @@ mod tests {
         ]);
 
         let instanced_mesh_settings = geometry::InstancedMeshSettings {
-            sub_scene: &sub_scene,
+            sub_scene,
             transform,
         };
         let instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();

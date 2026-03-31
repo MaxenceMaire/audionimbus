@@ -88,7 +88,7 @@ fn test_instanced_mesh() {
     ]);
 
     let instanced_mesh_settings = geometry::InstancedMeshSettings {
-        sub_scene: &sub_scene,
+        sub_scene,
         transform,
     };
     let instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
