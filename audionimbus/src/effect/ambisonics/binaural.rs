@@ -32,13 +32,13 @@ use crate::{ChannelPointers, ChannelRequirement};
 ///     &context,
 ///     &audio_settings,
 ///     &AmbisonicsBinauralEffectSettings {
-///         hrtf: &hrtf,
+///         hrtf: hrtf.clone(),
 ///         max_order: 1,
 ///     },
 /// )?;
 ///
 /// let params = AmbisonicsBinauralEffectParams {
-///     hrtf: &hrtf,
+///     hrtf,
 ///     order: 1,
 /// };
 ///
@@ -223,16 +223,16 @@ impl Clone for AmbisonicsBinauralEffect {
 }
 
 /// Settings used to create an ambisonics binaural effect.
-#[derive(Debug)]
-pub struct AmbisonicsBinauralEffectSettings<'a> {
+#[derive(Debug, Clone)]
+pub struct AmbisonicsBinauralEffectSettings {
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 
     /// The maximum ambisonics order that will be used by input audio buffers.
     pub max_order: u32,
 }
 
-impl From<&AmbisonicsBinauralEffectSettings<'_>>
+impl From<&AmbisonicsBinauralEffectSettings>
     for audionimbus_sys::IPLAmbisonicsBinauralEffectSettings
 {
     fn from(settings: &AmbisonicsBinauralEffectSettings) -> Self {
@@ -244,10 +244,10 @@ impl From<&AmbisonicsBinauralEffectSettings<'_>>
 }
 
 /// Parameters for applying an ambisonics binaural effect to an audio buffer.
-#[derive(Debug)]
-pub struct AmbisonicsBinauralEffectParams<'a> {
+#[derive(Debug, Clone)]
+pub struct AmbisonicsBinauralEffectParams {
     /// The HRTF to use.
-    pub hrtf: &'a Hrtf,
+    pub hrtf: Hrtf,
 
     /// Ambisonic order of the input buffer.
     ///
@@ -255,7 +255,7 @@ pub struct AmbisonicsBinauralEffectParams<'a> {
     pub order: u32,
 }
 
-impl AmbisonicsBinauralEffectParams<'_> {
+impl AmbisonicsBinauralEffectParams {
     pub(crate) fn as_ffi(
         &self,
     ) -> FFIWrapper<'_, audionimbus_sys::IPLAmbisonicsBinauralEffectParams, Self> {
@@ -286,16 +286,13 @@ mod tests {
                 &context,
                 &audio_settings,
                 &AmbisonicsBinauralEffectSettings {
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                 },
             )
             .unwrap();
 
-            let params = AmbisonicsBinauralEffectParams {
-                hrtf: &hrtf,
-                order: 1,
-            };
+            let params = AmbisonicsBinauralEffectParams { hrtf, order: 1 };
 
             let mut input = vec![0.5; 4 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -324,16 +321,13 @@ mod tests {
                 &context,
                 &audio_settings,
                 &AmbisonicsBinauralEffectSettings {
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                 },
             )
             .unwrap();
 
-            let params = AmbisonicsBinauralEffectParams {
-                hrtf: &hrtf,
-                order: 1,
-            };
+            let params = AmbisonicsBinauralEffectParams { hrtf, order: 1 };
 
             let mut input = vec![0.5; 3 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -368,16 +362,13 @@ mod tests {
                 &context,
                 &audio_settings,
                 &AmbisonicsBinauralEffectSettings {
-                    hrtf: &hrtf,
+                    hrtf: hrtf.clone(),
                     max_order: 1,
                 },
             )
             .unwrap();
 
-            let params = AmbisonicsBinauralEffectParams {
-                hrtf: &hrtf,
-                order: 1,
-            };
+            let params = AmbisonicsBinauralEffectParams { hrtf, order: 1 };
 
             let mut input = vec![0.5; 4 * 1024];
             let input_buffer = AudioBuffer::try_with_data_and_settings(
@@ -415,10 +406,7 @@ mod tests {
             let effect = AmbisonicsBinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &AmbisonicsBinauralEffectSettings {
-                    hrtf: &hrtf,
-                    max_order: 1,
-                },
+                &AmbisonicsBinauralEffectSettings { hrtf, max_order: 1 },
             )
             .unwrap();
 
@@ -441,10 +429,7 @@ mod tests {
             let effect = AmbisonicsBinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &AmbisonicsBinauralEffectSettings {
-                    hrtf: &hrtf,
-                    max_order: 1,
-                },
+                &AmbisonicsBinauralEffectSettings { hrtf, max_order: 1 },
             )
             .unwrap();
 
@@ -477,10 +462,7 @@ mod tests {
             let effect = AmbisonicsBinauralEffect::try_new(
                 &context,
                 &audio_settings,
-                &AmbisonicsBinauralEffectSettings {
-                    hrtf: &hrtf,
-                    max_order: 1,
-                },
+                &AmbisonicsBinauralEffectSettings { hrtf, max_order: 1 },
             )
             .unwrap();
             let clone = effect.clone();
