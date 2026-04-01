@@ -39,7 +39,7 @@
 - Restructured `SimulationInputs` into public fields `source: CoordinateSystem` and `parameters: SimulationParameters`. The builder methods (`with_direct`, `with_reflections`, `with_pathing`) and the `set_*` mutating methods have moved to `SimulationParameters`.
 - Migrated crate edition from 2021 to 2024.
 - Made `StaticMesh` and `InstancedMesh` generic over the ray tracer implementation.
-- `InstancedMeshSettings` now takes the subscene handle by value instead of by reference.
+- `InstancedMeshSettings` now takes the subscene handle by value instead of by reference and is generic over the ray tracer implementation.
 - `BinauralEffectSettings`, `BinauralEffectParams`, `Spatialization`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings` and `AmbisonicsDecodeEffectParams` now take the HRTF handle by value instead of by reference.
 - `ReconstructorInputs` not takes the `EnergyField` handle by value instead of by reference.
 

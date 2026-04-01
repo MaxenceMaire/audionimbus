@@ -1,6 +1,6 @@
 use super::{Matrix, Scene};
 use crate::error::{SteamAudioError, to_option_error};
-use crate::ray_tracing::RayTracer;
+use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use std::marker::PhantomData;
 
 /// A triangle mesh that can be moved (translated), rotated, or scaled, but cannot deform.
@@ -28,7 +28,7 @@ impl<T: RayTracer> InstancedMesh<T> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         scene: &Scene<T>,
-        settings: &InstancedMeshSettings,
+        settings: &InstancedMeshSettings<T>,
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
 
@@ -96,9 +96,9 @@ impl<T: RayTracer> Clone for InstancedMesh<T> {
 
 /// Settings used to create an instanced mesh.
 #[derive(Debug, Clone)]
-pub struct InstancedMeshSettings {
+pub struct InstancedMeshSettings<T: RayTracer = DefaultRayTracer> {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: Scene,
+    pub sub_scene: Scene<T>,
 
     /// Local-to-world transform that places the instance within the parent scene.
     pub transform: Matrix<f32, 4, 4>,
