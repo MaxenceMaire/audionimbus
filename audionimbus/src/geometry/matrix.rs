@@ -1,3 +1,6 @@
+#[cfg(feature = "bevy")]
+use bevy::prelude::{GlobalTransform, Mat4};
+
 /// A `ROWSxCOLS` matrix of type T elements.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Matrix<T, const ROWS: usize, const COLS: usize> {
@@ -59,6 +62,20 @@ impl From<&Matrix<f32, 4, 4>> for audionimbus_sys::IPLMatrix4x4 {
 
 pub type Matrix3 = Matrix<f32, 3, 3>;
 pub type Matrix4 = Matrix<f32, 4, 4>;
+
+#[cfg(feature = "bevy")]
+impl From<GlobalTransform> for Matrix4 {
+    fn from(global_transform: GlobalTransform) -> Self {
+        Self::from(global_transform.to_matrix())
+    }
+}
+
+#[cfg(feature = "bevy")]
+impl From<Mat4> for Matrix4 {
+    fn from(matrix: Mat4) -> Self {
+        Self::new(matrix.to_cols_array_2d())
+    }
+}
 
 #[cfg(test)]
 mod tests {

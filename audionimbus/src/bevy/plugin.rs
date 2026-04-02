@@ -2,6 +2,10 @@
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::error::{error_channel, propagate_simulation_errors};
+use super::geometry::{
+    commit_scenes, on_instanced_mesh_added, on_instanced_mesh_removed, on_static_mesh_removed,
+    register_static_meshes, sync_instanced_mesh_transforms,
+};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::{Simulation, SimulationSharedInputs};
 use super::source::{on_source_added, on_source_removed, sync_sources};
@@ -212,7 +216,8 @@ where
         app.configure_sets(
             PostUpdate,
             (
-                SpatialAudioSet::SyncSources.after(TransformSystems::Propagate),
+                SpatialAudioSet::SyncGeometry.after(TransformSystems::Propagate),
+                SpatialAudioSet::SyncSources,
                 SpatialAudioSet::SyncFrames,
             )
                 .chain(),
@@ -221,6 +226,15 @@ where
         app.add_systems(
             PostUpdate,
             (
+                (
+                    (
+                        register_static_meshes::<C>,
+                        sync_instanced_mesh_transforms::<C>,
+                    ),
+                    commit_scenes::<C>,
+                )
+                    .chain()
+                    .in_set(SpatialAudioSet::SyncGeometry),
                 sync_sources::<C>.in_set(SpatialAudioSet::SyncSources),
                 propagate_simulation_errors.in_set(SpatialAudioSet::PropagateErrors),
             ),
@@ -232,5 +246,8 @@ where
 
         app.add_observer(on_source_added::<C>);
         app.add_observer(on_source_removed::<C>);
+        app.add_observer(on_static_mesh_removed::<C>);
+        app.add_observer(on_instanced_mesh_added::<C>);
+        app.add_observer(on_instanced_mesh_removed::<C>);
     }
 }
