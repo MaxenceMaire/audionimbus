@@ -314,8 +314,22 @@ where
     /// This function cannot be called while any simulation is running.
     pub fn set_scene(&mut self, scene: &Scene<T>) {
         unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
-        let mut shared = self.shared.lock().unwrap();
-        shared.has_pending_scene = true;
+
+        let mut scene_shared = scene.shared.lock().unwrap();
+        scene_shared.simulation_locks.clear();
+        for lock in [
+            &self.direct_lock,
+            &self.reflections_lock,
+            &self.pathing_lock,
+        ]
+        .iter()
+        .filter_map(|lock| lock.as_ref())
+        {
+            scene_shared.simulation_locks.push(Arc::clone(lock));
+        }
+
+        let mut simulation_shared = self.shared.lock().unwrap();
+        simulation_shared.has_pending_scene = true;
     }
 
     /// Adds a probe batch for use in subsequent simulations.

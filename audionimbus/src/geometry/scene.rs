@@ -12,7 +12,7 @@ use crate::ray_tracing::{
 use crate::serialized_object::SerializedObject;
 use slotmap::{DefaultKey, SlotMap};
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Marker trait for scenes that can use `save()`.
 pub trait SaveableAsSerialized: Sealed {}
@@ -36,13 +36,13 @@ impl SaveableAsObj for Embree {}
 #[derive(Debug)]
 pub struct Scene<T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLScene,
-    shared: Arc<Mutex<SceneShared<T>>>,
+    pub(crate) shared: Arc<Mutex<SceneShared<T>>>,
     _marker: PhantomData<T>,
 }
 
 /// Shared ownership of [`Scene`] data across clones.
 #[derive(Debug)]
-struct SceneShared<T: RayTracer> {
+pub(crate) struct SceneShared<T: RayTracer> {
     /// Used to keep static meshes alive for the lifetime of the scene.
     static_meshes: SlotMap<DefaultKey, StaticMesh<T>>,
 
@@ -54,6 +54,9 @@ struct SceneShared<T: RayTracer> {
 
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh<T>>,
+
+    /// Locks aquired during [`Scene::commit`] to prevent concurrent simulation access.
+    pub(crate) simulation_locks: Vec<Arc<Mutex<()>>>,
 
     /// Keeps the device alive for the lifetime of the scene.
     _device: T::Device,
@@ -69,6 +72,7 @@ impl<T: RayTracer> SceneShared<T> {
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
+            simulation_locks: Vec::new(),
             _device: device,
             _callback_user_data: callback_user_data,
         }
@@ -759,11 +763,20 @@ impl<T: RayTracer> Scene<T> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn commit(&mut self) {
+        let mut shared = self.shared.lock().unwrap();
+
+        let _guards: Vec<MutexGuard<'_, ()>> = shared
+            .simulation_locks
+            .iter()
+            .map(|lock| lock.lock().unwrap())
+            .collect();
+
         unsafe {
             audionimbus_sys::iplSceneCommit(self.raw_ptr());
         }
 
-        let mut shared = self.shared.lock().unwrap();
+        drop(_guards);
+
         shared.static_meshes_to_remove.clear();
         shared.instanced_meshes_to_remove.clear();
     }
