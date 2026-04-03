@@ -11,6 +11,7 @@ use crate::ray_tracing::{
 };
 use crate::serialized_object::SerializedObject;
 use slotmap::{DefaultKey, SlotMap};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -860,6 +861,12 @@ impl<T: RayTracer> PartialEq for Scene<T> {
 }
 
 impl Eq for Scene {}
+
+impl<T: RayTracer> Hash for Scene<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
+    }
+}
 
 /// Calculates the relative direction from the listener to a sound source.
 ///

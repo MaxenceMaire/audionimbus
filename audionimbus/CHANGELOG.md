@@ -79,7 +79,7 @@
 - Implement `Copy`, `Clone` for `SimulationError`.
 - Implement `Copy` for `ParameterValidationError`.
 - Implement `Clone` for `Spatialization`, `PathEffectSettings`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings`, `AmbisonicsDecodeEffectParams` and `ReconstructorInputs`.
-- Implement `PartialEq`, `Eq` for `Scene`.
+- Implement `PartialEq`, `Eq` and `Hash` for `Scene`.
 
 ### Removed
 
