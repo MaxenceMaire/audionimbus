@@ -853,6 +853,14 @@ impl<T: RayTracer> Clone for Scene<T> {
     }
 }
 
+impl<T: RayTracer> PartialEq for Scene<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for Scene {}
+
 /// Calculates the relative direction from the listener to a sound source.
 ///
 /// The returned direction vector is expressed in the listener’s coordinate system.
