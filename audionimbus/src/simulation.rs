@@ -323,7 +323,8 @@ where
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
-    /// This function cannot be called while any simulation is running.
+    /// This function cannot be called while any simulation is running. Either will block until the
+    /// other finishes.
     pub fn set_scene(&mut self, scene: &Scene<T>) {
         let _guards = self.acquire_all_locks();
 
@@ -357,7 +358,8 @@ where
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
-    /// This function cannot be called while any simulation is running.
+    /// This function cannot be called while any simulation is running. Either will block until the
+    /// other finishes.
     pub fn add_probe_batch(&mut self, probe_batch: &ProbeBatch) {
         let _guards = self.acquire_all_locks();
         let raw_ptr = probe_batch.raw_ptr();
@@ -377,7 +379,8 @@ where
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     ///
-    /// This function cannot be called while any simulation is running.
+    /// This function cannot be called while any simulation is running. Either will block until the
+    /// other finishes.
     pub fn remove_probe_batch(&mut self, probe_batch: &ProbeBatch) {
         let _guards = self.acquire_all_locks();
         let raw_ptr = probe_batch.raw_ptr();
@@ -424,7 +427,8 @@ where
     ///
     /// Call this function after calling [`Self::set_scene`], [`Self::add_probe_batch`], or [`Self::remove_probe_batch`] for the changes to take effect.
     ///
-    /// This function cannot be called while any simulation is running.
+    /// This function cannot be called while any simulation is running. Either will block until the
+    /// other finishes.
     pub fn commit(&mut self) {
         let _guards = self.acquire_all_locks();
         let simulator = self.raw_ptr();

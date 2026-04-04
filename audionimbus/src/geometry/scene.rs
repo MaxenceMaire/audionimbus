@@ -853,7 +853,8 @@ impl<T: RayTracer> Scene<T> {
     ///
     /// For best performance, call this function once after all changes have been made for a given frame.
     ///
-    /// This function cannot be called concurrently with any simulation functions.
+    /// This function cannot be called while any simulation that uses this scene hierarchy is
+    /// running. Either will block until the other finishes.
     ///
     /// # Example
     ///
