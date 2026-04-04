@@ -56,6 +56,7 @@ use crate::model::distance_attenuation::DistanceAttenuationModel;
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -978,6 +979,42 @@ where
             _pathing: PhantomData,
             _reflection_effect: PhantomData,
         }
+    }
+}
+
+impl<T, D, R, P, RE> PartialEq for Simulator<T, D, R, P, RE>
+where
+    T: RayTracer,
+    D: 'static,
+    R: 'static,
+    P: 'static,
+    RE: 'static,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl<T, D, R, P, RE> Eq for Simulator<T, D, R, P, RE>
+where
+    T: RayTracer,
+    D: 'static,
+    R: 'static,
+    P: 'static,
+    RE: 'static,
+{
+}
+
+impl<T, D, R, P, RE> Hash for Simulator<T, D, R, P, RE>
+where
+    T: RayTracer,
+    D: 'static,
+    R: 'static,
+    P: 'static,
+    RE: 'static,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 
