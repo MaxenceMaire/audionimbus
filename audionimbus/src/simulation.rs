@@ -313,6 +313,8 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn set_scene(&mut self, scene: &Scene<T>) {
+        let _guards = self.acquire_all_simulation_locks();
+
         unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
 
         let mut scene_shared = scene.shared.lock().unwrap();
@@ -339,6 +341,7 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn add_probe_batch(&mut self, probe_batch: &ProbeBatch) {
+        let _guards = self.acquire_all_simulation_locks();
         let raw_ptr = probe_batch.raw_ptr();
 
         unsafe {
@@ -358,6 +361,7 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn remove_probe_batch(&mut self, probe_batch: &ProbeBatch) {
+        let _guards = self.acquire_all_simulation_locks();
         let raw_ptr = probe_batch.raw_ptr();
 
         unsafe {
@@ -404,14 +408,7 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn commit(&mut self) {
-        let _guards: Vec<_> = [
-            self.direct_lock.as_ref(),
-            self.reflections_lock.as_ref(),
-            self.pathing_lock.as_ref(),
-        ]
-        .iter()
-        .filter_map(|lock| lock.as_ref().map(|l| l.lock().unwrap()))
-        .collect();
+        let _guards = self.acquire_all_simulation_locks();
 
         unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
 
@@ -621,6 +618,19 @@ where
         }
 
         guards
+    }
+
+    /// Acquires locks for all simulation types enabled on this simulator.
+    fn acquire_all_simulation_locks(&self) -> Vec<MutexGuard<'_, ()>> {
+        [
+            self.direct_lock.as_ref(),
+            self.reflections_lock.as_ref(),
+            self.pathing_lock.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|lock| lock.lock().unwrap())
+        .collect()
     }
 
     /// Validates shared simulation inputs against the limits set during initialization.

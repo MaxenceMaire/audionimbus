@@ -5,6 +5,7 @@
 ### Fixed
 
 - `SpeakerLayout::Custom` FFI conversion: speaker directions are now guaranteed to remain valid for the duration of any FFI call.
+- `Simulator::set_scene`, `add_probe_batch`, `remove_probe_batch`, and `commit` now acquire all active simulation locks before mutating simulator state.
 
 ### Changed
 
