@@ -6,6 +6,7 @@
 
 - `SpeakerLayout::Custom` FFI conversion: speaker directions are now guaranteed to remain valid for the duration of any FFI call.
 - `Simulator::set_scene`, `add_probe_batch`, `remove_probe_batch`, and `commit` now acquire all active simulation locks before mutating simulator state.
+- `InstancedMesh` now retains its sub-scene handle, keeping the sub-scene alive for the lifetime of the instanced mesh.
 
 ### Changed
 
