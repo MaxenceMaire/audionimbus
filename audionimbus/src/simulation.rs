@@ -162,7 +162,7 @@ impl SimulationFlagsProvider for () {
 #[derive(Debug)]
 pub struct Simulator<T: RayTracer, D = (), R = (), P = (), RE = ()> {
     inner: audionimbus_sys::IPLSimulator,
-    shared: Arc<Mutex<SimulatorShared>>,
+    shared: Arc<Mutex<SimulatorShared<T>>>,
 
     /// The maximum number of occlusion samples specified during creation.
     max_num_occlusion_samples: Option<u32>,
@@ -193,8 +193,8 @@ pub struct Simulator<T: RayTracer, D = (), R = (), P = (), RE = ()> {
 }
 
 /// Shared ownership of [`Simulator`] data across clones.
-#[derive(Default, Debug)]
-struct SimulatorShared {
+#[derive(Debug)]
+struct SimulatorShared<T: RayTracer> {
     /// Number of probes after the last commit.
     /// Used to ensure the simulator has probes before running pathing.
     committed_num_probes: usize,
@@ -202,11 +202,22 @@ struct SimulatorShared {
     /// Pending probe batches to be committed.
     pending_probe_batches: HashMap<audionimbus_sys::IPLProbeBatch, usize>,
 
-    /// Whether a scene has been set and committed.
-    has_committed_scene: bool,
+    /// The scene currently visible to simulation after the last simulator commit.
+    committed_scene: Option<Scene<T>>,
 
-    /// Whether a scene is pending commit.
-    has_pending_scene: bool,
+    /// The next scene to become visible after the next simulator commit.
+    pending_scene: Option<Scene<T>>,
+}
+
+impl<T: RayTracer> Default for SimulatorShared<T> {
+    fn default() -> Self {
+        Self {
+            committed_num_probes: 0,
+            pending_probe_batches: HashMap::new(),
+            committed_scene: None,
+            pending_scene: None,
+        }
+    }
 }
 
 impl<T, D, R, P, RE> Simulator<T, D, R, P, RE>
@@ -314,25 +325,31 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn set_scene(&mut self, scene: &Scene<T>) {
-        let _guards = self.acquire_all_simulation_locks();
+        let _guards = self.acquire_all_locks();
 
-        unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
+        let previous_pending_scene = {
+            let mut shared = self.shared.lock().unwrap();
+            let is_noop = shared.pending_scene.as_ref() == Some(scene)
+                || (shared.pending_scene.is_none()
+                    && shared.committed_scene.as_ref() == Some(scene));
 
-        let mut scene_shared = scene.shared.lock().unwrap();
-        scene_shared.simulation_locks.clear();
-        for lock in [
-            &self.direct_lock,
-            &self.reflections_lock,
-            &self.pathing_lock,
-        ]
-        .iter()
-        .filter_map(|lock| lock.as_ref())
-        {
-            scene_shared.simulation_locks.push(Arc::clone(lock));
+            if is_noop {
+                return;
+            }
+
+            shared.pending_scene.replace(scene.clone())
+        };
+
+        let simulator = self.raw_ptr();
+        let lock_handles = self.lock_handles();
+
+        if let Some(previous_pending_scene) = previous_pending_scene {
+            previous_pending_scene.unregister_simulator(simulator, 1);
         }
 
-        let mut simulation_shared = self.shared.lock().unwrap();
-        simulation_shared.has_pending_scene = true;
+        scene.register_simulator(simulator, &lock_handles, 1);
+
+        unsafe { audionimbus_sys::iplSimulatorSetScene(self.raw_ptr(), scene.raw_ptr()) }
     }
 
     /// Adds a probe batch for use in subsequent simulations.
@@ -342,7 +359,7 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn add_probe_batch(&mut self, probe_batch: &ProbeBatch) {
-        let _guards = self.acquire_all_simulation_locks();
+        let _guards = self.acquire_all_locks();
         let raw_ptr = probe_batch.raw_ptr();
 
         unsafe {
@@ -362,7 +379,7 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn remove_probe_batch(&mut self, probe_batch: &ProbeBatch) {
-        let _guards = self.acquire_all_simulation_locks();
+        let _guards = self.acquire_all_locks();
         let raw_ptr = probe_batch.raw_ptr();
 
         unsafe {
@@ -409,16 +426,24 @@ where
     ///
     /// This function cannot be called while any simulation is running.
     pub fn commit(&mut self) {
-        let _guards = self.acquire_all_simulation_locks();
+        let _guards = self.acquire_all_locks();
+        let simulator = self.raw_ptr();
 
         unsafe { audionimbus_sys::iplSimulatorCommit(self.raw_ptr()) }
 
-        let mut shared = self.shared.lock().unwrap();
-        shared.committed_num_probes = shared.pending_probe_batches.values().sum();
+        let previous_committed_scene = {
+            let mut shared = self.shared.lock().unwrap();
+            shared.committed_num_probes = shared.pending_probe_batches.values().sum();
 
-        if shared.has_pending_scene {
-            shared.has_committed_scene = true;
-            shared.has_pending_scene = false;
+            if let Some(pending_scene) = shared.pending_scene.take() {
+                shared.committed_scene.replace(pending_scene)
+            } else {
+                None
+            }
+        };
+
+        if let Some(previous_committed_scene) = previous_committed_scene {
+            previous_committed_scene.unregister_simulator(simulator, 1);
         }
     }
 
@@ -598,40 +623,59 @@ where
 
     /// Acquires locks for the simulation types specified in the given flags.
     fn acquire_locks_for_flags(&self, flags: SimulationFlags) -> Vec<MutexGuard<'_, ()>> {
-        let mut guards = Vec::new();
+        let mut locks = Vec::new();
 
         if flags.contains(SimulationFlags::DIRECT)
             && let Some(lock) = &self.direct_lock
         {
-            guards.push(lock.lock().unwrap());
+            locks.push(lock);
         }
 
         if flags.contains(SimulationFlags::REFLECTIONS)
             && let Some(lock) = &self.reflections_lock
         {
-            guards.push(lock.lock().unwrap());
+            locks.push(lock);
         }
 
         if flags.contains(SimulationFlags::PATHING)
             && let Some(lock) = &self.pathing_lock
         {
-            guards.push(lock.lock().unwrap());
+            locks.push(lock);
         }
 
-        guards
+        // Match scene commit lock ordering to avoid deadlocks.
+        locks.sort_unstable_by_key(|lock| Arc::as_ptr(lock) as usize);
+        locks.into_iter().map(|lock| lock.lock().unwrap()).collect()
     }
 
     /// Acquires locks for all simulation types enabled on this simulator.
-    fn acquire_all_simulation_locks(&self) -> Vec<MutexGuard<'_, ()>> {
-        [
+    fn acquire_all_locks(&self) -> Vec<MutexGuard<'_, ()>> {
+        let mut locks: Vec<_> = [
             self.direct_lock.as_ref(),
             self.reflections_lock.as_ref(),
             self.pathing_lock.as_ref(),
         ]
         .into_iter()
         .flatten()
-        .map(|lock| lock.lock().unwrap())
-        .collect()
+        .collect();
+        // Match scene commit lock ordering to avoid deadlocks.
+        locks.sort_unstable_by_key(|lock| Arc::as_ptr(lock) as usize);
+        locks.into_iter().map(|lock| lock.lock().unwrap()).collect()
+    }
+
+    /// Returns this simulator's simulation locks in a stable order.
+    fn lock_handles(&self) -> Vec<Arc<Mutex<()>>> {
+        let mut locks: Vec<_> = [
+            self.direct_lock.as_ref(),
+            self.reflections_lock.as_ref(),
+            self.pathing_lock.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .cloned()
+        .collect();
+        locks.sort_unstable_by_key(|lock| Arc::as_ptr(lock) as usize);
+        locks
     }
 
     /// Validates shared simulation inputs against the limits set during initialization.
@@ -842,7 +886,7 @@ where
             .unwrap();
 
         let shared = self.shared.lock().unwrap();
-        if !shared.has_committed_scene {
+        if shared.committed_scene.is_none() {
             return Err(SimulationError::ReflectionsWithoutScene);
         }
 
@@ -3635,6 +3679,30 @@ mod tests {
             assert_eq!(simulator.raw_ptr(), clone.raw_ptr());
             drop(simulator);
             assert!(!clone.raw_ptr().is_null());
+        }
+
+        #[test]
+        fn test_set_scene_is_noop_when_scene_is_already_committed() {
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let settings = SimulationSettings::new(&audio_settings);
+            let mut simulator = Simulator::try_new(&context, &settings).unwrap();
+            let scene = Scene::try_new(&context).unwrap();
+
+            simulator.set_scene(&scene);
+            simulator.commit();
+
+            {
+                let shared = simulator.shared.lock().unwrap();
+                assert!(shared.pending_scene.is_none());
+                assert_eq!(shared.committed_scene.as_ref(), Some(&scene));
+            }
+
+            simulator.set_scene(&scene);
+
+            let shared = simulator.shared.lock().unwrap();
+            assert!(shared.pending_scene.is_none());
+            assert_eq!(shared.committed_scene.as_ref(), Some(&scene));
         }
     }
 }

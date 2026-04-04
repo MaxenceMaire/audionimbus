@@ -1,19 +1,19 @@
-use super::{InstancedMesh, Matrix, StaticMesh};
 use crate::Sealed;
 use crate::callback::{CustomRayTracingCallbacks, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{SteamAudioError, to_option_error};
-use crate::geometry::{Direction, Point};
+use crate::geometry::{Direction, InstancedMesh, Matrix, Point, StaticMesh};
 use crate::ray_tracing::{
     CustomCallbackUserData, CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer,
 };
 use crate::serialized_object::SerializedObject;
 use slotmap::{DefaultKey, SlotMap};
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 /// Marker trait for scenes that can use `save()`.
 pub trait SaveableAsSerialized: Sealed {}
@@ -41,6 +41,16 @@ pub struct Scene<T: RayTracer = DefaultRayTracer> {
     _marker: PhantomData<T>,
 }
 
+/// Simulator-specific registration state for a scene hierarchy.
+#[derive(Clone, Debug)]
+pub(crate) struct SceneSimulationRegistration {
+    /// The simulation locks that must be held while committing this scene.
+    pub(crate) locks: Vec<Arc<Mutex<()>>>,
+
+    /// Number of references from this simulator into this scene subtree.
+    pub(crate) ref_count: usize,
+}
+
 /// Shared ownership of [`Scene`] data across clones.
 #[derive(Debug)]
 pub(crate) struct SceneShared<T: RayTracer> {
@@ -56,8 +66,8 @@ pub(crate) struct SceneShared<T: RayTracer> {
     /// Instanced meshes to be dropped by the next call to [`Self::commit`].
     instanced_meshes_to_remove: Vec<InstancedMesh<T>>,
 
-    /// Locks aquired during [`Scene::commit`] to prevent concurrent simulation access.
-    pub(crate) simulation_locks: Vec<Arc<Mutex<()>>>,
+    /// Simulator registrations that currently require this scene to block commits.
+    simulation_registrations: HashMap<audionimbus_sys::IPLSimulator, SceneSimulationRegistration>,
 
     /// Keeps the device alive for the lifetime of the scene.
     _device: T::Device,
@@ -67,16 +77,54 @@ pub(crate) struct SceneShared<T: RayTracer> {
 }
 
 impl<T: RayTracer> SceneShared<T> {
+    /// Creates empty shared scene state.
     fn new(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
         Self {
             static_meshes: SlotMap::new(),
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
-            simulation_locks: Vec::new(),
+            simulation_registrations: HashMap::new(),
             _device: device,
             _callback_user_data: callback_user_data,
         }
+    }
+
+    /// Returns handles to all sub-scenes reachable from this scene.
+    ///
+    /// Scenes from pending removals are included.
+    fn sub_scenes(&self) -> Vec<Scene<T>> {
+        self.instanced_meshes
+            .values()
+            .map(|mesh| mesh.sub_scene.clone())
+            .chain(
+                self.instanced_meshes_to_remove
+                    .iter()
+                    .map(|mesh| mesh.sub_scene.clone()),
+            )
+            .collect()
+    }
+
+    /// Returns clones of the simulator registrations for this scene.
+    fn registration_snapshots(
+        &self,
+    ) -> Vec<(audionimbus_sys::IPLSimulator, SceneSimulationRegistration)> {
+        self.simulation_registrations
+            .iter()
+            .map(|(simulator, registration)| (*simulator, registration.clone()))
+            .collect()
+    }
+
+    /// Collects all registered simulation locks, sorted and deduplicated by pointer.
+    fn simulation_locks(&self) -> Vec<Arc<Mutex<()>>> {
+        let mut locks: Vec<_> = self
+            .simulation_registrations
+            .values()
+            .flat_map(|registration| registration.locks.iter().cloned())
+            .collect();
+        locks.sort_unstable_by_key(|lock| Arc::as_ptr(lock) as usize);
+        locks.dedup_by_key(|lock| Arc::as_ptr(lock) as usize);
+        locks
     }
 }
 
@@ -147,6 +195,65 @@ impl<T: RayTracer> Scene<T> {
         }
 
         Ok(scene)
+    }
+
+    /// Registers a simulator with this scene and all reachable sub-scenes.
+    pub(crate) fn register_simulator(
+        &self,
+        simulator: audionimbus_sys::IPLSimulator,
+        locks: &[Arc<Mutex<()>>],
+        count: usize,
+    ) {
+        if count == 0 {
+            return;
+        }
+
+        let sub_scenes = {
+            let mut shared = self.shared.lock().unwrap();
+            shared
+                .simulation_registrations
+                .entry(simulator)
+                .and_modify(|registration| registration.ref_count += count)
+                .or_insert_with(|| SceneSimulationRegistration {
+                    locks: locks.to_vec(),
+                    ref_count: count,
+                });
+            shared.sub_scenes()
+        };
+
+        for sub_scene in sub_scenes {
+            sub_scene.register_simulator(simulator, locks, count);
+        }
+    }
+
+    /// Unregisters a simulator from this scene and all reachable sub-scenes.
+    pub(crate) fn unregister_simulator(
+        &self,
+        simulator: audionimbus_sys::IPLSimulator,
+        count: usize,
+    ) {
+        if count == 0 {
+            return;
+        }
+
+        let sub_scenes = {
+            let mut shared = self.shared.lock().unwrap();
+            let Some(registration) = shared.simulation_registrations.get_mut(&simulator) else {
+                return;
+            };
+
+            if registration.ref_count <= count {
+                shared.simulation_registrations.remove(&simulator);
+            } else {
+                registration.ref_count -= count;
+            }
+
+            shared.sub_scenes()
+        };
+
+        for sub_scene in sub_scenes {
+            sub_scene.unregister_simulator(simulator, count);
+        }
     }
 }
 
@@ -586,8 +693,17 @@ impl<T: RayTracer> Scene<T> {
             audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
         }
 
-        let mut shared = self.shared.lock().unwrap();
-        let key = shared.instanced_meshes.insert(instanced_mesh);
+        let sub_scene = instanced_mesh.sub_scene.clone();
+        let (key, registrations) = {
+            let mut shared = self.shared.lock().unwrap();
+            let key = shared.instanced_meshes.insert(instanced_mesh);
+            (key, shared.registration_snapshots())
+        };
+
+        for (simulator, registration) in registrations {
+            sub_scene.register_simulator(simulator, &registration.locks, registration.ref_count);
+        }
+
         InstancedMeshHandle(key)
     }
 
@@ -764,22 +880,38 @@ impl<T: RayTracer> Scene<T> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn commit(&mut self) {
-        let mut shared = self.shared.lock().unwrap();
+        let locks = {
+            let shared = self.shared.lock().unwrap();
+            shared.simulation_locks()
+        };
 
-        let _guards: Vec<MutexGuard<'_, ()>> = shared
-            .simulation_locks
+        let _guards = locks
             .iter()
             .map(|lock| lock.lock().unwrap())
-            .collect();
+            .collect::<Vec<_>>();
 
         unsafe {
             audionimbus_sys::iplSceneCommit(self.raw_ptr());
         }
 
-        drop(_guards);
+        let (removed_sub_scenes, registrations) = {
+            let mut shared = self.shared.lock().unwrap();
+            let removed_sub_scenes = shared
+                .instanced_meshes_to_remove
+                .iter()
+                .map(|mesh| mesh.sub_scene.clone())
+                .collect::<Vec<_>>();
+            let registrations = shared.registration_snapshots();
+            shared.static_meshes_to_remove.clear();
+            shared.instanced_meshes_to_remove.clear();
+            (removed_sub_scenes, registrations)
+        };
 
-        shared.static_meshes_to_remove.clear();
-        shared.instanced_meshes_to_remove.clear();
+        for removed_sub_scene in removed_sub_scenes {
+            for (simulator, registration) in &registrations {
+                removed_sub_scene.unregister_simulator(*simulator, registration.ref_count);
+            }
+        }
     }
 
     /// Returns the raw FFI pointer to the underlying scene.
@@ -996,9 +1128,29 @@ pub struct InstancedMeshHandle(DefaultKey);
 mod tests {
     use super::*;
     use crate::{
-        AnyHitCallback, BatchedAnyHitCallback, BatchedClosestHitCallback, ClosestHitCallback,
-        CustomRayTracingCallbacks, Vector3,
+        AnyHitCallback, AudioSettings, BatchedAnyHitCallback, BatchedClosestHitCallback,
+        ClosestHitCallback, CustomRayTracingCallbacks, Direct, DirectSimulationSettings,
+        InstancedMesh, InstancedMeshSettings, Matrix4, SimulationSettings, Simulator, Vector3,
     };
+
+    fn registration_ref_count<D, R, P, RE>(
+        scene: &Scene<DefaultRayTracer>,
+        simulator: &Simulator<DefaultRayTracer, D, R, P, RE>,
+    ) -> usize
+    where
+        D: 'static,
+        R: 'static,
+        P: 'static,
+        RE: 'static,
+    {
+        scene
+            .shared
+            .lock()
+            .unwrap()
+            .simulation_registrations
+            .get(&simulator.raw_ptr())
+            .map_or(0, |registration| registration.ref_count)
+    }
 
     #[test]
     fn test_default_scene() {
@@ -1065,5 +1217,143 @@ mod tests {
         assert_eq!(scene.raw_ptr(), clone.raw_ptr());
         drop(scene);
         assert!(!clone.raw_ptr().is_null());
+    }
+
+    #[test]
+    fn test_add_instanced_mesh_propagates_existing_simulator_registration() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let settings =
+            SimulationSettings::new(&audio_settings).with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            });
+        let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
+            Simulator::try_new(&context, &settings).unwrap();
+        let mut root_scene = Scene::try_new(&context).unwrap();
+        let sub_scene = Scene::try_new(&context).unwrap();
+
+        simulator.set_scene(&root_scene);
+        simulator.commit();
+
+        let instanced_mesh = InstancedMesh::try_new(
+            &root_scene,
+            &InstancedMeshSettings {
+                sub_scene: sub_scene.clone(),
+                transform: Matrix4::IDENTITY,
+            },
+        )
+        .unwrap();
+        root_scene.add_instanced_mesh(instanced_mesh);
+
+        assert_eq!(registration_ref_count(&sub_scene, &simulator), 1);
+    }
+
+    #[test]
+    fn test_shared_sub_scene_registration_ref_count_tracks_instances() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let settings =
+            SimulationSettings::new(&audio_settings).with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            });
+        let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
+            Simulator::try_new(&context, &settings).unwrap();
+        let mut root_scene = Scene::try_new(&context).unwrap();
+        let shared_sub_scene = Scene::try_new(&context).unwrap();
+
+        let first_mesh = InstancedMesh::try_new(
+            &root_scene,
+            &InstancedMeshSettings {
+                sub_scene: shared_sub_scene.clone(),
+                transform: Matrix4::IDENTITY,
+            },
+        )
+        .unwrap();
+        let first_handle = root_scene.add_instanced_mesh(first_mesh);
+
+        let second_mesh = InstancedMesh::try_new(
+            &root_scene,
+            &InstancedMeshSettings {
+                sub_scene: shared_sub_scene.clone(),
+                transform: Matrix4::IDENTITY,
+            },
+        )
+        .unwrap();
+        let second_handle = root_scene.add_instanced_mesh(second_mesh);
+
+        root_scene.commit();
+
+        simulator.set_scene(&root_scene);
+        simulator.commit();
+
+        assert_eq!(registration_ref_count(&shared_sub_scene, &simulator), 2);
+
+        assert!(root_scene.remove_instanced_mesh(first_handle));
+        assert_eq!(registration_ref_count(&shared_sub_scene, &simulator), 2);
+
+        root_scene.commit();
+        assert_eq!(registration_ref_count(&shared_sub_scene, &simulator), 1);
+
+        assert!(root_scene.remove_instanced_mesh(second_handle));
+        root_scene.commit();
+        assert_eq!(registration_ref_count(&shared_sub_scene, &simulator), 0);
+    }
+
+    #[test]
+    fn test_simulator_commit_switches_scene_registrations_across_sub_scene_hierarchies() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let settings =
+            SimulationSettings::new(&audio_settings).with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            });
+        let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
+            Simulator::try_new(&context, &settings).unwrap();
+
+        let mut old_root_scene = Scene::try_new(&context).unwrap();
+        let old_sub_scene = Scene::try_new(&context).unwrap();
+        let old_instanced_mesh = InstancedMesh::try_new(
+            &old_root_scene,
+            &InstancedMeshSettings {
+                sub_scene: old_sub_scene.clone(),
+                transform: Matrix4::IDENTITY,
+            },
+        )
+        .unwrap();
+        old_root_scene.add_instanced_mesh(old_instanced_mesh);
+        old_root_scene.commit();
+
+        let mut new_root_scene = Scene::try_new(&context).unwrap();
+        let new_sub_scene = Scene::try_new(&context).unwrap();
+        let new_instanced_mesh = InstancedMesh::try_new(
+            &new_root_scene,
+            &InstancedMeshSettings {
+                sub_scene: new_sub_scene.clone(),
+                transform: Matrix4::IDENTITY,
+            },
+        )
+        .unwrap();
+        new_root_scene.add_instanced_mesh(new_instanced_mesh);
+        new_root_scene.commit();
+
+        simulator.set_scene(&old_root_scene);
+        assert_eq!(registration_ref_count(&old_root_scene, &simulator), 1);
+        assert_eq!(registration_ref_count(&old_sub_scene, &simulator), 1);
+
+        simulator.commit();
+        assert_eq!(registration_ref_count(&old_root_scene, &simulator), 1);
+        assert_eq!(registration_ref_count(&old_sub_scene, &simulator), 1);
+
+        simulator.set_scene(&new_root_scene);
+        assert_eq!(registration_ref_count(&old_root_scene, &simulator), 1);
+        assert_eq!(registration_ref_count(&old_sub_scene, &simulator), 1);
+        assert_eq!(registration_ref_count(&new_root_scene, &simulator), 1);
+        assert_eq!(registration_ref_count(&new_sub_scene, &simulator), 1);
+
+        simulator.commit();
+        assert_eq!(registration_ref_count(&old_root_scene, &simulator), 0);
+        assert_eq!(registration_ref_count(&old_sub_scene, &simulator), 0);
+        assert_eq!(registration_ref_count(&new_root_scene, &simulator), 1);
+        assert_eq!(registration_ref_count(&new_sub_scene, &simulator), 1);
     }
 }
