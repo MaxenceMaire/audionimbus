@@ -860,7 +860,7 @@ impl<T: RayTracer> PartialEq for Scene<T> {
     }
 }
 
-impl Eq for Scene {}
+impl<T: RayTracer> Eq for Scene<T> {}
 
 impl<T: RayTracer> Hash for Scene<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
