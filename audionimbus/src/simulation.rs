@@ -326,8 +326,6 @@ where
     /// This function cannot be called while any simulation is running. Either will block until the
     /// other finishes.
     pub fn set_scene(&mut self, scene: &Scene<T>) {
-        let _guards = self.acquire_all_locks();
-
         let previous_pending_scene = {
             let mut shared = self.shared.lock().unwrap();
             let is_noop = shared.pending_scene.as_ref() == Some(scene)
@@ -341,6 +339,7 @@ where
             shared.pending_scene.replace(scene.clone())
         };
 
+        let _guards = self.acquire_all_locks();
         let simulator = self.raw_ptr();
         let lock_handles = self.lock_handles();
 
