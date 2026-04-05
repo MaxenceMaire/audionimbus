@@ -5,6 +5,10 @@
 ### Fixed
 
 - `SpeakerLayout::Custom` FFI conversion: speaker directions are now guaranteed to remain valid for the duration of any FFI call.
+- `Simulator::set_scene`, `add_probe_batch`, `remove_probe_batch`, and `commit` now acquire all active simulation locks before mutating simulator state.
+- Scene commit locking now propagates across instanced sub-scene hierarchies, and removed sub-scenes remain registered with simulators until `Scene::commit` completes.
+- `Simulator::set_scene` now tracks pending and committed scenes separately, keeping the previous scene's simulator registrations alive until `Simulator::commit` and treating redundant scene assignments as no-ops.
+- `InstancedMesh` now retains its sub-scene handle, keeping the sub-scene alive for the lifetime of the instanced mesh.
 
 ### Changed
 
@@ -79,6 +83,7 @@
 - Implement `Copy`, `Clone` for `SimulationError`.
 - Implement `Copy` for `ParameterValidationError`.
 - Implement `Clone` for `Spatialization`, `PathEffectSettings`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings`, `AmbisonicsDecodeEffectParams` and `ReconstructorInputs`.
+- Implement `PartialEq`, `Eq` and `Hash` for `Scene` and `Simulator`.
 
 ### Removed
 

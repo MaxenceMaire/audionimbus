@@ -15,8 +15,9 @@ use std::marker::PhantomData;
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
 #[derive(Debug)]
-pub struct InstancedMesh<T> {
+pub struct InstancedMesh<T: RayTracer = DefaultRayTracer> {
     inner: audionimbus_sys::IPLInstancedMesh,
+    pub(crate) sub_scene: Scene<T>,
     _marker: PhantomData<T>,
 }
 
@@ -51,6 +52,7 @@ impl<T: RayTracer> InstancedMesh<T> {
 
         let instanced_mesh = Self {
             inner,
+            sub_scene: settings.sub_scene.clone(),
             _marker: PhantomData,
         };
 
@@ -72,7 +74,7 @@ impl<T: RayTracer> InstancedMesh<T> {
     }
 }
 
-impl<T> Drop for InstancedMesh<T> {
+impl<T: RayTracer> Drop for InstancedMesh<T> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplInstancedMeshRelease(&raw mut self.inner) }
     }
@@ -89,6 +91,7 @@ impl<T: RayTracer> Clone for InstancedMesh<T> {
         // SAFETY: The instanced mesh will not be destroyed until all references are released.
         Self {
             inner: unsafe { audionimbus_sys::iplInstancedMeshRetain(self.inner) },
+            sub_scene: self.sub_scene.clone(),
             _marker: PhantomData,
         }
     }
