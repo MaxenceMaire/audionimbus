@@ -8,6 +8,7 @@ use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 ///
@@ -218,6 +219,20 @@ impl Clone for DirectEffect {
             inner: unsafe { audionimbus_sys::iplDirectEffectRetain(self.inner) },
             num_channels: self.num_channels,
         }
+    }
+}
+
+impl PartialEq for DirectEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for DirectEffect {}
+
+impl Hash for DirectEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

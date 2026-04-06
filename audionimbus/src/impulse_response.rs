@@ -3,6 +3,7 @@
 use crate::audio_buffer::Sample;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
+use std::hash::{Hash, Hasher};
 
 /// An impulse response.
 ///
@@ -14,7 +15,7 @@ use crate::error::{SteamAudioError, to_option_error};
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ImpulseResponse(audionimbus_sys::IPLImpulseResponse);
 
 impl ImpulseResponse {
@@ -151,6 +152,12 @@ impl Clone for ImpulseResponse {
     fn clone(&self) -> Self {
         // SAFETY: The impulse response will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplImpulseResponseRetain(self.0) })
+    }
+}
+
+impl Hash for ImpulseResponse {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

@@ -1,6 +1,7 @@
 use super::{Matrix, Scene};
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 /// A triangle mesh that can be moved (translated), rotated, or scaled, but cannot deform.
@@ -94,6 +95,20 @@ impl<T: RayTracer> Clone for InstancedMesh<T> {
             sub_scene: self.sub_scene.clone(),
             _marker: PhantomData,
         }
+    }
+}
+
+impl<T: RayTracer> PartialEq for InstancedMesh<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl<T: RayTracer> Eq for InstancedMesh<T> {}
+
+impl<T: RayTracer> Hash for InstancedMesh<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

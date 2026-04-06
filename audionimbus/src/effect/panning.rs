@@ -9,6 +9,7 @@ use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
 ///
@@ -232,6 +233,20 @@ impl Clone for PanningEffect {
             inner: unsafe { audionimbus_sys::iplPanningEffectRetain(self.inner) },
             num_output_channels: self.num_output_channels,
         }
+    }
+}
+
+impl PartialEq for PanningEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for PanningEffect {}
+
+impl Hash for PanningEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

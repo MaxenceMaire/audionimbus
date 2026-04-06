@@ -8,6 +8,7 @@ use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Renders Ambisonic audio by panning it to a standard speaker layout.
 ///
@@ -239,6 +240,20 @@ impl Clone for AmbisonicsPanningEffect {
             inner: unsafe { audionimbus_sys::iplAmbisonicsPanningEffectRetain(self.inner) },
             num_output_channels: self.num_output_channels,
         }
+    }
+}
+
+impl PartialEq for AmbisonicsPanningEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for AmbisonicsPanningEffect {}
+
+impl Hash for AmbisonicsPanningEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

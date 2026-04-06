@@ -9,6 +9,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Renders ambisonic audio using HRTF-based binaural rendering.
 ///
@@ -55,7 +56,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let _ = effect.apply(&params, &input_buffer, &output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AmbisonicsBinauralEffect(audionimbus_sys::IPLAmbisonicsBinauralEffect);
 
 impl AmbisonicsBinauralEffect {
@@ -219,6 +220,12 @@ impl Clone for AmbisonicsBinauralEffect {
     fn clone(&self) -> Self {
         // SAFETY: The ambisonics binaural effect will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplAmbisonicsBinauralEffectRetain(self.0) })
+    }
+}
+
+impl Hash for AmbisonicsBinauralEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

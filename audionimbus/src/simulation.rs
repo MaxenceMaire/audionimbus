@@ -2239,7 +2239,9 @@ where
 
         Ok(())
     }
+}
 
+impl<D, R, P, RE> Source<D, R, P, RE> {
     /// Returns the raw FFI pointer to the underlying source.
     ///
     /// This is intended for internal use and advanced scenarios.
@@ -2508,6 +2510,20 @@ impl<D, R, P, RE> Clone for Source<D, R, P, RE> {
             _pathing: PhantomData,
             _reflection_effect: PhantomData,
         }
+    }
+}
+
+impl<D, R, P, RE> PartialEq for Source<D, R, P, RE> {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl<D, R, P, RE> Eq for Source<D, R, P, RE> {}
+
+impl<D, R, P, RE> Hash for Source<D, R, P, RE> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

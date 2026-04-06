@@ -4,6 +4,7 @@ use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::impulse_response::ImpulseResponse;
+use std::hash::{Hash, Hasher};
 
 /// An object that can convert energy fields to impulse responses.
 ///
@@ -153,6 +154,20 @@ impl Clone for Reconstructor {
             max_duration: self.max_duration,
             max_order: self.max_order,
         }
+    }
+}
+
+impl PartialEq for Reconstructor {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for Reconstructor {}
+
+impl Hash for Reconstructor {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

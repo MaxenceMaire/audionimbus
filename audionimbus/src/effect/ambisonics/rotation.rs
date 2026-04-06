@@ -9,6 +9,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::CoordinateSystem;
 use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Applies a rotation to an ambisonics audio buffer.
 ///
@@ -229,6 +230,20 @@ impl Clone for AmbisonicsRotationEffect {
             inner: unsafe { audionimbus_sys::iplAmbisonicsRotationEffectRetain(self.inner) },
             num_channels: self.num_channels,
         }
+    }
+}
+
+impl PartialEq for AmbisonicsRotationEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for AmbisonicsRotationEffect {}
+
+impl Hash for AmbisonicsRotationEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

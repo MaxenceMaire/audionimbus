@@ -4,6 +4,7 @@ use crate::NUM_BANDS;
 use crate::audio_buffer::Sample;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
+use std::hash::{Hash, Hasher};
 
 /// An energy field.
 ///
@@ -19,7 +20,7 @@ use crate::error::{SteamAudioError, to_option_error};
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct EnergyField(pub(crate) audionimbus_sys::IPLEnergyField);
 
 impl EnergyField {
@@ -191,6 +192,12 @@ impl Clone for EnergyField {
     fn clone(&self) -> Self {
         // SAFETY: The energy field will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplEnergyFieldRetain(self.0) })
+    }
+}
+
+impl Hash for EnergyField {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

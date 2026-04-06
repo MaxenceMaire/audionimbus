@@ -10,6 +10,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
 use crate::hrtf::{Hrtf, HrtfInterpolation};
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Spatializes a point source using an HRTF, based on the 3D position of the source relative to the listener.
 ///
@@ -53,7 +54,7 @@ use crate::{ChannelPointers, ChannelRequirement};
 /// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BinauralEffect(audionimbus_sys::IPLBinauralEffect);
 
 impl BinauralEffect {
@@ -210,6 +211,12 @@ impl Clone for BinauralEffect {
     fn clone(&self) -> Self {
         // SAFETY: The binaural effect will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplBinauralEffectRetain(self.0) })
+    }
+}
+
+impl Hash for BinauralEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

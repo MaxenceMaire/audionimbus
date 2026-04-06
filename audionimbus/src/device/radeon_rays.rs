@@ -2,6 +2,7 @@
 
 use super::open_cl::OpenClDevice;
 use crate::error::{SteamAudioError, to_option_error};
+use std::hash::{Hash, Hasher};
 
 /// Application-wide state for the Radeon Rays ray tracer.
 ///
@@ -11,7 +12,7 @@ use crate::error::{SteamAudioError, to_option_error};
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RadeonRaysDevice(audionimbus_sys::IPLRadeonRaysDevice);
 
 impl RadeonRaysDevice {
@@ -72,6 +73,12 @@ impl Clone for RadeonRaysDevice {
     fn clone(&self) -> Self {
         // SAFETY: The device will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplRadeonRaysDeviceRetain(self.0) })
+    }
+}
+
+impl Hash for RadeonRaysDevice {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

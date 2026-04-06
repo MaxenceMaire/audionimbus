@@ -6,6 +6,7 @@ use crate::energy_field::EnergyField;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::geometry::{Matrix, Scene, Sphere};
 use crate::serialized_object::SerializedObject;
+use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 /// An array of sound probes.
@@ -16,7 +17,7 @@ use std::sync::{Arc, Mutex};
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ProbeArray(audionimbus_sys::IPLProbeArray);
 
 impl ProbeArray {
@@ -111,6 +112,12 @@ impl Clone for ProbeArray {
     fn clone(&self) -> Self {
         // SAFETY: The probe array will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplProbeArrayRetain(self.0) })
+    }
+}
+
+impl Hash for ProbeArray {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 
@@ -476,6 +483,20 @@ impl Clone for ProbeBatch {
             inner: unsafe { audionimbus_sys::iplProbeBatchRetain(self.inner) },
             shared: Arc::clone(&self.shared),
         }
+    }
+}
+
+impl PartialEq for ProbeBatch {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for ProbeBatch {}
+
+impl Hash for ProbeBatch {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

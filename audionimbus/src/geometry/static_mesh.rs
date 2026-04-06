@@ -3,6 +3,7 @@ use crate::callback::ProgressCallback;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 /// A triangle mesh that doesn’t move or deform in any way.
@@ -17,7 +18,7 @@ use std::marker::PhantomData;
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct StaticMesh<T> {
     inner: audionimbus_sys::IPLStaticMesh,
     _marker: PhantomData<T>,
@@ -211,6 +212,12 @@ impl<T: RayTracer> Clone for StaticMesh<T> {
             inner: unsafe { audionimbus_sys::iplStaticMeshRetain(self.inner) },
             _marker: PhantomData,
         }
+    }
+}
+
+impl<T: RayTracer> Hash for StaticMesh<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

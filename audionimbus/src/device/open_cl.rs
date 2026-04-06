@@ -2,6 +2,7 @@
 
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
+use std::hash::{Hash, Hasher};
 use std::string::ToString;
 
 /// Application-wide state for OpenCL.
@@ -12,7 +13,7 @@ use std::string::ToString;
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OpenClDevice(audionimbus_sys::IPLOpenCLDevice);
 
 impl OpenClDevice {
@@ -124,6 +125,12 @@ impl Clone for OpenClDevice {
     }
 }
 
+impl Hash for OpenClDevice {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
+    }
+}
+
 /// Provides a list of OpenCL devices available on the user’s system.
 ///
 /// Use this to enumerate the available OpenCL devices, inspect their capabilities, and select the most suitable one for your application’s needs.
@@ -132,6 +139,7 @@ impl Clone for OpenClDevice {
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
+#[derive(Debug, PartialEq, Eq)]
 pub struct OpenClDeviceList(audionimbus_sys::IPLOpenCLDeviceList);
 
 impl OpenClDeviceList {
@@ -238,6 +246,12 @@ impl Clone for OpenClDeviceList {
     fn clone(&self) -> Self {
         // SAFETY: The device will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplOpenCLDeviceListRetain(self.0) })
+    }
+}
+
+impl Hash for OpenClDeviceList {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 
@@ -446,7 +460,6 @@ impl TryFrom<&audionimbus_sys::IPLOpenCLDeviceDesc> for OpenClDeviceDescriptor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::*;
 
     mod open_cl_device {

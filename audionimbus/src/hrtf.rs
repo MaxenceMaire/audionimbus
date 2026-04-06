@@ -3,6 +3,7 @@
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
+use std::hash::{Hash, Hasher};
 use std::sync::{LazyLock, Mutex};
 
 /// A static mutex used to serialize HRTF creation across threads.
@@ -109,6 +110,12 @@ impl Clone for Hrtf {
         // SAFETY: iplHRTFRetain increments the reference count and returns a new handle.
         // The HRTF will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplHRTFRetain(self.0) })
+    }
+}
+
+impl Hash for Hrtf {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

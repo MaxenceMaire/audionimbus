@@ -1,5 +1,6 @@
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
+use std::hash::{Hash, Hasher};
 
 #[cfg(doc)]
 use crate::geometry::Scene;
@@ -14,7 +15,7 @@ use crate::probe::ProbeBatch;
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SerializedObject(pub(crate) audionimbus_sys::IPLSerializedObject);
 
 impl SerializedObject {
@@ -163,6 +164,12 @@ impl Clone for SerializedObject {
     fn clone(&self) -> Self {
         // SAFETY: The serialized object will not be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplSerializedObjectRetain(self.0) })
+    }
+}
+
+impl Hash for SerializedObject {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

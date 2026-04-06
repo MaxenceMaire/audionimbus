@@ -8,6 +8,7 @@ use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
 use crate::{ChannelPointers, ChannelRequirement, Hrtf};
+use std::hash::{Hash, Hasher};
 
 /// Spatializes multi-channel speaker-based audio (e.g., stereo, quadraphonic, 5.1, or 7.1) using HRTF-based binaural rendering.
 ///
@@ -239,6 +240,20 @@ impl Clone for VirtualSurroundEffect {
             inner: unsafe { audionimbus_sys::iplVirtualSurroundEffectRetain(self.inner) },
             num_input_channels: self.num_input_channels,
         }
+    }
+}
+
+impl PartialEq for VirtualSurroundEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for VirtualSurroundEffect {}
+
+impl Hash for VirtualSurroundEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

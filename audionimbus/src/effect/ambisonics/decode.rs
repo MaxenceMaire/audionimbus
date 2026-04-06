@@ -9,6 +9,7 @@ use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Applies a rotation to an ambisonics audio buffer, then decodes it using panning or binaural rendering.
 ///
@@ -276,6 +277,20 @@ impl Clone for AmbisonicsDecodeEffect {
             num_output_channels: self.num_output_channels,
             rendering: self.rendering,
         }
+    }
+}
+
+impl PartialEq for AmbisonicsDecodeEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for AmbisonicsDecodeEffect {}
+
+impl Hash for AmbisonicsDecodeEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

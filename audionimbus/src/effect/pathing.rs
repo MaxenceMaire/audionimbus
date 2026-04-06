@@ -11,6 +11,7 @@ use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 #[cfg(doc)]
 use crate::baking::PathBaker;
@@ -378,6 +379,20 @@ impl Clone for PathEffect {
             inner: unsafe { audionimbus_sys::iplPathEffectRetain(self.inner) },
             num_output_channels: self.num_output_channels,
         }
+    }
+}
+
+impl PartialEq for PathEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for PathEffect {}
+
+impl Hash for PathEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

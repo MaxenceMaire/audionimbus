@@ -16,6 +16,7 @@ use crate::simulation::{
     TrueAudioNextParameters,
 };
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 /// Multi-channel convolution reverb.
@@ -647,6 +648,20 @@ impl<T: ReflectionEffectType> Clone for ReflectionEffect<T> {
     }
 }
 
+impl<T: ReflectionEffectType> PartialEq for ReflectionEffect<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl<T: ReflectionEffectType> Eq for ReflectionEffect<T> {}
+
+impl<T: ReflectionEffectType> Hash for ReflectionEffect<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
+    }
+}
+
 /// Settings used to create a reflection effect.
 #[derive(Copy, Clone, Debug)]
 pub struct ReflectionEffectSettings {
@@ -1103,6 +1118,20 @@ impl<T: ReflectionEffectType> Clone for ReflectionMixer<T> {
             num_output_channels: self.num_output_channels,
             _marker: PhantomData,
         }
+    }
+}
+
+impl<T: ReflectionEffectType> PartialEq for ReflectionMixer<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl<T: ReflectionEffectType> Eq for ReflectionMixer<T> {}
+
+impl<T: ReflectionEffectType> Hash for ReflectionMixer<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

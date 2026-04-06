@@ -9,6 +9,7 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::Direction;
 use crate::num_ambisonics_channels;
 use crate::{ChannelPointers, ChannelRequirement};
+use std::hash::{Hash, Hasher};
 
 /// Encodes a point source into ambisonics.
 ///
@@ -227,6 +228,20 @@ impl Clone for AmbisonicsEncodeEffect {
             inner: unsafe { audionimbus_sys::iplAmbisonicsEncodeEffectRetain(self.inner) },
             num_output_channels: self.num_output_channels,
         }
+    }
+}
+
+impl PartialEq for AmbisonicsEncodeEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for AmbisonicsEncodeEffect {}
+
+impl Hash for AmbisonicsEncodeEffect {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 

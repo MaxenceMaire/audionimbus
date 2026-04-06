@@ -2,6 +2,7 @@
 
 use crate::error::{SteamAudioError, to_option_error};
 use crate::version::SteamAudioVersion;
+use std::hash::{Hash, Hasher};
 
 /// A context object, which controls low-level operations of Steam Audio.
 ///
@@ -25,7 +26,7 @@ use crate::version::SteamAudioVersion;
 /// let context = Context::try_new(&settings)?;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Context(pub(crate) audionimbus_sys::IPLContext);
 
 impl Context {
@@ -101,6 +102,12 @@ impl Clone for Context {
         // Steam Audio context and returns a new handle to it. The context will not
         // be destroyed until all references are released.
         Self(unsafe { audionimbus_sys::iplContextRetain(self.0) })
+    }
+}
+
+impl Hash for Context {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.raw_ptr(), state);
     }
 }
 
