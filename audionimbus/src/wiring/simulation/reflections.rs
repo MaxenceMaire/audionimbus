@@ -48,7 +48,7 @@ where
         let handle = SimulationRunner::new(
             input.clone(),
             output.0.clone(),
-            self.commit_needed.clone(),
+            self.simulator_commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.pending_scene_commits.clone(),
             self.shutdown.clone(),

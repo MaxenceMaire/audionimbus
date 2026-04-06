@@ -367,7 +367,7 @@ fn test_wiring_simulation() {
         Source::<(), Reflections, (), Convolution>::try_new_subset(&simulator_clone).unwrap();
     simulator_clone.add_source(&listener_source);
 
-    simulation.request_commit();
+    simulation.request_simulator_commit();
 
     simulation.update_sources(|sources| {
         sources.push((

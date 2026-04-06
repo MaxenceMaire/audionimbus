@@ -33,8 +33,8 @@ pub use reflections_reverb::*;
 pub struct SimulationRunner<I, O, T: RayTracer> {
     input: Arc<ArcSwap<I>>,
     output: Arc<ArcSwap<ReusableOwned<O>>>,
-    commit_needed: Arc<AtomicBool>,
-    on_commit: Box<dyn FnMut() + Send + 'static>,
+    simulator_commit_needed: Arc<AtomicBool>,
+    on_simulator_commit: Box<dyn FnMut() + Send + 'static>,
     pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
     shutdown: Arc<AtomicBool>,
     paused: Arc<(Mutex<bool>, Condvar)>,
@@ -52,16 +52,16 @@ where
     ///
     /// - `input`: shared input frame updated each frame.
     /// - `output`: shared output written after each simulation run.
-    /// - `commit_needed`: set to `true` to trigger a simulator commit on the next run.
-    /// - `on_commit`: called when the commit flag is set to `true`.
+    /// - `simulator_commit_needed`: set to `true` to trigger a simulator commit on the next run.
+    /// - `on_simulator_commit`: called when the commit flag is set to `true`.
     /// - `pending_scene_commits`: scenes pending a commit.
     /// - `shutdown`: set to `true` to stop the thread after its current iteration.
     /// - `paused`: set to `true` to pause the thread after its current iteration.
     pub fn new(
         input: Arc<ArcSwap<I>>,
         output: Arc<ArcSwap<ReusableOwned<O>>>,
-        commit_needed: Arc<AtomicBool>,
-        on_commit: impl FnMut() + Send + 'static,
+        simulator_commit_needed: Arc<AtomicBool>,
+        on_simulator_commit: impl FnMut() + Send + 'static,
         pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
         shutdown: Arc<AtomicBool>,
         paused: Arc<(Mutex<bool>, Condvar)>,
@@ -69,8 +69,8 @@ where
         Self {
             input,
             output,
-            commit_needed,
-            on_commit: Box::new(on_commit),
+            simulator_commit_needed,
+            on_simulator_commit: Box::new(on_simulator_commit),
             pending_scene_commits,
             shutdown,
             paused,
@@ -93,8 +93,8 @@ where
         let Self {
             input,
             output,
-            commit_needed,
-            mut on_commit,
+            simulator_commit_needed,
+            mut on_simulator_commit,
             pending_scene_commits,
             shutdown,
             paused,
@@ -123,11 +123,11 @@ where
                 }
 
                 // The first thread to catch the flag commits.
-                if commit_needed
+                if simulator_commit_needed
                     .compare_exchange(true, false, Ordering::Acquire, Ordering::Relaxed)
                     .is_ok()
                 {
-                    on_commit();
+                    on_simulator_commit();
                 }
 
                 let frame = input.load();

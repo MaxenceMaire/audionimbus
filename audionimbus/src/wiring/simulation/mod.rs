@@ -104,7 +104,7 @@ where
 
     /// Set to `true` via [`Self::request_commit`] to trigger a simulator commit on the next
     /// simulation run.
-    pub commit_needed: Arc<AtomicBool>,
+    pub simulator_commit_needed: Arc<AtomicBool>,
 
     /// Scenes pending a commit.
     pub pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
@@ -134,7 +134,7 @@ where
         let sources = Arc::new(ArcSwap::new(Arc::new(
             sources_pool.pull_owned(Default::default),
         )));
-        let commit_needed = Arc::new(AtomicBool::new(false));
+        let simulator_commit_needed = Arc::new(AtomicBool::new(false));
         let pending_scene_commits = Arc::new(ArcSwap::new(Arc::new(HashSet::new())));
         let shutdown = Arc::new(AtomicBool::new(false));
         let paused = vec![];
@@ -143,7 +143,7 @@ where
             simulator,
             sources_pool,
             sources,
-            commit_needed,
+            simulator_commit_needed,
             pending_scene_commits,
             shutdown,
             paused,
@@ -209,8 +209,8 @@ where
     }
 
     /// Signals all spawned simulation threads to commit the [`Simulator`] changes on their next run.
-    pub fn request_commit(&mut self) {
-        self.commit_needed.store(true, Ordering::Relaxed);
+    pub fn request_simulator_commit(&mut self) {
+        self.simulator_commit_needed.store(true, Ordering::Relaxed);
     }
 
     /// Requests simulation threads to commit the provided scenes on their next run.

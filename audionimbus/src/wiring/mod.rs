@@ -65,7 +65,7 @@
 //! let mut simulation = Simulation::new::<u32>(simulator);
 //!
 //! // Commit is required after adding sources so the simulator picks them up.
-//! simulation.request_commit();
+//! simulation.request_simulator_commit();
 //!
 //! // Spawn one thread per simulation type.
 //! // Each thread shares the same list of sources that the game thread writes every frame.

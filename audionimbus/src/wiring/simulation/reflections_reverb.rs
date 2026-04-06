@@ -54,7 +54,7 @@ where
         let handle = SimulationRunner::new(
             input.clone(),
             output.0.clone(),
-            self.commit_needed.clone(),
+            self.simulator_commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.pending_scene_commits.clone(),
             self.shutdown.clone(),
@@ -150,7 +150,7 @@ mod tests {
         let listener_source =
             Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
         simulator_clone.add_source(&listener_source);
-        simulation.request_commit();
+        simulation.request_simulator_commit();
 
         let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
             eprintln!("{error}");
@@ -186,7 +186,7 @@ mod tests {
         let listener_source =
             Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
         simulator_clone.add_source(&listener_source);
-        simulation.request_commit();
+        simulation.request_simulator_commit();
 
         let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
             eprintln!("{error}");
