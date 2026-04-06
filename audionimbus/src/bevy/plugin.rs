@@ -219,6 +219,7 @@ where
                 SpatialAudioSet::SyncGeometry.after(TransformSystems::Propagate),
                 SpatialAudioSet::SyncSources,
                 SpatialAudioSet::SyncFrames,
+                SpatialAudioSet::PropagateErrors,
             )
                 .chain(),
         );
