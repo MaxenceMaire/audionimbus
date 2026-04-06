@@ -428,7 +428,7 @@ where
     ///
     /// This function cannot be called while any simulation is running. Either will block until the
     /// other finishes.
-    pub fn commit(&mut self) {
+    pub fn commit(&self) {
         let _guards = self.acquire_all_locks();
         let simulator = self.raw_ptr();
 

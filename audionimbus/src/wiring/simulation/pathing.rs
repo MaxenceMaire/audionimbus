@@ -37,7 +37,7 @@ where
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
         self.paused.push(paused.clone());
 
-        let mut simulator_for_commit = self.simulator.clone();
+        let simulator_for_commit = self.simulator.clone();
         let handle = SimulationRunner::new(
             input.clone(),
             output.0.clone(),

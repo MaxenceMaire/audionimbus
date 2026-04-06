@@ -268,7 +268,7 @@ fn test_reflections_without_scene() {
             num_threads: 2,
             max_order: 1,
         });
-    let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+    let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
 
     let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
         .with_reflections(ReflectionsSharedInputs {

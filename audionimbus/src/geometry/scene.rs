@@ -880,7 +880,7 @@ impl<T: RayTracer> Scene<T> {
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn commit(&mut self) {
+    pub fn commit(&self) {
         let locks = {
             let shared = self.shared.lock().unwrap();
             shared.simulation_locks()

@@ -46,6 +46,7 @@
 - `InstancedMeshSettings` now takes the subscene handle by value instead of by reference and is generic over the ray tracer implementation.
 - `BinauralEffectSettings`, `BinauralEffectParams`, `Spatialization`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings` and `AmbisonicsDecodeEffectParams` now take the HRTF handle by value instead of by reference.
 - `ReconstructorInputs` not takes the `EnergyField` handle by value instead of by reference.
+- `Simulator::commit`, `Scene::commit` and `ProbeBatch::commit` now take `&self` instead of `&mut self`.
 
 ### Added
 

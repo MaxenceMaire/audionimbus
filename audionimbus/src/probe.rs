@@ -387,7 +387,7 @@ impl ProbeBatch {
     /// Commits all changes made to a probe batch since this function was last called (or since the probe batch was first created, if this function was never called).
     ///
     /// This function must be called after adding, removing, or updating any probes in the batch, for the changes to take effect.
-    pub fn commit(&mut self) {
+    pub fn commit(&self) {
         unsafe { audionimbus_sys::iplProbeBatchCommit(self.raw_ptr()) }
 
         let mut shared = self.shared.lock().unwrap();
