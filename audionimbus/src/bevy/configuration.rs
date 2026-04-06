@@ -42,6 +42,7 @@ pub trait SimulationConfiguration: 'static + Send + Sync {
 
 /// Default simulation configuration: [`DefaultRayTracer`], direct, reflections via convolution, no
 /// pathing.
+#[derive(Copy, Clone)]
 pub struct DefaultSimulationConfiguration;
 
 impl SimulationConfiguration for DefaultSimulationConfiguration {

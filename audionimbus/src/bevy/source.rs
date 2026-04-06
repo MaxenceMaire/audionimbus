@@ -42,7 +42,7 @@ pub fn on_source_added<C: SimulationConfiguration>(
 {
     let source = query.get(event.entity).unwrap();
     simulation.0.simulator.add_source(&source.0);
-    simulation.0.request_commit();
+    simulation.0.request_simulator_commit();
 }
 
 /// Removes a `Source` from the simulator and requests a commit when it is removed.
@@ -58,7 +58,7 @@ pub fn on_source_removed<C: SimulationConfiguration>(
 {
     let source = query.get(event.entity).unwrap();
     simulation.0.simulator.remove_source(&source.0);
-    simulation.0.request_commit();
+    simulation.0.request_simulator_commit();
 }
 
 /// Marks an entity as the listener for reverb simulation.

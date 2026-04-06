@@ -26,6 +26,7 @@ use bevy::prelude::{
     Add, Assets, Changed, ChildOf, Commands, Component, Entity, GlobalTransform, Mesh, Mesh3d, On,
     Query, Remove, Res, With, Without,
 };
+use std::collections::HashSet;
 
 /// Component wrapping an [AudioNimbus scene](`crate::geometry::Scene`).
 #[derive(Component, Clone, Debug)]
@@ -300,9 +301,11 @@ pub(crate) fn sync_instanced_mesh_transforms<C: SimulationConfiguration>(
 pub(crate) fn commit_scenes<C: SimulationConfiguration>(
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
 ) {
-    for (mut scene, mut scene_status) in &mut scenes {
+    let scenes_iter = scenes.iter_mut();
+    let mut scenes_pending_commit = HashSet::with_capacity(scenes_iter.len());
+    for (scene, mut scene_status) in scenes_iter {
         if scene_status.commit_needed {
-            scene.0.commit();
+            scenes_pending_commit.insert(scene.0.clone());
             scene_status.commit_needed = false;
         }
     }
