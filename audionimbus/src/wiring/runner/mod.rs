@@ -10,8 +10,11 @@
 
 use super::simulation::SourceWithInputs;
 use super::step::SimulationStep;
+use crate::geometry::Scene;
+use crate::ray_tracing::RayTracer;
 use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
+use std::collections::HashSet;
 use std::sync::{
     Arc, Condvar, Mutex,
     atomic::{AtomicBool, Ordering},
@@ -27,19 +30,21 @@ mod reflections_reverb;
 pub use reflections_reverb::*;
 
 /// Drives a [`SimulationStep`] on a dedicated thread.
-pub struct SimulationRunner<I, O> {
+pub struct SimulationRunner<I, O, T: RayTracer> {
     input: Arc<ArcSwap<I>>,
     output: Arc<ArcSwap<ReusableOwned<O>>>,
     commit_needed: Arc<AtomicBool>,
     on_commit: Box<dyn FnMut() + Send + 'static>,
+    pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
     shutdown: Arc<AtomicBool>,
     paused: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl<I, O> SimulationRunner<I, O>
+impl<I, O, T> SimulationRunner<I, O, T>
 where
     I: Send + Sync + 'static,
     O: Send + Sync + 'static + Default + Clear + Shrink,
+    T: RayTracer + 'static,
 {
     /// Creates a new simulation runner.
     ///
@@ -49,6 +54,7 @@ where
     /// - `output`: shared output written after each simulation run.
     /// - `commit_needed`: set to `true` to trigger a simulator commit on the next run.
     /// - `on_commit`: called when the commit flag is set to `true`.
+    /// - `pending_scene_commits`: scenes pending a commit.
     /// - `shutdown`: set to `true` to stop the thread after its current iteration.
     /// - `paused`: set to `true` to pause the thread after its current iteration.
     pub fn new(
@@ -56,6 +62,7 @@ where
         output: Arc<ArcSwap<ReusableOwned<O>>>,
         commit_needed: Arc<AtomicBool>,
         on_commit: impl FnMut() + Send + 'static,
+        pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
         shutdown: Arc<AtomicBool>,
         paused: Arc<(Mutex<bool>, Condvar)>,
     ) -> Self {
@@ -64,6 +71,7 @@ where
             output,
             commit_needed,
             on_commit: Box::new(on_commit),
+            pending_scene_commits,
             shutdown,
             paused,
         }
@@ -87,12 +95,14 @@ where
             output,
             commit_needed,
             mut on_commit,
+            pending_scene_commits,
             shutdown,
             paused,
         } = self;
 
         std::thread::spawn(move || {
             let pool = Arc::new(Pool::new(4, O::default));
+            let empty_scene_commits = Arc::new(HashSet::new());
 
             loop {
                 if shutdown.load(Ordering::Relaxed) {
@@ -105,6 +115,11 @@ where
                     while *is_paused {
                         is_paused = condvar.wait(is_paused).unwrap();
                     }
+                }
+
+                let scenes_to_commit = pending_scene_commits.swap(Arc::clone(&empty_scene_commits));
+                for scene in scenes_to_commit.iter() {
+                    scene.commit();
                 }
 
                 // The first thread to catch the flag commits.

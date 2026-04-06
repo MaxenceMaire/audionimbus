@@ -56,6 +56,7 @@ where
             output.0.clone(),
             self.commit_needed.clone(),
             move || simulator_for_commit.commit(),
+            self.pending_scene_commits.clone(),
             self.shutdown.clone(),
             paused.clone(),
         )

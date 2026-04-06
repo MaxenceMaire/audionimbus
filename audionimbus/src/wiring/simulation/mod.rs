@@ -8,10 +8,12 @@
 #[cfg(doc)]
 use super::runner::SimulationRunner;
 
+use crate::geometry::Scene;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{SimulationInputs, Simulator, Source};
 use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
+use std::collections::HashSet;
 use std::sync::{
     Arc, Condvar, Mutex,
     atomic::{AtomicBool, Ordering},
@@ -93,16 +95,24 @@ where
 {
     /// The underlying simulator shared across all spawned simulation threads.
     pub simulator: Simulator<T, D, R, P, RE>,
+
     /// Pool of source buffers, reused across frames to avoid allocation.
     pub sources_pool: SourcesPool<SourceId, D, R, P, RE>,
+
     /// The current source buffer, atomically swapped each frame via [`Self::update_sources`].
     pub sources: SharedSources<SourceId, D, R, P, RE>,
+
     /// Set to `true` via [`Self::request_commit`] to trigger a simulator commit on the next
     /// simulation run.
     pub commit_needed: Arc<AtomicBool>,
+
+    /// Scenes pending a commit.
+    pub pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
+
     /// Set to `true` via [`Self::shutdown`] to stop all spawned simulation threads after their
     /// current iteration.
     pub shutdown: Arc<AtomicBool>,
+
     /// Pause flags for each spawned simulation thread, in spawn order.
     ///
     /// Simulation threads can be paused via [`Self::pause`] and resumed via [`Self::resume`].
@@ -125,6 +135,7 @@ where
             sources_pool.pull_owned(Default::default),
         )));
         let commit_needed = Arc::new(AtomicBool::new(false));
+        let pending_scene_commits = Arc::new(ArcSwap::new(Arc::new(HashSet::new())));
         let shutdown = Arc::new(AtomicBool::new(false));
         let paused = vec![];
 
@@ -133,6 +144,7 @@ where
             sources_pool,
             sources,
             commit_needed,
+            pending_scene_commits,
             shutdown,
             paused,
         }
@@ -196,9 +208,22 @@ where
         self.sources.store(Arc::new(sources));
     }
 
-    /// Signals all spawned simulation threads to commit on their next run.
+    /// Signals all spawned simulation threads to commit the [`Simulator`] changes on their next run.
     pub fn request_commit(&mut self) {
         self.commit_needed.store(true, Ordering::Relaxed);
+    }
+
+    /// Requests simulation threads to commit the provided scenes on their next run.
+    pub fn request_scene_commits(&self, scene_commits: &[Scene<T>]) {
+        self.pending_scene_commits.rcu(|pending_scene_commits| {
+            // SAFETY: Scene's Hash and Eq are based on pointer identity, not interior state.
+            #[allow(clippy::mutable_key_type)]
+            let mut new_pending_scene_commits =
+                HashSet::with_capacity(pending_scene_commits.len() + scene_commits.len());
+            new_pending_scene_commits.extend(pending_scene_commits.iter().cloned());
+            new_pending_scene_commits.extend(scene_commits.iter().cloned());
+            new_pending_scene_commits
+        });
     }
 
     /// Signals all spawned simulation threads to stop.
@@ -230,6 +255,7 @@ where
 pub struct SourceWithInputs<D, R, P, RE> {
     /// Spatial audio source.
     pub source: Source<D, R, P, RE>,
+
     /// Simulation inputs for the associated source.
     pub simulation_inputs: SimulationInputs<D, R, P>,
 }
