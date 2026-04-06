@@ -1,6 +1,6 @@
 use super::super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
-use bevy::prelude::{ChildOf, Component, Entity, Query};
-use std::collections::HashSet;
+use super::super::simulation::Simulation;
+use bevy::prelude::{ChildOf, Component, Entity, Query, ResMut};
 
 /// Component wrapping an [AudioNimbus scene](`crate::geometry::Scene`).
 #[derive(Component, Clone, Debug)]
@@ -18,16 +18,21 @@ pub(crate) struct SceneStatus {
 
 /// Commits modified scenes.
 pub(crate) fn commit_scenes<C: SimulationConfiguration>(
+    simulation: ResMut<Simulation<C>>,
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
 ) {
     let scenes_iter = scenes.iter_mut();
-    let mut scenes_pending_commit = HashSet::with_capacity(scenes_iter.len());
+    let mut scenes_pending_commit = Vec::with_capacity(scenes_iter.len());
     for (scene, mut scene_status) in scenes_iter {
         if scene_status.commit_needed {
-            scenes_pending_commit.insert(scene.0.clone());
+            scenes_pending_commit.push(scene.0.clone());
             scene_status.commit_needed = false;
         }
     }
+
+    simulation
+        .0
+        .request_scene_commits(scenes_pending_commit.as_slice());
 }
 
 /// Walks the parent chain from `start` (inclusive) and returns the first entity that carries a
