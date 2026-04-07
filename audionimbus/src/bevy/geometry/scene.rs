@@ -1,9 +1,16 @@
 use super::super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::super::simulation::Simulation;
 use super::SubSceneOf;
+use crate::callback::{CustomRayTracingCallbacks, ProgressCallback};
+use crate::context::Context;
+use crate::device::{EmbreeDevice, RadeonRaysDevice};
+use crate::error::SteamAudioError;
+use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays};
+use crate::serialized_object::SerializedObject;
 use bevy::prelude::{
     Add, ChildOf, Commands, Component, Entity, Local, On, Query, ResMut, With, Without,
 };
+use std::ops::{Deref, DerefMut};
 
 /// Component wrapping an [AudioNimbus scene](`crate::geometry::Scene`).
 #[derive(Component, Clone, Debug)]
@@ -11,6 +18,202 @@ use bevy::prelude::{
 pub struct Scene<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub crate::geometry::Scene<C::RayTracer>,
 );
+
+impl<C> Scene<C>
+where
+    C: SimulationConfiguration<RayTracer = DefaultRayTracer>,
+{
+    /// Creates a new scene.
+    ///
+    /// Mirrors [`Scene::<DefaultRayTracer>::try_new`](crate::geometry::Scene::<DefaultRayTracer>::try_new).
+    pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<DefaultRayTracer>::try_new(context).map(Self)
+    }
+
+    /// Loads a scene from a serialized object.
+    ///
+    /// Mirrors [`Scene::<DefaultRayTracer>::load`](crate::geometry::Scene::<DefaultRayTracer>::load).
+    pub fn load(
+        context: &Context,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<DefaultRayTracer>::load(context, serialized_object).map(Self)
+    }
+
+    /// Loads a scene from a serialized object with a progress callback.
+    ///
+    /// Mirrors [`Scene::<DefaultRayTracer>::load_with_progress`](crate::geometry::Scene::<DefaultRayTracer>::load_with_progress).
+    pub fn load_with_progress(
+        context: &Context,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<DefaultRayTracer>::load_with_progress(
+            context,
+            serialized_object,
+            progress_callback,
+        )
+        .map(Self)
+    }
+}
+
+impl<C> Scene<C>
+where
+    C: SimulationConfiguration<RayTracer = Embree>,
+{
+    /// Creates a new scene with the Embree ray tracer.
+    ///
+    /// Mirrors [`Scene::<Embree>::try_with_embree`](crate::geometry::Scene::<Embree>::try_with_embree).
+    pub fn try_with_embree(
+        context: &Context,
+        device: EmbreeDevice,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<Embree>::try_with_embree(context, device).map(Self)
+    }
+
+    /// Loads a scene from a serialized object using Embree.
+    ///
+    /// Mirrors [`Scene::<Embree>::load_embree`](crate::geometry::Scene::<Embree>::load_embree).
+    pub fn load_embree(
+        context: &Context,
+        device: EmbreeDevice,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<Embree>::load_embree(context, device, serialized_object).map(Self)
+    }
+
+    /// Loads a scene from a serialized object using Embree with a progress callback.
+    ///
+    /// Mirrors [`Scene::<Embree>::load_embree_with_progress`](crate::geometry::Scene::<Embree>::load_embree_with_progress).
+    pub fn load_embree_with_progress(
+        context: &Context,
+        device: EmbreeDevice,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<Embree>::load_embree_with_progress(
+            context,
+            device,
+            serialized_object,
+            progress_callback,
+        )
+        .map(Self)
+    }
+}
+
+impl<C> Scene<C>
+where
+    C: SimulationConfiguration<RayTracer = RadeonRays>,
+{
+    /// Creates a new scene with the Radeon Rays ray tracer.
+    ///
+    /// Mirrors [`Scene::<RadeonRays>::try_with_radeon_rays`](crate::geometry::Scene::<RadeonRays>::try_with_radeon_rays).
+    pub fn try_with_radeon_rays(
+        context: &Context,
+        device: RadeonRaysDevice,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<RadeonRays>::try_with_radeon_rays(context, device).map(Self)
+    }
+
+    /// Loads a scene from a serialized object using Radeon Rays.
+    ///
+    /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays`](crate::geometry::Scene::<RadeonRays>::load_radeon_rays).
+    pub fn load_radeon_rays(
+        context: &Context,
+        device: RadeonRaysDevice,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<RadeonRays>::load_radeon_rays(context, device, serialized_object)
+            .map(Self)
+    }
+
+    /// Loads a scene from a serialized object using Radeon Rays with a progress callback.
+    ///
+    /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays_with_progress`](crate::geometry::Scene::<RadeonRays>::load_radeon_rays_with_progress).
+    pub fn load_radeon_rays_with_progress(
+        context: &Context,
+        device: RadeonRaysDevice,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<RadeonRays>::load_radeon_rays_with_progress(
+            context,
+            device,
+            serialized_object,
+            progress_callback,
+        )
+        .map(Self)
+    }
+}
+
+impl<C> Scene<C>
+where
+    C: SimulationConfiguration<RayTracer = CustomRayTracer>,
+{
+    /// Creates a new scene with a custom ray tracer.
+    ///
+    /// Mirrors [`Scene::<CustomRayTracer>::try_with_custom`](crate::geometry::Scene::<CustomRayTracer>::try_with_custom).
+    pub fn try_with_custom(
+        context: &Context,
+        callbacks: CustomRayTracingCallbacks,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<CustomRayTracer>::try_with_custom(context, callbacks).map(Self)
+    }
+
+    /// Loads a scene from a serialized object using a custom ray tracer.
+    ///
+    /// Mirrors [`Scene::<CustomRayTracer>::load_custom`](crate::geometry::Scene::<CustomRayTracer>::load_custom).
+    pub fn load_custom(
+        context: &Context,
+        callbacks: CustomRayTracingCallbacks,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<CustomRayTracer>::load_custom(
+            context,
+            callbacks,
+            serialized_object,
+        )
+        .map(Self)
+    }
+
+    /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
+    ///
+    /// Mirrors [`Scene::<CustomRayTracer>::load_custom_with_progress`](crate::geometry::Scene::<CustomRayTracer>::load_custom_with_progress).
+    pub fn load_custom_with_progress(
+        context: &Context,
+        callbacks: CustomRayTracingCallbacks,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        crate::geometry::Scene::<CustomRayTracer>::load_custom_with_progress(
+            context,
+            callbacks,
+            serialized_object,
+            progress_callback,
+        )
+        .map(Self)
+    }
+}
+
+impl<C: SimulationConfiguration> Deref for Scene<C> {
+    type Target = crate::geometry::Scene<C::RayTracer>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<C: SimulationConfiguration> DerefMut for Scene<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<C: SimulationConfiguration> From<crate::geometry::Scene<C::RayTracer>> for Scene<C> {
+    fn from(scene: crate::geometry::Scene<C::RayTracer>) -> Self {
+        Self(scene)
+    }
+}
 
 /// Tracks whether a [`Scene`] has uncommitted geometry changes.
 #[derive(Component, Default, Copy, Clone, Debug)]
@@ -25,12 +228,6 @@ pub(crate) struct SceneStatus {
 /// Adding it to a new entity will automatically remove it from whichever entity previously held
 /// it.
 /// The last entity to receive `MainScene` becomes the active scene.
-///
-/// The plugin automatically spawns a default scene entity tagged with both [`DefaultScene`] and
-/// [`MainScene`].
-/// For simple use cases, simply place geometry under it.
-/// For level transitions or custom setups, spawn your own [`Scene`] and add [`MainScene`] to it.
-/// The previous main scene will lose the marker automatically.
 #[derive(Component, Debug)]
 #[component(storage = "SparseSet")]
 pub struct MainScene;

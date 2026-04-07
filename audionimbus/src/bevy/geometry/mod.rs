@@ -23,3 +23,6 @@ mod static_mesh;
 pub use instanced_mesh::*;
 pub use scene::*;
 pub use static_mesh::*;
+
+#[cfg(doc)]
+use crate::geometry::Material;
