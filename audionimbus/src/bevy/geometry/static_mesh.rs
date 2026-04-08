@@ -70,13 +70,12 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
         let mesh_asset_id = mesh_3d.0.id();
         let material = material_option.copied().unwrap_or_default();
 
-        let registration_is_stale = spawned_static_mesh.is_some_and(|spawned_static_mesh| {
-            scene_entity_option != Some(spawned_static_mesh.scene_entity)
-                || spawned_static_mesh.mesh_asset_id != mesh_asset_id
-                || spawned_static_mesh.material != material
+        let registration_is_current = spawned_static_mesh.is_some_and(|spawned_static_mesh| {
+            scene_entity_option == Some(spawned_static_mesh.scene_entity)
+                && spawned_static_mesh.mesh_asset_id == mesh_asset_id
+                && spawned_static_mesh.material == material
         });
-
-        if spawned_static_mesh.is_some() && !registration_is_stale {
+        if registration_is_current {
             continue;
         }
 

@@ -2,7 +2,7 @@ use super::super::configuration::SimulationConfiguration;
 use super::scene::{Scene, SceneStatus, find_scene_ancestor};
 use crate::geometry::{InstancedMeshHandle, InstancedMeshSettings, Matrix4};
 use bevy::prelude::{
-    Changed, ChildOf, Commands, Component, Entity, GlobalTransform, On, Query, Remove,
+    ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, On, Query, Ref, Remove,
 };
 
 /// Component that instantiates a sub-scene as movable acoustic geometry within a parent scene.
@@ -53,7 +53,7 @@ pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
     instanced_meshes: Query<(
         Entity,
         &InstancedMesh,
-        &GlobalTransform,
+        Ref<GlobalTransform>,
         Option<&SpawnedInstancedMesh>,
     )>,
     parents: Query<&ChildOf>,
@@ -72,6 +72,15 @@ pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
                     && spawned_instanced_mesh.sub_scene_entity == sub_scene_entity
             });
         if registration_is_current {
+            if global_transform.is_changed()
+                && let Some(spawned_instanced_mesh) = spawned_instanced_mesh_option
+            {
+                update_instanced_mesh_transform(
+                    spawned_instanced_mesh,
+                    &global_transform,
+                    &mut scenes,
+                );
+            }
             continue;
         }
 
@@ -85,7 +94,7 @@ pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
                 entity,
                 scene_entity,
                 sub_scene_entity,
-                global_transform,
+                &global_transform,
                 &mut scenes,
             )
         });
@@ -146,23 +155,21 @@ pub(crate) fn on_instanced_mesh_removed<C: SimulationConfiguration>(
     deregister_instanced_mesh(instanced_mesh, &mut scenes);
 }
 
-/// Pushes updated transforms for all instanced meshes whose [`GlobalTransform`] changed.
-pub(crate) fn sync_instanced_mesh_transforms<C: SimulationConfiguration>(
-    changed_meshes: Query<(&GlobalTransform, &SpawnedInstancedMesh), Changed<GlobalTransform>>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+/// Pushes an updated transform for a registered instanced mesh.
+fn update_instanced_mesh_transform<C: SimulationConfiguration>(
+    instanced_mesh: &SpawnedInstancedMesh,
+    global_transform: &GlobalTransform,
+    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
 ) {
-    for (global_transform, instanced_mesh) in &changed_meshes {
-        let Ok((mut scene, mut scene_status)) = scenes.get_mut(instanced_mesh.scene_entity) else {
-            continue;
-        };
+    let Ok((mut scene, mut scene_status)) = scenes.get_mut(instanced_mesh.scene_entity) else {
+        return;
+    };
 
-        scene.0.update_instanced_mesh_transform(
-            instanced_mesh.handle,
-            Matrix4::from(*global_transform),
-        );
+    scene
+        .0
+        .update_instanced_mesh_transform(instanced_mesh.handle, Matrix4::from(*global_transform));
 
-        scene_status.commit_needed = true;
-    }
+    scene_status.commit_needed = true;
 }
 
 /// Removes a registered instanced mesh from its parent scene.
