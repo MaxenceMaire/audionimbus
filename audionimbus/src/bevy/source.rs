@@ -1,14 +1,15 @@
 //! Components for spatial audio sources.
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
-use super::simulation::Simulation;
+use super::simulation::{Simulation, SimulationSharedInputs};
+use crate::geometry::CoordinateSystem;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationInputs, SimulationParameters,
 };
 use crate::wiring::SourceWithInputs;
 use bevy::prelude::{
-    Add, Component, Entity, GlobalTransform, On, Query, Remove, Res, ResMut, Without,
+    Add, Component, Entity, GlobalTransform, Local, On, Query, Remove, Res, ResMut, With, Without,
 };
 
 /// Spatial audio source component.
@@ -61,12 +62,36 @@ pub fn on_source_removed<C: SimulationConfiguration>(
     simulation.0.request_simulator_commit();
 }
 
-/// Marks an entity as the listener for reverb simulation.
+/// Marks an entity as the simulator listener.
+///
+/// The entity's [`GlobalTransform`] is copied into [`SimulationSharedInputs`] each frame.
+///
+/// If the entity also carries [`Source`], it is used as the listener-centric reverb source.
 ///
 /// At most one entity should carry this component.
 #[derive(Component, Debug)]
 #[component(storage = "SparseSet")]
 pub struct Listener;
+
+/// Synchronizes the listener transform into shared simulation inputs.
+pub(crate) fn sync_simulation_shared_inputs_listener<C: SimulationConfiguration>(
+    listeners: Query<&GlobalTransform, With<Listener>>,
+    mut shared_inputs: ResMut<SimulationSharedInputs<C>>,
+    #[cfg(debug_assertions)] mut warned_multiple: Local<bool>,
+) {
+    let mut listeners = listeners.iter();
+    let listener = listeners.next();
+
+    #[cfg(debug_assertions)]
+    if !*warned_multiple && listeners.next().is_some() {
+        *warned_multiple = true;
+        bevy::log::warn!("found more than one Listener; picking the first item");
+    }
+
+    shared_inputs.0.set_listener(
+        listener.map_or_else(CoordinateSystem::default, |listener| (*listener).into()),
+    );
+}
 
 /// Publishes a new snapshot of sources.
 pub(crate) fn sync_sources<C: SimulationConfiguration>(

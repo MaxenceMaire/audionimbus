@@ -5,11 +5,12 @@ use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
     commit_scenes, on_instanced_mesh_added, on_instanced_mesh_removed, on_main_scene_added,
     on_static_mesh_removed, register_static_meshes, sync_instanced_mesh_transforms,
-    warn_missing_main_scene,
 };
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::{Simulation, SimulationSharedInputs};
-use super::source::{on_source_added, on_source_removed, sync_sources};
+use super::source::{
+    on_source_added, on_source_removed, sync_simulation_shared_inputs_listener, sync_sources,
+};
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
 use crate::simulation::{
@@ -18,6 +19,8 @@ use crate::simulation::{
 };
 use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate, TransformSystems};
 
+#[cfg(debug_assertions)]
+use super::geometry::warn_missing_main_scene;
 #[cfg(doc)]
 use super::runner::{RunnerReflections, RunnerReflectionsReverb};
 
@@ -219,6 +222,7 @@ where
             (
                 SpatialAudioSet::SyncGeometry.after(TransformSystems::Propagate),
                 SpatialAudioSet::SyncSources,
+                SpatialAudioSet::SyncSimulationSharedInputs,
                 SpatialAudioSet::SyncFrames,
                 SpatialAudioSet::PropagateErrors,
             )
@@ -240,6 +244,8 @@ where
                     .chain()
                     .in_set(SpatialAudioSet::SyncGeometry),
                 sync_sources::<C>.in_set(SpatialAudioSet::SyncSources),
+                sync_simulation_shared_inputs_listener::<C>
+                    .in_set(SpatialAudioSet::SyncSimulationSharedInputs),
                 propagate_simulation_errors.in_set(SpatialAudioSet::PropagateErrors),
             ),
         );

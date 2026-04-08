@@ -7,6 +7,7 @@ use bevy::prelude::SystemSet;
 pub enum SpatialAudioSet {
     SyncGeometry,
     SyncSources,
+    SyncSimulationSharedInputs,
     SyncFrames,
     PropagateErrors,
 }
