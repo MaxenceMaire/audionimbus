@@ -3,8 +3,8 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
-    commit_scenes, on_instanced_mesh_added, on_instanced_mesh_removed, on_main_scene_added,
-    on_static_mesh_removed, register_static_meshes, sync_instanced_mesh_transforms,
+    commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_static_mesh_removed,
+    sync_instanced_mesh_transforms, sync_instanced_meshes, sync_static_meshes,
 };
 use super::probe::{commit_probe_batches, on_probe_batch_added, on_probe_batch_removed};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
@@ -238,8 +238,9 @@ where
             PostUpdate,
             (
                 (
-                    register_static_meshes::<C>,
-                    sync_instanced_mesh_transforms::<C>.after(TransformSystems::Propagate),
+                    sync_static_meshes::<C>,
+                    sync_instanced_meshes::<C>.after(TransformSystems::Propagate),
+                    sync_instanced_mesh_transforms::<C>,
                     commit_scenes::<C>,
                 )
                     .chain(),
@@ -283,7 +284,6 @@ where
         app.add_observer(on_probe_batch_added::<C>);
         app.add_observer(on_probe_batch_removed::<C>);
         app.add_observer(on_static_mesh_removed::<C>);
-        app.add_observer(on_instanced_mesh_added::<C>);
         app.add_observer(on_instanced_mesh_removed::<C>);
         app.add_observer(on_main_scene_added::<C>);
     }
