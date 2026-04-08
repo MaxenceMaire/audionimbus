@@ -72,8 +72,8 @@
 //! let on_error = |error| {
 //!     eprintln!("{error}");
 //! };
-//! let direct_simulation = simulation.spawn_direct(on_error);
-//! let reflections_simulation = simulation.spawn_reflections(on_error);
+//! let mut direct_simulation = simulation.spawn_direct(on_error);
+//! let mut reflections_simulation = simulation.spawn_reflections(on_error);
 //!
 //! // Game thread loop (runs every frame)
 //! // Publish the world-state snapshot for this frame.
@@ -106,8 +106,8 @@
 //!
 //! // Audio thread
 //! // `load` is lock-free and safe to call from the audio thread at any time.
-//! let direct_outputs = direct_simulation.output.load();
-//! let reflections_outputs = reflections_simulation.output.load();
+//! let direct_outputs = direct_simulation.output().load();
+//! let reflections_outputs = reflections_simulation.output().load();
 //! for (id, params) in direct_outputs.iter() {
 //!     // Apply direct effect for source `id`.
 //! }
@@ -117,8 +117,8 @@
 //!
 //! // Teardown
 //! simulation.shutdown();
-//! direct_simulation.handle.join().expect("direct simulation thread panicked");
-//! reflections_simulation.handle.join().expect("reflections simulation thread panicked");
+//! direct_simulation.join().expect("direct simulation thread panicked");
+//! reflections_simulation.join().expect("reflections simulation thread panicked");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!

@@ -1,6 +1,6 @@
 use super::super::runner::{DirectFrame, SimulationRunner};
 use super::super::step::{DirectStep, SimulationStepError};
-use super::{SharedSimulationOutput, Simulation};
+use super::{SharedSimulationOutput, Simulation, SimulationControls};
 use crate::effect::DirectEffectParams;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -9,6 +9,7 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, R, P, RE> Simulation<SourceId, T, Direct, R, P, RE>
@@ -36,6 +37,8 @@ where
             )));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
+        let shutdown = Arc::new(AtomicBool::new(false));
+        self.shutdowns.push(shutdown.clone());
         self.paused.push(paused.clone());
 
         let simulator_for_commit = self.simulator.clone();
@@ -45,7 +48,7 @@ where
             self.simulator_commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.pending_scene_commits.clone(),
-            self.shutdown.clone(),
+            shutdown.clone(),
             paused.clone(),
         )
         .spawn(
@@ -54,28 +57,27 @@ where
         );
 
         DirectSimulation {
-            handle,
             input,
             output,
-            paused,
+            controls: SimulationControls::new(handle, paused, shutdown),
         }
     }
 }
 
 /// A running direct simulation thread.
+///
+/// Dropping this handle requests shutdown and joins the thread.
 pub struct DirectSimulation<SourceId, R, P, RE>
 where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
 {
-    /// Thread handle.
-    pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: SharedDirectInput<SourceId, R, P, RE>,
+    input: SharedDirectInput<SourceId, R, P, RE>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<Vec<(SourceId, DirectEffectParams)>>,
-    /// Pause flag.
-    pub paused: Arc<(Mutex<bool>, Condvar)>,
+    output: SharedSimulationOutput<Vec<(SourceId, DirectEffectParams)>>,
+    /// Thread lifecycle controls.
+    controls: SimulationControls,
 }
 
 impl<SourceId, R, P, RE> DirectSimulation<SourceId, R, P, RE>
@@ -88,15 +90,29 @@ where
         self.input.store(Arc::new(frame));
     }
 
+    /// Returns the shared output produced by this simulation thread.
+    pub fn output(&self) -> SharedSimulationOutput<Vec<(SourceId, DirectEffectParams)>> {
+        self.output.clone()
+    }
+
     /// Pauses the simulation thread after its current iteration completes.
     pub fn pause(&self) {
-        *self.paused.0.lock().unwrap() = true;
+        self.controls.pause();
     }
 
     /// Resumes a paused simulation thread.
     pub fn resume(&self) {
-        *self.paused.0.lock().unwrap() = false;
-        self.paused.1.notify_one();
+        self.controls.resume();
+    }
+
+    /// Requests shutdown of this simulation thread.
+    pub fn shutdown(&self) {
+        self.controls.shutdown();
+    }
+
+    /// Waits for the simulation thread to exit.
+    pub fn join(&mut self) -> std::thread::Result<()> {
+        self.controls.join()
     }
 }
 
@@ -126,12 +142,11 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut simulation = Simulation::new::<()>(simulator);
-        let direct_simulation = simulation.spawn_direct(|error| {
+        let mut direct_simulation = simulation.spawn_direct(|error| {
             eprintln!("{error}");
         });
         simulation.shutdown();
         direct_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }
@@ -154,15 +169,14 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut simulation = Simulation::new::<()>(simulator);
-        let direct_simulation = simulation.spawn_direct(|error| {
+        let mut direct_simulation = simulation.spawn_direct(|error| {
             eprintln!("{error}");
         });
 
-        assert!(direct_simulation.output.load().is_empty());
+        assert!(direct_simulation.output().load().is_empty());
 
         simulation.shutdown();
         direct_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }

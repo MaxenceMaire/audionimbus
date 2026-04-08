@@ -404,22 +404,22 @@ fn test_wiring_simulation() {
     let on_error = |error| {
         eprintln!("{error}");
     };
-    let direct_simulation = simulation.spawn_direct(on_error);
-    let reverb_simulation = simulation.spawn_reflections_reverb(on_error);
-    let pathing_simulation = simulation.spawn_pathing(on_error);
+    let mut direct_simulation = simulation.spawn_direct(on_error);
+    let mut reverb_simulation = simulation.spawn_reflections_reverb(on_error);
+    let mut pathing_simulation = simulation.spawn_pathing(on_error);
 
     std::thread::sleep(Duration::from_millis(200));
 
-    assert_eq!(direct_simulation.output.load().len(), 1);
+    assert_eq!(direct_simulation.output().load().len(), 1);
 
-    let reverb_output = reverb_simulation.output.load();
+    let reverb_output = reverb_simulation.output().load();
     assert_eq!(reverb_output.sources.len(), 1);
     assert!(
         reverb_output.listener.is_none(),
         "listener should be None initially"
     );
 
-    assert_eq!(pathing_simulation.output.load().len(), 1);
+    assert_eq!(pathing_simulation.output().load().len(), 1);
 
     let listener = SourceWithInputs {
         source: listener_source.clone(),
@@ -439,21 +439,18 @@ fn test_wiring_simulation() {
     std::thread::sleep(Duration::from_millis(200));
 
     assert!(
-        reverb_simulation.output.load().listener.is_some(),
+        reverb_simulation.output().load().listener.is_some(),
         "listener should be Some after it is provided"
     );
 
     simulation.shutdown();
     direct_simulation
-        .handle
         .join()
         .expect("direct simulation thread panicked");
     reverb_simulation
-        .handle
         .join()
         .expect("reverb simulation thread panicked");
     pathing_simulation
-        .handle
         .join()
         .expect("pathing simulation thread panicked");
 }

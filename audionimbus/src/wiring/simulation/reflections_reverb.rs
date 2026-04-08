@@ -1,6 +1,6 @@
 use super::super::runner::{ReflectionsReverbFrame, SimulationRunner};
 use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep, SimulationStepError};
-use super::{SharedSimulationOutput, Simulation, SourceWithInputs};
+use super::{SharedSimulationOutput, Simulation, SimulationControls, SourceWithInputs};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -9,6 +9,7 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, D, P, RE> Simulation<SourceId, T, D, Reflections, P, RE>
@@ -48,6 +49,8 @@ where
         ))));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
+        let shutdown = Arc::new(AtomicBool::new(false));
+        self.shutdowns.push(shutdown.clone());
         self.paused.push(paused.clone());
 
         let simulator_for_commit = self.simulator.clone();
@@ -57,7 +60,7 @@ where
             self.simulator_commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.pending_scene_commits.clone(),
-            self.shutdown.clone(),
+            shutdown.clone(),
             paused.clone(),
         )
         .spawn(
@@ -66,36 +69,33 @@ where
         );
 
         ReflectionsReverbSimulation {
-            handle,
             input,
             output,
-            paused,
+            controls: SimulationControls::new(handle, paused, shutdown),
         }
     }
 }
 
 /// A running reflections and reverb simulation thread.
+///
+/// Dropping this handle requests shutdown and joins the thread.
 pub struct ReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P>
 where
     SourceId: 'static + Send + Sync,
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
-    /// Thread handle.
-    pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: SharedReflectionsReverbInput<SourceId, D, P, RE, LD, LP>,
+    input: SharedReflectionsReverbInput<SourceId, D, P, RE, LD, LP>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>>,
-    /// Pause flag.
-    pub paused: Arc<(Mutex<bool>, Condvar)>,
+    output: SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>>,
+    /// Thread lifecycle controls.
+    controls: SimulationControls,
 }
 
 impl<SourceId, D, P, RE, LD, LP> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
 where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
-    LD: Send + Sync,
-    LP: Send + Sync,
 {
     /// Updates the input frame used on the next run.
     pub fn set_input(
@@ -105,15 +105,29 @@ where
         self.input.store(Arc::new(frame));
     }
 
+    /// Returns the shared output produced by this simulation thread.
+    pub fn output(&self) -> SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>> {
+        self.output.clone()
+    }
+
     /// Pauses the simulation thread after its current iteration completes.
     pub fn pause(&self) {
-        *self.paused.0.lock().unwrap() = true;
+        self.controls.pause();
     }
 
     /// Resumes a paused simulation thread.
     pub fn resume(&self) {
-        *self.paused.0.lock().unwrap() = false;
-        self.paused.1.notify_one();
+        self.controls.resume();
+    }
+
+    /// Requests shutdown of this simulation thread.
+    pub fn shutdown(&self) {
+        self.controls.shutdown();
+    }
+
+    /// Waits for the simulation thread to exit.
+    pub fn join(&mut self) -> std::thread::Result<()> {
+        self.controls.join()
     }
 }
 
@@ -152,12 +166,11 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_simulator_commit();
 
-        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
+        let mut reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
             eprintln!("{error}");
         });
         simulation.shutdown();
         reverb_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }
@@ -188,15 +201,14 @@ mod tests {
         simulator_clone.add_source(&listener_source);
         simulation.request_simulator_commit();
 
-        let reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
+        let mut reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
             eprintln!("{error}");
         });
 
-        assert!(reverb_simulation.output.load().listener.is_none());
+        assert!(reverb_simulation.output().load().listener.is_none());
 
         simulation.shutdown();
         reverb_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }

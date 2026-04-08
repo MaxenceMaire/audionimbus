@@ -1,6 +1,6 @@
 use super::super::runner::{ReflectionsFrame, SimulationRunner};
 use super::super::step::{ReflectionsOutput, ReflectionsStep, SimulationStepError};
-use super::{SharedSimulationOutput, Simulation};
+use super::{SharedSimulationOutput, Simulation, SimulationControls};
 use crate::effect::ReflectionEffectType;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{
@@ -9,6 +9,7 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, D, P, RE> Simulation<SourceId, T, D, Reflections, P, RE>
@@ -42,6 +43,8 @@ where
         ))));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
+        let shutdown = Arc::new(AtomicBool::new(false));
+        self.shutdowns.push(shutdown.clone());
         self.paused.push(paused.clone());
 
         let simulator_for_commit = self.simulator.clone();
@@ -51,7 +54,7 @@ where
             self.simulator_commit_needed.clone(),
             move || simulator_for_commit.commit(),
             self.pending_scene_commits.clone(),
-            self.shutdown.clone(),
+            shutdown.clone(),
             paused.clone(),
         )
         .spawn(
@@ -60,28 +63,27 @@ where
         );
 
         ReflectionsSimulation {
-            handle,
             input,
             output,
-            paused,
+            controls: SimulationControls::new(handle, paused, shutdown),
         }
     }
 }
 
 /// A running reflections simulation thread.
+///
+/// Dropping this handle requests shutdown and joins the thread.
 pub struct ReflectionsSimulation<SourceId, D, P, RE>
 where
     SourceId: 'static + Send + Sync,
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
-    /// Thread handle.
-    pub handle: std::thread::JoinHandle<()>,
     /// Shared input frame, updated each game frame.
-    pub input: SharedReflectionsInput<SourceId, D, P, RE>,
+    input: SharedReflectionsInput<SourceId, D, P, RE>,
     /// Shared output, read by the audio thread.
-    pub output: SharedSimulationOutput<ReflectionsOutput<SourceId, RE>>,
-    /// Pause flag.
-    pub paused: Arc<(Mutex<bool>, Condvar)>,
+    output: SharedSimulationOutput<ReflectionsOutput<SourceId, RE>>,
+    /// Thread lifecycle controls.
+    controls: SimulationControls,
 }
 
 impl<SourceId, D, P, RE> ReflectionsSimulation<SourceId, D, P, RE>
@@ -94,15 +96,29 @@ where
         self.input.store(Arc::new(frame));
     }
 
+    /// Returns the shared output produced by this simulation thread.
+    pub fn output(&self) -> SharedSimulationOutput<ReflectionsOutput<SourceId, RE>> {
+        self.output.clone()
+    }
+
     /// Pauses the simulation thread after its current iteration completes.
     pub fn pause(&self) {
-        *self.paused.0.lock().unwrap() = true;
+        self.controls.pause();
     }
 
     /// Resumes a paused simulation thread.
     pub fn resume(&self) {
-        *self.paused.0.lock().unwrap() = false;
-        self.paused.1.notify_one();
+        self.controls.resume();
+    }
+
+    /// Requests shutdown of this simulation thread.
+    pub fn shutdown(&self) {
+        self.controls.shutdown();
+    }
+
+    /// Waits for the simulation thread to exit.
+    pub fn join(&mut self) -> std::thread::Result<()> {
+        self.controls.join()
     }
 }
 
@@ -134,12 +150,11 @@ mod tests {
         simulator.commit();
 
         let mut simulation = Simulation::new::<()>(simulator);
-        let reflections_simulation = simulation.spawn_reflections(|error| {
+        let mut reflections_simulation = simulation.spawn_reflections(|error| {
             eprintln!("{error}");
         });
         simulation.shutdown();
         reflections_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }
@@ -163,15 +178,14 @@ mod tests {
         simulator.commit();
 
         let mut simulation = Simulation::new::<()>(simulator);
-        let reflections_simulation = simulation.spawn_reflections(|error| {
+        let mut reflections_simulation = simulation.spawn_reflections(|error| {
             eprintln!("{error}");
         });
 
-        assert!(reflections_simulation.output.load().sources.is_empty());
+        assert!(reflections_simulation.output().load().sources.is_empty());
 
         simulation.shutdown();
         reflections_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }

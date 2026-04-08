@@ -81,12 +81,12 @@ pub use pathing::*;
 /// let on_error = |error| {
 ///     eprintln!("{error}");
 /// };
-/// let direct_simulation = simulation.spawn_direct(on_error);
-/// let reflections_simulation = simulation.spawn_reflections(on_error);
+/// let mut direct_simulation = simulation.spawn_direct(on_error);
+/// let mut reflections_simulation = simulation.spawn_reflections(on_error);
 ///
 /// simulation.shutdown();
-/// direct_simulation.handle.join().expect("direct thread panicked");
-/// reflections_simulation.handle.join().expect("reflections thread panicked");
+/// direct_simulation.join().expect("direct thread panicked");
+/// reflections_simulation.join().expect("reflections thread panicked");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct Simulation<SourceId, T, D, R, P, RE>
@@ -109,9 +109,8 @@ where
     /// Scenes pending a commit.
     pub pending_scene_commits: Arc<ArcSwap<HashSet<Scene<T>>>>,
 
-    /// Set to `true` via [`Self::shutdown`] to stop all spawned simulation threads after their
-    /// current iteration.
-    pub shutdown: Arc<AtomicBool>,
+    /// Shutdown flags for each spawned simulation thread, in spawn order.
+    pub shutdowns: Vec<Arc<AtomicBool>>,
 
     /// Pause flags for each spawned simulation thread, in spawn order.
     ///
@@ -136,7 +135,7 @@ where
         )));
         let simulator_commit_needed = Arc::new(AtomicBool::new(false));
         let pending_scene_commits = Arc::new(ArcSwap::new(Arc::new(HashSet::new())));
-        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdowns = vec![];
         let paused = vec![];
 
         Simulation {
@@ -145,7 +144,7 @@ where
             sources,
             simulator_commit_needed,
             pending_scene_commits,
-            shutdown,
+            shutdowns,
             paused,
         }
     }
@@ -227,10 +226,12 @@ where
     }
 
     /// Signals all spawned simulation threads to stop.
-    pub fn shutdown(&mut self) {
-        self.shutdown.store(true, Ordering::Relaxed);
+    pub fn shutdown(&self) {
+        for shutdown in &self.shutdowns {
+            shutdown.store(true, Ordering::Relaxed);
+        }
 
-        // Wake paused threads so they can observe the shutdown flag.
+        // Wake paused threads so they can observe their shutdown flag.
         self.resume();
     }
 
@@ -247,6 +248,69 @@ where
             *thread.0.lock().unwrap() = false;
             thread.1.notify_one();
         }
+    }
+}
+
+impl<SourceId, T, D, R, P, RE> Drop for Simulation<SourceId, T, D, R, P, RE>
+where
+    T: RayTracer,
+{
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
+/// Lifecycle controls for a simulation thread.
+pub(crate) struct SimulationControls {
+    handle: Option<std::thread::JoinHandle<()>>,
+    paused: Arc<(Mutex<bool>, Condvar)>,
+    shutdown: Arc<AtomicBool>,
+}
+
+impl SimulationControls {
+    /// Creates a new set of controls for a simulation thread.
+    pub(crate) fn new(
+        handle: std::thread::JoinHandle<()>,
+        paused: Arc<(Mutex<bool>, Condvar)>,
+        shutdown: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            handle: Some(handle),
+            paused,
+            shutdown,
+        }
+    }
+
+    /// Pauses the simulation thread.
+    pub(crate) fn pause(&self) {
+        *self.paused.0.lock().unwrap() = true;
+    }
+
+    /// Resumes a paused simulation thread.
+    pub(crate) fn resume(&self) {
+        *self.paused.0.lock().unwrap() = false;
+        self.paused.1.notify_one();
+    }
+
+    /// Requests shutdown of this simulation thread.
+    pub(crate) fn shutdown(&self) {
+        self.shutdown.store(true, Ordering::Relaxed);
+        *self.paused.0.lock().unwrap() = false;
+        self.paused.1.notify_one();
+    }
+
+    /// Waits for the simulation thread to exit.
+    pub(crate) fn join(&mut self) -> std::thread::Result<()> {
+        self.handle
+            .take()
+            .map_or(Ok(()), std::thread::JoinHandle::join)
+    }
+}
+
+impl Drop for SimulationControls {
+    fn drop(&mut self) {
+        self.shutdown();
+        let _ = self.join();
     }
 }
 
@@ -380,12 +444,11 @@ mod tests {
             });
         let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut simulation = Simulation::new::<()>(simulator);
-        let direct_simulation = simulation.spawn_direct(|error| {
+        let mut direct_simulation = simulation.spawn_direct(|error| {
             eprintln!("{error}");
         });
         simulation.shutdown();
         direct_simulation
-            .handle
             .join()
             .expect("simulation thread panicked");
     }
