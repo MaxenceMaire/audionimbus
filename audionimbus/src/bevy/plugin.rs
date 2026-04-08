@@ -6,6 +6,7 @@ use super::geometry::{
     commit_scenes, on_instanced_mesh_added, on_instanced_mesh_removed, on_main_scene_added,
     on_static_mesh_removed, register_static_meshes, sync_instanced_mesh_transforms,
 };
+use super::probe::{commit_probe_batches, on_probe_batch_added, on_probe_batch_removed};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::{Simulation, SimulationSharedInputs};
 use super::source::{
@@ -223,6 +224,7 @@ where
             (
                 (
                     SpatialAudioSet::SyncGeometry,
+                    SpatialAudioSet::SyncProbes,
                     SpatialAudioSet::SyncSources,
                     SpatialAudioSet::SyncSimulationSharedInputs,
                 ),
@@ -245,6 +247,11 @@ where
                 warn_missing_main_scene::<C>,
             )
                 .in_set(SpatialAudioSet::SyncGeometry),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            commit_probe_batches::<C>.in_set(SpatialAudioSet::SyncProbes),
         );
 
         app.add_systems(
@@ -273,6 +280,8 @@ where
         app.add_observer(on_source_added::<C>);
         app.add_observer(on_source_removed::<C>);
         app.add_observer(on_listener_added);
+        app.add_observer(on_probe_batch_added::<C>);
+        app.add_observer(on_probe_batch_removed::<C>);
         app.add_observer(on_static_mesh_removed::<C>);
         app.add_observer(on_instanced_mesh_added::<C>);
         app.add_observer(on_instanced_mesh_removed::<C>);
