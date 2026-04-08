@@ -220,9 +220,11 @@ where
         app.configure_sets(
             PostUpdate,
             (
-                SpatialAudioSet::SyncGeometry.after(TransformSystems::Propagate),
-                SpatialAudioSet::SyncSources,
-                SpatialAudioSet::SyncSimulationSharedInputs,
+                (
+                    SpatialAudioSet::SyncGeometry,
+                    SpatialAudioSet::SyncSources,
+                    SpatialAudioSet::SyncSimulationSharedInputs,
+                ),
                 SpatialAudioSet::SyncFrames,
                 SpatialAudioSet::PropagateErrors,
             )
@@ -233,21 +235,34 @@ where
             PostUpdate,
             (
                 (
-                    (
-                        register_static_meshes::<C>,
-                        sync_instanced_mesh_transforms::<C>,
-                    ),
+                    register_static_meshes::<C>,
+                    sync_instanced_mesh_transforms::<C>.after(TransformSystems::Propagate),
                     commit_scenes::<C>,
-                    #[cfg(debug_assertions)]
-                    warn_missing_main_scene::<C>,
                 )
-                    .chain()
-                    .in_set(SpatialAudioSet::SyncGeometry),
-                sync_sources::<C>.in_set(SpatialAudioSet::SyncSources),
-                sync_simulation_shared_inputs_listener::<C>
-                    .in_set(SpatialAudioSet::SyncSimulationSharedInputs),
-                propagate_simulation_errors.in_set(SpatialAudioSet::PropagateErrors),
-            ),
+                    .chain(),
+                #[cfg(debug_assertions)]
+                warn_missing_main_scene::<C>,
+            )
+                .in_set(SpatialAudioSet::SyncGeometry),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            sync_sources::<C>
+                .after(TransformSystems::Propagate)
+                .in_set(SpatialAudioSet::SyncSources),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            sync_simulation_shared_inputs_listener::<C>
+                .after(TransformSystems::Propagate)
+                .in_set(SpatialAudioSet::SyncSimulationSharedInputs),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            propagate_simulation_errors.in_set(SpatialAudioSet::PropagateErrors),
         );
 
         RD::add_systems(app);

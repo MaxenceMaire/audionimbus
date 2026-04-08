@@ -18,6 +18,7 @@ use bevy::prelude::{
     App, Entity, GlobalTransform, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, With,
     World, resource_exists,
 };
+use bevy::transform::TransformSystems;
 use std::ops::{Deref, DerefMut};
 
 /// Runner for reflections and listener-centric reverb simulation.
@@ -66,6 +67,7 @@ where
             PostUpdate,
             sync_reflections_reverb_frame::<C>
                 .run_if(resource_exists::<ReflectionsReverbSimulation<C>>)
+                .after(TransformSystems::Propagate)
                 .in_set(SpatialAudioSet::SyncFrames),
         );
     }
