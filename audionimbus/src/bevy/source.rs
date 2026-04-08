@@ -9,7 +9,8 @@ use crate::simulation::{
 };
 use crate::wiring::SourceWithInputs;
 use bevy::prelude::{
-    Add, Component, Entity, GlobalTransform, Local, On, Query, Remove, Res, ResMut, With, Without,
+    Add, Commands, Component, Entity, GlobalTransform, On, Query, Remove, Res, ResMut, With,
+    Without,
 };
 
 /// Spatial audio source component.
@@ -69,27 +70,37 @@ pub fn on_source_removed<C: SimulationConfiguration>(
 /// If the entity also carries [`Source`], it is used as the listener-centric reverb source.
 ///
 /// At most one entity should carry this component.
+/// Adding it to a new entity removes it from any entity that previously held it.
 #[derive(Component, Debug)]
 #[component(storage = "SparseSet")]
 pub struct Listener;
+
+/// Enforces the [`Listener`] exclusivity invariant.
+///
+/// When `Listener` is added to an entity, this observer removes it from any other entity
+/// currently holding it, making the new entity the active listener.
+pub(crate) fn on_listener_added(
+    event: On<Add, Listener>,
+    listeners: Query<Entity, With<Listener>>,
+    mut commands: Commands,
+) {
+    for entity in &listeners {
+        if entity != event.entity {
+            commands.entity(entity).remove::<Listener>();
+        }
+    }
+}
 
 /// Synchronizes the listener transform into shared simulation inputs.
 pub(crate) fn sync_simulation_shared_inputs_listener<C: SimulationConfiguration>(
     listeners: Query<&GlobalTransform, With<Listener>>,
     mut shared_inputs: ResMut<SimulationSharedInputs<C>>,
-    #[cfg(debug_assertions)] mut warned_multiple: Local<bool>,
 ) {
-    let mut listeners = listeners.iter();
-    let listener = listeners.next();
-
-    #[cfg(debug_assertions)]
-    if !*warned_multiple && listeners.next().is_some() {
-        *warned_multiple = true;
-        bevy::log::warn!("found more than one Listener; picking the first item");
-    }
-
     shared_inputs.0.set_listener(
-        listener.map_or_else(CoordinateSystem::default, |listener| (*listener).into()),
+        listeners
+            .iter()
+            .next()
+            .map_or_else(CoordinateSystem::default, |listener| (*listener).into()),
     );
 }
 

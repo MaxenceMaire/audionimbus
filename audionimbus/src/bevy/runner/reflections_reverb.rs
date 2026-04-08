@@ -81,14 +81,8 @@ fn sync_reflections_reverb_frame<C>(
 ) where
     C: SimulationConfiguration<Reflections = Reflections>,
 {
-    let mut query_iter = query.iter();
-
-    #[cfg(debug_assertions)]
-    if query_iter.len() > 1 {
-        eprintln!("warning: found more than one listener; picking first item");
-    }
-
-    let listener = query_iter
+    let listener = query
+        .iter()
         .next()
         .map(
             |(global_transform, source, simulation_parameters)| SourceWithInputs {

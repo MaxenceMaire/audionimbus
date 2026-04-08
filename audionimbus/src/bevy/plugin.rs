@@ -9,7 +9,8 @@ use super::geometry::{
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
 use super::simulation::{Simulation, SimulationSharedInputs};
 use super::source::{
-    on_source_added, on_source_removed, sync_simulation_shared_inputs_listener, sync_sources,
+    on_listener_added, on_source_added, on_source_removed, sync_simulation_shared_inputs_listener,
+    sync_sources,
 };
 use super::system_set::SpatialAudioSet;
 use crate::context::Context;
@@ -271,6 +272,7 @@ where
 
         app.add_observer(on_source_added::<C>);
         app.add_observer(on_source_removed::<C>);
+        app.add_observer(on_listener_added);
         app.add_observer(on_static_mesh_removed::<C>);
         app.add_observer(on_instanced_mesh_added::<C>);
         app.add_observer(on_instanced_mesh_removed::<C>);
