@@ -3,8 +3,8 @@
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
-    commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_static_mesh_removed,
-    sync_instanced_meshes, sync_static_meshes,
+    commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_scene_removed,
+    on_static_mesh_removed, sync_instanced_meshes, sync_static_meshes,
 };
 use super::probe::{commit_probe_batches, on_probe_batch_added, on_probe_batch_removed};
 use super::runner::{Runner, Spawn, SyncFrame, ToRunner};
@@ -285,5 +285,6 @@ where
         app.add_observer(on_static_mesh_removed::<C>);
         app.add_observer(on_instanced_mesh_removed::<C>);
         app.add_observer(on_main_scene_added::<C>);
+        app.add_observer(on_scene_removed::<C>);
     }
 }

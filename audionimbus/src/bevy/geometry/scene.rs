@@ -1,6 +1,7 @@
 use super::super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::super::simulation::Simulation;
-use super::SubSceneOf;
+use super::instanced_mesh::{InstancedMesh, SpawnedInstancedMesh, SubSceneOf};
+use super::static_mesh::SpawnedStaticMesh;
 use crate::callback::{CustomRayTracingCallbacks, ProgressCallback};
 use crate::context::Context;
 use crate::device::{EmbreeDevice, RadeonRaysDevice};
@@ -8,7 +9,7 @@ use crate::error::SteamAudioError;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays};
 use crate::serialized_object::SerializedObject;
 use bevy::prelude::{
-    Add, ChildOf, Commands, Component, Entity, Local, On, Query, ResMut, With, Without,
+    Add, ChildOf, Commands, Component, Entity, Local, On, Query, Remove, ResMut, With, Without,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -289,6 +290,53 @@ pub(crate) fn on_main_scene_added<C: SimulationConfiguration>(
     if let Ok(scene) = scenes.get(event.entity) {
         simulation.0.simulator.set_scene(&scene.0);
         simulation.0.request_simulator_commit();
+    }
+}
+
+/// Clears any object referencing a removed [`Scene`].
+pub(crate) fn on_scene_removed<C: SimulationConfiguration>(
+    event: On<Remove, Scene<C>>,
+    static_meshes: Query<(Entity, &SpawnedStaticMesh)>,
+    instanced_meshes: Query<(Entity, &InstancedMesh, Option<&SpawnedInstancedMesh>)>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    main_scenes: Query<(), With<MainScene>>,
+    mut commands: Commands,
+) {
+    let removed_scene_entity = event.entity;
+
+    if main_scenes.contains(removed_scene_entity)
+        && let Ok(mut removed_scene_commands) = commands.get_entity(removed_scene_entity)
+    {
+        removed_scene_commands.remove::<MainScene>();
+    }
+
+    for (entity, spawned_static_mesh) in &static_meshes {
+        if spawned_static_mesh.scene_entity == removed_scene_entity {
+            commands.entity(entity).remove::<SpawnedStaticMesh>();
+        }
+    }
+
+    for (entity, instanced_mesh, spawned_instanced_mesh_option) in &instanced_meshes {
+        let references_removed_scene = instanced_mesh.0 == removed_scene_entity
+            || spawned_instanced_mesh_option.is_some_and(|spawned_instanced_mesh| {
+                spawned_instanced_mesh.scene_entity == removed_scene_entity
+                    || spawned_instanced_mesh.sub_scene_entity == removed_scene_entity
+            });
+        if !references_removed_scene {
+            continue;
+        }
+
+        // If the removed scene was only the sub-scene, clean up the surviving parent scene too.
+        if let Some(spawned_instanced_mesh) = spawned_instanced_mesh_option
+            && spawned_instanced_mesh.scene_entity != removed_scene_entity
+            && let Ok((mut scene, mut scene_status)) =
+                scenes.get_mut(spawned_instanced_mesh.scene_entity)
+        {
+            scene.0.remove_instanced_mesh(spawned_instanced_mesh.handle);
+            scene_status.commit_needed = true;
+        }
+
+        commands.entity(entity).remove::<SpawnedInstancedMesh>();
     }
 }
 

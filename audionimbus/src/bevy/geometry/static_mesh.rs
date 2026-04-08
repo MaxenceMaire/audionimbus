@@ -26,13 +26,13 @@ pub struct StaticMesh;
 #[derive(Component, Debug)]
 pub(crate) struct SpawnedStaticMesh {
     /// The scene entity this mesh was registered with.
-    scene_entity: Entity,
+    pub(super) scene_entity: Entity,
     /// Mesh asset used to build the registered static mesh.
-    mesh_asset_id: AssetId<Mesh>,
+    pub(super) mesh_asset_id: AssetId<Mesh>,
     /// Acoustic material used to build the registered static mesh.
-    material: Material,
+    pub(super) material: Material,
     /// Handle used to reference and remove the mesh from the scene.
-    handle: StaticMeshHandle,
+    pub(super) handle: StaticMeshHandle,
 }
 
 /// Synchronizes static mesh registrations with the current ECS state.
