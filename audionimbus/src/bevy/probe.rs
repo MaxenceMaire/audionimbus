@@ -3,6 +3,7 @@
 //! [`ProbeArray`] stores probe positions that can be generated from a scene or authored manually.
 //! [`ProbeBatch`] stores committed probes and baked data.
 
+use super::asset::{ProbeBatchAsset, with_serialized_object_mut};
 use super::configuration::SimulationConfiguration;
 use super::simulation::Simulation;
 use crate::context::Context;
@@ -74,6 +75,13 @@ impl ProbeBatch {
         serialized_object: &mut SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         crate::probe::ProbeBatch::load(context, serialized_object).map(Self)
+    }
+
+    /// Loads a probe batch from a [`ProbeBatchAsset`].
+    pub fn from_asset(context: &Context, asset: &ProbeBatchAsset) -> Result<Self, SteamAudioError> {
+        with_serialized_object_mut(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load(context, serialized_object)
+        })
     }
 }
 

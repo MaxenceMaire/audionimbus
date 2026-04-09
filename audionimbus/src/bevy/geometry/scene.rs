@@ -1,3 +1,4 @@
+use super::super::asset::{SceneAsset, with_serialized_object};
 use super::super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::super::simulation::Simulation;
 use super::instanced_mesh::{InstancedMesh, SpawnedInstancedMesh, SubSceneOf};
@@ -41,6 +42,13 @@ where
         crate::geometry::Scene::<DefaultRayTracer>::load(context, serialized_object).map(Self)
     }
 
+    /// Loads a scene from a [`SceneAsset`].
+    pub fn from_asset(context: &Context, asset: &SceneAsset) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load(context, serialized_object)
+        })
+    }
+
     /// Loads a scene from a serialized object with a progress callback.
     ///
     /// Mirrors [`Scene::<DefaultRayTracer>::load_with_progress`](crate::geometry::Scene::<DefaultRayTracer>::load_with_progress).
@@ -55,6 +63,17 @@ where
             progress_callback,
         )
         .map(Self)
+    }
+
+    /// Loads a scene from a [`SceneAsset`] with a progress callback.
+    pub fn from_asset_with_progress(
+        context: &Context,
+        asset: &SceneAsset,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_with_progress(context, serialized_object, progress_callback)
+        })
     }
 }
 
@@ -83,6 +102,17 @@ where
         crate::geometry::Scene::<Embree>::load_embree(context, device, serialized_object).map(Self)
     }
 
+    /// Loads a scene from a [`SceneAsset`] using Embree.
+    pub fn from_asset_with_embree(
+        context: &Context,
+        device: EmbreeDevice,
+        asset: &SceneAsset,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_embree(context, device, serialized_object)
+        })
+    }
+
     /// Loads a scene from a serialized object using Embree with a progress callback.
     ///
     /// Mirrors [`Scene::<Embree>::load_embree_with_progress`](crate::geometry::Scene::<Embree>::load_embree_with_progress).
@@ -99,6 +129,18 @@ where
             progress_callback,
         )
         .map(Self)
+    }
+
+    /// Loads a scene from a [`SceneAsset`] using Embree with a progress callback.
+    pub fn from_asset_with_embree_progress(
+        context: &Context,
+        device: EmbreeDevice,
+        asset: &SceneAsset,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_embree_with_progress(context, device, serialized_object, progress_callback)
+        })
     }
 }
 
@@ -128,6 +170,17 @@ where
             .map(Self)
     }
 
+    /// Loads a scene from a [`SceneAsset`] using Radeon Rays.
+    pub fn from_asset_with_radeon_rays(
+        context: &Context,
+        device: RadeonRaysDevice,
+        asset: &SceneAsset,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_radeon_rays(context, device, serialized_object)
+        })
+    }
+
     /// Loads a scene from a serialized object using Radeon Rays with a progress callback.
     ///
     /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays_with_progress`](crate::geometry::Scene::<RadeonRays>::load_radeon_rays_with_progress).
@@ -144,6 +197,23 @@ where
             progress_callback,
         )
         .map(Self)
+    }
+
+    /// Loads a scene from a [`SceneAsset`] using Radeon Rays with a progress callback.
+    pub fn from_asset_with_radeon_rays_progress(
+        context: &Context,
+        device: RadeonRaysDevice,
+        asset: &SceneAsset,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_radeon_rays_with_progress(
+                context,
+                device,
+                serialized_object,
+                progress_callback,
+            )
+        })
     }
 }
 
@@ -177,6 +247,17 @@ where
         .map(Self)
     }
 
+    /// Loads a scene from a [`SceneAsset`] using a custom ray tracer.
+    pub fn from_asset_with_custom(
+        context: &Context,
+        callbacks: CustomRayTracingCallbacks,
+        asset: &SceneAsset,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_custom(context, callbacks, serialized_object)
+        })
+    }
+
     /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
     ///
     /// Mirrors [`Scene::<CustomRayTracer>::load_custom_with_progress`](crate::geometry::Scene::<CustomRayTracer>::load_custom_with_progress).
@@ -193,6 +274,23 @@ where
             progress_callback,
         )
         .map(Self)
+    }
+
+    /// Loads a scene from a [`SceneAsset`] using a custom ray tracer with a progress callback.
+    pub fn from_asset_with_custom_progress(
+        context: &Context,
+        callbacks: CustomRayTracingCallbacks,
+        asset: &SceneAsset,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+            Self::load_custom_with_progress(
+                context,
+                callbacks,
+                serialized_object,
+                progress_callback,
+            )
+        })
     }
 }
 

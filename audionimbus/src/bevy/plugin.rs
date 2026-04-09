@@ -1,5 +1,6 @@
 //! Bevy plugin and shared simulation inputs resource.
 
+use super::asset::{ProbeBatchAsset, ProbeBatchAssetLoader, SceneAsset, SceneAssetLoader};
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
@@ -19,6 +20,7 @@ use crate::simulation::{
     Direct, DirectCompatible, PathingCompatible, Reflections, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationSettings, Simulator,
 };
+use bevy::asset::{AssetApp, AssetServer};
 use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate, TransformSystems};
 
 #[cfg(debug_assertions)]
@@ -286,5 +288,12 @@ where
         app.add_observer(on_instanced_mesh_removed::<C>);
         app.add_observer(on_main_scene_added::<C>);
         app.add_observer(on_scene_removed::<C>);
+
+        if app.world().contains_resource::<AssetServer>() {
+            app.init_asset::<SceneAsset>()
+                .init_asset_loader::<SceneAssetLoader>();
+            app.init_asset::<ProbeBatchAsset>()
+                .init_asset_loader::<ProbeBatchAssetLoader>();
+        }
     }
 }

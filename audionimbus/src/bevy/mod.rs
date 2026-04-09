@@ -1,5 +1,6 @@
 //! Bevy integration for AudioNimbus.
 
+pub mod asset;
 pub mod configuration;
 pub mod error;
 pub mod geometry;
@@ -11,6 +12,7 @@ pub mod simulation;
 pub mod source;
 pub mod system_set;
 
+pub use asset::*;
 pub use configuration::*;
 pub use error::*;
 pub use geometry::*;
