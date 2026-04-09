@@ -120,7 +120,7 @@ impl Hash for Hrtf {
 }
 
 /// Settings used to create an [`Hrtf`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HrtfSettings {
     /// Volume correction factor to apply to the loaded HRTF data.
     ///
@@ -198,7 +198,7 @@ impl Default for HrtfSettings {
 }
 
 /// Whether to load SOFA data from a filename or a buffer.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Sofa {
     /// SOFA file from which to load HRTF data.
     Filename(String),
