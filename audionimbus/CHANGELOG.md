@@ -86,6 +86,7 @@
 - Implement `Clone` for `Spatialization`, `PathEffectSettings`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings`, `AmbisonicsDecodeEffectParams` and `ReconstructorInputs`.
 - Implement `PartialEq`, `Eq` and `Hash` for `Scene`, `Simulator`, `Context`, `EmbreeDevice`, `OpenClDevice`, `OpenClDeviceList`, `RadeonRaysDevice`, `TrueAudioNextDevice`, `ImpulseResponse`, `SerializedObject`, `PanningEffect`, `PathEffect`, `BinauralEffect`, `ReflectionEffect`, `ReflectionMixer`, `VirtualSurroundEffect`, `DirectEffect`, `AmbisonicsPanningEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsEncodeEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsRotationEffect`, `Hrtf`, `EnergyField`, `ProbeArray`, `ProbeBatch`, `Reconstructor`, `InstancedMesh`, `StaticMesh`.
 - Implement `Clone` for `HrtfSettings`, `Sofa`.
+- add `AudioSettings` getters to `Simulator` and `Simulation`.
 
 ### Removed
 

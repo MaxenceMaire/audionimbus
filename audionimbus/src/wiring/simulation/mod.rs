@@ -8,6 +8,7 @@
 #[cfg(doc)]
 use super::runner::SimulationRunner;
 
+use crate::audio_settings::AudioSettings;
 use crate::geometry::Scene;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::{SimulationInputs, Simulator, Source};
@@ -157,6 +158,11 @@ where
     /// Returns a reference to the underlying simulator.
     pub fn simulator(&self) -> &Simulator<T, D, R, P, RE> {
         &self.simulator
+    }
+
+    /// Returns the audio settings used to create the underlying simulator.
+    pub const fn audio_settings(&self) -> AudioSettings {
+        self.simulator.audio_settings()
     }
 
     /// Returns a reference to the sources pool.

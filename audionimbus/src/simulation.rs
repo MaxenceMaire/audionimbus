@@ -164,6 +164,9 @@ pub struct Simulator<T: RayTracer, D = (), R = (), P = (), RE = ()> {
     inner: audionimbus_sys::IPLSimulator,
     shared: Arc<Mutex<SimulatorShared<T>>>,
 
+    /// Audio settings used to create this simulator.
+    audio_settings: AudioSettings,
+
     /// The maximum number of occlusion samples specified during creation.
     max_num_occlusion_samples: Option<u32>,
 
@@ -288,6 +291,7 @@ where
             // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `Simulator`.
             #[allow(clippy::arc_with_non_send_sync)]
             shared: Arc::new(Mutex::new(SimulatorShared::default())),
+            audio_settings: settings.audio_settings(),
             max_num_occlusion_samples: settings.max_num_occlusion_samples(),
             max_num_rays: settings.max_num_rays(),
             max_duration: settings.max_duration(),
@@ -733,6 +737,13 @@ where
     }
 }
 
+impl<T: RayTracer, D, R, P, RE> Simulator<T, D, R, P, RE> {
+    /// Returns the audio settings used to create this simulator.
+    pub const fn audio_settings(&self) -> AudioSettings {
+        self.audio_settings
+    }
+}
+
 impl<T, R, P, RE> Simulator<T, Direct, R, P, RE>
 where
     T: RayTracer,
@@ -1011,6 +1022,7 @@ where
         Self {
             inner: unsafe { audionimbus_sys::iplSimulatorRetain(self.inner) },
             shared: Arc::clone(&self.shared),
+            audio_settings: self.audio_settings,
             max_num_occlusion_samples: self.max_num_occlusion_samples,
             max_num_rays: self.max_num_rays,
             max_duration: self.max_duration,
@@ -1303,6 +1315,14 @@ impl<T: RayTracer, D, R, P, RE> SimulationSettings<T, D, R, P, RE> {
             _reflections,
             _pathing: PhantomData,
             _reflection_effect,
+        }
+    }
+
+    /// Returns the audio settings stored in these simulation settings.
+    pub const fn audio_settings(&self) -> AudioSettings {
+        AudioSettings {
+            sampling_rate: self.settings.samplingRate as u32,
+            frame_size: self.settings.frameSize as u32,
         }
     }
 
