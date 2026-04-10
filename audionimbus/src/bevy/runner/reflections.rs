@@ -7,7 +7,7 @@ use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame};
 use crate::sealed::Sealed;
 use crate::simulation::{DirectCompatible, PathingCompatible, Reflections};
-use crate::wiring::{Allocate, ReflectionsFrame, ReflectionsOutput, SimulationStepError};
+use crate::wiring::{ReflectionsFrame, SimulationStepError};
 use bevy::prelude::{
     App, Entity, IntoScheduleConfigs, PostUpdate, Res, Resource, World, resource_exists,
 };
@@ -24,9 +24,6 @@ impl Runner for RunnerReflections {
 impl<C> Spawn<C> for RunnerReflections
 where
     C: SimulationConfiguration<Reflections = Reflections>,
-    ReflectionsOutput<Entity, C::ReflectionEffect>: Allocate<
-        ReflectionsFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
-    >,
     (): DirectCompatible<<C as SimulationConfiguration>::Direct>
         + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
 {

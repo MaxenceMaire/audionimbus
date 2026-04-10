@@ -10,10 +10,7 @@ use crate::sealed::Sealed;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, Reflections, SimulationInputs, SimulationParameters,
 };
-use crate::wiring::{
-    Allocate, ReflectionsReverbFrame, ReflectionsReverbOutput, SimulationStepError,
-    SourceWithInputs,
-};
+use crate::wiring::{ReflectionsReverbFrame, SimulationStepError, SourceWithInputs};
 use bevy::prelude::{
     App, Entity, GlobalTransform, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, With,
     World, resource_exists,
@@ -36,9 +33,6 @@ impl ToRunner for Reflections {
 impl<C> Spawn<C> for RunnerReflectionsReverb
 where
     C: SimulationConfiguration<Reflections = Reflections>,
-    ReflectionsReverbOutput<Entity, C::ReflectionEffect>: Allocate<
-        ReflectionsReverbFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
-    >,
     (): DirectCompatible<<C as SimulationConfiguration>::Direct>
         + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
 {

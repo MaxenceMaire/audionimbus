@@ -5,10 +5,9 @@ use super::super::error::{SimulationErrorEvent, SimulationErrorSender};
 use super::super::simulation::{Simulation, SimulationSharedInputs, SimulationThread};
 use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame, ToRunner};
-use crate::effect::direct::DirectEffectParams;
 use crate::sealed::Sealed;
 use crate::simulation::{Direct, PathingCompatible, ReflectionsCompatible};
-use crate::wiring::{Allocate, DirectFrame, SimulationStepError};
+use crate::wiring::{DirectFrame, SimulationStepError};
 use bevy::prelude::{
     App, Entity, IntoScheduleConfigs, PostUpdate, Res, Resource, World, resource_exists,
 };
@@ -29,8 +28,6 @@ impl ToRunner for Direct {
 impl<C> Spawn<C> for RunnerDirect
 where
     C: SimulationConfiguration<Direct = Direct>,
-    Vec<DirectEffectParams>:
-        Allocate<DirectFrame<Entity, C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>>,
     (): ReflectionsCompatible<<C as SimulationConfiguration>::Reflections>
         + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
 {
