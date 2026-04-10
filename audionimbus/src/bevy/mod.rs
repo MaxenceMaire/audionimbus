@@ -1,5 +1,8 @@
 //! Bevy integration for AudioNimbus.
 
+pub mod prelude;
+pub use prelude::*;
+
 pub mod asset;
 pub mod configuration;
 pub mod error;
@@ -11,15 +14,3 @@ pub mod runner;
 pub mod simulation;
 pub mod source;
 pub mod system_set;
-
-pub use asset::*;
-pub use configuration::*;
-pub use error::*;
-pub use geometry::*;
-pub use hrtf::*;
-pub use plugin::*;
-pub use probe::*;
-pub use runner::*;
-pub use simulation::*;
-pub use source::*;
-pub use system_set::*;
