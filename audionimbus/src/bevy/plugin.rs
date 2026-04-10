@@ -244,13 +244,6 @@ where
 
         app.add_systems(
             PostUpdate,
-            (sync_scenes_from_assets::<C>, sync_probe_batches_from_assets)
-                .run_if(resource_exists::<Context>)
-                .in_set(SpatialAudioSet::SyncAssets),
-        );
-
-        app.add_systems(
-            PostUpdate,
             (
                 (
                     sync_static_meshes::<C>,
@@ -307,6 +300,13 @@ where
                 .init_asset_loader::<SceneAssetLoader>();
             app.init_asset::<ProbeBatchAsset>()
                 .init_asset_loader::<ProbeBatchAssetLoader>();
+
+            app.add_systems(
+                PostUpdate,
+                (sync_scenes_from_assets::<C>, sync_probe_batches_from_assets)
+                    .run_if(resource_exists::<Context>)
+                    .in_set(SpatialAudioSet::SyncAssets),
+            );
         }
     }
 }
