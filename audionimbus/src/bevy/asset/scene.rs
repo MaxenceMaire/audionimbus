@@ -64,7 +64,9 @@ impl AssetLoader for SceneAssetLoader {
 /// asset finishes loading or is hot-reloaded.
 #[derive(Component)]
 pub struct SceneAssetSource<C: SimulationConfiguration = DefaultSimulationConfiguration> {
+    /// Asset handle.
     handle: Handle<SceneAsset>,
+    /// Asset loader.
     loader: Arc<
         dyn Fn(
                 &Context,
