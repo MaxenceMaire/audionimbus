@@ -1,6 +1,8 @@
 //! Bevy plugin and shared simulation inputs resource.
 
-use super::asset::{ProbeBatchAsset, ProbeBatchAssetLoader, SceneAsset, SceneAssetLoader};
+use super::asset::{
+    ProbeBatchAsset, ProbeBatchAssetLoader, SceneAsset, SceneAssetLoader, sync_scenes_from_assets,
+};
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
@@ -21,7 +23,9 @@ use crate::simulation::{
     SimulationFlagsProvider, SimulationSettings, Simulator,
 };
 use bevy::asset::{AssetApp, AssetServer};
-use bevy::prelude::{App, Entity, IntoScheduleConfigs, PostUpdate, TransformSystems};
+use bevy::prelude::{
+    App, Entity, IntoScheduleConfigs, PostUpdate, TransformSystems, resource_exists,
+};
 
 #[cfg(debug_assertions)]
 use super::geometry::warn_missing_main_scene;
@@ -224,6 +228,7 @@ where
         app.configure_sets(
             PostUpdate,
             (
+                SpatialAudioSet::SyncAssets,
                 (
                     SpatialAudioSet::SyncGeometry,
                     SpatialAudioSet::SyncProbes,
@@ -234,6 +239,12 @@ where
                 SpatialAudioSet::PropagateErrors,
             )
                 .chain(),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            (sync_scenes_from_assets::<C>.run_if(resource_exists::<Context>),)
+                .in_set(SpatialAudioSet::SyncAssets),
         );
 
         app.add_systems(

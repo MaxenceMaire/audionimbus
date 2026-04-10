@@ -5,6 +5,8 @@ use bevy::prelude::SystemSet;
 /// System sets used to group related spatial audio systems.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpatialAudioSet {
+    /// Asset instantiation.
+    SyncAssets,
     /// Scene and geometry synchronization.
     SyncGeometry,
     /// Probe batch synchronization.
