@@ -1,0 +1,13 @@
+[package]
+name = "bevy-demo"
+version = "0.1.0"
+edition = "2024"
+authors = ["Maxence Maire <maire.maxence@gmail.com>"]
+
+[[bin]]
+name = "bevy"
+path = "src/main.rs"
+
+[dependencies]
+audionimbus = { path = "../..", features = ["auto-install", "bevy"] }
+bevy = { version = "0.18.1", features = ["free_camera"] }
