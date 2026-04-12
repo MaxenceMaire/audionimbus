@@ -7,8 +7,8 @@ use crate::output::{FRAME_SIZE, NUM_CHANNELS, SAMPLE_RATE};
 use crate::simulation::AudioSetup;
 use audionimbus::wiring::*;
 use audionimbus::*;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Builds the effect chain and starts the CPAL output stream.
 pub fn spawn_audio_thread(

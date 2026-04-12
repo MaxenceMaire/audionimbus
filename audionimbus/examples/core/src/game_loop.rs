@@ -2,8 +2,8 @@ use crate::consts::{AMBISONICS_ORDER, LISTENER_HEIGHT};
 use crate::output::{FRAME_SIZE, SAMPLE_RATE};
 use audionimbus::wiring::*;
 use audionimbus::*;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 /// Spawns the game loop thread and returns a shared source angle.
