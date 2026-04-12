@@ -72,8 +72,10 @@ fn spawn_orb(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    simulation: Res<Simulation>,
 ) {
     commands.spawn((
+        Source::try_new(&simulation).expect("failed to create source"),
         Mesh3d(meshes.add(Sphere::new(0.2).mesh().uv(32, 18))),
         MeshMaterial3d(materials.add(Color::srgb(0.0, 0.6, 1.0))),
         Transform::from_xyz(0.0, 1.0, 0.0),

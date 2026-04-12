@@ -2,6 +2,7 @@
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::simulation::{Simulation, SimulationSharedInputs};
+use crate::error::SteamAudioError;
 use crate::geometry::CoordinateSystem;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
@@ -12,6 +13,7 @@ use bevy::prelude::{
     Add, Commands, Component, Entity, GlobalTransform, On, Query, Remove, Res, ResMut, With,
     Without,
 };
+use std::ops::{Deref, DerefMut};
 
 /// Spatial audio source component.
 ///
@@ -21,6 +23,52 @@ use bevy::prelude::{
 pub struct Source<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
 );
+
+impl<C: SimulationConfiguration> Source<C> {
+    /// Creates a new source using the [`Simulation`] resource.
+    ///
+    /// Mirrors [`crate::simulation::Source::try_new`].
+    pub fn try_new(simulation: &Simulation<C>) -> Result<Self, SteamAudioError> {
+        crate::simulation::Source::<
+            C::Direct,
+            C::Reflections,
+            C::Pathing,
+            C::ReflectionEffect,
+        >::try_new(simulation.simulator())
+        .map(Self)
+    }
+}
+
+impl<C: SimulationConfiguration> Deref for Source<C> {
+    type Target =
+        crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<C: SimulationConfiguration> DerefMut for Source<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<C: SimulationConfiguration>
+    From<crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>>
+    for Source<C>
+{
+    fn from(
+        source: crate::simulation::Source<
+            C::Direct,
+            C::Reflections,
+            C::Pathing,
+            C::ReflectionEffect,
+        >,
+    ) -> Self {
+        Self(source)
+    }
+}
 
 /// Per-source simulation parameters.
 ///
