@@ -1,9 +1,9 @@
 [package]
-name = "demo"
+name = "core"
 version = "0.1.0"
 edition = "2021"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 
 [dependencies]
-audionimbus = { path = ".." }
+audionimbus = { path = "../.." }
 cpal = "0.15.3"

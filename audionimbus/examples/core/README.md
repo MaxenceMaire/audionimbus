@@ -1,11 +1,11 @@
 # Audionimbus Demo
 
-This crate demonstrates how to get started with the [`audionimbus`](..) library.
+This crate demonstrates how to get started with the [`audionimbus`](../..) library.
 
 ## Running the demo
 
 ```bash
-cargo run --release -p demo
+cargo run --release -p core
 ```
 
 ## What you should hear

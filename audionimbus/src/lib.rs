@@ -6,7 +6,7 @@
 //!
 //! It builds upon [`audionimbus-sys`](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus-sys), which provides raw bindings to the Steam Audio C API.
 //!
-//! To experience AudioNimbus in action, play the [interactive demo](https://github.com/MaxenceMaire/audionimbus-demo) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
+//! To experience AudioNimbus in action, play the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/core) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 //!
 //! `audionimbus` can also integrate with FMOD and Wwise.
 //!
@@ -224,7 +224,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! To implement real-time audio processing and playback in your game, check out the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/demo) for a basic example.
+//! To implement real-time audio processing and playback in your game, check out the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/core) for a basic example.
 //!
 //! For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 //!

@@ -76,10 +76,13 @@ pub fn spawn_simulations() -> SpawnedSimulations {
     simulator.commit();
 
     let mut simulation = Simulation::new(simulator);
-    simulation.request_commit();
+    simulation.request_simulator_commit();
 
-    let direct_simulation = simulation.spawn_direct();
-    let reflections_reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>();
+    let on_error = |error| {
+        eprintln!("{error}");
+    };
+    let direct_simulation = simulation.spawn_direct(on_error);
+    let reflections_reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(on_error);
 
     SpawnedSimulations {
         audio_setup: AudioSetup {

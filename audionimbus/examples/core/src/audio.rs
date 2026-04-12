@@ -24,9 +24,9 @@ pub fn spawn_audio_thread(
     } = setup;
     let (device, stream_config) = crate::output::default_device();
 
-    let mut direct_path = DirectPath::new(&context, &audio_settings, &hrtf);
-    let mut reflection_path = ConvolutionPath::new(&context, &audio_settings, &hrtf);
-    let mut reverb_path = ConvolutionPath::new(&context, &audio_settings, &hrtf);
+    let mut direct_path = DirectPath::new(&context, &audio_settings, hrtf.clone());
+    let mut reflection_path = ConvolutionPath::new(&context, &audio_settings, hrtf.clone());
+    let mut reverb_path = ConvolutionPath::new(&context, &audio_settings, hrtf.clone());
 
     let mut tone_burst = ToneBurst::new(440.0, 0.3, 0.3, 0.9, SAMPLE_RATE);
     let mut dry_buffer = vec![0.0; FRAME_SIZE as usize];
@@ -49,10 +49,10 @@ pub fn spawn_audio_thread(
             &dry_audio,
             &direct_params,
             Direction::new(angle.cos(), 0.0, angle.sin()),
-            &hrtf,
+            hrtf.clone(),
         );
-        reflection_path.process(&dry_audio, source_reflection_params, &hrtf);
-        reverb_path.process(&dry_audio, listener_reverb_params, &hrtf);
+        reflection_path.process(&dry_audio, source_reflection_params, hrtf.clone());
+        reverb_path.process(&dry_audio, listener_reverb_params, hrtf.clone());
 
         for sample in direct_path.stereo_buffer.iter_mut() {
             *sample *= DIRECT_GAIN;
@@ -90,7 +90,7 @@ struct DirectPath {
 }
 
 impl DirectPath {
-    fn new(context: &Context, audio_settings: &AudioSettings, hrtf: &Hrtf) -> Self {
+    fn new(context: &Context, audio_settings: &AudioSettings, hrtf: Hrtf) -> Self {
         Self {
             direct_effect: DirectEffect::try_new(
                 context,
@@ -117,7 +117,7 @@ impl DirectPath {
         dry_buffer: &AudioBuffer<&[Sample]>,
         params: &DirectEffectParams,
         direction: Direction,
-        hrtf: &Hrtf,
+        hrtf: Hrtf,
     ) {
         let mono = AudioBuffer::try_with_data(&mut self.mono_buffer).unwrap();
         self.direct_effect.apply(params, dry_buffer, &mono).unwrap();
@@ -157,7 +157,7 @@ struct ConvolutionPath {
 }
 
 impl ConvolutionPath {
-    fn new(context: &Context, audio_settings: &AudioSettings, hrtf: &Hrtf) -> Self {
+    fn new(context: &Context, audio_settings: &AudioSettings, hrtf: Hrtf) -> Self {
         Self {
             reflection_effect: ReflectionEffect::<Convolution>::try_new(
                 context,
@@ -189,7 +189,7 @@ impl ConvolutionPath {
         &mut self,
         dry_buffer: &AudioBuffer<&[f32]>,
         params: Option<&ReflectionEffectParams<Convolution>>,
-        hrtf: &Hrtf,
+        hrtf: Hrtf,
     ) {
         let Some(params) = params else {
             self.stereo_buffer.fill(0.0);

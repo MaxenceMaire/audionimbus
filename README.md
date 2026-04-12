@@ -30,7 +30,7 @@ The `auto-install` feature automatically downloads and installs Steam Audio for 
 
 For more information, refer to the detailed [installation guide](audionimbus/README.md#installation).
 
-To get started integrating `audionimbus` into your project, check out [the example](audionimbus/README.md#example) or run the [`demo`](audionimbus/demo).
+To get started integrating `audionimbus` into your project, check out [the example](audionimbus/README.md#example) or run the [`demo`](audionimbus/examples/core).
 
 ## Documentation
 

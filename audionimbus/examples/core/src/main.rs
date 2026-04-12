@@ -16,8 +16,8 @@ fn main() {
         reflections_reverb_simulation,
     } = simulation::spawn_simulations();
 
-    let direct_output = direct_simulation.output.clone();
-    let reflections_reverb_output = reflections_reverb_simulation.output.clone();
+    let direct_output = direct_simulation.output().clone();
+    let reflections_reverb_output = reflections_reverb_simulation.output().clone();
 
     let source_angle = game_loop::spawn_game_loop(
         simulation,

@@ -2,6 +2,6 @@
 resolver = "2"
 members = [
   "audionimbus",
-  "audionimbus/demo",
+  "audionimbus/examples/core",
   "audionimbus-sys"
 ]
