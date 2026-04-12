@@ -1381,6 +1381,14 @@ pub struct DirectSimulationSettings {
     pub max_num_occlusion_samples: u32,
 }
 
+impl Default for DirectSimulationSettings {
+    fn default() -> Self {
+        Self {
+            max_num_occlusion_samples: 32,
+        }
+    }
+}
+
 /// Algorithm used for reflections simulation.
 ///
 /// See:
@@ -1472,6 +1480,19 @@ impl ReflectionsAlgorithm for ConvolutionSettings {
             _reflections: PhantomData,
             _pathing,
             _reflection_effect: PhantomData,
+        }
+    }
+}
+
+impl Default for ConvolutionSettings {
+    fn default() -> Self {
+        Self {
+            max_num_rays: 256,
+            num_diffuse_samples: 256,
+            max_duration: 2.0,
+            max_num_sources: 64,
+            num_threads: 4,
+            max_order: 2,
         }
     }
 }
@@ -1725,6 +1746,14 @@ pub struct PathingSimulationSettings {
     /// Baked paths may end up being occluded by dynamic objects, in which case you can configure the simulator to look for alternate paths in real time.
     /// This process will involve checking visibility between probes.
     pub num_visibility_samples: u32,
+}
+
+impl Default for PathingSimulationSettings {
+    fn default() -> Self {
+        Self {
+            num_visibility_samples: 16,
+        }
+    }
 }
 
 bitflags::bitflags! {
