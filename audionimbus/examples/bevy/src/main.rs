@@ -1,7 +1,4 @@
 use audionimbus::bevy::*;
-use audionimbus::{
-    AudioSettings, ConvolutionSettings, DirectSimulationSettings, SimulationSettings,
-};
 use bevy::camera_controller::free_camera::{FreeCamera, FreeCameraPlugin};
 use bevy::light::GlobalAmbientLight;
 use bevy::prelude::*;
@@ -9,28 +6,11 @@ use bevy::prelude::*;
 fn main() {
     let mut app = App::new();
 
-    app.add_plugins((DefaultPlugins, FreeCameraPlugin));
-
-    app.add_plugins(audionimbus::bevy::Plugin::new(
-        SimulationSettings::new(&AudioSettings::default())
-            .with_direct(DirectSimulationSettings {
-                max_num_occlusion_samples: 4,
-            })
-            .with_reflections(ConvolutionSettings {
-                max_num_rays: 128,
-                num_diffuse_samples: 8,
-                max_duration: 0.5,
-                max_num_sources: 8,
-                num_threads: 1,
-                max_order: 1,
-            }),
+    app.add_plugins((
+        DefaultPlugins,
+        FreeCameraPlugin,
+        audionimbus::bevy::Plugin::default(),
     ));
-
-    app.insert_resource(GlobalAmbientLight {
-        color: Color::WHITE,
-        brightness: 1000.0,
-        affects_lightmapped_meshes: true,
-    });
 
     app.add_systems(Startup, (spawn_listener, spawn_orb, spawn_environment));
 
@@ -53,6 +33,12 @@ fn spawn_environment(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.insert_resource(GlobalAmbientLight {
+        color: Color::WHITE,
+        brightness: 1000.0,
+        affects_lightmapped_meshes: true,
+    });
+
     let floor_mesh = meshes.add(
         Mesh::from(Plane3d {
             normal: Dir3::Y,

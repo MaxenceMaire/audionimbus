@@ -18,10 +18,11 @@ use super::source::{
     sync_sources,
 };
 use super::system_set::SpatialAudioSet;
+use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::simulation::{
-    Direct, DirectCompatible, PathingCompatible, Reflections, ReflectionsCompatible,
-    SimulationFlagsProvider, SimulationSettings, Simulator,
+    ConvolutionSettings, Direct, DirectCompatible, DirectSimulationSettings, PathingCompatible,
+    Reflections, ReflectionsCompatible, SimulationFlagsProvider, SimulationSettings, Simulator,
 };
 use bevy::asset::{AssetApp, AssetServer};
 use bevy::prelude::{
@@ -67,9 +68,11 @@ impl
         <() as ToRunner>::Runner,
     >
 {
-    /// Creates a new plugin using [`DefaultSimulationConfiguration`].
+    /// Creates a new plugin using [`DefaultSimulationConfiguration`] and explicit simulation
+    /// settings.
     ///
-    /// Use [`with_config`](Plugin::with_config) to supply a custom [`SimulationConfiguration`].
+    /// Use [`default`](Plugin::default) for the built-in starter configuration, or
+    /// [`with_config`](Plugin::with_config) to supply a custom [`SimulationConfiguration`].
     pub fn new(
         simulation_settings: SimulationSettings<
             <DefaultSimulationConfiguration as SimulationConfiguration>::RayTracer,
@@ -83,6 +86,28 @@ impl
             simulation_settings,
             _phantom: std::marker::PhantomData,
         }
+    }
+
+    /// Creates a new plugin using the provided audio settings and the default simulation settings.
+    pub fn with_audio_settings(audio_settings: &AudioSettings) -> Self {
+        Self::new(
+            SimulationSettings::new(audio_settings)
+                .with_direct(DirectSimulationSettings::default())
+                .with_reflections(ConvolutionSettings::default()),
+        )
+    }
+}
+
+impl Default
+    for Plugin<
+        DefaultSimulationConfiguration,
+        <Direct as ToRunner>::Runner,
+        <Reflections as ToRunner>::Runner,
+        <() as ToRunner>::Runner,
+    >
+{
+    fn default() -> Self {
+        Self::with_audio_settings(&AudioSettings::default())
     }
 }
 
