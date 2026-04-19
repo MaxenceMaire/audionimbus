@@ -1,7 +1,10 @@
-use audionimbus::bevy::*;
+use audionimbus::bevy::geometry::Scene;
+use audionimbus::bevy::{DebugPlugin, Listener, MainScene, Plugin, Simulation, Source, StaticMesh};
 use bevy::camera_controller::free_camera::{FreeCamera, FreeCameraPlugin};
 use bevy::light::GlobalAmbientLight;
 use bevy::prelude::*;
+
+const ROOM_SIZE: f32 = 20.0;
 
 fn main() {
     let mut app = App::new();
@@ -9,7 +12,8 @@ fn main() {
     app.add_plugins((
         DefaultPlugins,
         FreeCameraPlugin,
-        audionimbus::bevy::Plugin::default(),
+        Plugin::default(),
+        DebugPlugin::default(),
     ));
 
     app.add_systems(Startup, (spawn_listener, spawn_orb, spawn_environment));
@@ -23,7 +27,7 @@ fn spawn_listener(mut commands: Commands) {
     commands.spawn((
         Listener,
         Camera3d::default(),
-        Transform::from_xyz(0.0, 2.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0.0, 1.8, 0.0),
         FreeCamera::default(),
     ));
 }
@@ -32,6 +36,7 @@ fn spawn_environment(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    context: Res<audionimbus::Context>,
 ) {
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
@@ -42,7 +47,7 @@ fn spawn_environment(
     let floor_mesh = meshes.add(
         Mesh::from(Plane3d {
             normal: Dir3::Y,
-            half_size: Vec2::splat(20.0),
+            half_size: Vec2::splat(ROOM_SIZE / 2.0),
         })
         .with_generated_tangents()
         .unwrap(),
@@ -51,7 +56,33 @@ fn spawn_environment(
         base_color: Color::srgb(0.5, 0.5, 0.5),
         ..default()
     });
-    commands.spawn((Mesh3d(floor_mesh), MeshMaterial3d(material)));
+
+    let room_mesh = meshes.add(Mesh::from(Cuboid::from_size(Vec3::splat(ROOM_SIZE))));
+
+    let scene: Scene = Scene::try_new(&context).expect("failed to create top-level scene");
+
+    commands
+        .spawn((
+            Name::new("MainScene"),
+            scene,
+            MainScene,
+            Transform::default(),
+            InheritedVisibility::default(),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Name::new("Floor"),
+                Mesh3d(floor_mesh),
+                MeshMaterial3d(material),
+            ));
+
+            parent.spawn((
+                Name::new("Room"),
+                StaticMesh,
+                Mesh3d(room_mesh),
+                Transform::from_xyz(0.0, ROOM_SIZE * 0.5, 0.0),
+            ));
+        });
 }
 
 fn spawn_orb(

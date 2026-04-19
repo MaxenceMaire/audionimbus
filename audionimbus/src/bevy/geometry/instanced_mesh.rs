@@ -34,11 +34,11 @@ pub struct SubSceneOf(Vec<Entity>);
 #[derive(Component, Debug)]
 pub(crate) struct SpawnedInstancedMesh {
     /// The parent scene entity this instanced mesh was registered with.
-    pub(super) scene_entity: Entity,
+    pub(crate) scene_entity: Entity,
     /// The sub-scene entity this instanced mesh references.
-    pub(super) sub_scene_entity: Entity,
+    pub(crate) sub_scene_entity: Entity,
     /// Handle used to reference, transform, and remove the instanced mesh from the scene.
-    pub(super) handle: InstancedMeshHandle,
+    pub(crate) handle: InstancedMeshHandle,
 }
 
 /// Synchronizes instanced mesh registrations with the current ECS state.

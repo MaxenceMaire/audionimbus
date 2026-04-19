@@ -5,6 +5,7 @@ pub use prelude::*;
 
 pub mod asset;
 pub mod configuration;
+pub mod debug;
 pub mod error;
 pub mod geometry;
 pub mod hrtf;

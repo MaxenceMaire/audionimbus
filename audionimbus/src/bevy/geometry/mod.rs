@@ -20,8 +20,10 @@ mod instanced_mesh;
 mod scene;
 mod static_mesh;
 
+pub(crate) use instanced_mesh::SpawnedInstancedMesh;
 pub use instanced_mesh::*;
 pub use scene::*;
+pub(crate) use static_mesh::SpawnedStaticMesh;
 pub use static_mesh::*;
 
 #[cfg(doc)]
