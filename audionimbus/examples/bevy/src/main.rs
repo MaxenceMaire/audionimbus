@@ -1,5 +1,7 @@
-use audionimbus::bevy::geometry::Scene;
-use audionimbus::bevy::{DebugPlugin, Listener, MainScene, Plugin, Simulation, Source, StaticMesh};
+use audionimbus::bevy::{
+    DebugPlugin, Listener, MainScene, Plugin, Scene, Simulation, Source, StaticMesh,
+};
+use bevy::camera::visibility::NoFrustumCulling;
 use bevy::camera_controller::free_camera::{FreeCamera, FreeCameraPlugin};
 use bevy::light::GlobalAmbientLight;
 use bevy::prelude::*;
@@ -39,9 +41,8 @@ fn spawn_environment(
     context: Res<audionimbus::Context>,
 ) {
     commands.insert_resource(GlobalAmbientLight {
-        color: Color::WHITE,
         brightness: 1000.0,
-        affects_lightmapped_meshes: true,
+        ..Default::default()
     });
 
     let floor_mesh = meshes.add(
@@ -91,16 +92,29 @@ fn spawn_orb(
     mut materials: ResMut<Assets<StandardMaterial>>,
     simulation: Res<Simulation>,
 ) {
+    let material = materials.add(StandardMaterial {
+        emissive: LinearRgba {
+            red: 1000.0,
+            green: 1000.0,
+            blue: 1000.0,
+            alpha: 1.0,
+        },
+        ..default()
+    });
+
     commands.spawn((
+        Name::new("Orb"),
         Source::try_new(&simulation).expect("failed to create source"),
-        Mesh3d(meshes.add(Sphere::new(0.2).mesh().uv(32, 18))),
-        MeshMaterial3d(materials.add(Color::srgb(0.0, 0.6, 1.0))),
+        Mesh3d(meshes.add(Sphere::new(0.1).mesh().uv(32, 18))),
+        MeshMaterial3d(material),
         Transform::from_xyz(0.0, 1.0, 0.0),
         Orbital {
             angle: 0.0,
             speed: 2.0,
-            radius: 5.0,
+            radius: 6.0,
         },
+        PointLight::default(),
+        NoFrustumCulling,
     ));
 }
 
