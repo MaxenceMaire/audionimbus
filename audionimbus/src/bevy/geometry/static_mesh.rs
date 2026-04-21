@@ -4,7 +4,8 @@ use crate::geometry::{Material, Point, StaticMeshHandle, StaticMeshSettings, Tri
 use bevy::asset::AssetId;
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::{
-    Assets, ChildOf, Commands, Component, Entity, Mesh, Mesh3d, On, Query, Remove, Res, With,
+    Assets, ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, Mesh, Mesh3d, On,
+    Query, Ref, Remove, Res, Transform, Vec3, With,
 };
 
 /// Marker component that registers this entity's [`Mesh3d`] geometry as a static mesh.
@@ -16,7 +17,7 @@ use bevy::prelude::{
 /// If no scene ancestor exists yet, or the mesh asset is not yet loaded, registration is deferred
 /// to the next frame.
 #[derive(Component, Copy, Clone, Debug)]
-#[require(Mesh3d)]
+#[require(Mesh3d, Transform)]
 pub struct StaticMesh;
 
 /// Internal bookkeeping component inserted alongside [`StaticMesh`] after succesful registration.
@@ -42,6 +43,7 @@ pub(crate) struct SpawnedStaticMesh {
 /// Existing registrations are rebuilt when:
 /// - the entity moves under a different [`Scene`],
 /// - the [`Mesh3d`] handle changes,
+/// - the entity's transform changes,
 /// - or the acoustic [`Material`] changes.
 ///
 /// Entities are skipped (and retried next frame) when:
@@ -55,17 +57,20 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
         (
             Entity,
             &Mesh3d,
+            Ref<GlobalTransform>,
             Option<&Material>,
             Option<&SpawnedStaticMesh>,
         ),
         With<StaticMesh>,
     >,
     parents: Query<&ChildOf>,
+    global_transforms: Query<&GlobalTransform>,
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
     mesh_assets: Res<Assets<Mesh>>,
     mut commands: Commands,
 ) {
-    for (entity, mesh_3d, material_option, spawned_static_mesh) in &static_meshes {
+    for (entity, mesh_3d, global_transform, material_option, spawned_static_mesh) in &static_meshes
+    {
         let scene_entity_option = find_scene_ancestor::<C>(entity, &parents, &scenes);
         let mesh_asset_id = mesh_3d.0.id();
         let material = material_option.copied().unwrap_or_default();
@@ -75,7 +80,7 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
                 && spawned_static_mesh.mesh_asset_id == mesh_asset_id
                 && spawned_static_mesh.material == material
         });
-        if registration_is_current {
+        if registration_is_current && !global_transform.is_changed() {
             continue;
         }
 
@@ -91,6 +96,8 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
                 mesh_asset_id,
                 material,
                 mesh_3d,
+                global_transform.as_ref(),
+                &global_transforms,
                 &mesh_assets,
                 &mut scenes,
             )
@@ -118,6 +125,8 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
     mesh_asset_id: AssetId<Mesh>,
     material: Material,
     mesh_3d: &Mesh3d,
+    global_transform: &GlobalTransform,
+    global_transforms: &Query<&GlobalTransform>,
     mesh_assets: &Assets<Mesh>,
     scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
 ) -> Option<SpawnedStaticMesh> {
@@ -132,6 +141,20 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
             return None;
         }
     };
+
+    let scene_inverse = global_transforms
+        .get(scene_entity)
+        .map(|transform| transform.affine().inverse())
+        .unwrap_or_default();
+    let mesh_to_scene = scene_inverse * global_transform.affine();
+
+    let vertices: Vec<Point> = vertices
+        .into_iter()
+        .map(|vertex| {
+            let point = mesh_to_scene.transform_point3(Vec3::new(vertex.x, vertex.y, vertex.z));
+            Point::new(point.x, point.y, point.z)
+        })
+        .collect();
 
     // All triangles share the same material.
     let material_indices = vec![0; triangles.len()];

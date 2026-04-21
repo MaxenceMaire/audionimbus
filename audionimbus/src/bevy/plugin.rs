@@ -271,7 +271,7 @@ where
             PostUpdate,
             (
                 (
-                    sync_static_meshes::<C>,
+                    sync_static_meshes::<C>.after(TransformSystems::Propagate),
                     sync_instanced_meshes::<C>.after(TransformSystems::Propagate),
                     commit_scenes::<C>,
                 )
