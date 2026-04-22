@@ -1,8 +1,8 @@
 use crate::audio::{SharedDirection, SpatialNode};
 use crate::consts::{AMBISONICS_ORDER, IMPULSE_RESPONSE_DURATION, LISTENER_HEIGHT, ROOM_SIZE};
 use audionimbus::bevy::{
-    DefaultSimulationConfiguration, DirectSimulation, Listener, MainScene,
-    ReflectionsReverbSimulation, Scene, Simulation, SimulationSharedInputs, Source, StaticMesh,
+    DirectSimulation, Listener, MainScene, ReflectionsReverbSimulation, Scene, Simulation,
+    SimulationSharedInputs, Source, StaticMesh,
 };
 use audionimbus::{Context, ReflectionsSharedInputs};
 use bevy::camera::visibility::NoFrustumCulling;
@@ -84,7 +84,7 @@ fn spawn_environment(
     });
     let room_mesh = meshes.add(Mesh::from(Cuboid::from_size(Vec3::splat(ROOM_SIZE))));
 
-    let scene: Scene = Scene::try_new(&context).expect("failed to create top-level scene");
+    let scene = Scene::try_new(&context).expect("failed to create top-level scene");
 
     commands
         .spawn((
@@ -116,8 +116,8 @@ fn spawn_orb(
     mut materials: ResMut<Assets<StandardMaterial>>,
     context: Res<Context>,
     simulation: Res<Simulation>,
-    direct_simulation: Res<DirectSimulation<DefaultSimulationConfiguration>>,
-    reflections_reverb_simulation: Res<ReflectionsReverbSimulation<DefaultSimulationConfiguration>>,
+    direct_simulation: Res<DirectSimulation>,
+    reflections_reverb_simulation: Res<ReflectionsReverbSimulation>,
 ) {
     let direction = SharedDirection::new(Vec3::X);
 

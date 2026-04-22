@@ -13,7 +13,7 @@ use std::marker::PhantomData;
 
 /// Optional plugin that draws acoustic geometry as wireframe overlays.
 ///
-/// `C` must be the same as the [`Plugin`](crate::bevy::Plugin)'s.
+/// `C` must be the same as the [`SpatialAudioPlugin`](crate::bevy::SpatialAudioPlugin)'s.
 pub struct SpatialAudioDebugPlugin<C: SimulationConfiguration = DefaultSimulationConfiguration> {
     _phantom: PhantomData<C>,
 }
