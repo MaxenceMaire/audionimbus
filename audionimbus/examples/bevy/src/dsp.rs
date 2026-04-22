@@ -72,3 +72,10 @@ pub fn mix_into(destination: &mut [Sample], source: &[Sample], gain: f32) {
         *destination_sample += source_sample * gain;
     }
 }
+
+/// Scales the `buffer` by `gain`.
+pub fn scale_buffer(buffer: &mut [Sample], gain: f32) {
+    for sample in buffer {
+        *sample *= gain;
+    }
+}
