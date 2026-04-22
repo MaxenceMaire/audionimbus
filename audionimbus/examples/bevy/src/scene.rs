@@ -124,10 +124,9 @@ fn spawn_orb(
     let mut entity_commands = commands.spawn((
         Name::new("Orb"),
         Source::try_new(&simulation).expect("failed to create orb source"),
-        Mesh3d(meshes.add(Sphere::new(0.12).mesh().uv(32, 18))),
+        Mesh3d(meshes.add(Sphere::new(0.1).mesh().uv(32, 18))),
         MeshMaterial3d(materials.add(StandardMaterial {
             emissive: LinearRgba::rgb(60.0, 75.0, 100.0),
-            base_color: Color::srgb(0.55, 0.68, 0.9),
             ..default()
         })),
         Transform::from_xyz(6.0, LISTENER_HEIGHT, 0.0),
