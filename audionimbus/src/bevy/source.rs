@@ -79,6 +79,14 @@ pub struct SourceParameters<C: SimulationConfiguration = DefaultSimulationConfig
     pub SimulationParameters<C::Direct, C::Reflections, C::Pathing>,
 );
 
+impl<C: SimulationConfiguration> From<SimulationParameters<C::Direct, C::Reflections, C::Pathing>>
+    for SourceParameters<C>
+{
+    fn from(params: SimulationParameters<C::Direct, C::Reflections, C::Pathing>) -> Self {
+        Self(params)
+    }
+}
+
 /// Adds a `Source` to the simulator and requests a commit when it is spawned.
 pub fn on_source_added<C: SimulationConfiguration>(
     event: On<Add, Source<C>>,
