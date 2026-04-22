@@ -1,10 +1,12 @@
 //! Simulation type configuration.
 
 use crate::effect::reflections::{Convolution, ReflectionEffectType};
+use crate::model::{AirAbsorptionModel, DistanceAttenuationModel};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::simulation::{
-    Direct, DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
-    ReflectionsCompatible, SimulationFlagsProvider,
+    ConvolutionParameters, Direct, DirectCompatible, DirectSimulationParameters, Occlusion,
+    OcclusionAlgorithm, PathingCompatible, ReflectionEffectCompatible, Reflections,
+    ReflectionsCompatible, SimulationFlagsProvider, SimulationParameters,
 };
 
 /// Bundles the type parameters that define a simulation pipeline.
@@ -38,6 +40,12 @@ pub trait SimulationConfiguration: 'static + Send + Sync {
         + Sync
         + Clone
         + Default;
+
+    /// Returns the implicit source parameters associated with this simulation configuration.
+    fn implicit_source_parameters()
+    -> SimulationParameters<Self::Direct, Self::Reflections, Self::Pathing> {
+        SimulationParameters::default()
+    }
 }
 
 /// Default simulation configuration: [`DefaultRayTracer`], direct, reflections via convolution, no
@@ -51,4 +59,17 @@ impl SimulationConfiguration for DefaultSimulationConfiguration {
     type Reflections = Reflections;
     type Pathing = ();
     type ReflectionEffect = Convolution;
+
+    fn implicit_source_parameters() -> SimulationParameters<Direct, Reflections, ()> {
+        SimulationParameters::new()
+            .with_direct(
+                DirectSimulationParameters::new()
+                    .with_distance_attenuation(DistanceAttenuationModel::default())
+                    .with_air_absorption(AirAbsorptionModel::default())
+                    .with_occlusion(Occlusion::new(OcclusionAlgorithm::Raycast)),
+            )
+            .with_reflections(ConvolutionParameters {
+                baked_data_identifier: None,
+            })
+    }
 }

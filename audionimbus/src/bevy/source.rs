@@ -74,7 +74,7 @@ impl<C: SimulationConfiguration>
 ///
 /// Optional companion to [`Source`]. When absent, [`SimulationParameters::default`] is used for
 /// that source.
-#[derive(Component, Default, Clone, Debug)]
+#[derive(Component, Clone, Debug)]
 pub struct SourceParameters<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub SimulationParameters<C::Direct, C::Reflections, C::Pathing>,
 );
@@ -84,6 +84,12 @@ impl<C: SimulationConfiguration> From<SimulationParameters<C::Direct, C::Reflect
 {
     fn from(params: SimulationParameters<C::Direct, C::Reflections, C::Pathing>) -> Self {
         Self(params)
+    }
+}
+
+impl<C: SimulationConfiguration> Default for SourceParameters<C> {
+    fn default() -> Self {
+        Self(C::implicit_source_parameters())
     }
 }
 
@@ -177,8 +183,10 @@ pub(crate) fn sync_sources<C: SimulationConfiguration>(
         for (entity, global_transform, source, simulation_parameters) in query.iter_mut() {
             let simulation_inputs = SimulationInputs {
                 source: (*global_transform).into(),
-                parameters: simulation_parameters
-                    .map_or_else(SimulationParameters::default, |params| params.0.clone()),
+                parameters: simulation_parameters.map_or_else(
+                    || SourceParameters::<C>::default().0,
+                    |params| params.0.clone(),
+                ),
             };
 
             snapshot.push((
