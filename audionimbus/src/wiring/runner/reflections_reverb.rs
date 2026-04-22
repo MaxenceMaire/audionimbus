@@ -5,6 +5,8 @@ use super::super::step::{
 use super::{Allocate, Clear, Resolve, Shrink, SourcesGuard};
 use crate::effect::ReflectionEffectType;
 use crate::simulation::{ReflectionEffectCompatible, Reflections, SimulationSharedInputs};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[cfg(doc)]
 use super::super::simulation::Simulation;
@@ -23,14 +25,22 @@ where
     pub shared_inputs: SimulationSharedInputs<D, R, P>,
 }
 
-impl<SourceId, RE: ReflectionEffectType> Clear for ReflectionsReverbOutput<SourceId, RE> {
+impl<SourceId, RE> Clear for ReflectionsReverbOutput<SourceId, RE>
+where
+    SourceId: Hash + Eq,
+    RE: ReflectionEffectType,
+{
     fn clear(&mut self) {
         self.sources.clear();
         self.listener = None;
     }
 }
 
-impl<SourceId, RE: ReflectionEffectType> Shrink for ReflectionsReverbOutput<SourceId, RE> {
+impl<SourceId, RE> Shrink for ReflectionsReverbOutput<SourceId, RE>
+where
+    SourceId: Hash + Eq,
+    RE: ReflectionEffectType,
+{
     fn shrink(&mut self) {
         if self.sources.capacity() > self.sources.len() * 3 {
             self.sources.shrink_to_fit();
@@ -89,13 +99,14 @@ impl<SourceId, D, P, RE, LD, LP>
     Allocate<ResolvedReflectionsReverbFrame<'_, SourceId, D, Reflections, P, RE, LD, LP>>
     for ReflectionsReverbOutput<SourceId, RE>
 where
+    SourceId: Hash + Eq,
     RE: ReflectionEffectType + ReflectionEffectCompatible<Reflections, RE>,
 {
     fn allocate(
         input: &ResolvedReflectionsReverbFrame<'_, SourceId, D, Reflections, P, RE, LD, LP>,
     ) -> Self {
         Self {
-            sources: Vec::with_capacity(input.guard.len()),
+            sources: HashMap::with_capacity(input.guard.len()),
             listener: None,
         }
     }

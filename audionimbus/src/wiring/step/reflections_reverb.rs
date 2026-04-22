@@ -6,6 +6,8 @@ use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs reflections and listener-centric reverb simulation simultaneously.
@@ -43,7 +45,7 @@ where
         + PathingCompatible<P>
         + DirectCompatible<I::LD>
         + PathingCompatible<I::LP>,
-    SourceId: 'static + Clone + Send + Sync,
+    SourceId: 'static + Clone + Send + Sync + Hash + Eq,
     I: AsReflectionsReverbInput<SourceId, D, Reflections, P, RE>,
     I::LD: 'static + Send + Sync + DirectCompatible<I::LD> + SimulationFlagsProvider,
     I::LP: 'static + Send + Sync + PathingCompatible<I::LP> + SimulationFlagsProvider,
@@ -79,7 +81,7 @@ where
         for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
             output
                 .sources
-                .push((id.clone(), source.get_reflections_outputs()?));
+                .insert(id.clone(), source.get_reflections_outputs()?);
         }
 
         if let Some(listener) = input.listener {
@@ -152,9 +154,13 @@ where
 
 /// Combined per-source reflections and listener-centric reverb output.
 #[derive(Debug)]
-pub struct ReflectionsReverbOutput<SourceId, RE: ReflectionEffectType> {
+pub struct ReflectionsReverbOutput<SourceId, RE>
+where
+    SourceId: Hash + Eq,
+    RE: ReflectionEffectType,
+{
     /// Per-source reflection effect params.
-    pub sources: Vec<(SourceId, ReflectionEffectParams<RE>)>,
+    pub sources: HashMap<SourceId, ReflectionEffectParams<RE>>,
     /// Listener-centric reverb.
     ///
     /// `None` if no listener is present in the scene, or until the first simulation run with a
@@ -162,17 +168,23 @@ pub struct ReflectionsReverbOutput<SourceId, RE: ReflectionEffectType> {
     pub listener: Option<ReflectionEffectParams<RE>>,
 }
 
-impl<SourceId, RE: ReflectionEffectType> Default for ReflectionsReverbOutput<SourceId, RE> {
+impl<SourceId, RE> Default for ReflectionsReverbOutput<SourceId, RE>
+where
+    SourceId: Hash + Eq,
+    RE: ReflectionEffectType,
+{
     fn default() -> Self {
         Self {
-            sources: Vec::default(),
+            sources: HashMap::new(),
             listener: None,
         }
     }
 }
 
-unsafe impl<SourceId: Send, RE: ReflectionEffectType> Send
-    for ReflectionsReverbOutput<SourceId, RE>
+unsafe impl<SourceId, RE> Send for ReflectionsReverbOutput<SourceId, RE>
+where
+    SourceId: Send + Hash + Eq,
+    RE: ReflectionEffectType,
 {
 }
 
@@ -183,7 +195,9 @@ unsafe impl<SourceId: Send, RE: ReflectionEffectType> Send
 /// while the audio thread is still reading the previous version.
 ///
 /// However the chance of an overlap is slim and a data race is likely inaudible.
-unsafe impl<SourceId: Sync, RE: ReflectionEffectType> Sync
-    for ReflectionsReverbOutput<SourceId, RE>
+unsafe impl<SourceId, RE> Sync for ReflectionsReverbOutput<SourceId, RE>
+where
+    SourceId: Sync + Hash + Eq,
+    RE: ReflectionEffectType,
 {
 }

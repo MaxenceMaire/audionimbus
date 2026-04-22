@@ -18,12 +18,13 @@ use bevy_seedling::firewheel::{
         ProcBuffers, ProcExtra, ProcInfo, ProcessStatus,
     },
 };
+use std::collections::HashMap;
 
 #[derive(Component, Clone)]
 pub struct SpatialNode {
     entity: Entity,
     context: Context,
-    direct_output: SharedSimulationOutput<Vec<(Entity, DirectEffectParams)>>,
+    direct_output: SharedSimulationOutput<HashMap<Entity, DirectEffectParams>>,
     reflections_reverb_output: SharedSimulationOutput<ReflectionsReverbOutput<Entity, Convolution>>,
     pub direction: SharedDirection,
 }
@@ -32,7 +33,7 @@ impl SpatialNode {
     pub fn new(
         entity: Entity,
         context: Context,
-        direct_output: SharedSimulationOutput<Vec<(Entity, DirectEffectParams)>>,
+        direct_output: SharedSimulationOutput<HashMap<Entity, DirectEffectParams>>,
         reflections_reverb_output: SharedSimulationOutput<
             ReflectionsReverbOutput<Entity, Convolution>,
         >,
@@ -79,7 +80,7 @@ impl AudioNode for SpatialNode {
 struct SpatialProcessor {
     entity: Entity,
     context: Context,
-    direct_output: SharedSimulationOutput<Vec<(Entity, DirectEffectParams)>>,
+    direct_output: SharedSimulationOutput<HashMap<Entity, DirectEffectParams>>,
     reflections_reverb_output: SharedSimulationOutput<ReflectionsReverbOutput<Entity, Convolution>>,
     direction: SharedDirection,
     hrtf: Hrtf,
@@ -96,7 +97,7 @@ impl SpatialProcessor {
     fn new(
         entity: Entity,
         context: Context,
-        direct_output: SharedSimulationOutput<Vec<(Entity, DirectEffectParams)>>,
+        direct_output: SharedSimulationOutput<HashMap<Entity, DirectEffectParams>>,
         reflections_reverb_output: SharedSimulationOutput<
             ReflectionsReverbOutput<Entity, Convolution>,
         >,
@@ -166,15 +167,12 @@ impl AudioNodeProcessor for SpatialProcessor {
 
         let direct_snapshot = self.direct_output.load();
         let direct_params = direct_snapshot
-            .iter()
-            .find_map(|(entity, params)| (*entity == self.entity).then_some(params.clone()))
+            .get(&self.entity)
+            .cloned()
             .unwrap_or_default();
 
         let reflections_snapshot = self.reflections_reverb_output.load();
-        let source_reflections = reflections_snapshot
-            .sources
-            .iter()
-            .find_map(|(entity, params)| (*entity == self.entity).then_some(params));
+        let source_reflections = reflections_snapshot.sources.get(&self.entity);
         let listener_reverb = reflections_snapshot.listener.as_ref();
 
         let direct = self.direct_path.process(

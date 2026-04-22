@@ -6,6 +6,8 @@ use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs reflections simulation.
@@ -40,7 +42,7 @@ where
     P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
     (): DirectCompatible<D> + PathingCompatible<P>,
-    SourceId: 'static + Clone + Send + Sync,
+    SourceId: 'static + Clone + Send + Sync + Hash + Eq,
     I: AsReflectionsInput<SourceId, D, Reflections, P, RE>,
 {
     type Output = ReflectionsOutput<SourceId, RE>;
@@ -68,7 +70,7 @@ where
         for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
             output
                 .sources
-                .push((id.clone(), source.get_reflections_outputs()?));
+                .insert(id.clone(), source.get_reflections_outputs()?);
         }
 
         Ok(())
@@ -124,13 +126,13 @@ where
 #[derive(Debug)]
 pub struct ReflectionsOutput<SourceId, RE: ReflectionEffectType> {
     /// Per-source reflection effect params.
-    pub sources: Vec<(SourceId, ReflectionEffectParams<RE>)>,
+    pub sources: HashMap<SourceId, ReflectionEffectParams<RE>>,
 }
 
 impl<SourceId, RE: ReflectionEffectType> Default for ReflectionsOutput<SourceId, RE> {
     fn default() -> Self {
         Self {
-            sources: Vec::new(),
+            sources: HashMap::new(),
         }
     }
 }

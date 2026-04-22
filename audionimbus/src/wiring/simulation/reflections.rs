@@ -9,12 +9,13 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::hash::Hash;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, D, P, RE> Simulation<SourceId, T, D, Reflections, P, RE>
 where
-    SourceId: 'static + Send + Sync + Clone,
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
     T: 'static + RayTracer,
     D: 'static + Send + Sync + Clone + Default + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,

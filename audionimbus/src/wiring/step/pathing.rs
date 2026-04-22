@@ -6,6 +6,8 @@ use crate::simulation::{
     DirectCompatible, Pathing, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs pathing simulation.
@@ -40,10 +42,10 @@ where
     R: 'static + Send + Sync + ReflectionsCompatible<R> + SimulationFlagsProvider,
     RE: 'static + Send + Sync + ReflectionEffectCompatible<R, RE>,
     (): DirectCompatible<D> + ReflectionsCompatible<R>,
-    SourceId: 'static + Clone + Send + Sync,
+    SourceId: 'static + Clone + Send + Sync + Hash + Eq,
     I: AsPathingInput<SourceId, D, R, Pathing, RE>,
 {
-    type Output = Vec<(SourceId, PathEffectParams)>;
+    type Output = HashMap<SourceId, PathEffectParams>;
     type Error = SimulationStepError;
 
     fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
@@ -66,7 +68,7 @@ where
         self.simulator.run_pathing()?;
 
         for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
-            output.push((id.clone(), source.get_pathing_outputs()?));
+            output.insert(id.clone(), source.get_pathing_outputs()?);
         }
 
         Ok(())

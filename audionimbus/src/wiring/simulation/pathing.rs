@@ -9,12 +9,14 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, D, R, RE> Simulation<SourceId, T, D, R, Pathing, RE>
 where
-    SourceId: 'static + Send + Sync + Clone,
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
     T: 'static + RayTracer,
     D: 'static + Send + Sync + Clone + Default + DirectCompatible<D> + SimulationFlagsProvider,
     R: 'static + Send + Sync + Clone + Default + ReflectionsCompatible<R> + SimulationFlagsProvider,
@@ -32,7 +34,7 @@ where
         })));
 
         let output = SharedSimulationOutput(Arc::new(ArcSwap::new(Arc::new(
-            Arc::new(Pool::new(1, Vec::default)).pull_owned(Vec::default),
+            Arc::new(Pool::new(1, HashMap::default)).pull_owned(HashMap::default),
         ))));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
@@ -74,7 +76,7 @@ where
     /// Shared input frame, updated each game frame.
     input: SharedPathingInput<SourceId, D, R, RE>,
     /// Shared output, read by the audio thread.
-    output: SharedSimulationOutput<Vec<(SourceId, PathEffectParams)>>,
+    output: SharedSimulationOutput<HashMap<SourceId, PathEffectParams>>,
     /// Thread lifecycle controls.
     controls: SimulationControls,
 }
@@ -90,7 +92,7 @@ where
     }
 
     /// Returns the shared output produced by this simulation thread.
-    pub fn output(&self) -> SharedSimulationOutput<Vec<(SourceId, PathEffectParams)>> {
+    pub fn output(&self) -> SharedSimulationOutput<HashMap<SourceId, PathEffectParams>> {
         self.output.clone()
     }
 
