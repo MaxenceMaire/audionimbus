@@ -6,7 +6,7 @@ use super::system_set::SpatialAudioSet;
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::{
     App, Assets, Color, Component, Entity, Gizmos, GlobalTransform, IntoScheduleConfigs, Mat4,
-    Mesh, Mesh3d, PostUpdate, Query, Res, Resource, With,
+    Mesh, Mesh3d, Plugin, PostUpdate, Query, Res, Resource, With,
 };
 use bevy::transform::TransformSystems;
 use std::marker::PhantomData;
@@ -14,11 +14,11 @@ use std::marker::PhantomData;
 /// Optional plugin that draws acoustic geometry as wireframe overlays.
 ///
 /// `C` must be the same as the [`Plugin`](crate::bevy::Plugin)'s.
-pub struct DebugPlugin<C: SimulationConfiguration = DefaultSimulationConfiguration> {
+pub struct SpatialAudioDebugPlugin<C: SimulationConfiguration = DefaultSimulationConfiguration> {
     _phantom: PhantomData<C>,
 }
 
-impl DebugPlugin<DefaultSimulationConfiguration> {
+impl SpatialAudioDebugPlugin<DefaultSimulationConfiguration> {
     /// Creates a debug plugin for [`DefaultSimulationConfiguration`].
     pub fn new() -> Self {
         Self {
@@ -27,14 +27,14 @@ impl DebugPlugin<DefaultSimulationConfiguration> {
     }
 
     /// Creates a debug plugin for a custom simulation configuration.
-    pub fn with_config<C: SimulationConfiguration>() -> DebugPlugin<C> {
-        DebugPlugin {
+    pub fn with_config<C: SimulationConfiguration>() -> SpatialAudioDebugPlugin<C> {
+        SpatialAudioDebugPlugin {
             _phantom: PhantomData,
         }
     }
 }
 
-impl Default for DebugPlugin<DefaultSimulationConfiguration> {
+impl Default for SpatialAudioDebugPlugin<DefaultSimulationConfiguration> {
     fn default() -> Self {
         Self {
             _phantom: PhantomData,
@@ -42,7 +42,7 @@ impl Default for DebugPlugin<DefaultSimulationConfiguration> {
     }
 }
 
-impl<C: SimulationConfiguration + 'static> bevy::app::Plugin for DebugPlugin<C> {
+impl<C: SimulationConfiguration + 'static> Plugin for SpatialAudioDebugPlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<WireframePalette>();
         app.add_systems(

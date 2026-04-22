@@ -1,4 +1,4 @@
-use audionimbus::bevy::{DebugPlugin, Plugin as AudioNimbusPlugin};
+use audionimbus::bevy::{SpatialAudioDebugPlugin, SpatialAudioPlugin};
 use audionimbus::{
     AudioSettings, ConvolutionSettings, DirectSimulationSettings, SimulationSettings,
 };
@@ -52,8 +52,8 @@ fn main() {
         DefaultPlugins,
         FreeCameraPlugin,
         seedling,
-        AudioNimbusPlugin::new(simulation_settings),
-        DebugPlugin::default(),
+        SpatialAudioPlugin::new(simulation_settings),
+        SpatialAudioDebugPlugin::default(),
         ScenePlugin,
     ));
 

@@ -26,7 +26,7 @@ use crate::simulation::{
 };
 use bevy::asset::{AssetApp, AssetServer};
 use bevy::prelude::{
-    App, Entity, IntoScheduleConfigs, PostUpdate, TransformSystems, resource_exists,
+    App, Entity, IntoScheduleConfigs, Plugin, PostUpdate, TransformSystems, resource_exists,
 };
 
 #[cfg(debug_assertions)]
@@ -44,7 +44,7 @@ use super::runner::{RunnerReflections, RunnerReflectionsReverb};
 /// | `RD` | Direct runner (`RunnerDirect` or `()`) |
 /// | `RR` | Reflections runner (`RunnerReflections`, `RunnerReflectionsReverb`, or `()`) |
 /// | `RP` | Pathing runner (`RunnerPathing` or `()`) |
-pub struct Plugin<
+pub struct SpatialAudioPlugin<
     C: SimulationConfiguration = DefaultSimulationConfiguration,
     RD: Runner = (),
     RR: Runner = (),
@@ -61,7 +61,7 @@ pub struct Plugin<
 }
 
 impl
-    Plugin<
+    SpatialAudioPlugin<
         DefaultSimulationConfiguration,
         <Direct as ToRunner>::Runner,
         <Reflections as ToRunner>::Runner,
@@ -71,8 +71,8 @@ impl
     /// Creates a new plugin using [`DefaultSimulationConfiguration`] and explicit simulation
     /// settings.
     ///
-    /// Use [`default`](Plugin::default) for the built-in starter configuration, or
-    /// [`with_config`](Plugin::with_config) to supply a custom [`SimulationConfiguration`].
+    /// Use [`default`](SpatialAudioPlugin::default) for the built-in starter configuration, or
+    /// [`with_config`](SpatialAudioPlugin::with_config) to supply a custom [`SimulationConfiguration`].
     pub fn new(
         simulation_settings: SimulationSettings<
             <DefaultSimulationConfiguration as SimulationConfiguration>::RayTracer,
@@ -99,7 +99,7 @@ impl
 }
 
 impl Default
-    for Plugin<
+    for SpatialAudioPlugin<
         DefaultSimulationConfiguration,
         <Direct as ToRunner>::Runner,
         <Reflections as ToRunner>::Runner,
@@ -111,11 +111,11 @@ impl Default
     }
 }
 
-impl Plugin<DefaultSimulationConfiguration, (), (), ()> {
+impl SpatialAudioPlugin<DefaultSimulationConfiguration, (), (), ()> {
     /// Creates a new plugin with a custom [`SimulationConfiguration`].
     ///
     /// Runners are inferred from the configuration's simulation modes.
-    /// Use [`with_runners`](Plugin::with_runners) to override them.
+    /// Use [`with_runners`](SpatialAudioPlugin::with_runners) to override them.
     pub fn with_config<C>(
         simulation_settings: SimulationSettings<
             C::RayTracer,
@@ -124,7 +124,7 @@ impl Plugin<DefaultSimulationConfiguration, (), (), ()> {
             C::Pathing,
             C::ReflectionEffect,
         >,
-    ) -> Plugin<
+    ) -> SpatialAudioPlugin<
         C,
         <C::Direct as ToRunner>::Runner,
         <C::Reflections as ToRunner>::Runner,
@@ -136,14 +136,14 @@ impl Plugin<DefaultSimulationConfiguration, (), (), ()> {
         C::Reflections: ToRunner,
         C::Pathing: ToRunner,
     {
-        Plugin {
+        SpatialAudioPlugin {
             simulation_settings,
             _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<C, RD, RR, RP> Plugin<C, RD, RR, RP>
+impl<C, RD, RR, RP> SpatialAudioPlugin<C, RD, RR, RP>
 where
     C: SimulationConfiguration,
     RD: Runner,
@@ -183,24 +183,24 @@ where
     /// #     type Pathing = ();
     /// #     type ReflectionEffect = Convolution;
     /// # }
-    /// Plugin::with_config::<MyConfig>(settings)
+    /// SpatialAudioPlugin::with_config::<MyConfig>(settings)
     ///     .with_runners::<RunnerDirect, RunnerReflections, ()>();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_runners<RD2, RR2, RP2>(self) -> Plugin<C, RD2, RR2, RP2>
+    pub fn with_runners<RD2, RR2, RP2>(self) -> SpatialAudioPlugin<C, RD2, RR2, RP2>
     where
         RD2: Runner<SimulationType = RD::SimulationType>,
         RR2: Runner<SimulationType = RR::SimulationType>,
         RP2: Runner<SimulationType = RP::SimulationType>,
     {
-        Plugin {
+        SpatialAudioPlugin {
             simulation_settings: self.simulation_settings,
             _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<C, RD, RR, RP> bevy::app::Plugin for Plugin<C, RD, RR, RP>
+impl<C, RD, RR, RP> Plugin for SpatialAudioPlugin<C, RD, RR, RP>
 where
     C: SimulationConfiguration,
     RD: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
