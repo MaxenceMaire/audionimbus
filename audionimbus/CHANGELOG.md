@@ -81,11 +81,18 @@
     - `SimulationStep` trait: defines the simulation logic for a single step; implemented by `DirectStep`, `ReflectionsStep`, `ReflectionsReverbStep`, and `PathingStep`.
     - `DirectSimulation`, `ReflectionsSimulation`, `ReflectionsReverbSimulation`, `PathingSimulation`: running simulation thread handles, each exposing a `set_input`, `pause`, and `resume` method.
     - `SharedSimulationOutput`: lock-free handle to read outputs from the audio thread concurrently with simulation writes.
+- Add `bevy` feature providing ECS integration.
+    - `SpatialAudioPlugin`: inserts the core resources, spawns the simulation runners implied by the selected `SimulationConfiguration`, and keeps scenes, probes, listeners, and sources synchronized with ECS state.
+    - `Scene`, `StaticMesh`, `InstancedMesh`, `Source`, `SourceParameters`, `Listener`, `ProbeArray`, and `ProbeBatch`: ECS-friendly wrappers and components around the corresponding AudioNimbus types.
+    - `DirectSimulation`, `ReflectionsSimulation`, `ReflectionsReverbSimulation`, and `PathingSimulation`: resources wrapping the running simulation threads so the app can read the latest outputs each frame.
+    - `SceneAsset`, `ProbeBatchAsset`, `SceneAssetSource`, and `ProbeBatchAssetSource`: asset integration for loading acoustic scenes and probe batches from assets.
+    - `SpatialAudioDebugPlugin`: optional debug overlays for acoustic geometry.
 - Implement `Copy`, `Clone` for `SimulationError`.
 - Implement `Copy` for `ParameterValidationError`.
 - Implement `Clone` for `Spatialization`, `PathEffectSettings`, `VirtualSurroundEffectSettings`, `VirtualSurroundEffectParams`, `AmbisonicsBinauralEffectSettings`, `AmbisonicsBinauralEffectParams`, `AmbisonicsDecodeEffectSettings`, `AmbisonicsDecodeEffectParams` and `ReconstructorInputs`.
 - Implement `PartialEq`, `Eq` and `Hash` for `Scene`, `Simulator`, `Context`, `EmbreeDevice`, `OpenClDevice`, `OpenClDeviceList`, `RadeonRaysDevice`, `TrueAudioNextDevice`, `ImpulseResponse`, `SerializedObject`, `PanningEffect`, `PathEffect`, `BinauralEffect`, `ReflectionEffect`, `ReflectionMixer`, `VirtualSurroundEffect`, `DirectEffect`, `AmbisonicsPanningEffect`, `AmbisonicsBinauralEffect`, `AmbisonicsEncodeEffect`, `AmbisonicsDecodeEffect`, `AmbisonicsRotationEffect`, `Hrtf`, `EnergyField`, `ProbeArray`, `ProbeBatch`, `Reconstructor`, `InstancedMesh`, `StaticMesh`.
 - Implement `Clone` for `HrtfSettings`, `Sofa`.
+- Add `SimulationParameters::direct_simulation_parameters`.
 - add `AudioSettings` getters to `Simulator` and `Simulation`.
 - Implement `Default` for `DirectSimulationSettings`, `ConvolutionSettings` and `PathingSimulationSettings`.
 
