@@ -107,6 +107,8 @@ pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
 }
 
 /// Attempts to create and register an [`InstancedMesh`] under its parent scene.
+///
+/// Returns `None` when either the parent scene or the sub-scene entity does not yet exist.
 fn try_register_instanced_mesh<C: SimulationConfiguration>(
     entity: Entity,
     scene_entity: Entity,

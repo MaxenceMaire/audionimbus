@@ -57,6 +57,7 @@ where
     }
 }
 
+/// Publishes a new frame to the reflections simulation thread.
 fn sync_reflections_frame<C>(
     simulation: Res<Simulation<C>>,
     reflections: Res<ReflectionsSimulation<C>>,

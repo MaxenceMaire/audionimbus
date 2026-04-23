@@ -61,6 +61,7 @@ where
     }
 }
 
+/// Publishes a new frame to the pathing simulation thread.
 fn sync_pathing_frame<C>(
     simulation: Res<Simulation<C>>,
     pathing: Res<PathingSimulation<C>>,

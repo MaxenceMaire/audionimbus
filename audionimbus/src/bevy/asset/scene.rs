@@ -95,7 +95,7 @@ impl<C> SceneAssetSource<C>
 where
     C: SimulationConfiguration<RayTracer = Embree>,
 {
-    // Creates a source with the Embree ray tracer.
+    /// Creates a source with the Embree ray tracer.
     pub fn with_embree(handle: Handle<SceneAsset>, device: EmbreeDevice) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
@@ -113,7 +113,7 @@ impl<C> SceneAssetSource<C>
 where
     C: SimulationConfiguration<RayTracer = RadeonRays>,
 {
-    // Creates a source with the Radeon Rays ray tracer.
+    /// Creates a source with the Radeon Rays ray tracer.
     pub fn with_radeon_rays(handle: Handle<SceneAsset>, device: RadeonRaysDevice) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
@@ -131,7 +131,7 @@ impl<C> SceneAssetSource<C>
 where
     C: SimulationConfiguration<RayTracer = CustomRayTracer>,
 {
-    // Creates a source with a custom ray tracer.
+    /// Creates a source with a custom ray tracer.
     pub fn with_custom(handle: Handle<SceneAsset>, callbacks: CustomRayTracingCallbacks) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {

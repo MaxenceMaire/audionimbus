@@ -119,6 +119,8 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
 }
 
 /// Attempts to create and register a [`StaticMesh`] under its parent scene.
+///
+/// Returns `None` when the mesh asset is not yet loaded or the geometry cannot be extracted.
 fn try_register_static_mesh<C: SimulationConfiguration>(
     entity: Entity,
     scene_entity: Entity,
@@ -202,6 +204,7 @@ pub(crate) fn on_static_mesh_removed<C: SimulationConfiguration>(
     deregister_static_mesh(static_mesh, &mut scenes);
 }
 
+/// Removes a static mesh from its parent scene and marks it as needing a commit.
 fn deregister_static_mesh<C: SimulationConfiguration>(
     static_mesh: &SpawnedStaticMesh,
     scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,

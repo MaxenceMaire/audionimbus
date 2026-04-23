@@ -37,6 +37,7 @@ impl ToRunner for () {
 
 /// Spawns a simulation thread and inserts its resource into the world.
 pub trait Spawn<C: SimulationConfiguration> {
+    /// Spawns the simulation thread for this runner and inserts it as a resource.
     fn spawn(world: &mut World);
 }
 
@@ -46,6 +47,7 @@ impl<C: SimulationConfiguration> Spawn<C> for () {
 
 /// Registers the frame-sync system for a simulation thread.
 pub trait SyncFrame<C: SimulationConfiguration>: Sealed {
+    /// Adds the frame-sync system for this runner.
     fn add_systems(app: &mut App);
 }
 

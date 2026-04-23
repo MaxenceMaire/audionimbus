@@ -52,8 +52,12 @@ impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
 /// Identifies a simulation thread.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SimulationThread {
+    /// Direct (occlusion, attenuation) simulation thread.
     Direct,
+    /// Reflections simulation thread.
     Reflections,
+    /// Combined reflections and listener-centric reverb simulation thread.
     ReflectionsReverb,
+    /// Pathing simulation thread.
     Pathing,
 }

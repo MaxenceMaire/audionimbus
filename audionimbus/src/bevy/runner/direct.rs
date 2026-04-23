@@ -61,6 +61,7 @@ where
     }
 }
 
+/// Publishes a new frame to the direct simulation thread.
 fn sync_direct_frame<C>(
     simulation: Res<Simulation<C>>,
     direct: Res<DirectSimulation<C>>,

@@ -244,6 +244,8 @@
 //! `audionimbus` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
 //! You may choose either license when using the software.
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 const NUM_BANDS: u32 = 3;
 
 pub mod prelude;
@@ -274,13 +276,17 @@ pub mod simulation;
 pub mod version;
 use sealed::Sealed;
 #[cfg(feature = "wiring")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wiring")))]
 pub mod wiring;
 
 #[cfg(feature = "fmod")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
 pub mod fmod;
 
 #[cfg(feature = "wwise")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
 pub mod wwise;
 
 #[cfg(feature = "bevy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bevy")))]
 pub mod bevy;
