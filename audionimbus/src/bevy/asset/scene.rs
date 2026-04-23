@@ -188,10 +188,6 @@ pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
         })
         .collect::<HashSet<_>>();
 
-    if changed_asset_ids.is_empty() {
-        return;
-    }
-
     for (entity, source, has_scene) in &query {
         let needs_update =
             !has_scene || source.is_changed() || changed_asset_ids.contains(&source.handle.id());

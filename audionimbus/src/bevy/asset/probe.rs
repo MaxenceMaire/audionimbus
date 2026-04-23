@@ -86,10 +86,6 @@ pub(crate) fn sync_probe_batches_from_assets(
         })
         .collect::<HashSet<_>>();
 
-    if changed_asset_ids.is_empty() {
-        return;
-    }
-
     for (entity, source, has_probe_batch) in &query {
         let needs_update = !has_probe_batch
             || source.is_changed()
