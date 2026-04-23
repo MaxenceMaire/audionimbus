@@ -2670,6 +2670,11 @@ impl SimulationParameters {
 }
 
 impl<D, R, P> SimulationParameters<D, R, P> {
+    /// Returns the direct simulation parameters for this source, if direct simulation is enabled.
+    pub fn direct_simulation_parameters(&self) -> Option<&DirectSimulationParameters> {
+        self.direct_simulation.as_ref()
+    }
+
     /// Enables direct simulation with the specified parameters.
     pub fn with_direct(
         self,
