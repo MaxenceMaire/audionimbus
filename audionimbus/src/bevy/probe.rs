@@ -9,7 +9,9 @@ use super::simulation::Simulation;
 use crate::context::Context;
 use crate::error::SteamAudioError;
 use crate::serialized_object::SerializedObject;
-use bevy::prelude::{Add, Changed, Component, On, Query, Remove, ResMut};
+use bevy::prelude::{
+    Add, Changed, Component, On, Query, Reflect, ReflectComponent, Remove, ResMut,
+};
 use std::ops::{Deref, DerefMut};
 
 #[cfg(doc)]
@@ -19,7 +21,8 @@ use crate::probe::{ProbeArray as RawProbeArray, ProbeBatch as RawProbeBatch};
 ///
 /// Probe arrays can be used to generate or store probe positions before copying them into a
 /// [`ProbeBatch`].
-#[derive(Component, Clone, Debug, PartialEq, Eq)]
+#[derive(Component, Reflect, Clone, Debug, PartialEq, Eq)]
+#[reflect(Component, opaque)]
 pub struct ProbeArray(pub crate::probe::ProbeArray);
 
 impl ProbeArray {
@@ -56,7 +59,8 @@ impl From<crate::probe::ProbeArray> for ProbeArray {
 /// Adding this component to an entity registers the batch with the simulator.
 /// Mutated batches are commited before the next simulation frame.
 /// Removing a batch unregisters it from the simulator.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Reflect, Clone, Debug)]
+#[reflect(Component, opaque)]
 pub struct ProbeBatch(pub crate::probe::ProbeBatch);
 
 impl ProbeBatch {

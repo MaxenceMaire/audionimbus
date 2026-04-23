@@ -5,7 +5,7 @@ use crate::context::Context;
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::prelude::{
     Asset, AssetEvent, Assets, Commands, Component, DetectChanges, Entity, Handle, Has,
-    MessageReader, Query, Ref, Res,
+    MessageReader, Query, Ref, Reflect, ReflectComponent, Res,
 };
 use bevy::reflect::TypePath;
 use std::collections::HashSet;
@@ -55,7 +55,8 @@ impl AssetLoader for ProbeBatchAssetLoader {
 
 /// Component that automatically instantiates a [`ProbeBatch`] from a [`ProbeBatchAsset`] when the
 /// backing asset finishes loading or is hot-reloaded.
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct ProbeBatchAssetSource {
     /// Asset handle.
     pub handle: Handle<ProbeBatchAsset>,

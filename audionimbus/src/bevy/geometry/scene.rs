@@ -10,16 +10,24 @@ use crate::error::SteamAudioError;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays};
 use crate::serialized_object::SerializedObject;
 use bevy::prelude::{
-    Add, ChildOf, Commands, Component, Entity, Local, On, Query, Remove, ResMut, With, Without,
+    Add, ChildOf, Commands, Component, Entity, Local, On, Query, Reflect, ReflectComponent, Remove,
+    ResMut, With, Without,
 };
 use std::ops::{Deref, DerefMut};
 
 /// Component wrapping an [AudioNimbus scene](`crate::geometry::Scene`).
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Reflect, Debug)]
+#[reflect(Component, opaque)]
 #[require(SceneStatus)]
 pub struct Scene<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub crate::geometry::Scene<C::RayTracer>,
 );
+
+impl<C: SimulationConfiguration> Clone for Scene<C> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<C> Scene<C>
 where
@@ -327,7 +335,8 @@ pub(crate) struct SceneStatus {
 /// Adding it to a new entity will automatically remove it from whichever entity previously held
 /// it.
 /// The last entity to receive `MainScene` becomes the active scene.
-#[derive(Component, Debug)]
+#[derive(Component, Reflect, Debug)]
+#[reflect(Component)]
 #[component(storage = "SparseSet")]
 pub struct MainScene;
 

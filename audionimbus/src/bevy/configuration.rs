@@ -8,6 +8,7 @@ use crate::simulation::{
     OcclusionAlgorithm, PathingCompatible, ReflectionEffectCompatible, Reflections,
     ReflectionsCompatible, SimulationFlagsProvider, SimulationParameters,
 };
+use bevy::reflect::TypePath;
 
 /// Bundles the type parameters that define a simulation pipeline.
 pub trait SimulationConfiguration: 'static + Send + Sync {
@@ -50,7 +51,7 @@ pub trait SimulationConfiguration: 'static + Send + Sync {
 
 /// Default simulation configuration: [`DefaultRayTracer`], direct, reflections via convolution, no
 /// pathing.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, TypePath)]
 pub struct DefaultSimulationConfiguration;
 
 impl SimulationConfiguration for DefaultSimulationConfiguration {

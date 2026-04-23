@@ -2,7 +2,8 @@ use super::super::configuration::SimulationConfiguration;
 use super::scene::{Scene, SceneStatus, find_scene_ancestor};
 use crate::geometry::{InstancedMeshHandle, InstancedMeshSettings, Matrix4};
 use bevy::prelude::{
-    ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, On, Query, Ref, Remove,
+    ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, On, Query, Ref, Reflect,
+    ReflectComponent, Remove,
 };
 
 /// Component that instantiates a sub-scene as movable acoustic geometry within a parent scene.
@@ -12,7 +13,8 @@ use bevy::prelude::{
 ///
 /// Multiple [`InstancedMesh`]s may reference the same sub-scene for shared geometry (e.g.
 /// identical props placed throughout a level).
-#[derive(Component, Copy, Clone, Debug)]
+#[derive(Component, Reflect, Copy, Clone, Debug)]
+#[reflect(Component)]
 #[require(GlobalTransform)]
 #[relationship(relationship_target = SubSceneOf)]
 pub struct InstancedMesh(pub Entity);

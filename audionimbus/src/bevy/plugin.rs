@@ -28,6 +28,7 @@ use bevy::asset::{AssetApp, AssetServer};
 use bevy::prelude::{
     App, Entity, IntoScheduleConfigs, Plugin, PostUpdate, TransformSystems, resource_exists,
 };
+use bevy::reflect::TypePath;
 
 #[cfg(debug_assertions)]
 use super::geometry::warn_missing_main_scene;
@@ -202,7 +203,7 @@ where
 
 impl<C, RD, RR, RP> Plugin for SpatialAudioPlugin<C, RD, RR, RP>
 where
-    C: SimulationConfiguration,
+    C: SimulationConfiguration + TypePath,
     RD: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
     RR: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
     RP: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
@@ -232,6 +233,18 @@ where
         + PathingCompatible<RP::SimulationType>,
 {
     fn build(&self, app: &mut App) {
+        app.register_type::<SpatialAudioSet>()
+            .register_type::<super::source::Source<C>>()
+            .register_type::<super::source::SourceParameters<C>>()
+            .register_type::<super::source::Listener>()
+            .register_type::<super::geometry::Scene<C>>()
+            .register_type::<super::geometry::MainScene>()
+            .register_type::<super::geometry::StaticMesh>()
+            .register_type::<super::geometry::InstancedMesh>()
+            .register_type::<super::probe::ProbeArray>()
+            .register_type::<super::probe::ProbeBatch>()
+            .register_type::<super::asset::ProbeBatchAssetSource>();
+
         let world = app.world_mut();
 
         let context = world.get_resource_or_insert_with(Context::default).clone();

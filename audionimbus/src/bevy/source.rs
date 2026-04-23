@@ -10,8 +10,8 @@ use crate::simulation::{
 };
 use crate::wiring::SourceWithInputs;
 use bevy::prelude::{
-    Add, Commands, Component, Entity, GlobalTransform, On, Query, Remove, Res, ResMut, With,
-    Without,
+    Add, Commands, Component, Entity, GlobalTransform, On, Query, Reflect, ReflectComponent,
+    Remove, Res, ResMut, With, Without,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -19,10 +19,17 @@ use std::ops::{Deref, DerefMut};
 ///
 /// Attach this to any entity that should emit sound. The entity's [`GlobalTransform`] is used as the
 /// source position each frame.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Reflect, Debug)]
+#[reflect(Component, opaque)]
 pub struct Source<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
 );
+
+impl<C: SimulationConfiguration> Clone for Source<C> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<C: SimulationConfiguration> Source<C> {
     /// Creates a new source using the [`Simulation`] resource.
@@ -74,10 +81,17 @@ impl<C: SimulationConfiguration>
 ///
 /// Optional companion to [`Source`]. When absent, [`SimulationParameters::default`] is used for
 /// that source.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Reflect, Debug)]
+#[reflect(Component, opaque)]
 pub struct SourceParameters<C: SimulationConfiguration = DefaultSimulationConfiguration>(
     pub SimulationParameters<C::Direct, C::Reflections, C::Pathing>,
 );
+
+impl<C: SimulationConfiguration> Clone for SourceParameters<C> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<C: SimulationConfiguration> From<SimulationParameters<C::Direct, C::Reflections, C::Pathing>>
     for SourceParameters<C>
@@ -133,7 +147,8 @@ pub fn on_source_removed<C: SimulationConfiguration>(
 ///
 /// At most one entity should carry this component.
 /// Adding it to a new entity removes it from any entity that previously held it.
-#[derive(Component, Debug)]
+#[derive(Component, Reflect, Debug)]
+#[reflect(Component)]
 #[component(storage = "SparseSet")]
 pub struct Listener;
 

@@ -5,7 +5,7 @@ use bevy::asset::AssetId;
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::{
     Assets, ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, Mesh, Mesh3d, On,
-    Query, Ref, Remove, Res, Transform, Vec3, With,
+    Query, Ref, Reflect, ReflectComponent, Remove, Res, Transform, Vec3, With,
 };
 
 /// Marker component that registers this entity's [`Mesh3d`] geometry as a static mesh.
@@ -16,7 +16,8 @@ use bevy::prelude::{
 ///
 /// If no scene ancestor exists yet, or the mesh asset is not yet loaded, registration is deferred
 /// to the next frame.
-#[derive(Component, Copy, Clone, Debug)]
+#[derive(Component, Reflect, Copy, Clone, Debug)]
+#[reflect(Component)]
 #[require(Mesh3d, Transform)]
 pub struct StaticMesh;
 

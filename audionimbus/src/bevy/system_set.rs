@@ -1,9 +1,9 @@
 //! System set for spatial audio scheduling.
 
-use bevy::prelude::SystemSet;
+use bevy::prelude::{Reflect, SystemSet};
 
 /// System sets used to group related spatial audio systems.
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(SystemSet, Reflect, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpatialAudioSet {
     /// Asset instantiation.
     SyncAssets,
