@@ -4,7 +4,8 @@
 [![Documentation](https://docs.rs/audionimbus/badge.svg)](https://docs.rs/audionimbus)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 
-A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/) that provides spatial audio capabilities for games and VR applications. It simulates realistic sound propagation, including physics-based occlusion, reflections, reverb, HRTF, and more.
+A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/) that provides spatial audio capabilities for games and VR applications.
+It simulates realistic sound propagation, including physics-based occlusion, reflections, reverb, HRTF, and more.
 
 ## Features
 
@@ -13,11 +14,11 @@ A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/
 * **Head-Related Transfer Function (HRTF)**: Simulates how the listener's head and ears shape incoming sound to convey direction and distance.
 * **Ambisonics & surround sound**: Encodes spatial information across multiple audio channels to reproduce directional sound fields.
 
-AudioNimbus can integrate with FMOD Studio and Wwise.
+AudioNimbus can integrate with FMOD Studio, Wwise, and Bevy.
 
-For a demonstration of AudioNimbus' capabilities, watch [the walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
+For a demonstration of AudioNimbus' capabilities, watch [the walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is) or run [the demos](audionimbus/examples).
 
-## Get Started
+## Getting Started
 
 Add `audionimbus` to your dependencies:
 
@@ -30,7 +31,7 @@ The `auto-install` feature automatically downloads and installs Steam Audio for 
 
 For more information, refer to the detailed [installation guide](audionimbus/README.md#installation).
 
-To get started integrating `audionimbus` into your project, check out [the example](audionimbus/README.md#example) or run the [`demo`](audionimbus/examples/core).
+To get started integrating `audionimbus` into your project, check out [the example](audionimbus/README.md#example) or run the [`demos`](audionimbus/examples).
 
 ## Documentation
 
