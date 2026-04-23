@@ -1,7 +1,7 @@
 //! Acoustic geometry.
 //!
 //! This module provides components and systems for registering 3D acoustic geometry.
-//! Geometry affects how sound propagates through a scene; surfaces reflect, absorb, and oclude
+//! Geometry affects how sound propagates through a scene; surfaces reflect, absorb, and occlude
 //! audio depending on their acoustic [`Material`] properties.
 //!
 //! # Scene hierarchy

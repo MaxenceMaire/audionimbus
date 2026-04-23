@@ -28,7 +28,7 @@ pub struct InstancedMesh(pub Entity);
 #[relationship_target(relationship = InstancedMesh)]
 pub struct SubSceneOf(Vec<Entity>);
 
-/// Internal bookkeeping component inserted alongside [`InstancedMesh`] after succesful
+/// Internal bookkeeping component inserted alongside [`InstancedMesh`] after successful
 /// registration.
 ///
 /// Stores the information needed to remove the instanced mesh from its parent scene when

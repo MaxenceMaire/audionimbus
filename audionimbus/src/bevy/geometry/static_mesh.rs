@@ -21,7 +21,7 @@ use bevy::prelude::{
 #[require(Mesh3d, Transform)]
 pub struct StaticMesh;
 
-/// Internal bookkeeping component inserted alongside [`StaticMesh`] after succesful registration.
+/// Internal bookkeeping component inserted alongside [`StaticMesh`] after successful registration.
 ///
 /// Stores the handle needed to remove the mesh from its scene when [`StaticMesh`] is removed or
 /// the entity is despawned.
