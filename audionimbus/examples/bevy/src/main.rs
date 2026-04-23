@@ -1,7 +1,4 @@
-use audionimbus::bevy::{SpatialAudioDebugPlugin, SpatialAudioPlugin};
-use audionimbus::{
-    AudioSettings, ConvolutionSettings, DirectSimulationSettings, SimulationSettings,
-};
+use audionimbus::bevy::*;
 use bevy::camera_controller::free_camera::FreeCameraPlugin;
 use bevy::prelude::*;
 use bevy_seedling::firewheel::cpal::{CpalBackend, CpalConfig, CpalOutputConfig};

@@ -1,4 +1,4 @@
-use audionimbus::Direction;
+use audionimbus::bevy::*;
 use bevy::prelude::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};

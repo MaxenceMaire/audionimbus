@@ -3,11 +3,33 @@
 //! This prelude intentionally shadows types with aliases bound to [`DefaultSimulationConfiguration`].
 //! Import the corresponding items from their defining modules when you need a custom
 //! [`SimulationConfiguration`].
+//!
+//! It also re-exports a curated set of core AudioNimbus types that are commonly paired with the
+//! Bevy integration.
 
 use super::{
     asset, configuration, debug, error, geometry, hrtf, plugin, probe, runner, simulation, source,
     system_set,
 };
+
+pub use crate::audio_buffer::{AudioBuffer, AudioBufferSettings, Sample, num_ambisonics_channels};
+pub use crate::audio_settings::AudioSettings;
+pub use crate::context::Context;
+pub use crate::effect::ambisonics::SpeakerLayout;
+pub use crate::effect::ambisonics::decode::{
+    AmbisonicsDecodeEffect, AmbisonicsDecodeEffectParams, AmbisonicsDecodeEffectSettings, Rendering,
+};
+pub use crate::effect::binaural::{BinauralEffect, BinauralEffectParams, BinauralEffectSettings};
+pub use crate::effect::direct::{DirectEffect, DirectEffectParams, DirectEffectSettings};
+pub use crate::effect::reflections::{
+    Convolution, ReflectionEffect, ReflectionEffectParams, ReflectionEffectSettings,
+};
+pub use crate::geometry::{CoordinateSystem, Direction};
+pub use crate::hrtf::{HrtfInterpolation, HrtfSettings};
+pub use crate::simulation::{
+    ConvolutionSettings, DirectSimulationSettings, ReflectionsSharedInputs, SimulationSettings,
+};
+pub use crate::wiring::{ReflectionsReverbOutput, SharedSimulationOutput};
 
 pub use asset::{
     ProbeBatchAsset, ProbeBatchAssetLoader, ProbeBatchAssetSource, SceneAsset, SceneAssetLoader,

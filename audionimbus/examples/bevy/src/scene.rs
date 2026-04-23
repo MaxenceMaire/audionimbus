@@ -1,10 +1,6 @@
 use crate::audio::{SharedDirection, SpatialNode};
 use crate::consts::{AMBISONICS_ORDER, IMPULSE_RESPONSE_DURATION, LISTENER_HEIGHT, ROOM_SIZE};
-use audionimbus::bevy::{
-    DirectSimulation, Listener, MainScene, ReflectionsReverbSimulation, Scene, Simulation,
-    SimulationSharedInputs, Source, StaticMesh,
-};
-use audionimbus::{Context, ReflectionsSharedInputs};
+use audionimbus::bevy::{Scene as AudioScene, *};
 use bevy::camera::visibility::NoFrustumCulling;
 use bevy::camera_controller::free_camera::FreeCamera;
 use bevy::prelude::*;
@@ -84,7 +80,7 @@ fn spawn_environment(
     });
     let room_mesh = meshes.add(Mesh::from(Cuboid::from_size(Vec3::splat(ROOM_SIZE))));
 
-    let scene = Scene::try_new(&context).expect("failed to create top-level scene");
+    let scene = AudioScene::try_new(&context).expect("failed to create top-level scene");
 
     commands
         .spawn((

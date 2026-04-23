@@ -14,8 +14,7 @@
 //! by the the selected configuration, and keeps them synchronized with ECS state.
 //!
 //! ```rust,no_run
-//! use audionimbus::bevy::{Scene, MainScene, Listener, Source, SpatialAudioPlugin, Simulation};
-//! use audionimbus::{AudioSettings, Context};
+//! use audionimbus::bevy::{Scene as AudioScene, *};
 //! use bevy::prelude::*;
 //!
 //! fn main() {
@@ -30,7 +29,7 @@
 //!
 //! fn setup(mut commands: Commands, context: Res<Context>, simulation: Res<Simulation>) {
 //!     commands.spawn((
-//!         Scene::try_new(&context).unwrap(),
+//!         AudioScene::try_new(&context).unwrap(),
 //!         MainScene,
 //!         Transform::default(),
 //!         Visibility::default(),

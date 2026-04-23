@@ -1,10 +1,5 @@
 use crate::consts::{AMBISONICS_CHANNELS, AMBISONICS_ORDER, IMPULSE_RESPONSE_DURATION};
-use audionimbus::{
-    AmbisonicsDecodeEffect, AmbisonicsDecodeEffectParams, AmbisonicsDecodeEffectSettings,
-    AudioBuffer, AudioBufferSettings, AudioSettings, Context, Convolution, CoordinateSystem, Hrtf,
-    ReflectionEffect, ReflectionEffectParams, ReflectionEffectSettings, Rendering, Sample,
-    SpeakerLayout,
-};
+use audionimbus::bevy::*;
 use bevy::prelude::*;
 
 /// Convolution path.

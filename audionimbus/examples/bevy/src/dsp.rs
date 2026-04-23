@@ -1,4 +1,4 @@
-use audionimbus::Sample;
+use audionimbus::bevy::*;
 
 /// A repeating tone-burst generator.
 ///

@@ -1,4 +1,4 @@
-use audionimbus::num_ambisonics_channels;
+use audionimbus::bevy::*;
 
 /// Sample rate.
 pub const SAMPLE_RATE: u32 = 48_000;
