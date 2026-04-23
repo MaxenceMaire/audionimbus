@@ -28,3 +28,4 @@ bevy = ["dep:bevy", "wiring"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
+features = ["bevy"]
