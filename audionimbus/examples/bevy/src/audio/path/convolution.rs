@@ -57,7 +57,7 @@ impl ConvolutionPath {
     ) -> &[Sample] {
         let Some(params) = params else {
             self.stereo_buffer.fill(0.0);
-            return &[];
+            return &self.stereo_buffer;
         };
 
         let ambisonics = AudioBuffer::try_with_data_and_settings(
