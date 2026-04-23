@@ -53,6 +53,7 @@ pub(crate) struct SpawnedStaticMesh {
 ///
 /// Geometry is sourced from the entity's [`Mesh3d`] asset.
 /// [`Material::default`] is used when no [`Material`] component is present.
+#[allow(clippy::type_complexity)]
 pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
     static_meshes: Query<
         (
@@ -122,6 +123,7 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
 /// Attempts to create and register a [`StaticMesh`] under its parent scene.
 ///
 /// Returns `None` when the mesh asset is not yet loaded or the geometry cannot be extracted.
+#[allow(clippy::too_many_arguments)]
 fn try_register_static_mesh<C: SimulationConfiguration>(
     entity: Entity,
     scene_entity: Entity,

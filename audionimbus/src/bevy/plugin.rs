@@ -51,13 +51,7 @@ pub struct SpatialAudioPlugin<
     RR: Runner = (),
     RP: Runner = (),
 > {
-    simulation_settings: SimulationSettings<
-        C::RayTracer,
-        C::Direct,
-        C::Reflections,
-        C::Pathing,
-        C::ReflectionEffect,
-    >,
+    simulation_settings: BoundSimulationSettings<C>,
     _phantom: std::marker::PhantomData<(RD, RR, RP)>,
 }
 
@@ -75,13 +69,7 @@ impl
     /// Use [`default`](SpatialAudioPlugin::default) for the built-in starter configuration, or
     /// [`with_config`](SpatialAudioPlugin::with_config) to supply a custom [`SimulationConfiguration`].
     pub fn new(
-        simulation_settings: SimulationSettings<
-            <DefaultSimulationConfiguration as SimulationConfiguration>::RayTracer,
-            <DefaultSimulationConfiguration as SimulationConfiguration>::Direct,
-            <DefaultSimulationConfiguration as SimulationConfiguration>::Reflections,
-            <DefaultSimulationConfiguration as SimulationConfiguration>::Pathing,
-            <DefaultSimulationConfiguration as SimulationConfiguration>::ReflectionEffect,
-        >,
+        simulation_settings: BoundSimulationSettings<DefaultSimulationConfiguration>,
     ) -> Self {
         Self {
             simulation_settings,
@@ -118,19 +106,8 @@ impl SpatialAudioPlugin<DefaultSimulationConfiguration, (), (), ()> {
     /// Runners are inferred from the configuration's simulation modes.
     /// Use [`with_runners`](SpatialAudioPlugin::with_runners) to override them.
     pub fn with_config<C>(
-        simulation_settings: SimulationSettings<
-            C::RayTracer,
-            C::Direct,
-            C::Reflections,
-            C::Pathing,
-            C::ReflectionEffect,
-        >,
-    ) -> SpatialAudioPlugin<
-        C,
-        <C::Direct as ToRunner>::Runner,
-        <C::Reflections as ToRunner>::Runner,
-        <C::Pathing as ToRunner>::Runner,
-    >
+        simulation_settings: BoundSimulationSettings<C>,
+    ) -> InferredSpatialAudioPlugin<C>
     where
         C: SimulationConfiguration,
         C::Direct: ToRunner,
@@ -348,3 +325,20 @@ where
         }
     }
 }
+
+/// Simulation settings bound to a [`SimulationConfiguration`].
+pub type BoundSimulationSettings<C> = SimulationSettings<
+    <C as SimulationConfiguration>::RayTracer,
+    <C as SimulationConfiguration>::Direct,
+    <C as SimulationConfiguration>::Reflections,
+    <C as SimulationConfiguration>::Pathing,
+    <C as SimulationConfiguration>::ReflectionEffect,
+>;
+
+/// Spatial audio plugin inferred from its [`SimulationConfiguration`].
+pub type InferredSpatialAudioPlugin<C> = SpatialAudioPlugin<
+    C,
+    <<C as SimulationConfiguration>::Direct as ToRunner>::Runner,
+    <<C as SimulationConfiguration>::Reflections as ToRunner>::Runner,
+    <<C as SimulationConfiguration>::Pathing as ToRunner>::Runner,
+>;

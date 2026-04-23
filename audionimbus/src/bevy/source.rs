@@ -182,6 +182,7 @@ pub(crate) fn sync_simulation_shared_inputs_listener<C: SimulationConfiguration>
 }
 
 /// Publishes a new snapshot of sources.
+#[allow(clippy::type_complexity)]
 pub(crate) fn sync_sources<C: SimulationConfiguration>(
     mut query: Query<
         (

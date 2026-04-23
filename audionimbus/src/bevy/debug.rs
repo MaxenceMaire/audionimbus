@@ -47,10 +47,7 @@ impl<C: SimulationConfiguration + 'static> Plugin for SpatialAudioDebugPlugin<C>
         app.init_resource::<WireframePalette>();
         app.add_systems(
             PostUpdate,
-            (
-                draw_top_level_static_mesh::<C>,
-                draw_instanced_sub_scene::<C>,
-            )
+            (draw_top_level_static_mesh, draw_instanced_sub_scene::<C>)
                 .after(TransformSystems::Propagate)
                 .after(SpatialAudioSet::SyncGeometry),
         );
@@ -117,7 +114,7 @@ pub struct WireframeColor(pub Color);
 ///
 /// Static meshes whose containing scene is referenced as a sub-scene are skipped.
 /// Those meshes are instead drawn by [`draw_instanced_sub_scene_wireframes`] once per spawned instance.
-fn draw_top_level_static_mesh<C: SimulationConfiguration>(
+fn draw_top_level_static_mesh(
     static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh)>,
     sub_scenes: Query<(), With<SubSceneOf>>,
     mesh_assets: Res<Assets<Mesh>>,

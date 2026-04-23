@@ -7,25 +7,12 @@ use std::ops::{Deref, DerefMut};
 /// Resource wrapping a [`wiring::Simulation`](crate::wiring::simulation::Simulation).
 #[derive(Resource)]
 pub struct Simulation<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub  crate::wiring::simulation::Simulation<
-        Entity,
-        C::RayTracer,
-        C::Direct,
-        C::Reflections,
-        C::Pathing,
-        C::ReflectionEffect,
-    >,
+    pub WiringSimulation<C>,
 );
 
 impl<C: SimulationConfiguration> Deref for Simulation<C> {
-    type Target = crate::wiring::simulation::Simulation<
-        Entity,
-        C::RayTracer,
-        C::Direct,
-        C::Reflections,
-        C::Pathing,
-        C::ReflectionEffect,
-    >;
+    type Target = WiringSimulation<C>;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -36,6 +23,16 @@ impl<C: SimulationConfiguration> DerefMut for Simulation<C> {
         &mut self.0
     }
 }
+
+/// Wiring simulation.
+type WiringSimulation<C> = crate::wiring::simulation::Simulation<
+    Entity,
+    <C as SimulationConfiguration>::RayTracer,
+    <C as SimulationConfiguration>::Direct,
+    <C as SimulationConfiguration>::Reflections,
+    <C as SimulationConfiguration>::Pathing,
+    <C as SimulationConfiguration>::ReflectionEffect,
+>;
 
 /// Shared simulation inputs, updated each frame by the game thread.
 #[derive(Resource, Debug)]

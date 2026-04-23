@@ -67,14 +67,7 @@ pub struct SceneAssetSource<C: SimulationConfiguration = DefaultSimulationConfig
     /// Asset handle.
     handle: Handle<SceneAsset>,
     /// Asset loader.
-    loader: Arc<
-        dyn Fn(
-                &Context,
-                &SceneAsset,
-            ) -> Result<crate::geometry::Scene<C::RayTracer>, SteamAudioError>
-            + Send
-            + Sync,
-    >,
+    loader: SceneLoader<C>,
 }
 
 impl<C> SceneAssetSource<C>
@@ -164,8 +157,21 @@ impl<C: SimulationConfiguration> SceneAssetSource<C> {
     }
 }
 
+/// Scene asset loader.
+type SceneLoader<C> = Arc<
+    dyn Fn(
+            &Context,
+            &SceneAsset,
+        ) -> Result<
+            crate::geometry::Scene<<C as SimulationConfiguration>::RayTracer>,
+            SteamAudioError,
+        > + Send
+        + Sync,
+>;
+
 /// Inserts or replaces [`Scene<C>`] on entities with [`SceneAssetSource<C>`] when their backing
 /// asset becomes ready, is modified, or the stored handle changes.
+#[allow(clippy::type_complexity)]
 pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
     mut commands: Commands,
     context: Res<Context>,

@@ -458,11 +458,7 @@ pub(super) fn find_scene_ancestor<C: SimulationConfiguration>(
         return Some(entity);
     }
 
-    for ancestor in parents.iter_ancestors(entity) {
-        if scenes.contains(ancestor) {
-            return Some(ancestor);
-        }
-    }
-
-    None
+    parents
+        .iter_ancestors(entity)
+        .find(|&ancestor| scenes.contains(ancestor))
 }

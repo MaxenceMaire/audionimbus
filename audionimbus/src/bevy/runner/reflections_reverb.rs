@@ -69,6 +69,7 @@ where
 
 /// Publishes a new frame to the reflections-reverb thread, including the listener source when one
 /// is present.
+#[allow(clippy::type_complexity)]
 fn sync_reflections_reverb_frame<C>(
     query: Query<(&GlobalTransform, &Source<C>, Option<&SourceParameters<C>>), With<Listener>>,
     simulation: Res<Simulation<C>>,
