@@ -180,6 +180,7 @@ Internally, it builds on the `wiring` module, so simulations run on dedicated th
 
 The integration stops at simulation output.
 Applying those outputs to audio buffers is left to the implementer, allowing flexibility in the choice of playback backend.
+This boundary may be extended in the future to provide direct audio backend integration if there is sufficient interest.
 
 The [Bevy demo](./examples/bevy) shows one complete setup.
 

@@ -34,6 +34,8 @@ You can move around using the freecam controls:
 This demo uses the [`audionimbus::bevy`](https://docs.rs/audionimbus/latest/audionimbus/bevy/index.html) module to keep the simulation state in sync with the Bevy world.
 
 The simulation itself runs asynchronously on dedicated threads.
-A custom `bevy_seedling` node reads the latest direct, reflections, and reverb outputs, applies them to a generated tone burst, and mixes the result to stereo.
+
+The demo uses [Firewheel](https://github.com/BillyDM/firewheel) as the audio backend via the [`bevy_seedling`](https://github.com/corvusprudens/bevy_seedling) integration.
+A custom node reads the latest direct, reflections, and reverb outputs, applies them to a generated tone burst, and mixes the result to stereo.
 
 Bevy owns the scene and source transforms, the simulation threads produce spatial audio data in the background, and the audio graph consumes whichever simulation output is ready without blocking.
