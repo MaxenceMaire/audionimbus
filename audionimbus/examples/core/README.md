@@ -5,7 +5,7 @@ This crate demonstrates how to get started with the [`audionimbus`](../..) libra
 ## Running the demo
 
 ```bash
-cargo run --release -p core
+cargo run --release -p core-demo
 ```
 
 ## What you should hear

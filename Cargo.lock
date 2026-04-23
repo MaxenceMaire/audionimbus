@@ -2081,7 +2081,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "core"
+name = "core-demo"
 version = "0.1.0"
 dependencies = [
  "audionimbus",

@@ -10,7 +10,7 @@ A source orbits the listener inside a reflective room, making it easy to hear th
 Run it with:
 
 ```bash
-cargo run --release -p core
+cargo run --release -p core-demo
 ```
 
 ## Bevy demo
