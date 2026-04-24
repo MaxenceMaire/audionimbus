@@ -7,6 +7,7 @@ use crate::output::{FRAME_SIZE, NUM_CHANNELS, SAMPLE_RATE};
 use crate::simulation::AudioSetup;
 use audionimbus::wiring::*;
 use audionimbus::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -14,7 +15,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub fn spawn_audio_thread(
     setup: AudioSetup,
     source_angle: Arc<AtomicU32>,
-    direct_output: SharedSimulationOutput<Vec<((), DirectEffectParams)>>,
+    direct_output: SharedSimulationOutput<HashMap<(), DirectEffectParams>>,
     reflections_reverb_output: SharedSimulationOutput<ReflectionsReverbOutput<(), Convolution>>,
 ) -> cpal::Stream {
     let AudioSetup {
@@ -37,11 +38,8 @@ pub fn spawn_audio_thread(
 
         let direct_snapshot = direct_output.load();
         let reflections_snapshot = reflections_reverb_output.load();
-        let direct_params = direct_snapshot
-            .first()
-            .map(|(_, p)| p.clone())
-            .unwrap_or_default();
-        let source_reflection_params = reflections_snapshot.sources.first().map(|(_, p)| p);
+        let direct_params = direct_snapshot.get(&()).cloned().unwrap_or_default();
+        let source_reflection_params = reflections_snapshot.sources.get(&());
         let listener_reverb_params = reflections_snapshot.listener.as_ref();
 
         let angle = f32::from_bits(source_angle.load(Ordering::Relaxed));

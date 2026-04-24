@@ -1,0 +1,128 @@
+//! Reflections and reverb simulation runner.
+
+use super::super::configuration::SimulationConfiguration;
+use super::super::error::{SimulationErrorEvent, SimulationErrorSender};
+use super::super::simulation::{Simulation, SimulationSharedInputs, SimulationThread};
+use super::super::source::{Listener, Source, SourceParameters};
+use super::super::system_set::SpatialAudioSet;
+use super::{Runner, Spawn, SyncFrame, ToRunner};
+use crate::sealed::Sealed;
+use crate::simulation::{
+    DirectCompatible, PathingCompatible, Reflections, SimulationInputs, SimulationParameters,
+};
+use crate::wiring::{ReflectionsReverbFrame, SimulationStepError, SourceWithInputs};
+use bevy::prelude::{
+    App, Entity, GlobalTransform, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, With,
+    World, resource_exists,
+};
+use bevy::transform::TransformSystems;
+use std::ops::{Deref, DerefMut};
+
+/// Runner for reflections and listener-centric reverb simulation.
+pub struct RunnerReflectionsReverb;
+
+impl Sealed for RunnerReflectionsReverb {}
+impl Runner for RunnerReflectionsReverb {
+    type SimulationType = Reflections;
+}
+
+impl ToRunner for Reflections {
+    type Runner = RunnerReflectionsReverb;
+}
+
+impl<C> Spawn<C> for RunnerReflectionsReverb
+where
+    C: SimulationConfiguration<Reflections = Reflections>,
+    (): DirectCompatible<<C as SimulationConfiguration>::Direct>
+        + PathingCompatible<<C as SimulationConfiguration>::Pathing>,
+{
+    fn spawn(world: &mut World) {
+        let error_sender = world.resource::<SimulationErrorSender>().0.clone();
+
+        let runner = world
+            .resource_mut::<Simulation<C>>()
+            .spawn_reflections_reverb(move |error: SimulationStepError| {
+                let _ = error_sender.try_send(SimulationErrorEvent {
+                    thread: SimulationThread::ReflectionsReverb,
+                    error,
+                });
+            });
+
+        world.insert_resource(ReflectionsReverbSimulation::<C>(runner));
+    }
+}
+
+impl<C> SyncFrame<C> for RunnerReflectionsReverb
+where
+    C: SimulationConfiguration<Reflections = Reflections>,
+{
+    fn add_systems(app: &mut App) {
+        app.add_systems(
+            PostUpdate,
+            sync_reflections_reverb_frame::<C>
+                .run_if(resource_exists::<ReflectionsReverbSimulation<C>>)
+                .after(TransformSystems::Propagate)
+                .in_set(SpatialAudioSet::SyncFrames),
+        );
+    }
+}
+
+/// Publishes a new frame to the reflections-reverb thread, including the listener source when one
+/// is present.
+#[allow(clippy::type_complexity)]
+fn sync_reflections_reverb_frame<C>(
+    query: Query<(&GlobalTransform, &Source<C>, Option<&SourceParameters<C>>), With<Listener>>,
+    simulation: Res<Simulation<C>>,
+    reflections_reverb: Res<ReflectionsReverbSimulation<C>>,
+    shared_inputs: Res<SimulationSharedInputs<C>>,
+) where
+    C: SimulationConfiguration<Reflections = Reflections>,
+{
+    let listener = query
+        .iter()
+        .next()
+        .map(
+            |(global_transform, source, simulation_parameters)| SourceWithInputs {
+                source: source.0.clone(),
+                simulation_inputs: SimulationInputs {
+                    source: (*global_transform).into(),
+                    parameters: simulation_parameters
+                        .map_or_else(SimulationParameters::default, |params| params.0.clone()),
+                },
+            },
+        );
+
+    reflections_reverb.set_input(ReflectionsReverbFrame {
+        sources: simulation.sources.clone(),
+        listener,
+        shared_inputs: shared_inputs.0.clone(),
+    });
+}
+
+/// Resource wrapping a [`wiring::ReflectionsReverbSimulation`](crate::wiring::ReflectionsReverbSimulation).
+#[derive(Resource)]
+pub struct ReflectionsReverbSimulation<C: SimulationConfiguration>(
+    pub  crate::wiring::ReflectionsReverbSimulation<
+        Entity,
+        C::Direct,
+        C::Pathing,
+        C::ReflectionEffect,
+    >,
+);
+
+impl<C: SimulationConfiguration> Deref for ReflectionsReverbSimulation<C> {
+    type Target = crate::wiring::ReflectionsReverbSimulation<
+        Entity,
+        C::Direct,
+        C::Pathing,
+        C::ReflectionEffect,
+    >;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<C: SimulationConfiguration> DerefMut for ReflectionsReverbSimulation<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

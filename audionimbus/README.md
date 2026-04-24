@@ -8,9 +8,9 @@ A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/
 
 It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindings to the Steam Audio C API.
 
-For a demonstration of AudioNimbus' capabilities, watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is) or run the [demo](./examples/core).
+For a demonstration of AudioNimbus' capabilities, watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is), run the [demo](./examples/core), or explore the [Bevy demo](./examples/bevy).
 
-`audionimbus` can also integrate with FMOD and Wwise.
+`audionimbus` can also integrate with FMOD, Wwise, and Bevy.
 
 ## Version compatibility
 
@@ -38,6 +38,15 @@ Add `audionimbus` to your `Cargo.toml` with the `auto-install` feature:
 [dependencies]
 audionimbus = { version = "0.13.0", features = ["auto-install"] }
 ```
+
+#### With Bevy Integration
+
+```toml
+[dependencies]
+audionimbus = { version = "0.13.0", features = ["auto-install", "bevy"] }
+```
+
+The `bevy` feature enables the ECS integration and pulls in the `wiring` module used to run simulations on dedicated threads.
 
 #### With FMOD Studio Integration
 
@@ -163,6 +172,18 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 audionimbus = { version = "0.13.0", features = ["wwise"] }
 ```
 
+## Bevy Integration
+
+The [`bevy`](https://docs.rs/audionimbus/latest/audionimbus/bevy/index.html) module provides ECS wrappers around AudioNimbus types.
+
+Internally, it builds on the `wiring` module, so simulations run on dedicated threads while the Bevy world keeps scene and source state up to date.
+
+The integration stops at simulation output.
+Applying those outputs to audio buffers is left to the implementer, allowing flexibility in the choice of playback backend.
+This boundary may be extended in the future to provide direct audio backend integration if there is sufficient interest.
+
+The [Bevy demo](./examples/bevy) shows one complete setup.
+
 ## Example
 
 This example demonstrates how to spatialize sound using the `audionimbus` library:
@@ -226,6 +247,8 @@ let _effect_state =
 ```
 
 To implement real-time audio processing and playback in your game, check out the [demo crate](./examples/core) for a basic example.
+
+For a Bevy-based setup, see the [Bevy demo](./examples/bevy).
 
 For additional examples, you can explore the [tests](./tests).
 

@@ -14,7 +14,8 @@ use crate::geometry::Scene;
 use crate::ray_tracing::RayTracer;
 use arc_swap::ArcSwap;
 use object_pool::{Pool, ReusableOwned};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 use std::sync::{
     Arc, Condvar, Mutex,
     atomic::{AtomicBool, Ordering},
@@ -159,6 +160,12 @@ impl<T> Clear for Vec<T> {
     }
 }
 
+impl<K, V> Clear for HashMap<K, V> {
+    fn clear(&mut self) {
+        HashMap::clear(self);
+    }
+}
+
 /// Types whose capacity can be shrunk.
 pub trait Shrink {
     /// Shrinks the capacity of the type.
@@ -168,6 +175,17 @@ pub trait Shrink {
 impl<T> Shrink for Vec<T> {
     fn shrink(&mut self) {
         if self.capacity() > self.len() * 3 {
+            self.shrink_to_fit();
+        }
+    }
+}
+
+impl<K, V> Shrink for HashMap<K, V>
+where
+    K: Eq + Hash,
+{
+    fn shrink(&mut self) {
+        if self.capacity() > self.len() * 2 {
             self.shrink_to_fit();
         }
     }

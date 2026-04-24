@@ -9,12 +9,14 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, R, P, RE> Simulation<SourceId, T, Direct, R, P, RE>
 where
-    SourceId: 'static + Send + Sync + Clone,
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
     T: 'static + RayTracer,
     R: 'static + Send + Sync + Clone + Default + ReflectionsCompatible<R> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,
@@ -31,10 +33,11 @@ where
             shared_inputs: Default::default(),
         })));
 
-        let output =
-            SharedSimulationOutput::<Vec<(SourceId, DirectEffectParams)>>(Arc::new(ArcSwap::new(
-                Arc::new(Arc::new(Pool::new(1, Vec::default)).pull_owned(Vec::default)),
-            )));
+        let output = SharedSimulationOutput::<HashMap<SourceId, DirectEffectParams>>(Arc::new(
+            ArcSwap::new(Arc::new(
+                Arc::new(Pool::new(1, HashMap::default)).pull_owned(HashMap::default),
+            )),
+        ));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
         let shutdown = Arc::new(AtomicBool::new(false));
@@ -75,7 +78,7 @@ where
     /// Shared input frame, updated each game frame.
     input: SharedDirectInput<SourceId, R, P, RE>,
     /// Shared output, read by the audio thread.
-    output: SharedSimulationOutput<Vec<(SourceId, DirectEffectParams)>>,
+    output: SharedSimulationOutput<HashMap<SourceId, DirectEffectParams>>,
     /// Thread lifecycle controls.
     controls: SimulationControls,
 }
@@ -91,7 +94,7 @@ where
     }
 
     /// Returns the shared output produced by this simulation thread.
-    pub fn output(&self) -> SharedSimulationOutput<Vec<(SourceId, DirectEffectParams)>> {
+    pub fn output(&self) -> SharedSimulationOutput<HashMap<SourceId, DirectEffectParams>> {
         self.output.clone()
     }
 

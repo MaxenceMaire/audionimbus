@@ -3,6 +3,8 @@ use super::super::step::{AsDirectInput, DirectInput};
 use super::{Allocate, Resolve, SourcesGuard};
 use crate::effect::DirectEffectParams;
 use crate::simulation::{Direct, ReflectionEffectCompatible, SimulationSharedInputs};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[cfg(doc)]
 use super::super::simulation::Simulation;
@@ -58,8 +60,9 @@ where
 }
 
 impl<SourceId, R, P, RE> Allocate<ResolvedDirectFrame<'_, SourceId, Direct, R, P, RE>>
-    for Vec<(SourceId, DirectEffectParams)>
+    for HashMap<SourceId, DirectEffectParams>
 where
+    SourceId: Hash + Eq,
     RE: ReflectionEffectCompatible<R, RE>,
 {
     fn allocate(input: &ResolvedDirectFrame<'_, SourceId, Direct, R, P, RE>) -> Self {

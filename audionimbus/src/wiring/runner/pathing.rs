@@ -3,6 +3,8 @@ use super::super::step::{AsPathingInput, PathingInput, PathingInputOwned};
 use super::{Allocate, Resolve, SourcesGuard};
 use crate::effect::PathEffectParams;
 use crate::simulation::{Pathing, ReflectionEffectCompatible, SimulationSharedInputs};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[cfg(doc)]
 use super::super::simulation::Simulation;
@@ -68,8 +70,9 @@ where
 }
 
 impl<SourceId, D, R, RE> Allocate<ResolvedPathingFrame<'_, SourceId, D, R, Pathing, RE>>
-    for Vec<(SourceId, PathEffectParams)>
+    for HashMap<SourceId, PathEffectParams>
 where
+    SourceId: Hash + Eq,
     RE: ReflectionEffectCompatible<R, RE>,
 {
     fn allocate(input: &ResolvedPathingFrame<'_, SourceId, D, R, Pathing, RE>) -> Self {

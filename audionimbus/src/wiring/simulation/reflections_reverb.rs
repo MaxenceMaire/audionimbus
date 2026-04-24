@@ -9,12 +9,13 @@ use crate::simulation::{
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
+use std::hash::Hash;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Condvar, Mutex};
 
 impl<SourceId, T, D, P, RE> Simulation<SourceId, T, D, Reflections, P, RE>
 where
-    SourceId: 'static + Send + Sync + Clone,
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
     T: 'static + RayTracer,
     D: 'static + Send + Sync + Clone + Default + DirectCompatible<D> + SimulationFlagsProvider,
     P: 'static + Send + Sync + Clone + Default + PathingCompatible<P> + SimulationFlagsProvider,
@@ -81,7 +82,7 @@ where
 /// Dropping this handle requests shutdown and joins the thread.
 pub struct ReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P>
 where
-    SourceId: 'static + Send + Sync,
+    SourceId: 'static + Send + Sync + Hash + Eq,
     RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Shared input frame, updated each game frame.
@@ -94,7 +95,7 @@ where
 
 impl<SourceId, D, P, RE, LD, LP> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
 where
-    SourceId: 'static + Send + Sync,
+    SourceId: 'static + Send + Sync + Hash + Eq,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Updates the input frame used on the next run.

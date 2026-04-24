@@ -26,7 +26,7 @@ impl ToneBurst {
         off_secs: f32,
         sample_rate: u32,
     ) -> Self {
-        let phase_increment = 2.0 * std::f32::consts::PI * frequency / sample_rate as f32;
+        let phase_increment = std::f32::consts::TAU * frequency / sample_rate as f32;
         let on_samples = (on_secs * sample_rate as f32) as u32;
         let off_samples = (off_secs * sample_rate as f32) as u32;
         let fade_samples = (0.02 * sample_rate as f32) as u32;

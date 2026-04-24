@@ -6,9 +6,9 @@
 //!
 //! It builds upon [`audionimbus-sys`](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus-sys), which provides raw bindings to the Steam Audio C API.
 //!
-//! To experience AudioNimbus in action, play the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/core) or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
+//! To experience AudioNimbus in action, play the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/core), explore the [Bevy demo](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/bevy), or watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is).
 //!
-//! `audionimbus` can also integrate with FMOD and Wwise.
+//! `audionimbus` can also integrate with FMOD, Wwise, and Bevy.
 //!
 //! ## Version compatibility
 //!
@@ -54,6 +54,16 @@
 //! ```
 //!
 //! You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
+//!
+//! #### With Bevy Integration
+//!
+//! ```toml
+//! [dependencies]
+//! audionimbus = { version = "0.13.0", features = ["auto-install", "bevy"] }
+//! ```
+//!
+//! The `bevy` feature enables the ECS integration and pulls in the `wiring` module used to run
+//! simulations on dedicated threads.
 //!
 //! #### How It Works
 //!
@@ -161,6 +171,22 @@
 //! audionimbus = { version = "0.13.0", features = ["wwise"] }
 //! ```
 //!
+//! ## Bevy Integration
+//!
+//! The [`bevy`] module provides ECS wrappers around AudioNimbus types.
+//!
+//! Internally, it builds on the [`wiring`] module, so simulations run on dedicated threads while
+//! the Bevy world keeps scene and source state up to date.
+//!
+//! The integration stops at simulation output.
+//! Applying those outputs to audio buffers is left to the implementer, allowing flexibility in the
+//! choice of playback backend.
+//! This boundary may be extended in the future to provide direct audio backend integration if
+//! there is sufficient interest.
+//!
+//! The [Bevy demo](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/bevy)
+//! shows one complete setup.
+//!
 //! ## Example
 //!
 //! This example demonstrates how to spatialize sound using the `audionimbus` library:
@@ -226,6 +252,8 @@
 //!
 //! To implement real-time audio processing and playback in your game, check out the [demo crate](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/core) for a basic example.
 //!
+//! For a Bevy-based setup, see the [Bevy demo](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/bevy).
+//!
 //! For a complete demonstration featuring HRTF, Ambisonics, reflections and reverb in an interactive environment, see the [AudioNimbus Interactive Demo repository](https://github.com/MaxenceMaire/audionimbus-demo).
 //!
 //! For additional examples, you can explore the [tests](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/tests).
@@ -243,6 +271,8 @@
 //!
 //! `audionimbus` is dual-licensed under the [MIT License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-MIT) and the [Apache-2.0 License](https://github.com/MaxenceMaire/audionimbus/blob/master/LICENSE-APACHE).
 //! You may choose either license when using the software.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 const NUM_BANDS: u32 = 3;
 
@@ -274,10 +304,17 @@ pub mod simulation;
 pub mod version;
 use sealed::Sealed;
 #[cfg(feature = "wiring")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wiring")))]
 pub mod wiring;
 
 #[cfg(feature = "fmod")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
 pub mod fmod;
 
 #[cfg(feature = "wwise")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
 pub mod wwise;
+
+#[cfg(feature = "bevy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bevy")))]
+pub mod bevy;

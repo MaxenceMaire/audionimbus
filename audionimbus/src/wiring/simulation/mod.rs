@@ -138,7 +138,6 @@ where
         let pending_scene_commits = Arc::new(ArcSwap::new(Arc::new(HashSet::new())));
         let shutdowns = vec![];
         let paused = vec![];
-
         Simulation {
             simulator,
             sources_pool,

@@ -6,6 +6,8 @@ use crate::simulation::{
     Direct, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider, SimulationSharedInputs, Simulator,
 };
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs direct simulation.
@@ -41,9 +43,9 @@ where
     RE: 'static + Send + Sync + ReflectionEffectCompatible<R, RE>,
     (): ReflectionsCompatible<R> + PathingCompatible<P>,
     I: AsDirectInput<SourceId, Direct, R, P, RE>,
-    SourceId: 'static + Clone + Send + Sync,
+    SourceId: 'static + Clone + Send + Sync + Hash + Eq,
 {
-    type Output = Vec<(SourceId, DirectEffectParams)>;
+    type Output = HashMap<SourceId, DirectEffectParams>;
     type Error = SimulationStepError;
 
     fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
@@ -66,7 +68,7 @@ where
         self.simulator.run_direct();
 
         for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
-            output.push((id.clone(), source.get_direct_outputs()?));
+            output.insert(id.clone(), source.get_direct_outputs()?);
         }
 
         Ok(())
