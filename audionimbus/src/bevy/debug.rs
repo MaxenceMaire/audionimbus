@@ -1,4 +1,25 @@
 //! Debug wireframe overlays.
+//!
+//! This module provides an optional [`SpatialAudioDebugPlugin`] that renders the acoustic geometry
+//! AudioNimbus sees using Bevy gizmos.
+//!
+//! The debug overlay renders:
+//! - static mesh triangles,
+//! - instanced sub-scenes,
+//! - a glyph for each [`Source`](super::source::Source) (with orientation where applicable).
+//!
+//! # Coloring
+//!
+//! By default, scene geometry is assigned a color from [`WireframePalette`].
+//! Static meshes inherit their scene color unless they provide a [`WireframeColor`] override.
+//! Sources use their own [`WireframeColor`] when present, otherwise they inherit the nearest
+//! ancestor scene color.
+//!
+//! Insert your own [`WireframePalette`] resource to replace the default cycling colors, or add
+//! [`WireframeColor`] to individual scenes, meshes, or sources to highlight specific entities.
+//!
+//! `C` must match the [`SpatialAudioPlugin`](crate::bevy::SpatialAudioPlugin) configuration used
+//! by the rest of the app.
 
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::geometry::{Scene, SpawnedInstancedMesh, SpawnedStaticMesh, SubSceneOf};
@@ -127,7 +148,7 @@ pub struct WireframeColor(pub Color);
 /// Draws wireframes for static meshes that belong to top-level scenes.
 ///
 /// Static meshes whose containing scene is referenced as a sub-scene are skipped.
-/// Those meshes are instead drawn by [`draw_instanced_sub_scene_wireframes`] once per spawned instance.
+/// Those meshes are instead drawn by [`draw_instanced_sub_scene`] once per spawned instance.
 fn draw_top_level_static_mesh(
     static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh)>,
     sub_scenes: Query<(), With<SubSceneOf>>,
