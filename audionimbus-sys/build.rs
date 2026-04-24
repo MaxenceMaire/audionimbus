@@ -3,22 +3,26 @@ use std::string::ToString;
 #[cfg(feature = "auto-install")]
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "auto-install")]
+use std::sync::OnceLock;
 
 const PHONON_HEADER_PATH: &str = "steam-audio/core/src/core/phonon.h";
 
 fn main() {
     println!("cargo::rerun-if-changed=steam-audio");
+    println!("cargo::rerun-if-env-changed=AUDIONIMBUS_AUTO_INSTALL_PROGRESS");
 
     let out_dir_path = std::env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_path);
 
     let version = version();
 
-    // Handle automatic installation if feature is enabled
     #[cfg(feature = "auto-install")]
     {
-        if let Err(e) = handle_auto_install() {
-            panic!("auto-install failed: {e}");
+        let did_work = handle_auto_install().unwrap_or_else(|e| panic!("auto-install failed: {e}"));
+
+        if did_work {
+            force_rerun();
         }
     }
 
@@ -31,30 +35,33 @@ fn main() {
     generate_bindings_phonon_wwise(&out_dir.join("phonon_wwise.rs"), &version, out_dir);
 }
 
+/// Returns `false` if the cache was already up to date.
 #[cfg(feature = "auto-install")]
-fn handle_auto_install() -> Result<(), Box<dyn std::error::Error>> {
+fn handle_auto_install() -> Result<bool, Box<dyn std::error::Error>> {
     let target_info = get_target_info()?;
-    println!(
-        "cargo:warning=Auto-installing Steam Audio for target: {} ({})",
-        target_info.platform, target_info.arch
-    );
 
-    // Create cache directory
+    // Create cache directory.
     let cache_dir = get_cache_dir()?;
     fs::create_dir_all(&cache_dir)?;
 
-    // Install base Steam Audio
-    install_steam_audio(&cache_dir, &target_info)?;
+    let mut did_work = false;
 
-    // Install FMOD integration if feature is enabled
+    // Install base Steam Audio.
+    did_work |= install_steam_audio(&cache_dir, &target_info)?;
+
+    // Install FMOD integration if feature is enabled.
     #[cfg(feature = "fmod")]
-    install_fmod_integration(&cache_dir, &target_info)?;
+    {
+        did_work |= install_fmod_integration(&cache_dir, &target_info)?;
+    }
 
-    // Install Wwise integration if feature is enabled
+    // Install Wwise integration if feature is enabled.
     #[cfg(feature = "wwise")]
-    install_wwise_integration(&cache_dir, &target_info)?;
+    {
+        did_work |= install_wwise_integration(&cache_dir, &target_info)?;
+    }
 
-    Ok(())
+    Ok(did_work)
 }
 
 #[cfg(feature = "auto-install")]
@@ -162,95 +169,101 @@ fn get_cache_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(cache_dir)
 }
 
+/// Returns `false` if the cache was already up to date.
 #[cfg(feature = "auto-install")]
 fn install_steam_audio(
     cache_dir: &Path,
     target_info: &TargetInfo,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<bool, Box<dyn std::error::Error>> {
     let version = version().to_string();
     let zip_name = format!("steamaudio_{version}.zip");
     let zip_path = cache_dir.join(&zip_name);
     let extract_dir = cache_dir.join("steamaudio_core");
+    let install_name = format!("Steam Audio {version}");
+    let download_url = format!(
+        "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_{version}.zip"
+    );
 
-    // Check if already extracted and up to date
+    // Check if already extracted and up to date.
     let version_marker = extract_dir.join(".version");
-    if version_marker.exists()
+    let installed_now = if version_marker.exists()
         && fs::read_to_string(&version_marker)
             .unwrap_or_default()
             .trim()
             == version
     {
-        println!("cargo:warning=Steam Audio {version} already installed, skipping download");
+        log_install_progress(format!(
+            "{install_name} already installed for {} ({}), using cached files.",
+            target_info.platform, target_info.arch
+        ));
+        false
     } else {
-        // Download if not cached
-        if !zip_path.exists() {
-            println!("cargo:warning=Downloading Steam Audio {version}...");
-            download_file(
-                &format!(
-                    "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_{version}.zip"
-                ),
-                &zip_path,
-            )?;
-        }
+        log_install_progress(format!(
+            "{install_name} not found for {} ({}); installing.",
+            target_info.platform, target_info.arch
+        ));
 
-        // Extract
-        println!("cargo:warning=Extracting Steam Audio...");
+        ensure_downloaded_zip(&zip_path, &download_url, &install_name)?;
         extract_zip(&zip_path, &extract_dir)?;
 
-        // Mark version
-        fs::write(&version_marker, version)?;
-    }
+        // Mark version.
+        fs::write(&version_marker, &version)?;
+        true
+    };
 
-    // Copy libraries to a location where they can be found
     copy_libraries(
         &extract_dir.join("steamaudio"),
         target_info,
         &target_info.lib_names,
+        installed_now,
     )?;
 
-    Ok(())
+    Ok(installed_now)
 }
 
+/// Returns `false` if the cache was already up to date.
 #[cfg(all(feature = "auto-install", feature = "fmod"))]
 fn install_fmod_integration(
     cache_dir: &Path,
     target_info: &TargetInfo,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<bool, Box<dyn std::error::Error>> {
     let version = version().to_string();
     let zip_name = format!("steamaudio_fmod_{version}.zip");
     let zip_path = cache_dir.join(&zip_name);
     let extract_dir = cache_dir.join("steamaudio_fmod");
+    let install_name = format!("Steam Audio FMOD integration {version}");
+    let download_url = format!(
+        "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_fmod_{version}.zip"
+    );
 
-    // Check if already extracted and up to date
+    // Check if already extracted and up to date.
     let version_marker = extract_dir.join(".version");
-    if version_marker.exists()
+    let installed_now = if version_marker.exists()
         && fs::read_to_string(&version_marker)
             .unwrap_or_default()
             .trim()
             == version
     {
-        println!("cargo:warning=Steam Audio FMOD {version} already installed, skipping download");
+        log_install_progress(format!(
+            "{install_name} already installed for {} ({}), using cached files.",
+            target_info.platform, target_info.arch
+        ));
+        false
     } else {
-        // Download if not cached
-        if !zip_path.exists() {
-            println!("cargo:warning=Downloading Steam Audio FMOD integration {version}...");
-            download_file(
-                &format!(
-                    "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_fmod_{version}.zip"
-                ),
-                &zip_path,
-            )?;
-        }
+        log_install_progress(format!(
+            "{install_name} not found for {} ({}); installing.",
+            target_info.platform, target_info.arch
+        ));
 
-        // Extract
-        println!("cargo:warning=Extracting Steam Audio FMOD integration...");
+        ensure_downloaded_zip(&zip_path, &download_url, &install_name)?;
         extract_zip(&zip_path, &extract_dir)?;
 
-        // Mark version
-        fs::write(&version_marker, version)?;
-    }
+        // Mark version.
+        fs::write(&version_marker, &version)?;
+        true
+    };
 
-    // Copy FMOD libraries
+    // Copy FMOD libraries.
     let fmod_lib_name = match target_info.platform.as_str() {
         "windows" => "phonon_fmod.dll",
         "linux" | "android" => "libphonon_fmod.so",
@@ -263,52 +276,56 @@ fn install_fmod_integration(
         &extract_dir.join("steamaudio_fmod"),
         target_info,
         &[fmod_lib_name.to_string()],
+        installed_now,
     )?;
 
-    Ok(())
+    Ok(installed_now)
 }
 
+/// Returns `false` if the cache was already up to date.
 #[cfg(all(feature = "auto-install", feature = "wwise"))]
 fn install_wwise_integration(
     cache_dir: &Path,
     target_info: &TargetInfo,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<bool, Box<dyn std::error::Error>> {
     let version = version().to_string();
     let zip_name = format!("steamaudio_wwise_{version}.zip");
     let zip_path = cache_dir.join(&zip_name);
     let extract_dir = cache_dir.join("steamaudio_wwise");
+    let install_name = format!("Steam Audio Wwise integration {version}");
+    let download_url = format!(
+        "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_wwise_{version}.zip"
+    );
 
-    // Check if already extracted and up to date
+    // Check if already extracted and up to date.
     let version_marker = extract_dir.join(".version");
-    if version_marker.exists()
+    let installed_now = if version_marker.exists()
         && fs::read_to_string(&version_marker)
             .unwrap_or_default()
             .trim()
             == version
     {
-        println!("cargo:warning=Steam Audio Wwise {version} already installed, skipping download");
+        log_install_progress(format!(
+            "{install_name} already installed for {} ({}), using cached files.",
+            target_info.platform, target_info.arch
+        ));
+        false
     } else {
-        // Download if not cached
-        if !zip_path.exists() {
-            println!("cargo:warning=Downloading Steam Audio Wwise integration {version}...");
-            download_file(
-                &format!(
-                    "https://github.com/ValveSoftware/steam-audio/releases/download/v{version}/steamaudio_wwise_{version}.zip"
-                ),
-                &zip_path,
-            )?;
-        }
+        log_install_progress(format!(
+            "{install_name} not found for {} ({}); installing.",
+            target_info.platform, target_info.arch
+        ));
 
-        // Extract
-        println!("cargo:warning=Extracting Steam Audio Wwise integration...");
+        ensure_downloaded_zip(&zip_path, &download_url, &install_name)?;
         extract_zip(&zip_path, &extract_dir)?;
 
-        // Mark version
-        fs::write(&version_marker, version)?;
-    }
+        // Mark version.
+        fs::write(&version_marker, &version)?;
+        true
+    };
 
-    // Copy Wwise libraries - the actual library name might vary
-    let wwise_lib_name = "SteamAudioWwise"; // This might need adjustment based on actual file names
+    // Copy Wwise libraries - the actual library name might vary.
+    let wwise_lib_name = "SteamAudioWwise"; // This might need adjustment based on actual file names.
     let lib_names = vec![
         format!("lib{}.so", wwise_lib_name),
         format!("lib{}.dylib", wwise_lib_name),
@@ -316,7 +333,7 @@ fn install_wwise_integration(
         format!("lib{}.a", wwise_lib_name),
     ];
 
-    // Find which one exists and copy it
+    // Find which one exists and copy it.
     for lib_name in lib_names {
         let src = extract_dir
             .join("lib")
@@ -327,24 +344,25 @@ fn install_wwise_integration(
                 &extract_dir.join("steamaudio_wwise"),
                 target_info,
                 &[lib_name],
+                installed_now,
             )?;
             break;
         }
     }
 
-    Ok(())
+    Ok(installed_now)
 }
 
 #[cfg(feature = "auto-install")]
 fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::process::Command;
 
-    // Remove any existing partial download
+    // Remove any existing partial download.
     if dest.exists() {
         fs::remove_file(dest)?;
     }
 
-    // Try to use curl first with progress bar
+    // Try to use curl first with progress bar.
     let curl_result = Command::new("curl")
         .args([
             "-L",             // Follow redirects
@@ -362,16 +380,16 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
 
     match curl_result {
         Ok(status) if status.success() => {
-            // Verify the downloaded file is valid
+            // Verify the downloaded file is valid.
             validate_download(dest)?;
             Ok(())
         }
         _ => {
-            // Clean up failed download
+            // Clean up failed download.
             let _ = fs::remove_file(dest);
 
-            // Try wget as fallback with progress
-            println!("cargo:warning=curl failed, trying wget...");
+            // Try wget as fallback with progress.
+            log_install_progress("curl failed, trying wget...");
             let wget_result = Command::new("wget")
                 .args([
                     "--tries=3",     // Retry on failure
@@ -395,27 +413,6 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
 }
 
 #[cfg(feature = "auto-install")]
-fn validate_download(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Try to verify it's a valid zip by checking the magic number
-    use std::io::Read;
-    let mut file = std::fs::File::open(path)?;
-    let mut magic = [0u8; 4];
-    file.read_exact(&mut magic)?;
-
-    // Check for zip magic number (PK signature)
-    if &magic[0..2] != b"PK" {
-        return Err("Downloaded file is not a valid zip file".into());
-    }
-
-    println!(
-        "cargo:warning=Successfully downloaded and validated {}",
-        path.file_name().unwrap().to_string_lossy(),
-    );
-
-    Ok(())
-}
-
-#[cfg(feature = "auto-install")]
 fn test_zip(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::{fs, io};
 
@@ -423,32 +420,62 @@ fn test_zip(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut archive = zip::ZipArchive::new(file)?;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i)?;
-        // Read fully to verify CRC
+        // Read fully to verify CRC.
         io::copy(&mut entry, &mut io::sink())?;
     }
     Ok(())
 }
 
 #[cfg(feature = "auto-install")]
+fn validate_download(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    test_zip(path).map_err(|e| format!("Downloaded archive is invalid: {e}").into())
+}
+
+#[cfg(feature = "auto-install")]
+fn ensure_downloaded_zip(
+    zip_path: &Path,
+    url: &str,
+    install_name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if zip_path.exists() {
+        match validate_download(zip_path) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                log_install_progress(format!(
+                    "Cached archive {} is incomplete or corrupted ({}). Removing it and downloading again.",
+                    zip_path.display(),
+                    err
+                ));
+                fs::remove_file(zip_path)?;
+            }
+        }
+    }
+
+    log_install_progress(format!("Downloading {install_name}..."));
+    download_file(url, zip_path).map_err(|err| {
+        format!(
+            "{install_name} download failed. If the cache is stuck, delete {} and try again: {err}",
+            zip_path.display()
+        )
+        .into()
+    })
+}
+
+#[cfg(feature = "auto-install")]
 fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::{fs, io};
 
-    // Full CRC test before extracting
-    if let Err(e) = test_zip(zip_path) {
-        return Err(format!("Zip file is corrupted: {e}").into());
-    }
-
-    // Remove existing directory if it exists
+    // Remove existing directory if it exists.
     if dest_dir.exists() {
         fs::remove_dir_all(dest_dir)?;
     }
     fs::create_dir_all(dest_dir)?;
 
-    println!(
-        "cargo:warning=Extracting {} to {}...",
+    log_install_progress(format!(
+        "Extracting {} to {}...",
         zip_path.file_name().unwrap().to_string_lossy(),
         dest_dir.file_name().unwrap().to_string_lossy()
-    );
+    ));
 
     let file = fs::File::open(zip_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
@@ -456,7 +483,7 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i)?;
 
-        // Prevent Zip-Slip; skip dangerous paths
+        // Prevent Zip-Slip; skip dangerous paths.
         let rel_path = match entry.enclosed_name() {
             Some(p) => p.to_owned(),
             None => continue,
@@ -472,7 +499,7 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
             let mut outfile = fs::File::create(&outpath)?;
             io::copy(&mut entry, &mut outfile)?;
 
-            // Preserve UNIX perms when present (no-op on Windows)
+            // Preserve UNIX perms when present (no-op on Windows).
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -483,8 +510,6 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
         }
     }
 
-    println!("cargo:warning=Successfully extracted Steam Audio");
-
     Ok(())
 }
 
@@ -493,10 +518,11 @@ fn copy_libraries(
     extract_dir: &Path,
     target_info: &TargetInfo,
     lib_names: &[String],
+    force_copy: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let lib_src_dir = extract_dir.join("lib").join(&target_info.lib_dir);
 
-    // Create a lib directory in OUT_DIR for the libraries
+    // Create a lib directory in OUT_DIR for the libraries.
     let out_dir = std::env::var("OUT_DIR")?;
     let lib_dest_dir = Path::new(&out_dir).join("lib");
     fs::create_dir_all(&lib_dest_dir)?;
@@ -506,21 +532,42 @@ fn copy_libraries(
         let dest = lib_dest_dir.join(lib_name);
 
         if src.exists() {
-            println!(
-                "cargo:warning=Copying {} to {}",
-                src.display(),
-                dest.display()
-            );
-            fs::copy(&src, &dest)?;
+            if force_copy || !dest.exists() {
+                log_install_progress(format!("Copying {} to {}", src.display(), dest.display()));
+                fs::copy(&src, &dest)?;
+            }
         } else {
             return Err(format!("Required library not found: {}", src.display()).into());
         }
     }
 
-    // Tell cargo where to find the libraries
+    // Tell cargo where to find the libraries.
     println!("cargo:rustc-link-search=native={}", lib_dest_dir.display());
 
     Ok(())
+}
+
+#[cfg(feature = "auto-install")]
+fn log_install_progress(message: impl AsRef<str>) {
+    if install_progress_enabled() {
+        println!("cargo:warning=[auto-install] {}", message.as_ref());
+    }
+}
+
+#[cfg(feature = "auto-install")]
+fn install_progress_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+
+    *ENABLED.get_or_init(|| {
+        std::env::var("AUDIONIMBUS_AUTO_INSTALL_PROGRESS")
+            .map(|value| {
+                !matches!(
+                    value.trim().to_ascii_lowercase().as_str(),
+                    "0" | "false" | "no" | "off"
+                )
+            })
+            .unwrap_or(true)
+    })
 }
 
 fn generate_bindings_phonon(output_path: &Path, version: &Version, tmp_dir: &Path) {
@@ -734,4 +781,9 @@ fn system_flags() -> Vec<String> {
     }
 
     flags.into_iter().map(ToString::to_string).collect()
+}
+
+/// Forces to re-run the build script on the next build.
+fn force_rerun() {
+    println!("cargo::rerun-if-changed=RERUN");
 }

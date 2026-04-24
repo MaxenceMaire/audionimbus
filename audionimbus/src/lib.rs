@@ -82,6 +82,8 @@
 //! > During this step, cargo build may look like it is stuck - it’s just downloading in the background.
 //! > The files are cached, so this only happens the first time (or when the version changes).
 //!
+//! Set `AUDIONIMBUS_AUTO_INSTALL_PROGRESS=0` to silence Cargo progress warnings from the auto-install step.
+//!
 //! ### Manual Installation
 //!
 //! If you prefer manual installation or the automatic installation doesn't work for your setup, you can still install Steam Audio manually.
