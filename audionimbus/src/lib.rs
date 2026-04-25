@@ -189,6 +189,13 @@
 //! The [Bevy demo](https://github.com/MaxenceMaire/audionimbus/tree/master/audionimbus/examples/bevy)
 //! shows one complete setup.
 //!
+//! Version compatibility:
+//!
+//! | AudioNimbus | Bevy |
+//! |-------------|------|
+//! | 0.14        | 0.18 |
+//!
+//!
 //! ## Example
 //!
 //! This example demonstrates how to spatialize sound using the `audionimbus` library:
