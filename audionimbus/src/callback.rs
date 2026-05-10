@@ -68,9 +68,6 @@ macro_rules! callback {
         }
     };
 }
-
-pub(crate) use callback;
-
 /// Trait for types that can be converted to/from FFI representations.
 pub(crate) trait FfiConvert {
     type FfiType;

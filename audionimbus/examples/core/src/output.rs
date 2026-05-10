@@ -27,10 +27,11 @@ pub fn start_output_stream<F>(device: &cpal::Device, config: &StreamConfig, call
 where
     F: FnMut(&mut [Sample], &cpal::OutputCallbackInfo) + Send + 'static,
 {
+    let mut fixed_output = FrameAdapter::new(config, callback);
     let stream = device
         .build_output_stream(
             config,
-            callback,
+            move |output, info| fixed_output.render(output, info),
             |err| eprintln!("audio stream error: {err}"),
             None,
         )
@@ -38,4 +39,52 @@ where
 
     stream.play().expect("failed to start output stream");
     stream
+}
+
+/// Adapts CPAL's callback buffer size to the fixed block size used by Steam Audio.
+///
+/// CPAL doesn't guarantee [`cpal::BufferSize::Fixed`] is actually honored.
+/// Some backends may still invoke the output callback with a different number of samples.
+///
+/// This wraps the render callback so it always sees exactly `FRAME_SIZE * channels` samples,
+/// holding any unconsumed output in `buffer` until the next CPAL callback drains it.
+struct FrameAdapter<F> {
+    /// User render callback that fills exactly one fixed-size frame.
+    callback: F,
+    /// Block buffer.
+    buffer: Vec<Sample>,
+    /// Current read position in `buffer`.
+    cursor: usize,
+}
+
+impl<F> FrameAdapter<F>
+where
+    F: FnMut(&mut [Sample], &cpal::OutputCallbackInfo),
+{
+    fn new(config: &StreamConfig, callback: F) -> Self {
+        let buffer_len = FRAME_SIZE as usize * config.channels as usize;
+        Self {
+            callback,
+            buffer: vec![0.0; buffer_len],
+            // Start at the end so the first callback renders a fresh block.
+            cursor: buffer_len,
+        }
+    }
+
+    /// Fills CPAL's `output` buffer by consuming one or more fixed-size render blocks.
+    fn render(&mut self, output: &mut [Sample], info: &cpal::OutputCallbackInfo) {
+        let mut remaining = output;
+
+        while !remaining.is_empty() {
+            if self.cursor == self.buffer.len() {
+                (self.callback)(&mut self.buffer, info);
+                self.cursor = 0;
+            }
+
+            let n = remaining.len().min(self.buffer.len() - self.cursor);
+            remaining[..n].copy_from_slice(&self.buffer[self.cursor..self.cursor + n]);
+            remaining = &mut remaining[n..];
+            self.cursor += n;
+        }
+    }
 }

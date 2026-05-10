@@ -790,6 +790,7 @@ fn system_flags() -> Vec<String> {
 }
 
 /// Forces to re-run the build script on the next build.
+#[cfg(feature = "auto-install")]
 fn force_rerun() {
     println!("cargo::rerun-if-changed=RERUN");
 }
