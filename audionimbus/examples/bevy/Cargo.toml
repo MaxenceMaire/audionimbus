@@ -9,7 +9,7 @@ name = "bevy"
 path = "src/main.rs"
 
 [dependencies]
-audionimbus = { path = "../..", features = ["auto-install", "bevy"] }
+audionimbus = { version = "0.14", features = ["auto-install", "bevy"] }
 bevy = { version = "0.18.1", features = ["free_camera"] }
 bevy_seedling = "0.7.2"
 rtrb = "0.3.3"

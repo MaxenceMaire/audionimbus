@@ -1,5 +1,10 @@
 # Audionimbus Bevy Demo
 
+> [!WARNING]
+> **Bevy 0.19 Compatibility Notice**
+>
+> The core `audionimbus` library has been upgraded to Bevy 0.19, but this demo remains pinned to Bevy 0.18.1 while its audio backend integration catches up with the same Bevy release.
+
 This crate demonstrates how to integrate [`audionimbus`](../..) into a Bevy application.
 
 ## Running the demo

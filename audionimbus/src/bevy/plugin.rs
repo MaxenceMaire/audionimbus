@@ -235,7 +235,7 @@ where
 
         let (sender, receiver) = error_channel();
         world.insert_resource(sender);
-        world.insert_non_send_resource(receiver);
+        world.insert_non_send(receiver);
 
         RD::spawn(world);
         RR::spawn(world);
