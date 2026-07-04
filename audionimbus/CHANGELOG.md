@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0] - 2026-07-04
+
+### Changed
+
+- Upgrade the Bevy integration to Bevy 0.19.
+- Update internal boolean conversions to use the new `audionimbus-sys` `IPLbool` conversion implementations.
+- Update `audionimbus-sys` to version `4.8.2-rc.2`.
+- The Bevy demo no longer enables the `auto-install` feature by default.
+
+### Fixed
+
+- Manual Steam Audio installation docs now distinguish build-time linker search paths (`LIBRARY_PATH` or `STEAMAUDIO_LIB_DIR`) from runtime dynamic library search paths.
+- Fixed FMOD setup examples to use the `FMODSDK` environment variable name.
+
 ## [0.14.0] - 2026-05-12
 
 ### Fixed
