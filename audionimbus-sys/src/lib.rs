@@ -179,6 +179,24 @@ You may choose either license when using the software.
 mod phonon;
 pub use phonon::*;
 
+impl From<bool> for IPLbool {
+    fn from(value: bool) -> Self {
+        match value {
+            true => Self::IPL_TRUE,
+            false => Self::IPL_FALSE,
+        }
+    }
+}
+
+impl From<IPLbool> for bool {
+    fn from(value: IPLbool) -> Self {
+        match value {
+            IPLbool::IPL_TRUE => true,
+            IPLbool::IPL_FALSE => false,
+        }
+    }
+}
+
 #[cfg(feature = "fmod")]
 pub mod fmod;
 #[cfg(feature = "fmod")]
