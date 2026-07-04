@@ -44,7 +44,7 @@
 //! audionimbus = { version = "0.15.0", features = ["auto-install", "fmod"] }
 //! ```
 //!
-//! You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMOD="/path/to/FMOD"`).
+//! You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMODSDK="/path/to/FMOD"`).
 //!
 //! #### With Wwise Integration
 //!
@@ -113,7 +113,13 @@
 //! | Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so` |
 //! | iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a` |
 //!
-//! Ensure the library is placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+//! Ensure the library is available to the linker at build time. For example:
+//!
+//! ```bash
+//! LIBRARY_PATH="/usr/local/lib" cargo build
+//! ```
+//!
+//! If you want to link directly against the extracted Steam Audio SDK instead of installing the library into a common linker directory, set `STEAMAUDIO_LIB_DIR` to the platform-specific library directory, for example `STEAMAUDIO_LIB_DIR="$SDKROOT/lib/linux-x64"`.
 //!
 //! Finally, add `audionimbus` to your `Cargo.toml`:
 //!
@@ -145,7 +151,7 @@
 //! | Android x64 | `SDKROOT/lib/android-x64` | `libphonon.so`, `libphonon_fmod.so` |
 //! | iOS ARMv8/AArch64 | `SDKROOT/lib/ios` | `libphonon.a`, `libphonon_fmod.a` |
 //!
-//! 3. Ensure the libraries are placed in a location listed in the [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+//! 3. Ensure the libraries are available to the linker at build time, for example with `LIBRARY_PATH` or `STEAMAUDIO_LIB_DIR`.
 //!
 //! 4. Finally, add `audionimbus` with the `fmod` feature enabled to your `Cargo.toml`:
 //!
@@ -162,7 +168,7 @@
 //!
 //! 1. Download `steamaudio_wwise_4.8.1.zip` from the [release page](https://github.com/ValveSoftware/steam-audio/releases).
 //!
-//! 2. Locate the two relevant libraries for your target platform and place them in a location listed in [dynamic library search paths](https://doc.rust-lang.org/cargo/reference/environment-variables.html#dynamic-library-paths) (e.g., `/usr/local/lib`).
+//! 2. Locate the two relevant libraries for your target platform and make them available to the linker at build time, for example with `LIBRARY_PATH` or `STEAMAUDIO_LIB_DIR`.
 //!
 //! 3. Set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
 //!

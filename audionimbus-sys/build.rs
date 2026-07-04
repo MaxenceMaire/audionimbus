@@ -11,6 +11,7 @@ const PHONON_HEADER_PATH: &str = "steam-audio/core/src/core/phonon.h";
 fn main() {
     println!("cargo::rerun-if-changed=steam-audio");
     println!("cargo::rerun-if-env-changed=AUDIONIMBUS_AUTO_INSTALL_PROGRESS");
+    println!("cargo::rerun-if-env-changed=STEAMAUDIO_LIB_DIR");
 
     let out_dir_path = std::env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_path);
@@ -26,6 +27,8 @@ fn main() {
         }
     }
 
+    emit_manual_link_search_path();
+
     generate_bindings_phonon(&out_dir.join("phonon.rs"), &version, out_dir);
 
     #[cfg(feature = "fmod")]
@@ -33,6 +36,13 @@ fn main() {
 
     #[cfg(feature = "wwise")]
     generate_bindings_phonon_wwise(&out_dir.join("phonon_wwise.rs"), &version, out_dir);
+}
+
+/// If set, adds `STEAMAUDIO_LIB_DIR` to the linker search path.
+fn emit_manual_link_search_path() {
+    if let Ok(lib_dir) = std::env::var("STEAMAUDIO_LIB_DIR") {
+        println!("cargo:rustc-link-search=native={lib_dir}");
+    }
 }
 
 /// Returns `false` if the cache was already up to date.

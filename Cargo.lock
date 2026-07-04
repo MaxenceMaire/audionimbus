@@ -455,7 +455,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01f4d9ef5884dff4505b0a658cfbe23efdc4777b7a7c0ab81d98478d2e977660"
 dependencies = [
  "bindgen 0.71.1",
- "zip",
 ]
 
 [[package]]
