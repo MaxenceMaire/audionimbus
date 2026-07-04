@@ -65,11 +65,7 @@ impl From<&AirAbsorptionModel> for audionimbus_sys::IPLAirAbsorptionModel {
             coefficients,
             callback,
             userData: user_data,
-            dirty: if dirty {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
+            dirty: dirty.into(),
         }
     }
 }

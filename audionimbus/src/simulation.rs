@@ -2878,12 +2878,12 @@ impl IntoSimulationData for ConvolutionParameters {
     fn into_data(self) -> ReflectionsSimulationData {
         let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
             (
-                audionimbus_sys::IPLbool::IPL_FALSE,
+                false.into(),
                 BakedDataIdentifier::Reflections {
                     variation: BakedDataVariation::Reverb,
                 },
             ),
-            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+            |id| (true.into(), id),
         );
 
         ReflectionsSimulationData {
@@ -2913,12 +2913,12 @@ impl IntoSimulationData for ParametricParameters {
     fn into_data(self) -> ReflectionsSimulationData {
         let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
             (
-                audionimbus_sys::IPLbool::IPL_FALSE,
+                false.into(),
                 BakedDataIdentifier::Reflections {
                     variation: BakedDataVariation::Reverb,
                 },
             ),
-            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+            |id| (true.into(), id),
         );
 
         ReflectionsSimulationData {
@@ -2967,12 +2967,12 @@ impl IntoSimulationData for HybridParameters {
     fn into_data(self) -> ReflectionsSimulationData {
         let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
             (
-                audionimbus_sys::IPLbool::IPL_FALSE,
+                false.into(),
                 BakedDataIdentifier::Reflections {
                     variation: BakedDataVariation::Reverb,
                 },
             ),
-            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+            |id| (true.into(), id),
         );
 
         ReflectionsSimulationData {
@@ -3009,12 +3009,12 @@ impl IntoSimulationData for TrueAudioNextParameters {
     fn into_data(self) -> ReflectionsSimulationData {
         let (baked, baked_data_identifier) = self.baked_data_identifier.map_or(
             (
-                audionimbus_sys::IPLbool::IPL_FALSE,
+                false.into(),
                 BakedDataIdentifier::Reflections {
                     variation: BakedDataVariation::Reverb,
                 },
             ),
-            |id| (audionimbus_sys::IPLbool::IPL_TRUE, id),
+            |id| (true.into(), id),
         );
 
         ReflectionsSimulationData {
@@ -3219,7 +3219,7 @@ struct ReflectionsSimulationData {
 impl Default for ReflectionsSimulationData {
     fn default() -> Self {
         Self {
-            baked: audionimbus_sys::IPLbool::IPL_FALSE,
+            baked: false.into(),
             baked_data_identifier: BakedDataIdentifier::Reflections {
                 variation: BakedDataVariation::Reverb,
             },
@@ -3255,16 +3255,8 @@ impl PathingSimulationData {
             visibility_threshold: params.visibility_threshold,
             visibility_range: params.visibility_range,
             pathing_order: params.pathing_order as i32,
-            enable_validation: if params.enable_validation {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
-            find_alternate_paths: if params.find_alternate_paths {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
+            enable_validation: params.enable_validation.into(),
+            find_alternate_paths: params.find_alternate_paths.into(),
             deviation_model: (&params.deviation).into(),
         }
     }
@@ -3278,8 +3270,8 @@ impl Default for PathingSimulationData {
             visibility_threshold: 0.0,
             visibility_range: 0.0,
             pathing_order: 0,
-            enable_validation: audionimbus_sys::IPLbool::IPL_FALSE,
-            find_alternate_paths: audionimbus_sys::IPLbool::IPL_FALSE,
+            enable_validation: false.into(),
+            find_alternate_paths: false.into(),
             deviation_model: (&DeviationModel::Default).into(),
         }
     }

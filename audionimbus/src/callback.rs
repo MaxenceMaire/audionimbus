@@ -122,18 +122,11 @@ impl FfiConvert for bool {
     type FfiType = audionimbus_sys::IPLbool;
 
     fn to_ffi(self) -> Self::FfiType {
-        if self {
-            audionimbus_sys::IPLbool::IPL_TRUE
-        } else {
-            audionimbus_sys::IPLbool::IPL_FALSE
-        }
+        self.into()
     }
 
     fn from_ffi(ffi: Self::FfiType) -> Self {
-        match ffi {
-            audionimbus_sys::IPLbool::IPL_TRUE => true,
-            audionimbus_sys::IPLbool::IPL_FALSE => false,
-        }
+        ffi.into()
     }
 }
 

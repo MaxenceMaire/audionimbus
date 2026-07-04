@@ -177,10 +177,7 @@ impl AmbisonicsDecodeEffect {
                 order: ambisonics_decode_effect_params.order as i32,
                 hrtf: ambisonics_decode_effect_params.hrtf.raw_ptr(),
                 orientation: ambisonics_decode_effect_params.orientation.into(),
-                binaural: match self.rendering {
-                    Rendering::Binaural => audionimbus_sys::IPLbool::IPL_TRUE,
-                    Rendering::Panning => audionimbus_sys::IPLbool::IPL_FALSE,
-                },
+                binaural: matches!(self.rendering, Rendering::Binaural).into(),
             };
 
         let state = unsafe {

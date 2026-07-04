@@ -211,14 +211,10 @@ impl PathEffect {
             hrtf,
         }) = &path_effect_settings.spatialization
         {
-            (
-                audionimbus_sys::IPLbool::IPL_TRUE,
-                hrtf.raw_ptr(),
-                speaker_layout.to_ffi(),
-            )
+            (true.into(), hrtf.raw_ptr(), speaker_layout.to_ffi())
         } else {
             (
-                audionimbus_sys::IPLbool::IPL_FALSE,
+                false.into(),
                 std::ptr::null_mut(),
                 SpeakerLayout::Mono.to_ffi(),
             )
@@ -465,10 +461,10 @@ impl From<audionimbus_sys::IPLPathEffectParams> for PathEffectParams {
             eq_coeffs: params.eqCoeffs,
             sh_coeffs,
             order: params.order as u32,
-            binaural: params.binaural == audionimbus_sys::IPLbool::IPL_TRUE,
+            binaural: params.binaural.into(),
             hrtf: params.hrtf.into(),
             listener: params.listener.into(),
-            normalize_eq: params.normalizeEQ == audionimbus_sys::IPLbool::IPL_TRUE,
+            normalize_eq: params.normalizeEQ.into(),
         }
     }
 }
@@ -479,18 +475,10 @@ impl PathEffectParams {
             eqCoeffs: self.eq_coeffs,
             shCoeffs: self.sh_coeffs.as_ptr().cast_mut(),
             order: self.order as i32,
-            binaural: if self.binaural {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
+            binaural: self.binaural.into(),
             hrtf: self.hrtf.raw_ptr(),
             listener: self.listener.into(),
-            normalizeEQ: if self.normalize_eq {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
+            normalizeEQ: self.normalize_eq.into(),
         };
 
         FFIWrapper::new(path_effect_params)

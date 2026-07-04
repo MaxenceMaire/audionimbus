@@ -330,11 +330,7 @@ impl From<&OpenClDeviceSettings> for audionimbus_sys::IPLOpenCLDeviceSettings {
             type_: settings.device_type.into(),
             numCUsToReserve: settings.num_compute_units_to_reserve,
             fractionCUsForIRUpdate: settings.fraction_of_compute_units_for_impulse_response_update,
-            requiresTAN: if settings.requires_true_audio_next {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
+            requiresTAN: settings.requires_true_audio_next.into(),
         }
     }
 }

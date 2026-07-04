@@ -67,11 +67,7 @@ impl From<&DistanceAttenuationModel> for audionimbus_sys::IPLDistanceAttenuation
             minDistance: min_distance,
             callback,
             userData: user_data,
-            dirty: if dirty {
-                audionimbus_sys::IPLbool::IPL_TRUE
-            } else {
-                audionimbus_sys::IPLbool::IPL_FALSE
-            },
+            dirty: dirty.into(),
         }
     }
 }
