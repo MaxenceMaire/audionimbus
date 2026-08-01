@@ -446,6 +446,7 @@ dependencies = [
  "bitflags 2.11.1",
  "object-pool",
  "slotmap",
+ "smallvec",
 ]
 
 [[package]]

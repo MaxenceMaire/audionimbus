@@ -3,6 +3,472 @@
 use crate::context::Context;
 use crate::effect::ambisonics::AmbisonicsType;
 use crate::ffi_wrapper::FFIWrapper;
+use smallvec::SmallVec;
+use std::marker::PhantomData;
+
+/// Number of channel pointers stored without a heap allocation.
+const INLINE_CHANNEL_CAPACITY: usize = 16;
+
+/// Channel pointers
+type ViewChannelPointers = SmallVec<[*mut Sample; INLINE_CHANNEL_CAPACITY]>;
+
+mod sealed {
+    use super::Sample;
+
+    /// Supplies channel pointers to the public read interface.
+    pub trait ChannelPointers {
+        /// Returns the channel pointers.
+        fn channel_ptrs(&self) -> &[*mut Sample];
+    }
+}
+
+/// Read access to borrowed audio samples.
+pub trait AudioBufferRead: crate::sealed::Sealed + sealed::ChannelPointers {
+    /// Returns the number of channels.
+    fn num_channels(&self) -> usize {
+        self.channel_ptrs().len()
+    }
+
+    /// Returns the number of samples per channel.
+    fn num_samples(&self) -> usize;
+
+    /// Returns a channel by index.
+    fn channel(&self, index: usize) -> Option<&[Sample]> {
+        self.channel_ptrs().get(index).map(|pointer| {
+            // SAFETY: Implementations guarantee that every pointer is valid for `num_samples`.
+            unsafe { std::slice::from_raw_parts(*pointer, AudioBufferRead::num_samples(self)) }
+        })
+    }
+
+    /// Returns an iterator over channels.
+    fn channels(&self) -> impl ExactSizeIterator<Item = &[Sample]> + '_ {
+        let num_samples = AudioBufferRead::num_samples(self);
+        self.channel_ptrs().iter().map(move |pointer| {
+            // SAFETY: Implementations guarantee that every pointer is valid for `num_samples`.
+            unsafe { std::slice::from_raw_parts(*pointer, num_samples) }
+        })
+    }
+}
+
+/// An immutable view over borrowed audio samples.
+///
+/// The view stores channel pointers, but never owns the samples they reference.
+#[derive(Clone, Debug)]
+pub struct AudioBufferRef<'a> {
+    /// Number of samples in each channel.
+    num_samples: usize,
+    /// Pointer to the first sample in each channel.
+    channel_ptrs: ViewChannelPointers,
+    /// Ties the view to the borrowed samples.
+    _samples: PhantomData<&'a [Sample]>,
+}
+
+impl<'a> AudioBufferRef<'a> {
+    /// Constructs a view over contiguous `samples`.
+    ///
+    /// Each channel occupies one contiguous region of equal length.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::NoChannels`] if `num_channels` is zero.
+    /// - [`AudioBufferError::NoSamples`] if `samples` is empty.
+    /// - [`AudioBufferError::DataLengthMismatch`] if the data cannot be divided evenly.
+    /// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+    /// - [`AudioBufferError::TooManySamples`] if the per-channel count exceeds the native limit.
+    pub fn try_new(samples: &'a [Sample], num_channels: usize) -> Result<Self, AudioBufferError> {
+        let num_samples = validate_contiguous_layout(samples.len(), num_channels)?;
+        let channel_ptrs = samples
+            .chunks_exact(num_samples)
+            .map(|channel| channel.as_ptr().cast_mut())
+            .collect();
+
+        Ok(Self::from_validated_parts(channel_ptrs, num_samples))
+    }
+
+    /// Constructs a view over separate channels.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::NoChannels`] if no channels are provided.
+    /// - [`AudioBufferError::NoSamples`] if the channels are empty.
+    /// - [`AudioBufferError::ChannelLengthMismatch`] if channel lengths differ.
+    /// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+    /// - [`AudioBufferError::TooManySamples`] if the per-channel count exceeds the native limit.
+    pub fn try_from_channels<I>(channels: I) -> Result<Self, AudioBufferError>
+    where
+        I: IntoIterator<Item = &'a [Sample]>,
+    {
+        let mut channels = channels.into_iter();
+        let first = channels.next().ok_or(AudioBufferError::NoChannels)?;
+        let num_samples = first.len();
+        let mut channel_ptrs = ViewChannelPointers::new();
+        channel_ptrs.push(first.as_ptr().cast_mut());
+
+        for (channel, samples) in channels.enumerate() {
+            let channel = channel + 1;
+            if samples.len() != num_samples {
+                return Err(AudioBufferError::ChannelLengthMismatch {
+                    channel,
+                    expected: num_samples,
+                    actual: samples.len(),
+                });
+            }
+            channel_ptrs.push(samples.as_ptr().cast_mut());
+        }
+
+        validate_view_dimensions(channel_ptrs.len(), num_samples)?;
+        Ok(Self::from_validated_parts(channel_ptrs, num_samples))
+    }
+
+    /// Returns the number of channels.
+    pub fn num_channels(&self) -> usize {
+        AudioBufferRead::num_channels(self)
+    }
+
+    /// Returns the number of samples per channel.
+    pub fn num_samples(&self) -> usize {
+        AudioBufferRead::num_samples(self)
+    }
+
+    /// Returns a channel by index.
+    pub fn channel(&self, index: usize) -> Option<&[Sample]> {
+        AudioBufferRead::channel(self, index)
+    }
+
+    /// Returns an iterator over channels.
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &[Sample]> + '_ {
+        AudioBufferRead::channels(self)
+    }
+
+    /// Constructs a view from raw channel pointers.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::NoChannels`] if no pointers are provided.
+    /// - [`AudioBufferError::NoSamples`] if `num_samples` is zero.
+    /// - [`AudioBufferError::NullChannelPointer`] if a pointer is null.
+    /// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+    /// - [`AudioBufferError::TooManySamples`] if the sample count exceeds the native limit.
+    ///
+    /// # Safety
+    ///
+    /// Every pointer must be aligned, initialized, and valid to read `num_samples` consecutive
+    /// samples for the returned view's lifetime.
+    /// The referenced memory must not be mutated for that lifetime except through interior
+    /// mutability that upholds Rust's aliasing rules.
+    pub unsafe fn try_from_raw_parts(
+        channel_ptrs: &[*const Sample],
+        num_samples: usize,
+    ) -> Result<Self, AudioBufferError> {
+        validate_view_dimensions(channel_ptrs.len(), num_samples)?;
+        let channel_ptrs = channel_ptrs
+            .iter()
+            .enumerate()
+            .map(|(channel, pointer)| {
+                if pointer.is_null() {
+                    Err(AudioBufferError::NullChannelPointer { channel })
+                } else {
+                    Ok(pointer.cast_mut())
+                }
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self::from_validated_parts(channel_ptrs, num_samples))
+    }
+
+    fn from_validated_parts(channel_ptrs: ViewChannelPointers, num_samples: usize) -> Self {
+        Self {
+            num_samples,
+            channel_ptrs,
+            _samples: PhantomData,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Self> {
+        view_as_ffi(self, &self.channel_ptrs, self.num_samples)
+    }
+}
+
+impl<'a> TryFrom<&'a [Sample]> for AudioBufferRef<'a> {
+    type Error = AudioBufferError;
+
+    fn try_from(samples: &'a [Sample]) -> Result<Self, Self::Error> {
+        Self::try_new(samples, 1)
+    }
+}
+
+impl crate::sealed::Sealed for AudioBufferRef<'_> {}
+
+impl sealed::ChannelPointers for AudioBufferRef<'_> {
+    fn channel_ptrs(&self) -> &[*mut Sample] {
+        &self.channel_ptrs
+    }
+}
+
+impl AudioBufferRead for AudioBufferRef<'_> {
+    fn num_samples(&self) -> usize {
+        self.num_samples
+    }
+}
+
+// SAFETY: The view has the same read-only access semantics as `&[Sample]`.
+unsafe impl Send for AudioBufferRef<'_> {}
+// SAFETY: The view has the same read-only access semantics as `&[Sample]`.
+unsafe impl Sync for AudioBufferRef<'_> {}
+
+/// A mutable view over exclusively borrowed audio samples.
+///
+/// The view stores channel pointers, but never owns the samples they reference.
+#[derive(Debug)]
+pub struct AudioBufferMut<'a> {
+    /// Number of samples in each channel.
+    num_samples: usize,
+    /// Pointer to the first sample in each channel.
+    channel_ptrs: ViewChannelPointers,
+    /// Ties the view to the exclusively borrowed samples.
+    _samples: PhantomData<&'a mut [Sample]>,
+}
+
+impl<'a> AudioBufferMut<'a> {
+    /// Constructs a mutable view over contiguous `samples`.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::NoChannels`] if `num_channels` is zero.
+    /// - [`AudioBufferError::NoSamples`] if `samples` is empty.
+    /// - [`AudioBufferError::DataLengthMismatch`] if the data cannot be divided evenly.
+    /// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+    /// - [`AudioBufferError::TooManySamples`] if the per-channel count exceeds the native limit.
+    pub fn try_new(
+        samples: &'a mut [Sample],
+        num_channels: usize,
+    ) -> Result<Self, AudioBufferError> {
+        let num_samples = validate_contiguous_layout(samples.len(), num_channels)?;
+        let channel_ptrs = samples
+            .chunks_exact_mut(num_samples)
+            .map(<[Sample]>::as_mut_ptr)
+            .collect();
+
+        Ok(Self::from_validated_parts(channel_ptrs, num_samples))
+    }
+
+    /// Constructs a mutable view over separate channels.
+    ///
+    /// Safe Rust guarantees that the mutable channel slices do not overlap.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::NoChannels`] if no channels are provided.
+    /// - [`AudioBufferError::NoSamples`] if the channels are empty.
+    /// - [`AudioBufferError::ChannelLengthMismatch`] if channel lengths differ.
+    /// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+    /// - [`AudioBufferError::TooManySamples`] if the per-channel count exceeds the native limit.
+    pub fn try_from_channels<I>(channels: I) -> Result<Self, AudioBufferError>
+    where
+        I: IntoIterator<Item = &'a mut [Sample]>,
+    {
+        let mut channels = channels.into_iter();
+        let first = channels.next().ok_or(AudioBufferError::NoChannels)?;
+        let num_samples = first.len();
+        let mut channel_ptrs = ViewChannelPointers::new();
+        channel_ptrs.push(first.as_mut_ptr());
+
+        for (channel, samples) in channels.enumerate() {
+            let channel = channel + 1;
+            if samples.len() != num_samples {
+                return Err(AudioBufferError::ChannelLengthMismatch {
+                    channel,
+                    expected: num_samples,
+                    actual: samples.len(),
+                });
+            }
+            channel_ptrs.push(samples.as_mut_ptr());
+        }
+
+        validate_view_dimensions(channel_ptrs.len(), num_samples)?;
+        Ok(Self::from_validated_parts(channel_ptrs, num_samples))
+    }
+
+    /// Returns the number of channels.
+    pub fn num_channels(&self) -> usize {
+        AudioBufferRead::num_channels(self)
+    }
+
+    /// Returns the number of samples per channel.
+    pub fn num_samples(&self) -> usize {
+        AudioBufferRead::num_samples(self)
+    }
+
+    /// Returns a channel by index.
+    pub fn channel(&self, index: usize) -> Option<&[Sample]> {
+        AudioBufferRead::channel(self, index)
+    }
+
+    /// Returns an iterator over channels.
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &[Sample]> + '_ {
+        AudioBufferRead::channels(self)
+    }
+
+    /// Constructs a mutable view from raw channel pointers.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferError::NoChannels`] if no pointers are provided.
+    /// - [`AudioBufferError::NoSamples`] if `num_samples` is zero.
+    /// - [`AudioBufferError::NullChannelPointer`] if a pointer is null.
+    /// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+    /// - [`AudioBufferError::TooManySamples`] if the sample count exceeds the native limit.
+    ///
+    /// # Safety
+    ///
+    /// Every pointer must be aligned, initialized, and valid to read and write `num_samples`
+    /// consecutive samples for the returned view's lifetime.
+    /// Channel sample regions must be pairwise disjoint, and no other pointer may access them
+    /// during that lifetime.
+    pub unsafe fn try_from_raw_parts(
+        channel_ptrs: &[*mut Sample],
+        num_samples: usize,
+    ) -> Result<Self, AudioBufferError> {
+        validate_view_dimensions(channel_ptrs.len(), num_samples)?;
+        let channel_ptrs = channel_ptrs
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(channel, pointer)| {
+                if pointer.is_null() {
+                    Err(AudioBufferError::NullChannelPointer { channel })
+                } else {
+                    Ok(pointer)
+                }
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self::from_validated_parts(channel_ptrs, num_samples))
+    }
+
+    /// Returns an iterator over mutable channels.
+    pub fn channels_mut(&mut self) -> impl ExactSizeIterator<Item = &mut [Sample]> + '_ {
+        let num_samples = self.num_samples;
+        self.channel_ptrs.iter_mut().map(move |pointer| {
+            // SAFETY: Construction guarantees exclusive, disjoint channel regions.
+            unsafe { std::slice::from_raw_parts_mut(*pointer, num_samples) }
+        })
+    }
+
+    fn from_validated_parts(channel_ptrs: ViewChannelPointers, num_samples: usize) -> Self {
+        Self {
+            num_samples,
+            channel_ptrs,
+            _samples: PhantomData,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn as_ffi(&self) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Self> {
+        view_as_ffi(self, &self.channel_ptrs, self.num_samples)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn as_ffi_mut(&mut self) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Self> {
+        view_as_ffi(self, &self.channel_ptrs, self.num_samples)
+    }
+}
+
+impl<'a> TryFrom<&'a mut [Sample]> for AudioBufferMut<'a> {
+    type Error = AudioBufferError;
+
+    fn try_from(samples: &'a mut [Sample]) -> Result<Self, Self::Error> {
+        Self::try_new(samples, 1)
+    }
+}
+
+impl crate::sealed::Sealed for AudioBufferMut<'_> {}
+
+impl sealed::ChannelPointers for AudioBufferMut<'_> {
+    fn channel_ptrs(&self) -> &[*mut Sample] {
+        &self.channel_ptrs
+    }
+}
+
+impl AudioBufferRead for AudioBufferMut<'_> {
+    fn num_samples(&self) -> usize {
+        self.num_samples
+    }
+}
+
+// SAFETY: The view has the same exclusive access semantics as `&mut [Sample]`.
+unsafe impl Send for AudioBufferMut<'_> {}
+// SAFETY: Shared access cannot mutate samples; writable operations require `&mut self`.
+unsafe impl Sync for AudioBufferMut<'_> {}
+
+/// Validates contiguous channel data and returns the sample count per channel.
+///
+/// # Errors
+///
+/// - [`AudioBufferError::NoChannels`] if `num_channels` is zero.
+/// - [`AudioBufferError::NoSamples`] if `len` is zero.
+/// - [`AudioBufferError::DataLengthMismatch`] if the data cannot be divided evenly.
+/// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+/// - [`AudioBufferError::TooManySamples`] if the per-channel count exceeds the native limit.
+fn validate_contiguous_layout(len: usize, num_channels: usize) -> Result<usize, AudioBufferError> {
+    if num_channels == 0 {
+        return Err(AudioBufferError::NoChannels);
+    }
+    if len == 0 {
+        return Err(AudioBufferError::NoSamples);
+    }
+    if !len.is_multiple_of(num_channels) {
+        return Err(AudioBufferError::DataLengthMismatch { len, num_channels });
+    }
+
+    let num_samples = len / num_channels;
+    validate_view_dimensions(num_channels, num_samples)?;
+    Ok(num_samples)
+}
+
+/// Validates channel and sample counts for the native descriptor.
+///
+/// # Errors
+///
+/// - [`AudioBufferError::NoChannels`] if `num_channels` is zero.
+/// - [`AudioBufferError::NoSamples`] if `num_samples` is zero.
+/// - [`AudioBufferError::TooManyChannels`] if the channel count exceeds the native limit.
+/// - [`AudioBufferError::TooManySamples`] if the sample count exceeds the native limit.
+fn validate_view_dimensions(
+    num_channels: usize,
+    num_samples: usize,
+) -> Result<(), AudioBufferError> {
+    if num_channels == 0 {
+        return Err(AudioBufferError::NoChannels);
+    }
+    if num_samples == 0 {
+        return Err(AudioBufferError::NoSamples);
+    }
+    if i32::try_from(num_channels).is_err() {
+        return Err(AudioBufferError::TooManyChannels { num_channels });
+    }
+    if i32::try_from(num_samples).is_err() {
+        return Err(AudioBufferError::TooManySamples { num_samples });
+    }
+    Ok(())
+}
+
+/// Creates a native descriptor tied to `owner`.
+#[allow(dead_code)]
+fn view_as_ffi<'a, Owner>(
+    _owner: &'a Owner,
+    channel_ptrs: &ViewChannelPointers,
+    num_samples: usize,
+) -> FFIWrapper<'a, audionimbus_sys::IPLAudioBuffer, Owner> {
+    let audio_buffer = audionimbus_sys::IPLAudioBuffer {
+        numChannels: channel_ptrs.len() as i32,
+        numSamples: num_samples as i32,
+        data: channel_ptrs.as_ptr().cast_mut(),
+    };
+
+    FFIWrapper::new(audio_buffer)
+}
 
 /// Trait for types that can provide access to channel pointers.
 ///
@@ -655,6 +1121,31 @@ pub fn allocate_channel_ptrs<T: AsRef<[Sample]>>(
 /// [`AudioBuffer`] construction errors.
 #[derive(Debug, PartialEq, Eq)]
 pub enum AudioBufferError {
+    /// No channels were provided.
+    NoChannels,
+
+    /// No samples were provided per channel.
+    NoSamples,
+
+    /// Contiguous data cannot be divided evenly into the requested channels.
+    DataLengthMismatch { len: usize, num_channels: usize },
+
+    /// A channel has a different length than the first channel.
+    ChannelLengthMismatch {
+        channel: usize,
+        expected: usize,
+        actual: usize,
+    },
+
+    /// A raw channel pointer is null.
+    NullChannelPointer { channel: usize },
+
+    /// The channel count exceeds Steam Audio's native integer range.
+    TooManyChannels { num_channels: usize },
+
+    /// The per-channel sample count exceeds Steam Audio's native integer range.
+    TooManySamples { num_samples: usize },
+
     /// Error when trying to construct an [`AudioBuffer`] with empty data.
     EmptyData,
 
@@ -677,6 +1168,31 @@ impl std::error::Error for AudioBufferError {}
 impl std::fmt::Display for AudioBufferError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self {
+            Self::NoChannels => write!(f, "audio buffer has no channels"),
+            Self::NoSamples => write!(f, "audio buffer channels have no samples"),
+            Self::DataLengthMismatch { len, num_channels } => write!(
+                f,
+                "sample data length {len} is not divisible by {num_channels} channels"
+            ),
+            Self::ChannelLengthMismatch {
+                channel,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "channel {channel} has {actual} samples, expected {expected}"
+            ),
+            Self::NullChannelPointer { channel } => {
+                write!(f, "channel {channel} has a null sample pointer")
+            }
+            Self::TooManyChannels { num_channels } => write!(
+                f,
+                "channel count {num_channels} exceeds the native integer range"
+            ),
+            Self::TooManySamples { num_samples } => write!(
+                f,
+                "sample count {num_samples} exceeds the native integer range"
+            ),
             Self::EmptyData => write!(f, "empty audio buffer data",),
             Self::InvalidNumSamples { num_samples } => {
                 write!(f, "invalid number of samples per channel: {num_samples}")
@@ -837,6 +1353,213 @@ impl std::fmt::Display for ChannelRequirement {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod audio_buffer_ref {
+        use super::*;
+
+        mod try_new {
+            use super::*;
+
+            #[test]
+            fn immutable() {
+                let samples = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+                let buffer = AudioBufferRef::try_new(&samples, 2).unwrap();
+
+                assert_eq!(buffer.num_channels(), 2);
+                assert_eq!(buffer.num_samples(), 3);
+                assert_eq!(buffer.channel(0), Some(&samples[..3]));
+                assert_eq!(buffer.channel(1), Some(&samples[3..]));
+                assert_eq!(buffer.clone().channels().count(), 2);
+            }
+
+            #[test]
+            fn invalid() {
+                assert_eq!(
+                    AudioBufferRef::try_new(&[0.0; 4], 0).unwrap_err(),
+                    AudioBufferError::NoChannels
+                );
+                assert_eq!(
+                    AudioBufferRef::try_new(&[], 1).unwrap_err(),
+                    AudioBufferError::NoSamples
+                );
+                assert_eq!(
+                    AudioBufferRef::try_new(&[0.0; 5], 2).unwrap_err(),
+                    AudioBufferError::DataLengthMismatch {
+                        len: 5,
+                        num_channels: 2,
+                    }
+                );
+            }
+
+            #[test]
+            fn storage() {
+                let samples = [0.0; INLINE_CHANNEL_CAPACITY];
+                let buffer = AudioBufferRef::try_new(&samples, INLINE_CHANNEL_CAPACITY).unwrap();
+
+                assert!(!buffer.channel_ptrs.spilled());
+
+                let samples = [0.0; INLINE_CHANNEL_CAPACITY + 1];
+                let buffer =
+                    AudioBufferRef::try_new(&samples, INLINE_CHANNEL_CAPACITY + 1).unwrap();
+
+                assert!(buffer.channel_ptrs.spilled());
+            }
+        }
+
+        mod try_from {
+            use super::*;
+
+            #[test]
+            fn mono() {
+                let samples = [1.0, 2.0];
+                let buffer = AudioBufferRef::try_from(&samples[..]).unwrap();
+
+                assert_eq!(buffer.num_channels(), 1);
+                assert_eq!(buffer.channel(0), Some(&samples[..]));
+            }
+        }
+
+        mod try_from_channels {
+            use super::*;
+
+            #[test]
+            fn unequal() {
+                let first = [0.0; 2];
+                let second = [0.0; 3];
+
+                assert_eq!(
+                    AudioBufferRef::try_from_channels([&first[..], &second[..]]).unwrap_err(),
+                    AudioBufferError::ChannelLengthMismatch {
+                        channel: 1,
+                        expected: 2,
+                        actual: 3,
+                    }
+                );
+            }
+        }
+
+        mod try_from_raw_parts {
+            use super::*;
+
+            #[test]
+            fn invalid() {
+                let pointers = [std::ptr::null()];
+                let result = unsafe { AudioBufferRef::try_from_raw_parts(&pointers, 1) };
+
+                assert_eq!(
+                    result.unwrap_err(),
+                    AudioBufferError::NullChannelPointer { channel: 0 }
+                );
+
+                let sample = 0.0;
+                let pointers = [&raw const sample];
+                let num_samples = usize::try_from(i32::MAX).unwrap() + 1;
+                let result = unsafe { AudioBufferRef::try_from_raw_parts(&pointers, num_samples) };
+
+                assert_eq!(
+                    result.unwrap_err(),
+                    AudioBufferError::TooManySamples { num_samples }
+                );
+            }
+        }
+
+        mod as_ffi {
+            use super::*;
+
+            #[test]
+            fn descriptors() {
+                let samples = [0.0; 8];
+                let buffer = AudioBufferRef::try_new(&samples, 2).unwrap();
+                let ffi = buffer.as_ffi();
+
+                assert_eq!(ffi.numChannels, 2);
+                assert_eq!(ffi.numSamples, 4);
+                assert!(!ffi.data.is_null());
+            }
+        }
+    }
+
+    mod audio_buffer_mut {
+        use super::*;
+
+        mod try_new {
+            use super::*;
+
+            #[test]
+            fn valid() {
+                let mut samples = [1.0, 2.0, 3.0, 4.0];
+                let mut buffer = AudioBufferMut::try_new(&mut samples, 2).unwrap();
+
+                for channel in buffer.channels_mut() {
+                    channel.fill(0.5);
+                }
+                drop(buffer);
+
+                assert_eq!(samples, [0.5; 4]);
+            }
+        }
+
+        mod try_from {
+            use super::*;
+
+            #[test]
+            fn mono() {
+                let mut samples = [1.0, 2.0];
+                let mut buffer = AudioBufferMut::try_from(&mut samples[..]).unwrap();
+                buffer.channels_mut().next().unwrap().fill(0.5);
+                drop(buffer);
+
+                assert_eq!(samples, [0.5; 2]);
+            }
+        }
+
+        mod try_from_channels {
+            use super::*;
+
+            #[test]
+            fn valid() {
+                let mut samples = [0.0; 6];
+                let (left, right) = samples.split_at_mut(3);
+                let mut buffer = AudioBufferMut::try_from_channels([left, right]).unwrap();
+
+                let mut channels = buffer.channels_mut();
+                channels.next().unwrap().fill(1.0);
+                channels.next().unwrap().fill(2.0);
+                drop(channels);
+                drop(buffer);
+
+                assert_eq!(samples, [1.0, 1.0, 1.0, 2.0, 2.0, 2.0]);
+            }
+        }
+
+        mod try_from_raw_parts {
+            use super::*;
+
+            #[test]
+            fn null_pointer() {
+                let pointers = [std::ptr::null_mut()];
+                let result = unsafe { AudioBufferMut::try_from_raw_parts(&pointers, 1) };
+
+                assert_eq!(
+                    result.unwrap_err(),
+                    AudioBufferError::NullChannelPointer { channel: 0 }
+                );
+            }
+        }
+
+        mod as_ffi {
+            use super::*;
+
+            #[test]
+            fn descriptors() {
+                let mut samples = [0.0; 8];
+                let mut buffer = AudioBufferMut::try_new(&mut samples, 2).unwrap();
+
+                assert_eq!(buffer.as_ffi().numChannels, 2);
+                assert_eq!(buffer.as_ffi_mut().numSamples, 4);
+            }
+        }
+    }
 
     mod try_new {
         use super::*;
