@@ -648,6 +648,16 @@ fn validate_view_dimensions(
 }
 
 /// Creates a native descriptor tied to `owner`.
+pub(crate) fn read_as_ffi<Buffer>(
+    buffer: &Buffer,
+) -> FFIWrapper<'_, audionimbus_sys::IPLAudioBuffer, Buffer>
+where
+    Buffer: AudioBufferRead,
+{
+    view_as_ffi(buffer, buffer.channel_ptrs(), buffer.num_samples())
+}
+
+/// Creates a native descriptor tied to `owner`.
 #[allow(dead_code)]
 fn view_as_ffi<'a, Owner>(
     _owner: &'a Owner,

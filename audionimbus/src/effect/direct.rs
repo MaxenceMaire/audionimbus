@@ -2,12 +2,12 @@
 
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, Equalizer};
-use crate::audio_buffer::{AudioBuffer, Sample};
+use crate::ChannelRequirement;
+use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
-use crate::{ChannelPointers, ChannelRequirement};
 use std::hash::{Hash, Hasher};
 
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
@@ -40,9 +40,9 @@ use std::hash::{Hash, Hasher};
 ///     transmission: None,
 /// };
 ///
-/// let input_buffer = AudioBuffer::try_with_data([1.0; 1024])?;
+/// let input_buffer = AudioBufferRef::try_from(&[1.0; 1024][..])?;
 /// let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
-/// let mut output_buffer = AudioBuffer::try_with_data(&mut output_container)?;
+/// let mut output_buffer = AudioBufferMut::try_from(&mut output_container[..])?;
 ///
 /// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -92,7 +92,7 @@ impl DirectEffect {
 
     /// Applies a direct effect to an audio buffer.
     ///
-    /// This effect CAN be applied in-place.
+    /// Use [`Self::apply_in_place`] when the same buffer supplies the input and output.
     ///
     /// The input and output audio buffers must have as many channels as specified when creating
     /// the effect.
@@ -101,17 +101,13 @@ impl DirectEffect {
     ///
     /// Returns [`EffectError`] if the input or output buffers have a number of channels different
     /// from that specified when creating the effect.
-    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+    pub fn apply(
         &mut self,
         direct_effect_params: &DirectEffectParams,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
+        input_buffer: &impl AudioBufferRead,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_input_channels = input_buffer.num_channels() as u32;
         if num_input_channels != self.num_channels {
             return Err(EffectError::InvalidInputChannels {
                 expected: ChannelRequirement::Exactly(self.num_channels),
@@ -119,7 +115,7 @@ impl DirectEffect {
             });
         }
 
-        let num_output_channels = output_buffer.num_channels();
+        let num_output_channels = output_buffer.num_channels() as u32;
         if num_output_channels != self.num_channels {
             return Err(EffectError::InvalidOutputChannels {
                 expected: ChannelRequirement::Exactly(self.num_channels),
@@ -127,12 +123,46 @@ impl DirectEffect {
             });
         }
 
+        let mut input_buffer = read_as_ffi(input_buffer);
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplDirectEffectApply(
                 self.raw_ptr(),
                 &raw mut *direct_effect_params.as_ffi(),
-                &raw mut *input_buffer.as_ffi(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *input_buffer,
+                &raw mut *output_buffer,
+            )
+        }
+        .into();
+
+        Ok(state)
+    }
+
+    /// Applies a direct effect in place.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EffectError`] if the buffer has a different number of channels from the effect.
+    pub fn apply_in_place(
+        &mut self,
+        direct_effect_params: &DirectEffectParams,
+        buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_channels = buffer.num_channels() as u32;
+        if num_channels != self.num_channels {
+            return Err(EffectError::InvalidInputChannels {
+                expected: ChannelRequirement::Exactly(self.num_channels),
+                actual: num_channels,
+            });
+        }
+
+        let mut buffer = buffer.as_ffi_mut();
+        let state = unsafe {
+            audionimbus_sys::iplDirectEffectApply(
+                self.raw_ptr(),
+                &raw mut *direct_effect_params.as_ffi(),
+                &raw mut *buffer,
+                &raw mut *buffer,
             )
         }
         .into();
@@ -150,11 +180,11 @@ impl DirectEffect {
     ///
     /// Returns [`EffectError`] if the output buffer has a number of channels different
     /// from that specified when creating the effect.
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
+    pub fn tail(
+        &self,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_output_channels = output_buffer.num_channels() as u32;
         if num_output_channels != self.num_channels {
             return Err(EffectError::InvalidOutputChannels {
                 expected: ChannelRequirement::Exactly(self.num_channels),
@@ -162,11 +192,9 @@ impl DirectEffect {
             });
         }
 
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
-            audionimbus_sys::iplDirectEffectGetTail(
-                self.raw_ptr(),
-                &raw mut *output_buffer.as_ffi(),
-            )
+            audionimbus_sys::iplDirectEffectGetTail(self.raw_ptr(), &raw mut *output_buffer)
         }
         .into();
 
@@ -371,7 +399,7 @@ pub enum Transmission {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::AudioBufferSettings;
+    use crate::AudioBufferRef;
 
     mod apply {
         use super::*;
@@ -379,15 +407,15 @@ mod tests {
         #[test]
         fn test_valid() {
             let input_container = vec![0.5; 1024];
-            let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+            let input_buffer = AudioBufferRef::try_from(&input_container[..]).unwrap();
 
             let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
-            let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+            let mut output_buffer = AudioBufferMut::try_from(&mut output_container[..]).unwrap();
 
             let context = Context::default();
 
             let audio_settings = AudioSettings {
-                frame_size: input_buffer.num_samples(),
+                frame_size: input_buffer.num_samples() as u32,
                 ..Default::default()
             };
 
@@ -408,7 +436,7 @@ mod tests {
 
             assert!(
                 direct_effect
-                    .apply(&direct_effect_params, &input_buffer, &output_buffer)
+                    .apply(&direct_effect_params, &input_buffer, &mut output_buffer)
                     .is_ok()
             );
         }
@@ -417,15 +445,11 @@ mod tests {
         fn test_invalid_input_num_channels() {
             const FRAME_SIZE: usize = 1024;
 
-            let mut input_container = vec![0.5; 4 * FRAME_SIZE];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut input_container,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let input_container = vec![0.5; 4 * FRAME_SIZE];
+            let input_buffer = AudioBufferRef::try_new(&input_container, 4).unwrap();
 
             let mut output_container = vec![0.0; FRAME_SIZE];
-            let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+            let mut output_buffer = AudioBufferMut::try_from(&mut output_container[..]).unwrap();
 
             let context = Context::default();
 
@@ -450,7 +474,7 @@ mod tests {
             };
 
             assert_eq!(
-                direct_effect.apply(&direct_effect_params, &input_buffer, &output_buffer),
+                direct_effect.apply(&direct_effect_params, &input_buffer, &mut output_buffer),
                 Err(EffectError::InvalidInputChannels {
                     expected: ChannelRequirement::Exactly(1),
                     actual: 4
@@ -459,18 +483,34 @@ mod tests {
         }
 
         #[test]
+        fn test_in_place() {
+            let mut samples = vec![0.5; 1024];
+            let mut buffer = AudioBufferMut::try_from(&mut samples[..]).unwrap();
+            let context = Context::default();
+            let audio_settings = AudioSettings::default();
+            let mut effect = DirectEffect::try_new(
+                &context,
+                &audio_settings,
+                &DirectEffectSettings { num_channels: 1 },
+            )
+            .unwrap();
+            let params = DirectEffectParams {
+                distance_attenuation: Some(0.5),
+                ..Default::default()
+            };
+
+            assert!(effect.apply_in_place(&params, &mut buffer).is_ok());
+        }
+
+        #[test]
         fn test_invalid_output_num_channels() {
             const FRAME_SIZE: usize = 1024;
 
             let mut input_container = vec![0.0; FRAME_SIZE];
-            let input_buffer = AudioBuffer::try_with_data(&mut input_container).unwrap();
+            let input_buffer = AudioBufferMut::try_from(&mut input_container[..]).unwrap();
 
             let mut output_container = vec![0.5; 4 * FRAME_SIZE];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output_container, 4).unwrap();
 
             let context = Context::default();
 
@@ -495,7 +535,7 @@ mod tests {
             };
 
             assert_eq!(
-                direct_effect.apply(&direct_effect_params, &input_buffer, &output_buffer),
+                direct_effect.apply(&direct_effect_params, &input_buffer, &mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(1),
                     actual: 4
@@ -512,7 +552,7 @@ mod tests {
             const FRAME_SIZE: usize = 1024;
 
             let mut output_container = vec![0.0; FRAME_SIZE];
-            let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+            let mut output_buffer = AudioBufferMut::try_from(&mut output_container[..]).unwrap();
 
             let context = Context::default();
 
@@ -522,7 +562,7 @@ mod tests {
             let direct_effect =
                 DirectEffect::try_new(&context, &audio_settings, &direct_effect_settings).unwrap();
 
-            assert!(direct_effect.tail(&output_buffer).is_ok());
+            assert!(direct_effect.tail(&mut output_buffer).is_ok());
         }
 
         #[test]
@@ -530,11 +570,7 @@ mod tests {
             const FRAME_SIZE: usize = 1024;
 
             let mut output_container = vec![0.0; 2 * FRAME_SIZE];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output_container, 2).unwrap();
 
             let context = Context::default();
 
@@ -545,7 +581,7 @@ mod tests {
                 DirectEffect::try_new(&context, &audio_settings, &direct_effect_settings).unwrap();
 
             assert_eq!(
-                direct_effect.tail(&output_buffer),
+                direct_effect.tail(&mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(1),
                     actual: 2,
