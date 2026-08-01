@@ -55,11 +55,11 @@ fn test_ambisonics_encode_effect() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let input_buffer = AudioBuffer::try_with_data(&sine_wave).unwrap();
+    let input_buffer = AudioBufferRef::try_from(&sine_wave[..]).unwrap();
     let frame_size = sine_wave.len() as u32;
 
-    let mut output_container = vec![0.0; input_buffer.num_samples() as usize];
-    let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+    let mut output_container = vec![0.0; input_buffer.num_samples()];
+    let mut output_buffer = AudioBufferMut::try_from(&mut output_container[..]).unwrap();
 
     let context = Context::default();
 
@@ -85,7 +85,7 @@ fn test_ambisonics_encode_effect() {
     let _ = ambisonics_encode_effect.apply(
         &ambisonics_encode_effect_params,
         &input_buffer,
-        &output_buffer,
+        &mut output_buffer,
     );
 
     let mut interleaved =
@@ -100,15 +100,11 @@ fn test_ambisonics_decode_effect() {
     let duration_secs = 0.1;
     let sample_rate = 48000;
     let sine_wave = sine_wave(frequency, amplitude, duration_secs, sample_rate);
-    let input_buffer = AudioBuffer::try_with_data(&sine_wave).unwrap();
+    let input_buffer = AudioBufferRef::try_from(&sine_wave[..]).unwrap();
     let frame_size = sine_wave.len() as u32;
 
-    let mut output_container = vec![0.0; 2 * input_buffer.num_samples() as usize];
-    let output_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut output_container,
-        AudioBufferSettings::with_num_channels(2),
-    )
-    .unwrap();
+    let mut output_container = vec![0.0; 2 * input_buffer.num_samples()];
+    let mut output_buffer = AudioBufferMut::try_new(&mut output_container, 2).unwrap();
 
     let context = Context::default();
 
@@ -144,7 +140,7 @@ fn test_ambisonics_decode_effect() {
     let _ = ambisonics_decode_effect.apply(
         &ambisonics_decode_effect_params,
         &input_buffer,
-        &output_buffer,
+        &mut output_buffer,
     );
 
     let mut interleaved =
