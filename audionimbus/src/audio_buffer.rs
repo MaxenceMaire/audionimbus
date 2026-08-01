@@ -48,6 +48,75 @@ pub trait AudioBufferRead: crate::sealed::Sealed + sealed::ChannelPointers {
             unsafe { std::slice::from_raw_parts(*pointer, num_samples) }
         })
     }
+
+    /// Interleaves the channel data into `dst`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AudioBufferOperationError::InterleaveLengthMismatch`] if `dst` does not match the
+    /// total sample count.
+    fn interleave(
+        &self,
+        context: &Context,
+        dst: &mut [Sample],
+    ) -> Result<(), AudioBufferOperationError>
+    where
+        Self: Sized,
+    {
+        let expected_len = self.num_channels() * self.num_samples();
+        if dst.len() != expected_len {
+            return Err(AudioBufferOperationError::InterleaveLengthMismatch {
+                dst_len: dst.len(),
+                expected_len,
+            });
+        }
+
+        let mut input = view_as_ffi(self, self.channel_ptrs(), self.num_samples());
+        unsafe {
+            audionimbus_sys::iplAudioBufferInterleave(
+                context.raw_ptr(),
+                &raw mut *input,
+                dst.as_mut_ptr(),
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Converts Ambisonic samples from `in_type` into `out_type`.
+    ///
+    /// Steam Audio processes N3D natively, so conversion is best kept at integration boundaries.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferOperationError::ChannelCountMismatch`] if the channel counts differ.
+    /// - [`AudioBufferOperationError::SampleCountMismatch`] if the per-channel sample counts differ.
+    fn convert_ambisonics_into(
+        &self,
+        context: &Context,
+        in_type: AmbisonicsType,
+        out_type: AmbisonicsType,
+        out: &mut AudioBufferMut<'_>,
+    ) -> Result<(), AudioBufferOperationError>
+    where
+        Self: Sized,
+    {
+        validate_matching_shape(self, out)?;
+
+        let mut input = view_as_ffi(self, self.channel_ptrs(), self.num_samples());
+        let mut output = out.as_ffi_mut();
+        unsafe {
+            audionimbus_sys::iplAudioBufferConvertAmbisonics(
+                context.raw_ptr(),
+                in_type.into(),
+                out_type.into(),
+                &raw mut *input,
+                &raw mut *output,
+            );
+        }
+
+        Ok(())
+    }
 }
 
 /// An immutable view over borrowed audio samples.
@@ -310,6 +379,130 @@ impl<'a> AudioBufferMut<'a> {
         AudioBufferRead::channels(self)
     }
 
+    /// Returns a mutable channel by index.
+    pub fn channel_mut(&mut self, index: usize) -> Option<&mut [Sample]> {
+        let pointer = self.channel_ptrs.get_mut(index)?;
+        // SAFETY: Construction guarantees exclusive, disjoint channel regions.
+        Some(unsafe { std::slice::from_raw_parts_mut(*pointer, self.num_samples) })
+    }
+
+    /// Deinterleaves `src` into the channel data.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AudioBufferOperationError::DeinterleaveLengthMismatch`] if `src` does not match
+    /// the total sample count.
+    pub fn deinterleave(
+        &mut self,
+        context: &Context,
+        src: &[Sample],
+    ) -> Result<(), AudioBufferOperationError> {
+        let expected_len = self.num_channels() * self.num_samples();
+        if src.len() != expected_len {
+            return Err(AudioBufferOperationError::DeinterleaveLengthMismatch {
+                src_len: src.len(),
+                expected_len,
+            });
+        }
+
+        let mut output = self.as_ffi_mut();
+        unsafe {
+            audionimbus_sys::iplAudioBufferDeinterleave(
+                context.raw_ptr(),
+                src.as_ptr().cast_mut(),
+                &raw mut *output,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Mixes `source` into this buffer.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferOperationError::ChannelCountMismatch`] if the channel counts differ.
+    /// - [`AudioBufferOperationError::SampleCountMismatch`] if the per-channel sample counts differ.
+    pub fn mix(
+        &mut self,
+        context: &Context,
+        source: &impl AudioBufferRead,
+    ) -> Result<(), AudioBufferOperationError> {
+        validate_matching_shape(self, source)?;
+
+        let mut input = view_as_ffi(source, source.channel_ptrs(), source.num_samples());
+        let mut output = self.as_ffi_mut();
+        unsafe {
+            audionimbus_sys::iplAudioBufferMix(
+                context.raw_ptr(),
+                &raw mut *input,
+                &raw mut *output,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Downmixes `source` into this mono buffer.
+    ///
+    /// Steam Audio writes the arithmetic mean of the source channels. Mix manually when the
+    /// channels require different weights.
+    ///
+    /// # Errors
+    ///
+    /// - [`AudioBufferOperationError::DownmixDestinationNotMono`] if this buffer is not mono.
+    /// - [`AudioBufferOperationError::SampleCountMismatch`] if the per-channel sample counts differ.
+    pub fn downmix(
+        &mut self,
+        context: &Context,
+        source: &impl AudioBufferRead,
+    ) -> Result<(), AudioBufferOperationError> {
+        if self.num_channels() != 1 {
+            return Err(AudioBufferOperationError::DownmixDestinationNotMono {
+                num_channels: self.num_channels(),
+            });
+        }
+        if self.num_samples() != source.num_samples() {
+            return Err(AudioBufferOperationError::SampleCountMismatch {
+                self_num_samples: self.num_samples(),
+                other_num_samples: source.num_samples(),
+            });
+        }
+
+        let mut input = view_as_ffi(source, source.channel_ptrs(), source.num_samples());
+        let mut output = self.as_ffi_mut();
+        unsafe {
+            audionimbus_sys::iplAudioBufferDownmix(
+                context.raw_ptr(),
+                &raw mut *input,
+                &raw mut *output,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Converts Ambisonic samples from `in_type` into `out_type` in place.
+    ///
+    /// Steam Audio processes N3D natively, so conversion is best kept at integration boundaries.
+    pub fn convert_ambisonics(
+        &mut self,
+        context: &Context,
+        in_type: AmbisonicsType,
+        out_type: AmbisonicsType,
+    ) {
+        let mut buffer = self.as_ffi_mut();
+        unsafe {
+            audionimbus_sys::iplAudioBufferConvertAmbisonics(
+                context.raw_ptr(),
+                in_type.into(),
+                out_type.into(),
+                &raw mut *buffer,
+                &raw mut *buffer,
+            );
+        }
+    }
+
     /// Constructs a mutable view from raw channel pointers.
     ///
     /// # Errors
@@ -458,7 +651,7 @@ fn validate_view_dimensions(
 #[allow(dead_code)]
 fn view_as_ffi<'a, Owner>(
     _owner: &'a Owner,
-    channel_ptrs: &ViewChannelPointers,
+    channel_ptrs: &[*mut Sample],
     num_samples: usize,
 ) -> FFIWrapper<'a, audionimbus_sys::IPLAudioBuffer, Owner> {
     let audio_buffer = audionimbus_sys::IPLAudioBuffer {
@@ -468,6 +661,26 @@ fn view_as_ffi<'a, Owner>(
     };
 
     FFIWrapper::new(audio_buffer)
+}
+
+/// Validates that two views have the same channel layout.
+fn validate_matching_shape(
+    first: &impl AudioBufferRead,
+    second: &impl AudioBufferRead,
+) -> Result<(), AudioBufferOperationError> {
+    if first.num_channels() != second.num_channels() {
+        return Err(AudioBufferOperationError::ChannelCountMismatch {
+            self_num_channels: first.num_channels(),
+            other_num_channels: second.num_channels(),
+        });
+    }
+    if first.num_samples() != second.num_samples() {
+        return Err(AudioBufferOperationError::SampleCountMismatch {
+            self_num_samples: first.num_samples(),
+            other_num_samples: second.num_samples(),
+        });
+    }
+    Ok(())
 }
 
 /// Trait for types that can provide access to channel pointers.
@@ -602,8 +815,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         context: &Context,
         dst: &mut [Sample],
     ) -> Result<(), AudioBufferOperationError> {
-        let expected_len = self.num_channels() * self.num_samples();
-        if dst.len() as u32 != expected_len {
+        let expected_len = self.num_channels() as usize * self.num_samples() as usize;
+        if dst.len() != expected_len {
             return Err(AudioBufferOperationError::InterleaveLengthMismatch {
                 dst_len: dst.len(),
                 expected_len,
@@ -634,8 +847,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         context: &Context,
         src: &[Sample],
     ) -> Result<(), AudioBufferOperationError> {
-        let expected_len = self.num_channels() * self.num_samples();
-        if src.len() as u32 != expected_len {
+        let expected_len = self.num_channels() as usize * self.num_samples() as usize;
+        if src.len() != expected_len {
             return Err(AudioBufferOperationError::DeinterleaveLengthMismatch {
                 src_len: src.len(),
                 expected_len,
@@ -673,8 +886,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         let other_num_channels = source.num_channels();
         if self_num_channels != other_num_channels {
             return Err(AudioBufferOperationError::ChannelCountMismatch {
-                self_num_channels,
-                other_num_channels,
+                self_num_channels: self_num_channels as usize,
+                other_num_channels: other_num_channels as usize,
             });
         }
 
@@ -682,8 +895,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         let other_num_samples = source.num_samples();
         if self_num_samples != other_num_samples {
             return Err(AudioBufferOperationError::SampleCountMismatch {
-                self_num_samples,
-                other_num_samples,
+                self_num_samples: self_num_samples as usize,
+                other_num_samples: other_num_samples as usize,
             });
         }
 
@@ -717,8 +930,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         let other_num_samples = source.num_samples();
         if self_num_samples != other_num_samples {
             return Err(AudioBufferOperationError::SampleCountMismatch {
-                self_num_samples,
-                other_num_samples,
+                self_num_samples: self_num_samples as usize,
+                other_num_samples: other_num_samples as usize,
             });
         }
 
@@ -784,8 +997,8 @@ impl<T, P: ChannelPointers> AudioBuffer<T, P> {
         out_type: AmbisonicsType,
         out: &mut AudioBuffer<T2, P2>,
     ) -> Result<(), AudioBufferOperationError> {
-        let self_count = self.num_channels() * self.num_samples();
-        let other_count = out.num_channels() * out.num_samples();
+        let self_count = self.num_channels() as usize * self.num_samples() as usize;
+        let other_count = out.num_channels() as usize * out.num_samples() as usize;
         if self_count != other_count {
             return Err(AudioBufferOperationError::TotalSampleMismatch {
                 self_count,
@@ -1219,29 +1432,35 @@ impl std::fmt::Display for AudioBufferError {
     }
 }
 
-/// [`AudioBuffer`] operation errors.
+/// Errors produced by audio buffer operations.
 #[derive(Debug, PartialEq, Eq)]
 pub enum AudioBufferOperationError {
     /// Destination slice length does not match audio buffer length.
-    InterleaveLengthMismatch { dst_len: usize, expected_len: u32 },
+    InterleaveLengthMismatch { dst_len: usize, expected_len: usize },
 
     /// Source slice length does not match audio buffer length.
-    DeinterleaveLengthMismatch { src_len: usize, expected_len: u32 },
+    DeinterleaveLengthMismatch { src_len: usize, expected_len: usize },
 
     /// Audio buffers have mismatched number of channels.
     ChannelCountMismatch {
-        self_num_channels: u32,
-        other_num_channels: u32,
+        self_num_channels: usize,
+        other_num_channels: usize,
     },
 
     /// Audio buffers have mismatched number of samples.
     SampleCountMismatch {
-        self_num_samples: u32,
-        other_num_samples: u32,
+        self_num_samples: usize,
+        other_num_samples: usize,
     },
 
+    /// A downmix destination has more than one channel.
+    DownmixDestinationNotMono { num_channels: usize },
+
     /// Audio buffers have mismatched total sample count for conversion.
-    TotalSampleMismatch { self_count: u32, other_count: u32 },
+    TotalSampleMismatch {
+        self_count: usize,
+        other_count: usize,
+    },
 }
 
 impl std::error::Error for AudioBufferOperationError {}
@@ -1276,6 +1495,10 @@ impl std::fmt::Display for AudioBufferOperationError {
             } => write!(
                 f,
                 "sample count mismatch: buffer has {self_num_samples} samples, other has {other_num_samples}"
+            ),
+            Self::DownmixDestinationNotMono { num_channels } => write!(
+                f,
+                "downmix destination must be mono, but has {num_channels} channels"
             ),
             Self::TotalSampleMismatch {
                 self_count,
