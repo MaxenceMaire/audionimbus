@@ -13,8 +13,7 @@ use super::{
 };
 
 pub use crate::audio_buffer::{
-    AudioBuffer, AudioBufferMut, AudioBufferRead, AudioBufferRef, AudioBufferSettings, Sample,
-    num_ambisonics_channels,
+    AudioBuffer, AudioBufferMut, AudioBufferRef, Sample, num_ambisonics_channels,
 };
 pub use crate::audio_settings::AudioSettings;
 pub use crate::context::Context;

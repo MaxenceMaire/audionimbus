@@ -2,7 +2,7 @@
 
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
-use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
@@ -122,7 +122,7 @@ impl VirtualSurroundEffect {
     pub fn apply(
         &mut self,
         virtual_surround_effect_params: &VirtualSurroundEffectParams,
-        input_buffer: &impl AudioBufferRead,
+        input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         let num_input_channels = input_buffer.num_channels() as u32;

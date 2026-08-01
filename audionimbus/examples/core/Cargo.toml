@@ -6,4 +6,4 @@ authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 
 [dependencies]
 audionimbus = { path = "../.." }
-cpal = "0.15.3"
+cpal = "0.17"

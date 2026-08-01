@@ -2,7 +2,7 @@
 
 use super::super::{AudioEffectState, EffectError, SpeakerLayout};
 use crate::ChannelRequirement;
-use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
@@ -145,7 +145,7 @@ impl AmbisonicsDecodeEffect {
     pub fn apply(
         &mut self,
         ambisonics_decode_effect_params: &AmbisonicsDecodeEffectParams,
-        input_buffer: &impl AudioBufferRead,
+        input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         let num_input_channels = input_buffer.num_channels() as u32;

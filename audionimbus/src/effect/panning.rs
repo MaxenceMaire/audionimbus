@@ -3,7 +3,7 @@
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
 use crate::ChannelRequirement;
-use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
@@ -115,7 +115,7 @@ impl PanningEffect {
     pub fn apply(
         &mut self,
         panning_effect_params: &PanningEffectParams,
-        input_buffer: &impl AudioBufferRead,
+        input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         let num_input_channels = input_buffer.num_channels() as u32;

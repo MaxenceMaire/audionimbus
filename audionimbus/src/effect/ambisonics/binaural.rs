@@ -2,7 +2,7 @@
 
 use super::super::{AudioEffectState, EffectError};
 use crate::ChannelRequirement;
-use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
@@ -103,7 +103,7 @@ impl AmbisonicsBinauralEffect {
     pub fn apply(
         &mut self,
         ambisonics_binaural_effect_params: &AmbisonicsBinauralEffectParams,
-        input_buffer: &impl AudioBufferRead,
+        input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         let required_input_channels =

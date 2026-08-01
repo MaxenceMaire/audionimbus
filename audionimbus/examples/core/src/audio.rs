@@ -106,7 +106,7 @@ impl DirectPath {
     /// Output is written to `self.stereo_buffer`.
     fn process(
         &mut self,
-        dry_buffer: &impl AudioBufferRead,
+        dry_buffer: &impl AudioBuffer,
         params: &DirectEffectParams,
         direction: Direction,
         hrtf: Hrtf,
@@ -176,7 +176,7 @@ impl ConvolutionPath {
     /// Convolves `dry_buffer` with the room IR in `params` and decodes to binaural stereo.
     fn process(
         &mut self,
-        dry_buffer: &impl AudioBufferRead,
+        dry_buffer: &impl AudioBuffer,
         params: Option<&ReflectionEffectParams<Convolution>>,
         hrtf: Hrtf,
     ) {

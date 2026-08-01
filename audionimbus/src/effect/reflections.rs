@@ -6,7 +6,7 @@ use super::equalizer::Equalizer;
 use super::error::{ImpulseResponseSizeExceedsMaxError, NumChannelsExceedsMaxError};
 use crate::ChannelRequirement;
 use crate::Sealed;
-use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::device::true_audio_next::TrueAudioNextDevice;
@@ -428,7 +428,7 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
     pub fn apply(
         &mut self,
         reflection_effect_params: &ReflectionEffectParams<T>,
-        input_buffer: &impl AudioBufferRead,
+        input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         let num_input_channels = input_buffer.num_channels() as u32;
@@ -529,7 +529,7 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
     pub fn apply_into_mixer(
         &mut self,
         reflection_effect_params: &ReflectionEffectParams<T>,
-        input_buffer: &impl AudioBufferRead,
+        input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
         mixer: &ReflectionMixer<T>,
     ) -> Result<AudioEffectState, EffectError> {
