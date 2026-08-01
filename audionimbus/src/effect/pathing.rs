@@ -2,7 +2,8 @@
 
 use super::audio_effect_state::AudioEffectState;
 use super::{EffectError, SpeakerLayout};
-use crate::audio_buffer::{AudioBuffer, Sample};
+use crate::ChannelRequirement;
+use crate::audio_buffer::{AudioBufferMut, AudioBufferRead, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
@@ -10,7 +11,6 @@ use crate::ffi_wrapper::FFIWrapper;
 use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
-use crate::{ChannelPointers, ChannelRequirement};
 use std::hash::{Hash, Hasher};
 
 #[cfg(doc)]
@@ -170,18 +170,16 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let mut path_effect = PathEffect::try_new(&context, &audio_settings, &path_effect_settings)?;
 ///
 /// let input = vec![0.5; audio_settings.frame_size as usize];
-/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let input_buffer = AudioBufferRef::try_from(input.as_slice())?;
 ///
 /// // Must have 4 channels (1st order Ambisonics) for this example.
 /// const NUM_CHANNELS: u32 = num_ambisonics_channels(1);
-/// let mut output_container = vec![0.0; (NUM_CHANNELS * input_buffer.num_samples()) as usize];
-/// let output_buffer = AudioBuffer::try_with_data_and_settings(
-///     &mut output_container,
-///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
-/// )?;
+/// let mut output_container = vec![0.0; NUM_CHANNELS as usize * input_buffer.num_samples()];
+/// let mut output_buffer =
+///     AudioBufferMut::try_new(&mut output_container, NUM_CHANNELS as usize)?;
 ///
 /// let path_effect_params = source.get_pathing_outputs()?;
-/// let _ = path_effect.apply(&path_effect_params, &input_buffer, &output_buffer);
+/// let _ = path_effect.apply(&path_effect_params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
@@ -260,17 +258,13 @@ impl PathEffect {
     /// - The input buffer has more than one channel
     /// - The output buffer has a number of channels different from that needed for the ambisonics
     ///   order specified when creating the effect
-    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+    pub fn apply(
         &mut self,
         path_effect_params: &PathEffectParams,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
+        input_buffer: &impl AudioBufferRead,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_input_channels = input_buffer.num_channels() as u32;
         if num_input_channels != 1 {
             return Err(EffectError::InvalidInputChannels {
                 expected: ChannelRequirement::Exactly(1),
@@ -278,7 +272,7 @@ impl PathEffect {
             });
         }
 
-        let num_output_channels = output_buffer.num_channels();
+        let num_output_channels = output_buffer.num_channels() as u32;
         if num_output_channels != self.num_output_channels {
             return Err(EffectError::InvalidOutputChannels {
                 expected: ChannelRequirement::Exactly(self.num_output_channels),
@@ -286,12 +280,14 @@ impl PathEffect {
             });
         }
 
+        let mut input_buffer = read_as_ffi(input_buffer);
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplPathEffectApply(
                 self.raw_ptr(),
                 &raw mut *path_effect_params.as_ffi(),
-                &raw mut *input_buffer.as_ffi(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *input_buffer,
+                &raw mut *output_buffer,
             )
         }
         .into();
@@ -309,11 +305,11 @@ impl PathEffect {
     ///
     /// Returns [`EffectError`] if the output buffer has a number of channels different from that
     /// needed for the ambisonics order specified when creating the effect.
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
+    pub fn tail(
+        &self,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_output_channels = output_buffer.num_channels() as u32;
         if num_output_channels != self.num_output_channels {
             return Err(EffectError::InvalidOutputChannels {
                 expected: ChannelRequirement::Exactly(self.num_output_channels),
@@ -321,8 +317,9 @@ impl PathEffect {
             });
         }
 
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
-            audionimbus_sys::iplPathEffectGetTail(self.raw_ptr(), &raw mut *output_buffer.as_ffi())
+            audionimbus_sys::iplPathEffectGetTail(self.raw_ptr(), &raw mut *output_buffer)
         }
         .into();
 
@@ -509,15 +506,12 @@ mod tests {
                 PathEffect::try_new(&context, &audio_settings, &path_effect_settings).unwrap();
 
             let input_container = vec![0.5; FRAME_SIZE as usize];
-            let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+            let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
 
             // Must have 4 channels (1st order Ambisonics) for this example.
             let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
             let hrtf_settings = HrtfSettings::default();
             let hrtf = Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
@@ -537,7 +531,7 @@ mod tests {
 
             assert!(
                 path_effect
-                    .apply(&path_effect_params, &input_buffer, &output_buffer)
+                    .apply(&path_effect_params, &input_buffer, &mut output_buffer)
                     .is_ok()
             );
         }
@@ -559,19 +553,13 @@ mod tests {
                 PathEffect::try_new(&context, &audio_settings, &path_effect_settings).unwrap();
 
             let input_container = vec![0.5; 2 * FRAME_SIZE as usize];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &input_container,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let input_buffer =
+                AudioBufferRef::try_new(input_container.as_slice(), 2 as usize).unwrap();
 
             // Must have 4 channels (1st order Ambisonics) for this example.
             let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
             let hrtf_settings = HrtfSettings::default();
             let hrtf = Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
@@ -590,7 +578,7 @@ mod tests {
             };
 
             assert_eq!(
-                path_effect.apply(&path_effect_params, &input_buffer, &output_buffer),
+                path_effect.apply(&path_effect_params, &input_buffer, &mut output_buffer),
                 Err(EffectError::InvalidInputChannels {
                     expected: ChannelRequirement::Exactly(1),
                     actual: 2
@@ -615,14 +603,11 @@ mod tests {
                 PathEffect::try_new(&context, &audio_settings, &path_effect_settings).unwrap();
 
             let input_container = vec![0.5; FRAME_SIZE as usize];
-            let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+            let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
 
             let mut output_container = vec![0.0; 2 * input_buffer.num_samples() as usize];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
 
             let hrtf_settings = HrtfSettings::default();
             let hrtf = Hrtf::try_new(&context, &audio_settings, &hrtf_settings).unwrap();
@@ -641,7 +626,7 @@ mod tests {
             };
 
             assert_eq!(
-                path_effect.apply(&path_effect_params, &input_buffer, &output_buffer),
+                path_effect.apply(&path_effect_params, &input_buffer, &mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(4),
                     actual: 2
@@ -670,13 +655,10 @@ mod tests {
 
             // Must have 4 channels (1st order Ambisonics) for this example.
             let mut output_container = vec![0.0; 4 * FRAME_SIZE];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
-            assert!(path_effect.tail(&output_buffer).is_ok());
+            assert!(path_effect.tail(&mut output_buffer).is_ok());
         }
 
         #[test]
@@ -696,14 +678,11 @@ mod tests {
 
             // Must have 4 channels (1st order Ambisonics) for this example.
             let mut output_container = vec![0.0; 2 * FRAME_SIZE];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output_container,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
 
             assert_eq!(
-                path_effect.tail(&output_buffer),
+                path_effect.tail(&mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(4),
                     actual: 2

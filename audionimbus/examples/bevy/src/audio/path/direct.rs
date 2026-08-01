@@ -37,22 +37,19 @@ impl DirectPath {
     /// Output is written to `self.stereo_buffer`.
     pub fn process(
         &mut self,
-        dry_audio: &AudioBuffer<&[Sample]>,
+        dry_audio: &impl AudioBufferRead,
         params: &DirectEffectParams,
         direction: Direction,
         hrtf: Hrtf,
     ) -> &[Sample] {
-        let mono = AudioBuffer::try_with_data(self.mono_buffer.as_mut_slice())
+        let mut mono = AudioBufferMut::try_from(self.mono_buffer.as_mut_slice())
             .expect("failed to build mono direct buffer");
         self.direct_effect
-            .apply(params, dry_audio, &mono)
+            .apply(params, dry_audio, &mut mono)
             .expect("failed to apply direct effect");
 
-        let stereo = AudioBuffer::try_with_data_and_settings(
-            self.stereo_buffer.as_mut_slice(),
-            AudioBufferSettings::with_num_channels(2),
-        )
-        .expect("failed to build stereo direct buffer");
+        let mut stereo = AudioBufferMut::try_new(self.stereo_buffer.as_mut_slice(), 2)
+            .expect("failed to build stereo direct buffer");
 
         self.binaural_effect
             .apply(
@@ -64,7 +61,7 @@ impl DirectPath {
                     peak_delays: None,
                 },
                 &mono,
-                &stereo,
+                &mut stereo,
             )
             .expect("failed to apply binaural effect");
 

@@ -160,7 +160,7 @@ impl AudioNodeProcessor for SpatialProcessor {
             self.dry_buffer[frames..].fill(0.0);
         }
 
-        let dry_audio = AudioBuffer::try_with_data(self.dry_buffer.as_slice()).unwrap();
+        let dry_audio = AudioBufferRef::try_from(self.dry_buffer.as_slice()).unwrap();
 
         let direct_snapshot = self.direct_output.load();
         let direct_params = direct_snapshot

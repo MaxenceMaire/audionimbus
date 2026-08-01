@@ -51,7 +51,7 @@ impl ConvolutionPath {
     /// Convolves `dry_buffer` with the room IR in `params` and decodes to binaural stereo.
     pub fn process(
         &mut self,
-        dry_audio: &AudioBuffer<&[Sample]>,
+        dry_audio: &impl AudioBufferRead,
         params: Option<&ReflectionEffectParams<Convolution>>,
         hrtf: Hrtf,
     ) -> &[Sample] {
@@ -60,20 +60,17 @@ impl ConvolutionPath {
             return &self.stereo_buffer;
         };
 
-        let ambisonics = AudioBuffer::try_with_data_and_settings(
+        let mut ambisonics = AudioBufferMut::try_new(
             self.ambisonics_buffer.as_mut_slice(),
-            AudioBufferSettings::with_num_channels(AMBISONICS_CHANNELS),
+            AMBISONICS_CHANNELS as usize,
         )
         .expect("failed to build ambisonics buffer");
         self.reflection_effect
-            .apply(params, dry_audio, &ambisonics)
+            .apply(params, dry_audio, &mut ambisonics)
             .expect("failed to apply reflection effect");
 
-        let stereo = AudioBuffer::try_with_data_and_settings(
-            self.stereo_buffer.as_mut_slice(),
-            AudioBufferSettings::with_num_channels(2),
-        )
-        .expect("failed to build stereo reflection buffer");
+        let mut stereo = AudioBufferMut::try_new(self.stereo_buffer.as_mut_slice(), 2)
+            .expect("failed to build stereo reflection buffer");
         self.decode_effect
             .apply(
                 &AmbisonicsDecodeEffectParams {
@@ -82,7 +79,7 @@ impl ConvolutionPath {
                     orientation: CoordinateSystem::default(),
                 },
                 &ambisonics,
-                &stereo,
+                &mut stereo,
             )
             .expect("failed to decode ambisonics reflections");
 

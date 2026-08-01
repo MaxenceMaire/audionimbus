@@ -322,16 +322,13 @@ fn test_pathing() {
         PathEffect::try_new(&context, &audio_settings, &path_effect_settings).unwrap();
 
     let input = vec![0.5; audio_settings.frame_size as usize];
-    let input_buffer = AudioBuffer::try_with_data(&input).unwrap();
+    let input_buffer = AudioBufferRef::try_from(input.as_slice()).unwrap();
 
     // Must have 4 channels (1st order Ambisonics) for this example.
-    let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
-    let output_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut output_container,
-        AudioBufferSettings::with_num_channels(4),
-    )
-    .unwrap();
+    let mut output_container = vec![0.0; 4 * input_buffer.num_samples()];
+    let mut output_buffer =
+        AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
     let path_effect_params = source.get_pathing_outputs().unwrap();
-    let _ = path_effect.apply(&path_effect_params, &input_buffer, &output_buffer);
+    let _ = path_effect.apply(&path_effect_params, &input_buffer, &mut output_buffer);
 }
