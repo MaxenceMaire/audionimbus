@@ -56,8 +56,10 @@ pub trait AudioBuffer: crate::sealed::Sealed + sealed::ChannelPointers {
     ///
     /// # Errors
     ///
-    /// Returns [`AudioBufferOperationError::InterleaveLengthMismatch`] if `dst` does not match the
-    /// total sample count.
+    /// - [`AudioBufferOperationError::InterleaveLengthOverflow`] if the total sample count exceeds
+    ///   the native indexing range.
+    /// - [`AudioBufferOperationError::InterleaveLengthMismatch`] if `dst` does not match the total
+    ///   sample count.
     fn interleave(
         &self,
         context: &Context,
@@ -66,7 +68,14 @@ pub trait AudioBuffer: crate::sealed::Sealed + sealed::ChannelPointers {
     where
         Self: Sized,
     {
-        let expected_len = self.num_channels() * self.num_samples();
+        let expected_len = self
+            .num_channels()
+            .checked_mul(self.num_samples())
+            .filter(|expected_len| i32::try_from(*expected_len).is_ok())
+            .ok_or(AudioBufferOperationError::InterleaveLengthOverflow {
+                num_channels: self.num_channels(),
+                num_samples: self.num_samples(),
+            })?;
         if dst.len() != expected_len {
             return Err(AudioBufferOperationError::InterleaveLengthMismatch {
                 dst_len: dst.len(),
@@ -762,6 +771,12 @@ impl std::fmt::Display for AudioBufferError {
 /// Errors produced by audio buffer operations.
 #[derive(Debug, PartialEq, Eq)]
 pub enum AudioBufferOperationError {
+    /// The total interleaved sample count exceeds the native indexing range.
+    InterleaveLengthOverflow {
+        num_channels: usize,
+        num_samples: usize,
+    },
+
     /// Destination slice length does not match audio buffer length.
     InterleaveLengthMismatch { dst_len: usize, expected_len: usize },
 
@@ -789,6 +804,13 @@ impl std::error::Error for AudioBufferOperationError {}
 impl std::fmt::Display for AudioBufferOperationError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Self::InterleaveLengthOverflow {
+                num_channels,
+                num_samples,
+            } => write!(
+                f,
+                "interleaved length for {num_channels} channels with {num_samples} samples exceeds the native integer range"
+            ),
             Self::InterleaveLengthMismatch {
                 dst_len,
                 expected_len,
