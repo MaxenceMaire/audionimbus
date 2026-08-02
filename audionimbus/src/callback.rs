@@ -17,7 +17,7 @@ macro_rules! callback {
         $(#[$meta])*
         #[derive(Clone)]
         $vis struct $name {
-            callback: Arc<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>,
+            state: Arc<CallbackState<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>>,
         }
 
         impl $name {
@@ -26,7 +26,9 @@ macro_rules! callback {
                 F: Fn($($arg_ty),*) $(-> $ret)? + Send + Sync + 'static,
             {
                 Self {
-                    callback: Arc::new(f),
+                    state: Arc::new(CallbackState {
+                        callback: Box::new(f),
+                    }),
                 }
             }
 
@@ -34,15 +36,15 @@ macro_rules! callback {
                 $($arg: <$arg_ty as $crate::callback::FfiConvert>::FfiType,)*
                 user_data: *mut c_void,
             ) $(-> <$ret as $crate::callback::FfiConvert>::FfiType)? {
-                // SAFETY: `user_data` was set in `as_raw_parts()`.
+                // SAFETY: `user_data` points to the shared state owned by this callback's
+                // retained wrapper.
                 // The pointer is non-null and correctly aligned.
-                // The pointee remains valid for the duration of this call.
-                let callback = unsafe { &*(user_data as *const Arc<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>) };
+                let state = unsafe { &*(user_data as *const CallbackState<dyn Fn($($arg_ty),*) $(-> $ret)? + Send + Sync>) };
 
                 $(let $arg = <$arg_ty as $crate::callback::FfiConvert>::from_ffi($arg);)*
 
                 #[allow(unused_variables)]
-                let result = callback($($arg),*);
+                let result = (state.callback)($($arg),*);
 
                 $(return <$ret as $crate::callback::FfiConvert>::to_ffi(result);)?
             }
@@ -54,7 +56,7 @@ macro_rules! callback {
             ) {
                 (
                     Self::trampoline,
-                    &self.callback as *const _ as *mut c_void,
+                    Arc::as_ptr(&self.state).cast_mut().cast(),
                 )
             }
         }
@@ -68,6 +70,12 @@ macro_rules! callback {
         }
     };
 }
+
+/// Heap-allocated callback state with a stable address across wrapper clones.
+struct CallbackState<F: ?Sized> {
+    callback: Box<F>,
+}
+
 /// Trait for types that can be converted to/from FFI representations.
 pub(crate) trait FfiConvert {
     type FfiType;
@@ -227,7 +235,7 @@ thread_local! {
 /// 0.0 = the sound is not audible, 1.0 = the sound is as loud as it would be if it had a uniform (omnidirectional) directivity pattern.
 #[derive(Clone)]
 pub struct DirectivityCallback {
-    callback: Arc<dyn Fn(Vector3) -> f32 + Send + Sync>,
+    state: Arc<CallbackState<dyn Fn(Vector3) -> f32 + Send + Sync>>,
 }
 
 impl DirectivityCallback {
@@ -236,7 +244,9 @@ impl DirectivityCallback {
         F: Fn(Vector3) -> f32 + Send + Sync + 'static,
     {
         Self {
-            callback: Arc::new(f),
+            state: Arc::new(CallbackState {
+                callback: Box::new(f),
+            }),
         }
     }
 
@@ -252,11 +262,12 @@ impl DirectivityCallback {
         // Storing it in thread-local storage ensures exclusive access per thread.
         // Only one directivity calculation can run at a time per thread.
         // The pointee remains valid for the duration of this call.
-        let callback =
-            unsafe { &*(callback_ptr as *const Arc<dyn Fn(Vector3) -> f32 + Send + Sync>) };
+        let state = unsafe {
+            &*(callback_ptr as *const CallbackState<dyn Fn(Vector3) -> f32 + Send + Sync>)
+        };
 
         let direction = Vector3::from_ffi(direction);
-        callback(direction)
+        (state.callback)(direction)
     }
 
     // WORKAROUND: This stores the callback pointer in thread-local storage rather than
@@ -267,7 +278,7 @@ impl DirectivityCallback {
         unsafe extern "C" fn(audionimbus_sys::IPLVector3, *mut c_void) -> f32,
         *mut c_void,
     ) {
-        let callback_ptr = &self.callback as *const _ as *mut c_void;
+        let callback_ptr = Arc::as_ptr(&self.state).cast_mut().cast();
         DIRECTIVITY_CALLBACK_PTR.set(callback_ptr);
         (Self::trampoline, callback_ptr)
     }

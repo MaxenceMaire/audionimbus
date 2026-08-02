@@ -1,5 +1,9 @@
 use audionimbus::wiring::*;
 use audionimbus::*;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 use std::time::Duration;
 
 mod common;
@@ -450,4 +454,58 @@ fn test_wiring_simulation() {
     pathing_simulation
         .join()
         .expect("pathing simulation thread panicked");
+}
+
+#[test]
+fn direct_simulation_retains_distance_callback() {
+    let context = Context::default();
+    let audio_settings = AudioSettings::default();
+    let simulation_settings =
+        SimulationSettings::new(&audio_settings).with_direct(DirectSimulationSettings {
+            max_num_occlusion_samples: 1,
+        });
+    let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+    let source = Source::try_new(&simulator).unwrap();
+
+    let calls = Arc::new(AtomicUsize::new(0));
+    let retained_calls = Arc::downgrade(&calls);
+    let callback_calls = calls.clone();
+    let inputs = SimulationInputs {
+        source: CoordinateSystem::default(),
+        parameters: SimulationParameters::new().with_direct(
+            DirectSimulationParameters::new().with_distance_attenuation(
+                DistanceAttenuationModel::Callback {
+                    callback: DistanceAttenuationCallback::new(move |_| {
+                        callback_calls.fetch_add(1, Ordering::Relaxed);
+                        0.5
+                    }),
+                    dirty: false,
+                },
+            ),
+        ),
+    };
+
+    source.set_direct_inputs(&inputs).unwrap();
+    drop(inputs);
+    drop(calls);
+    assert!(retained_calls.upgrade().is_some());
+
+    simulator.add_source(&source);
+    simulator
+        .set_shared_direct_inputs(&SimulationSharedInputs::new(CoordinateSystem::default()))
+        .unwrap();
+    simulator.commit();
+    simulator.run_direct();
+    assert!(retained_calls.upgrade().unwrap().load(Ordering::Relaxed) > 0);
+
+    let replacement = SimulationInputs {
+        source: CoordinateSystem::default(),
+        parameters: SimulationParameters::new().with_direct(
+            DirectSimulationParameters::new()
+                .with_distance_attenuation(DistanceAttenuationModel::default()),
+        ),
+    };
+    source.set_direct_inputs(&replacement).unwrap();
+    assert!(retained_calls.upgrade().is_none());
+    simulator.run_direct();
 }

@@ -1868,6 +1868,9 @@ pub struct Source<D = (), R = (), P = (), RE = ()> {
 /// Shared ownership of [`Source`] data across clones.
 #[derive(Default, Debug)]
 struct SourceShared {
+    /// Stored direct simulation parameters to keep callback-backed models alive.
+    _direct_parameters: Option<DirectSimulationParameters>,
+
     /// Stored deviation model to keep `callback` and `user_data` alive.
     /// Only used when pathing simulation is enabled.
     deviation_model: Option<DeviationModel>,
@@ -2136,6 +2139,12 @@ where
 
         let mut ffi_inputs = inputs.to_ffi();
 
+        let direct_parameters = if simulation_flags.contains(SimulationFlags::DIRECT) {
+            Some(inputs.parameters.direct_simulation.clone())
+        } else {
+            None
+        };
+
         let mut shared = self.shared.lock().unwrap();
         (shared.deviation_model, shared._pathing_probes) = inputs
             .parameters
@@ -2152,6 +2161,10 @@ where
                 simulation_flags.into(),
                 &mut ffi_inputs,
             );
+        }
+
+        if let Some(direct_parameters) = direct_parameters {
+            shared._direct_parameters = direct_parameters;
         }
 
         Ok(())
