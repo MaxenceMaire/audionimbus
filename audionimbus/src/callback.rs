@@ -1,7 +1,6 @@
 //! Callback definitions.
 
 use crate::geometry::{Hit, Ray, Vector3};
-use std::cell::Cell;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -208,20 +207,22 @@ callback! {
     pub DistanceAttenuationCallback(distance: f32) -> f32
 }
 
-// BUG: Steam Audio has a bug where the `userData` pointer passed to directivity callbacks
-// is corrupted and does not match the originally provided pointer. This causes segfaults
-// when attempting to dereference the pointer to access our closure.
+// BUG: Steam Audio passes the `direction` argument to directivity callbacks by reference,
+// even though the public API declares it by value. This shifts the callback arguments and
+// prevents us from recovering the `userData` pointer.
 //
 // See: https://github.com/ValveSoftware/steam-audio/issues/526
 //
-// This absolutely unholy hack consists in storing the callback pointer in a static cell local to
-// the thread instead of relying on Steam Audio to pass it back to us. It is safe because only one
-// directivity calculation can execute at a time per thread.
+// This workaround uses a trampoline matching the actual reference signature, then casts it to the
+// public callback type. This lets us recover the real `userData` pointer without thread-local
+// storage.
 //
-// TODO: the this workaround and use `callback!` macro once the Steam Audio bug is fixed.
-thread_local! {
-    static DIRECTIVITY_CALLBACK_PTR: Cell<*mut c_void> = const { Cell::new(std::ptr::null_mut()) };
-}
+// TODO: remove this workaround and use the `callback!` macro once the Steam Audio bug is fixed.
+
+type DirectivityCallbackRef = unsafe extern "C" fn(
+    direction: *const audionimbus_sys::IPLVector3,
+    user_data: *mut c_void,
+) -> f32;
 
 /// Callback for calculating how much to attenuate a sound based on its directivity pattern and orientation in world space.
 ///
@@ -250,28 +251,21 @@ impl DirectivityCallback {
         }
     }
 
-    // WORKAROUND: This function ignores the `_user_data` parameter (which Steam Audio
-    // corrupts) and instead retrieves the callback pointer from thread-local storage.
     unsafe extern "C" fn trampoline(
-        direction: audionimbus_sys::IPLVector3,
-        _user_data: *mut c_void,
+        direction: *const audionimbus_sys::IPLVector3,
+        user_data: *mut c_void,
     ) -> f32 {
-        let callback_ptr = DIRECTIVITY_CALLBACK_PTR.get();
-
-        // SAFETY: `callback_ptr` was stored in `as_raw_parts()`.
-        // Storing it in thread-local storage ensures exclusive access per thread.
-        // Only one directivity calculation can run at a time per thread.
-        // The pointee remains valid for the duration of this call.
-        let state = unsafe {
-            &*(callback_ptr as *const CallbackState<dyn Fn(Vector3) -> f32 + Send + Sync>)
-        };
+        // SAFETY: The native callback passes a reference to a live vector for this call.
+        let direction = unsafe { direction.read() };
+        // SAFETY: `user_data` points to the shared state owned by this callback's
+        // retained wrapper. The pointer is non-null and correctly aligned.
+        let state =
+            unsafe { &*(user_data as *const CallbackState<dyn Fn(Vector3) -> f32 + Send + Sync>) };
 
         let direction = Vector3::from_ffi(direction);
         (state.callback)(direction)
     }
 
-    // WORKAROUND: This stores the callback pointer in thread-local storage rather than
-    // passing it through Steam Audio's userData parameter (which is corrupted by a bug).
     pub(crate) fn as_raw_parts(
         &self,
     ) -> (
@@ -279,8 +273,15 @@ impl DirectivityCallback {
         *mut c_void,
     ) {
         let callback_ptr = Arc::as_ptr(&self.state).cast_mut().cast();
-        DIRECTIVITY_CALLBACK_PTR.set(callback_ptr);
-        (Self::trampoline, callback_ptr)
+        // SAFETY: The native library calls the public by-value callback pointer using its
+        // internal by-reference signature.
+        let trampoline = unsafe {
+            std::mem::transmute::<
+                DirectivityCallbackRef,
+                unsafe extern "C" fn(audionimbus_sys::IPLVector3, *mut c_void) -> f32,
+            >(Self::trampoline)
+        };
+        (trampoline, callback_ptr)
     }
 }
 

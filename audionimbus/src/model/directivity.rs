@@ -75,7 +75,8 @@ pub fn directivity_attenuation(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CoordinateSystem, Point};
+    use crate::{CoordinateSystem, Point, Vector3};
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_default_model() {
@@ -154,16 +155,38 @@ mod tests {
     }
 
     #[test]
-    fn test_callback_model() {
+    fn callback_receives_direction() {
         let context = Context::default();
-
-        // Source at origin, pointing along +z axis (default ahead direction)
         let source = CoordinateSystem::default();
+        let listener = Point::new(1.0, 0.0, 0.0);
+        let received = Arc::new(Mutex::new(None));
+        let callback_received = Arc::clone(&received);
+        let directivity = Directivity::Callback(DirectivityCallback::new(move |direction| {
+            *callback_received.lock().unwrap() = Some(direction);
+            0.5
+        }));
 
-        let listener_front = Point::new(0.0, 0.0, 1.0); // In front (along -z in world, which is +z in source local)
+        let attenuation = directivity_attenuation(&context, source, listener, &directivity);
 
-        let directivity = Directivity::Callback(DirectivityCallback::new(|_direction| 0.5));
-        let attenuation = directivity_attenuation(&context, source, listener_front, &directivity);
         assert_eq!(attenuation, 0.5);
+        assert_eq!(*received.lock().unwrap(), Some(Vector3::new(1.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn callbacks_keep_distinct_user_data() {
+        let context = Context::default();
+        let source = CoordinateSystem::default();
+        let listener = Point::new(1.0, 0.0, 0.0);
+        let first = Directivity::Callback(DirectivityCallback::new(|_| 0.25));
+        let second = Directivity::Callback(DirectivityCallback::new(|_| 0.75));
+
+        assert_eq!(
+            directivity_attenuation(&context, source, listener, &first),
+            0.25
+        );
+        assert_eq!(
+            directivity_attenuation(&context, source, listener, &second),
+            0.75
+        );
     }
 }
