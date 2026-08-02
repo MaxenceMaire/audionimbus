@@ -36,7 +36,7 @@
 //! )?;
 //! scene.add_static_mesh(mesh);
 //! scene.commit();
-//! # Ok::<(), SteamAudioError>(())
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! # Dynamic Geometry

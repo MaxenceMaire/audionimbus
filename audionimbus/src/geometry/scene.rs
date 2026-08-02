@@ -564,7 +564,11 @@ impl<T: RayTracer> Scene<T> {
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let mut scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
     /// # let material_indices = vec![0];
@@ -612,7 +616,11 @@ impl<T: RayTracer> Scene<T> {
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let mut scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
     /// # let material_indices = vec![0];
@@ -661,7 +669,11 @@ impl<T: RayTracer> Scene<T> {
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let mut sub_scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
     /// # let material_indices = vec![0];
@@ -724,7 +736,11 @@ impl<T: RayTracer> Scene<T> {
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let mut sub_scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
     /// # let material_indices = vec![0];
@@ -787,7 +803,11 @@ impl<T: RayTracer> Scene<T> {
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let mut sub_scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
     /// # let material_indices = vec![0];
@@ -864,7 +884,11 @@ impl<T: RayTracer> Scene<T> {
     /// # use audionimbus::*;
     /// # let context = Context::default();
     /// # let mut scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
     /// # let triangles = vec![Triangle::new(0, 1, 2)];
     /// # let materials = vec![Material::default()];
     /// # let material_indices = vec![0];
@@ -1049,7 +1073,11 @@ pub fn relative_direction(
 /// # use audionimbus::*;
 /// # let context = Context::default();
 /// # let mut scene = Scene::try_new(&context)?;
-/// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+/// # let vertices = vec![
+/// #     Point::new(0.0, 0.0, 0.0),
+/// #     Point::new(1.0, 0.0, 0.0),
+/// #     Point::new(0.0, 1.0, 0.0),
+/// # ];
 /// # let triangles = vec![Triangle::new(0, 1, 2)];
 /// # let materials = vec![Material::default()];
 /// # let material_indices = vec![0];
@@ -1085,7 +1113,11 @@ pub struct StaticMeshHandle(DefaultKey);
 /// # use audionimbus::*;
 /// # let context = Context::default();
 /// # let mut sub_scene = Scene::try_new(&context)?;
-/// # let vertices = vec![Point::new(0.0, 0.0, 0.0)];
+/// # let vertices = vec![
+/// #     Point::new(0.0, 0.0, 0.0),
+/// #     Point::new(1.0, 0.0, 0.0),
+/// #     Point::new(0.0, 1.0, 0.0),
+/// # ];
 /// # let triangles = vec![Triangle::new(0, 1, 2)];
 /// # let materials = vec![Material::default()];
 /// # let material_indices = vec![0];
