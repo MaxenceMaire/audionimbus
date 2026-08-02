@@ -963,7 +963,7 @@ impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
     ///
     /// This function can only be called on a scene created with the `DefaultRayTracer` ray tracer.
     pub fn save(&self) -> SerializedObject {
-        let serialized_object = SerializedObject(std::ptr::null_mut());
+        let serialized_object = SerializedObject::from_raw(std::ptr::null_mut());
 
         unsafe {
             audionimbus_sys::iplSceneSave(self.raw_ptr(), serialized_object.raw_ptr());

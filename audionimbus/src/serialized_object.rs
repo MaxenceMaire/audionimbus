@@ -1,6 +1,7 @@
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 #[cfg(doc)]
 use crate::geometry::Scene;
@@ -9,14 +10,18 @@ use crate::probe::ProbeBatch;
 
 /// A serialized representation of an API object, like a [`Scene`] or [`ProbeBatch`].
 ///
-/// Create an empty serialized object if you want to serialize an existing object to a byte array, or create a serialized object that wraps an existing byte array if you want to deserialize it.
+/// Create an empty serialized object as the destination for a save API, or create one from owned
+/// bytes to deserialize it.
 ///
 /// `SerializedObject` is a reference-counted handle to an underlying Steam Audio object.
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-#[derive(Debug, PartialEq, Eq)]
-pub struct SerializedObject(pub(crate) audionimbus_sys::IPLSerializedObject);
+#[derive(Debug)]
+pub struct SerializedObject {
+    raw: audionimbus_sys::IPLSerializedObject,
+    input_bytes: Option<Arc<Vec<u8>>>,
+}
 
 impl SerializedObject {
     /// Creates a new empty serialized object for serialization purposes and returns a handle to it.
@@ -34,16 +39,10 @@ impl SerializedObject {
     /// # Ok::<(), audionimbus::SteamAudioError>(())
     /// ```
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        let serialized_object_settings = audionimbus_sys::IPLSerializedObjectSettings {
-            data: std::ptr::null_mut(),
-            size: 0,
-        };
-
-        Self::try_with_settings(context, serialized_object_settings)
+        Self::try_with_input(context, None)
     }
 
-    /// Creates a serialized object that wraps an existing byte buffer for deserialization and
-    /// returns a handle to it.
+    /// Creates a serialized object that takes ownership of a byte buffer for deserialization.
     ///
     /// # Errors
     ///
@@ -55,32 +54,38 @@ impl SerializedObject {
     /// ```
     /// # use audionimbus::{Context, SerializedObject, SteamAudioError};
     /// let context = Context::default();
-    /// let mut buffer = vec![0u8; 1024]; // Load your serialized data here.
-    /// let serialized_object = SerializedObject::try_with_buffer(&context, &mut buffer)?;
+    /// let buffer = vec![0u8; 1024]; // Load your serialized data here.
+    /// let serialized_object = SerializedObject::try_with_buffer(&context, buffer)?;
     /// # Ok::<(), audionimbus::SteamAudioError>(())
     /// ```
-    pub fn try_with_buffer(
-        context: &Context,
-        buffer: &mut Vec<u8>,
-    ) -> Result<Self, SteamAudioError> {
-        let serialized_object_settings = audionimbus_sys::IPLSerializedObjectSettings {
-            data: buffer.as_mut_ptr().cast::<audionimbus_sys::IPLbyte>(),
-            size: buffer.len(),
-        };
-
-        Self::try_with_settings(context, serialized_object_settings)
+    pub fn try_with_buffer(context: &Context, buffer: Vec<u8>) -> Result<Self, SteamAudioError> {
+        Self::try_with_input(context, Some(Arc::new(buffer)))
     }
 
-    /// Creates a serialized object with the given settings and returns a handle to it.
+    /// Creates a serialized object with optional owned input bytes.
     ///
     /// # Errors
     ///
     /// Returns an error if the underlying Steam Audio library fails to create the object.
-    fn try_with_settings(
+    fn try_with_input(
         context: &Context,
-        mut serialized_object_settings: audionimbus_sys::IPLSerializedObjectSettings,
+        input_bytes: Option<Arc<Vec<u8>>>,
     ) -> Result<Self, SteamAudioError> {
-        let mut serialized_object = Self(std::ptr::null_mut());
+        let (data, size) = input_bytes.as_ref().map_or_else(
+            || (std::ptr::null_mut(), 0),
+            |bytes| {
+                (
+                    bytes.as_ptr().cast_mut().cast::<audionimbus_sys::IPLbyte>(),
+                    bytes.len(),
+                )
+            },
+        );
+        let mut serialized_object_settings =
+            audionimbus_sys::IPLSerializedObjectSettings { data, size };
+        let mut serialized_object = Self {
+            raw: std::ptr::null_mut(),
+            input_bytes,
+        };
 
         let status = unsafe {
             audionimbus_sys::iplSerializedObjectCreate(
@@ -97,18 +102,26 @@ impl SerializedObject {
         Ok(serialized_object)
     }
 
+    /// Creates a serialized object that owns one native reference to `raw`.
+    pub(crate) const fn from_raw(raw: audionimbus_sys::IPLSerializedObject) -> Self {
+        Self {
+            raw,
+            input_bytes: None,
+        }
+    }
+
     /// Returns the raw FFI pointer to the underlying object.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr(&self) -> audionimbus_sys::IPLSerializedObject {
-        self.0
+        self.raw
     }
 
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
     pub const fn raw_ptr_mut(&mut self) -> &mut audionimbus_sys::IPLSerializedObject {
-        &mut self.0
+        &mut self.raw
     }
 
     /// Extracts the serialized data as a byte vector.
@@ -150,7 +163,7 @@ impl SerializedObject {
 
 impl Drop for SerializedObject {
     fn drop(&mut self) {
-        unsafe { audionimbus_sys::iplSerializedObjectRelease(&raw mut self.0) }
+        unsafe { audionimbus_sys::iplSerializedObjectRelease(&raw mut self.raw) }
     }
 }
 
@@ -163,9 +176,20 @@ impl Clone for SerializedObject {
     /// The returned [`SerializedObject`] shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The serialized object will not be destroyed until all references are released.
-        Self(unsafe { audionimbus_sys::iplSerializedObjectRetain(self.0) })
+        Self {
+            raw: unsafe { audionimbus_sys::iplSerializedObjectRetain(self.raw) },
+            input_bytes: self.input_bytes.clone(),
+        }
     }
 }
+
+impl PartialEq for SerializedObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw_ptr() == other.raw_ptr()
+    }
+}
+
+impl Eq for SerializedObject {}
 
 impl Hash for SerializedObject {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -178,27 +202,39 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_try_new() {
+    fn try_new() {
         let context = Context::default();
         let serialized_object = SerializedObject::try_new(&context);
         assert!(serialized_object.is_ok());
     }
 
     #[test]
-    fn test_try_with_buffer() {
+    fn try_with_buffer() {
         let context = Context::default();
-        let mut buffer = vec![0u8; 1024];
-        let serialized_object = SerializedObject::try_with_buffer(&context, &mut buffer);
-        assert!(serialized_object.is_ok());
+        let buffer = vec![1, 2, 3, 4];
+        let data = buffer.as_ptr();
+        let serialized_object = SerializedObject::try_with_buffer(&context, buffer).unwrap();
+
+        assert_eq!(
+            serialized_object.input_bytes.as_ref().unwrap().as_ptr(),
+            data
+        );
+        assert_eq!(serialized_object.to_vec(), vec![1, 2, 3, 4]);
     }
 
     #[test]
-    fn test_clone() {
+    fn clone() {
         let context = Context::default();
-        let serialized_object = SerializedObject::try_new(&context).unwrap();
+        let buffer = vec![1, 2, 3, 4];
+        let serialized_object = SerializedObject::try_with_buffer(&context, buffer).unwrap();
         let clone = serialized_object.clone();
+
         assert_eq!(serialized_object.raw_ptr(), clone.raw_ptr());
+        assert!(Arc::ptr_eq(
+            serialized_object.input_bytes.as_ref().unwrap(),
+            clone.input_bytes.as_ref().unwrap()
+        ));
         drop(serialized_object);
-        assert!(!clone.raw_ptr().is_null());
+        assert_eq!(clone.to_vec(), vec![1, 2, 3, 4]);
     }
 }

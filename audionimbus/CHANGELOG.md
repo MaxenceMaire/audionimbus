@@ -5,6 +5,7 @@
 ### Changed
 
 - Replace `AudioBuffer<T, P>` with borrowed `AudioBufferRef` and `AudioBufferMut` views. Effect inputs implement the `AudioBuffer` trait, while outputs require `&mut AudioBufferMut`. Replace settings-based constructors with `try_new`, `try_from_channels`, or `TryFrom`.
+- `SerializedObject::try_with_buffer` now takes ownership of a `Vec<u8>` without copying its contents.
 
 ### Fixed
 
@@ -13,6 +14,7 @@
 - Sources now retain callback-backed direct simulation models.
 - Directivity callbacks now receive their own user data across sources and simulation threads.
 - Batched ray tracing callbacks now fill in missing results.
+- Serialized objects now retain input bytes needed for later deserialization.
 
 ## [0.15.0] - 2026-07-04
 
