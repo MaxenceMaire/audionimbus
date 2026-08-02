@@ -227,16 +227,12 @@ mod tests {
     use crate::bevy::geometry::Scene;
     use crate::context::Context;
     use crate::ray_tracing::DefaultRayTracer;
-    use crate::serialized_object::SerializedObject;
 
     #[test]
     fn test_scene_asset_round_trip() {
         let context = Context::default();
         let scene = crate::geometry::Scene::<DefaultRayTracer>::try_new(&context).unwrap();
-        let serialized_object = SerializedObject::try_new(&context).unwrap();
-        unsafe {
-            audionimbus_sys::iplSceneSave(scene.raw_ptr(), serialized_object.raw_ptr());
-        }
+        let serialized_object = scene.try_save(&context).unwrap();
         let asset = SceneAsset::new(serialized_object.to_vec());
 
         let loaded_scene =

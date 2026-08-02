@@ -405,13 +405,18 @@ impl ProbeBatch {
         shared.pending_num_probes = 0;
     }
 
-    /// Saves a probe batch to a serialized object.
+    /// Saves the probe batch and returns its serialized representation.
     ///
     /// Typically, the serialized object will then be saved to disk.
-    pub fn save(&self, serialized_object: &mut SerializedObject) {
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if the destination serialized object cannot be created.
+    pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
+        let serialized_object = SerializedObject::try_new(context)?;
         unsafe {
             audionimbus_sys::iplProbeBatchSave(self.raw_ptr(), serialized_object.raw_ptr());
         }
+        Ok(serialized_object)
     }
 
     /// Loads a probe batch from a serialized object.

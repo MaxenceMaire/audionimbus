@@ -15,7 +15,7 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-/// Marker trait for scenes that can use `save()`.
+/// Marker trait for scenes that can use `try_save()`.
 pub trait SaveableAsSerialized: Sealed {}
 impl SaveableAsSerialized for DefaultRayTracer {}
 
@@ -957,19 +957,21 @@ impl<T: RayTracer> Scene<T> {
 }
 
 impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
-    /// Saves a scene to a serialized object.
+    /// Saves the scene and returns its serialized representation.
     ///
     /// Typically, the serialized object will then be saved to disk.
     ///
     /// This function can only be called on a scene created with the `DefaultRayTracer` ray tracer.
-    pub fn save(&self) -> SerializedObject {
-        let serialized_object = SerializedObject::from_raw(std::ptr::null_mut());
-
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if the destination serialized object cannot be created.
+    pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
+        let serialized_object = SerializedObject::try_new(context)?;
         unsafe {
             audionimbus_sys::iplSceneSave(self.raw_ptr(), serialized_object.raw_ptr());
         }
-
-        serialized_object
+        Ok(serialized_object)
     }
 }
 

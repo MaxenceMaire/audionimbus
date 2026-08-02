@@ -114,14 +114,12 @@ mod tests {
     use super::*;
     use crate::bevy::ProbeBatch;
     use crate::context::Context;
-    use crate::serialized_object::SerializedObject;
 
     #[test]
     fn test_probe_batch_asset_round_trip() {
         let context = Context::default();
         let probe_batch = crate::probe::ProbeBatch::try_new(&context).unwrap();
-        let mut serialized_object = SerializedObject::try_new(&context).unwrap();
-        probe_batch.save(&mut serialized_object);
+        let serialized_object = probe_batch.try_save(&context).unwrap();
         let asset = ProbeBatchAsset::new(serialized_object.to_vec());
 
         let loaded_probe_batch = ProbeBatch::from_asset(&context, &asset).unwrap();

@@ -1,5 +1,6 @@
 use super::{Material, Point, Scene, Triangle};
 use crate::callback::ProgressCallback;
+use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;
@@ -185,15 +186,21 @@ impl<T: RayTracer> StaticMesh<T> {
 }
 
 impl StaticMesh<DefaultRayTracer> {
-    /// Saves a static mesh to a serialized object.
+    /// Saves the static mesh and returns its serialized representation.
     ///
     /// Typically, the serialized object will then be saved to disk.
     ///
     /// This function can only be called on a static mesh that is part of a scene created with the [`DefaultRayTracer`] ray tracer.
-    pub fn save(&self, serialized_object: &mut SerializedObject) {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if the destination serialized object cannot be created.
+    pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
+        let serialized_object = SerializedObject::try_new(context)?;
         unsafe {
             audionimbus_sys::iplStaticMeshSave(self.raw_ptr(), serialized_object.raw_ptr());
         }
+        Ok(serialized_object)
     }
 }
 

@@ -32,10 +32,10 @@ fn test_static_mesh_save_load() {
     let scene = Scene::try_new(&context).unwrap();
     let static_mesh = static_mesh(&scene);
 
-    let mut serialized = SerializedObject::try_new(&context).unwrap();
-    static_mesh.save(&mut serialized);
+    let serialized = static_mesh.try_save(&context).unwrap();
 
-    let loaded = StaticMesh::<DefaultRayTracer>::load(&scene, &mut serialized);
+    assert!(!serialized.to_vec().is_empty());
+    let loaded = StaticMesh::<DefaultRayTracer>::load(&scene, &serialized);
     assert!(loaded.is_ok());
 }
 
@@ -45,11 +45,23 @@ fn test_static_mesh_to_vec() {
     let scene = Scene::try_new(&context).unwrap();
     let static_mesh = static_mesh(&scene);
 
-    let mut serialized = SerializedObject::try_new(&context).unwrap();
-    static_mesh.save(&mut serialized);
+    let serialized = static_mesh.try_save(&context).unwrap();
 
     let data = serialized.to_vec();
     assert!(!data.is_empty());
+}
+
+#[test]
+fn test_scene_save_load() {
+    let context = Context::default();
+    let mut scene = Scene::try_new(&context).unwrap();
+    scene.add_static_mesh(static_mesh(&scene));
+    scene.commit();
+
+    let serialized = scene.try_save(&context).unwrap();
+
+    assert!(!serialized.to_vec().is_empty());
+    assert!(Scene::<DefaultRayTracer>::load(&context, &serialized).is_ok());
 }
 
 #[test]
@@ -84,9 +96,9 @@ fn test_probe_batch_save_load() {
     probe_batch.add_probe(probe);
     probe_batch.commit();
 
-    let mut serialized = SerializedObject::try_new(&context).unwrap();
-    probe_batch.save(&mut serialized);
+    let mut serialized = probe_batch.try_save(&context).unwrap();
 
+    assert!(!serialized.to_vec().is_empty());
     let loaded_batch = ProbeBatch::load(&context, &mut serialized);
     assert!(loaded_batch.is_ok());
     assert_eq!(loaded_batch.unwrap().num_probes(), 1);

@@ -6,6 +6,7 @@
 
 - Replace `AudioBuffer<T, P>` with borrowed `AudioBufferRef` and `AudioBufferMut` views. Effect inputs implement the `AudioBuffer` trait, while outputs require `&mut AudioBufferMut`. Replace settings-based constructors with `try_new`, `try_from_channels`, or `TryFrom`.
 - `SerializedObject::try_with_buffer` now takes ownership of a `Vec<u8>` without copying its contents.
+- `save` methods on `Scene`, `StaticMesh`, and `ProbeBatch` now allocate and return a `SerializedObject`.
 
 ### Fixed
 

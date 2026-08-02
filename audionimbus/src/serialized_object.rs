@@ -10,8 +10,9 @@ use crate::probe::ProbeBatch;
 
 /// A serialized representation of an API object, like a [`Scene`] or [`ProbeBatch`].
 ///
-/// Create an empty serialized object as the destination for a save API, or create one from owned
-/// bytes to deserialize it.
+/// Create one from owned bytes to deserialize an API object.
+/// Use `Scene::try_save`, `StaticMesh::try_save`, or `ProbeBatch::try_save` to serialize those
+/// objects.
 ///
 /// `SerializedObject` is a reference-counted handle to an underlying Steam Audio object.
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
@@ -24,21 +25,13 @@ pub struct SerializedObject {
 }
 
 impl SerializedObject {
-    /// Creates a new empty serialized object for serialization purposes and returns a handle to it.
+    /// Creates an empty serialized object for an internal save operation.
     ///
     /// # Errors
     ///
     /// Returns an error if the underlying Steam Audio library fails to create the serialized object.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use audionimbus::{Context, SerializedObject, SteamAudioError};
-    /// let context = Context::default();
-    /// let serialized_object = SerializedObject::try_new(&context)?;
-    /// # Ok::<(), audionimbus::SteamAudioError>(())
-    /// ```
-    pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
+    pub(crate) fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         Self::try_with_input(context, None)
     }
 
@@ -102,14 +95,6 @@ impl SerializedObject {
         Ok(serialized_object)
     }
 
-    /// Creates a serialized object that owns one native reference to `raw`.
-    pub(crate) const fn from_raw(raw: audionimbus_sys::IPLSerializedObject) -> Self {
-        Self {
-            raw,
-            input_bytes: None,
-        }
-    }
-
     /// Returns the raw FFI pointer to the underlying object.
     ///
     /// This is intended for internal use and advanced scenarios.
@@ -137,10 +122,10 @@ impl SerializedObject {
     /// # Examples
     ///
     /// ```
-    /// # use audionimbus::{Context, SerializedObject, Scene};
+    /// # use audionimbus::{Context, Scene};
     /// # let context = Context::default();
-    /// # let serialized_object = SerializedObject::try_new(&context)?;
-    /// // After serializing some object into serialized_object...
+    /// # let scene = Scene::try_new(&context)?;
+    /// let serialized_object = scene.try_save(&context)?;
     /// let bytes = serialized_object.to_vec();
     /// # Ok::<(), audionimbus::SteamAudioError>(())
     /// ```
