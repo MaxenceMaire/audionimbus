@@ -100,7 +100,7 @@ pub use scene::{
 };
 
 mod static_mesh;
-pub use static_mesh::{StaticMesh, StaticMeshSettings};
+pub use static_mesh::{StaticMesh, StaticMeshError, StaticMeshSettings};
 
 mod instanced_mesh;
 pub use instanced_mesh::{InstancedMesh, InstancedMeshSettings};

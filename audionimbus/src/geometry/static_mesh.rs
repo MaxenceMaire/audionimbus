@@ -29,11 +29,13 @@ impl<T: RayTracer> StaticMesh<T> {
     ///
     /// # Errors
     ///
-    /// Returns [`SteamAudioError`] if creation fails.
+    /// Returns [`StaticMeshError`] if the settings are invalid or creation fails.
     pub fn try_new(
         scene: &Scene<T>,
         settings: &StaticMeshSettings,
-    ) -> Result<Self, SteamAudioError> {
+    ) -> Result<Self, StaticMeshError> {
+        validate_static_mesh_settings(settings)?;
+
         let mut inner = std::ptr::null_mut();
 
         let mut vertices: Vec<audionimbus_sys::IPLVector3> = settings
@@ -79,7 +81,7 @@ impl<T: RayTracer> StaticMesh<T> {
         };
 
         if let Some(error) = to_option_error(status) {
-            return Err(error);
+            return Err(error.into());
         }
 
         let static_mesh = Self {
@@ -237,9 +239,215 @@ pub struct StaticMeshSettings<'a> {
     pub materials: &'a [Material],
 }
 
+/// Validates static mesh settings.
+///
+/// # Errors
+///
+/// Returns [`StaticMeshError`] when material counts differ or an index is out of bounds.
+fn validate_static_mesh_settings(settings: &StaticMeshSettings) -> Result<(), StaticMeshError> {
+    if settings.material_indices.len() != settings.triangles.len() {
+        return Err(StaticMeshError::MaterialIndexCountMismatch {
+            num_triangles: settings.triangles.len(),
+            num_material_indices: settings.material_indices.len(),
+        });
+    }
+
+    for (triangle, indices) in settings.triangles.iter().enumerate() {
+        for &vertex_index in &indices.indices {
+            if !usize::try_from(vertex_index)
+                .is_ok_and(|vertex_index| vertex_index < settings.vertices.len())
+            {
+                return Err(StaticMeshError::VertexIndexOutOfBounds {
+                    triangle,
+                    vertex_index,
+                    num_vertices: settings.vertices.len(),
+                });
+            }
+        }
+    }
+
+    for (triangle, &material_index) in settings.material_indices.iter().enumerate() {
+        if material_index >= settings.materials.len() {
+            return Err(StaticMeshError::MaterialIndexOutOfBounds {
+                triangle,
+                material_index,
+                num_materials: settings.materials.len(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// Errors produced while creating a [`StaticMesh`].
+#[derive(Debug, PartialEq, Eq)]
+pub enum StaticMeshError {
+    /// The number of material indices differs from the number of triangles.
+    MaterialIndexCountMismatch {
+        num_triangles: usize,
+        num_material_indices: usize,
+    },
+
+    /// A triangle refers to a vertex that does not exist.
+    VertexIndexOutOfBounds {
+        triangle: usize,
+        vertex_index: i32,
+        num_vertices: usize,
+    },
+
+    /// A triangle refers to a material that does not exist.
+    MaterialIndexOutOfBounds {
+        triangle: usize,
+        material_index: usize,
+        num_materials: usize,
+    },
+
+    /// Native static mesh creation failed.
+    SteamAudio(SteamAudioError),
+}
+
+impl std::error::Error for StaticMeshError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::SteamAudio(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for StaticMeshError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::MaterialIndexCountMismatch {
+                num_triangles,
+                num_material_indices,
+            } => write!(
+                f,
+                "static mesh has {num_triangles} triangles but {num_material_indices} material indices"
+            ),
+            Self::VertexIndexOutOfBounds {
+                triangle,
+                vertex_index,
+                num_vertices,
+            } => write!(
+                f,
+                "triangle {triangle} has vertex index {vertex_index}, but the mesh has {num_vertices} vertices"
+            ),
+            Self::MaterialIndexOutOfBounds {
+                triangle,
+                material_index,
+                num_materials,
+            } => write!(
+                f,
+                "triangle {triangle} has material index {material_index}, but the mesh has {num_materials} materials"
+            ),
+            Self::SteamAudio(error) => error.fmt(f),
+        }
+    }
+}
+
+impl From<SteamAudioError> for StaticMeshError {
+    fn from(error: SteamAudioError) -> Self {
+        Self::SteamAudio(error)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
+
+    mod validate_static_mesh_settings {
+        use super::super::validate_static_mesh_settings;
+        use crate::geometry;
+
+        fn valid_static_mesh_settings() -> geometry::StaticMeshSettings<'static> {
+            static VERTICES: [geometry::Point; 3] = [
+                geometry::Point::new(0.0, 0.0, 0.0),
+                geometry::Point::new(1.0, 0.0, 0.0),
+                geometry::Point::new(0.0, 1.0, 0.0),
+            ];
+            static TRIANGLES: [geometry::Triangle; 1] = [geometry::Triangle::new(0, 1, 2)];
+            static MATERIAL_INDICES: [usize; 1] = [0];
+            static MATERIALS: [geometry::Material; 1] = [geometry::Material::GENERIC];
+
+            geometry::StaticMeshSettings {
+                vertices: &VERTICES,
+                triangles: &TRIANGLES,
+                material_indices: &MATERIAL_INDICES,
+                materials: &MATERIALS,
+            }
+        }
+
+        #[test]
+        fn accepts_valid_static_mesh_settings() {
+            assert_eq!(
+                validate_static_mesh_settings(&valid_static_mesh_settings()),
+                Ok(())
+            );
+        }
+
+        #[test]
+        fn rejects_mismatched_material_index_count() {
+            let mut settings = valid_static_mesh_settings();
+            settings.material_indices = &[];
+
+            assert_eq!(
+                validate_static_mesh_settings(&settings),
+                Err(geometry::StaticMeshError::MaterialIndexCountMismatch {
+                    num_triangles: 1,
+                    num_material_indices: 0,
+                })
+            );
+        }
+
+        #[test]
+        fn rejects_negative_vertex_index() {
+            let triangles = [geometry::Triangle::new(-1, 1, 2)];
+            let mut settings = valid_static_mesh_settings();
+            settings.triangles = &triangles;
+
+            assert_eq!(
+                validate_static_mesh_settings(&settings),
+                Err(geometry::StaticMeshError::VertexIndexOutOfBounds {
+                    triangle: 0,
+                    vertex_index: -1,
+                    num_vertices: 3,
+                })
+            );
+        }
+
+        #[test]
+        fn rejects_out_of_range_vertex_index() {
+            let triangles = [geometry::Triangle::new(0, 1, 3)];
+            let mut settings = valid_static_mesh_settings();
+            settings.triangles = &triangles;
+
+            assert_eq!(
+                validate_static_mesh_settings(&settings),
+                Err(geometry::StaticMeshError::VertexIndexOutOfBounds {
+                    triangle: 0,
+                    vertex_index: 3,
+                    num_vertices: 3,
+                })
+            );
+        }
+
+        #[test]
+        fn rejects_out_of_range_material_index() {
+            let material_indices = [1];
+            let mut settings = valid_static_mesh_settings();
+            settings.material_indices = &material_indices;
+
+            assert_eq!(
+                validate_static_mesh_settings(&settings),
+                Err(geometry::StaticMeshError::MaterialIndexOutOfBounds {
+                    triangle: 0,
+                    material_index: 1,
+                    num_materials: 1,
+                })
+            );
+        }
+    }
 
     #[test]
     fn test_static_mesh_clone() {
