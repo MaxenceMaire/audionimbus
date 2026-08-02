@@ -9,6 +9,7 @@
 ### Fixed
 
 - `StaticMesh::try_new` now rejects mismatched material counts and out-of-bounds vertex or material indices.
+- Scene and static mesh loading now keep progress callbacks alive until the native load call returns.
 
 ## [0.15.0] - 2026-07-04
 

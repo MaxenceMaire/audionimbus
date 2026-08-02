@@ -138,10 +138,12 @@ impl<T: RayTracer> StaticMesh<T> {
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
         let (callback_fn, user_data) =
-            progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
-                let (callback_fn, user_data) = callback.as_raw_parts();
-                (Some(callback_fn), user_data)
-            });
+            progress_callback
+                .as_ref()
+                .map_or((None, std::ptr::null_mut()), |callback| {
+                    let (callback_fn, user_data) = callback.as_raw_parts();
+                    (Some(callback_fn), user_data)
+                });
 
         let mut inner = std::ptr::null_mut();
 

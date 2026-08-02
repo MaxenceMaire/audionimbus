@@ -174,10 +174,12 @@ impl<T: RayTracer> Scene<T> {
         let mut scene = Self::empty(device, callback_user_data);
 
         let (callback_fn, user_data) =
-            progress_callback.map_or((None, std::ptr::null_mut()), |callback| {
-                let (callback_fn, user_data) = callback.as_raw_parts();
-                (Some(callback_fn), user_data)
-            });
+            progress_callback
+                .as_ref()
+                .map_or((None, std::ptr::null_mut()), |callback| {
+                    let (callback_fn, user_data) = callback.as_raw_parts();
+                    (Some(callback_fn), user_data)
+                });
 
         let status = unsafe {
             audionimbus_sys::iplSceneLoad(
