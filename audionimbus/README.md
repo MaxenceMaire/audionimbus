@@ -227,17 +227,14 @@ let input: Vec<Sample> = (0..audio_settings.frame_size)
             .sin()
     })
     .collect();
-// Create an audio buffer over the input data.
-let input_buffer = AudioBuffer::try_with_data(&input)?;
+// Create an immutable view over the input data.
+let input_buffer = AudioBufferRef::try_from(&input[..])?;
 
-let num_channels: u32 = 2; // Stereo
+let num_channels = 2; // Stereo
 // Allocate memory to store processed samples.
-let mut output = vec![0.0; (audio_settings.frame_size * num_channels) as usize];
-// Create another audio buffer over the output container.
-let output_buffer = AudioBuffer::try_with_data_and_settings(
-    &mut output,
-    AudioBufferSettings::with_num_channels(num_channels),
-)?;
+let mut output = vec![0.0; audio_settings.frame_size as usize * num_channels];
+// Create a mutable view over the output container.
+let mut output_buffer = AudioBufferMut::try_new(&mut output, num_channels)?;
 
 // Apply a binaural audio effect.
 let binaural_effect_params = BinauralEffectParams {
@@ -252,7 +249,7 @@ let binaural_effect_params = BinauralEffectParams {
     peak_delays: None,
 };
 let _effect_state =
-    binaural_effect.apply(&binaural_effect_params, &input_buffer, &output_buffer);
+    binaural_effect.apply(&binaural_effect_params, &input_buffer, &mut output_buffer);
 
 // `output` now contains the processed samples in a deinterleaved format (i.e., left channel
 // samples followed by right channel samples).

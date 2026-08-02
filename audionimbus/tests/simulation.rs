@@ -114,18 +114,15 @@ fn test_simulation() {
         audio_settings.sampling_rate,
     );
     // Must be mono.
-    let input_buffer = AudioBuffer::try_with_data(&sine_wave).unwrap();
+    let input_buffer = AudioBufferRef::try_from(sine_wave.as_slice()).unwrap();
 
     // Must have 4 channels (1st order Ambisonics) for this example.
-    let mut output_container = vec![0.0; 4 * input_buffer.num_samples() as usize];
-    let output_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut output_container,
-        AudioBufferSettings::with_num_channels(4),
-    )
-    .unwrap();
+    let mut output_container = vec![0.0; 4 * input_buffer.num_samples()];
+    let mut output_buffer =
+        AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
     let reflection_effect_params = simulation_outputs.reflections();
-    let _ = reflection_effect.apply(&reflection_effect_params, &input_buffer, &output_buffer);
+    let _ = reflection_effect.apply(&reflection_effect_params, &input_buffer, &mut output_buffer);
 }
 
 #[test]

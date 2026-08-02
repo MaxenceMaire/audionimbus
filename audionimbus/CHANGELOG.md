@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Replace `AudioBuffer<T, P>` with borrowed `AudioBufferRef` and `AudioBufferMut` views. Effect inputs implement the `AudioBuffer` trait, while outputs require `&mut AudioBufferMut`. Replace settings-based constructors with `try_new`, `try_from_channels`, or `TryFrom`.
+
 ## [0.15.0] - 2026-07-04
 
 ### Changed

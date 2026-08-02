@@ -34,7 +34,7 @@ pub fn spawn_audio_thread(
 
     crate::output::start_output_stream(&device, &stream_config, move |output, _| {
         tone_burst.fill(&mut dry_buffer);
-        let dry_audio = AudioBuffer::try_with_data(dry_buffer.as_slice()).unwrap();
+        let dry_audio = AudioBufferRef::try_from(dry_buffer.as_slice()).unwrap();
 
         let direct_snapshot = direct_output.load();
         let reflections_snapshot = reflections_reverb_output.load();
@@ -66,16 +66,10 @@ pub fn spawn_audio_thread(
             REVERB_GAIN,
         );
 
-        AudioBuffer::try_with_data_and_settings(
-            &mut direct_path.stereo_buffer,
-            AudioBufferSettings {
-                num_channels: Some(NUM_CHANNELS),
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .interleave(&context, output)
-        .unwrap();
+        AudioBufferRef::try_new(&direct_path.stereo_buffer, NUM_CHANNELS as usize)
+            .unwrap()
+            .interleave(&context, output)
+            .unwrap();
     })
 }
 
@@ -112,22 +106,19 @@ impl DirectPath {
     /// Output is written to `self.stereo_buffer`.
     fn process(
         &mut self,
-        dry_buffer: &AudioBuffer<&[Sample]>,
+        dry_buffer: &impl AudioBuffer,
         params: &DirectEffectParams,
         direction: Direction,
         hrtf: Hrtf,
     ) {
-        let mono = AudioBuffer::try_with_data(&mut self.mono_buffer).unwrap();
-        self.direct_effect.apply(params, dry_buffer, &mono).unwrap();
+        let mut mono = AudioBufferMut::try_from(self.mono_buffer.as_mut_slice()).unwrap();
+        self.direct_effect
+            .apply(params, dry_buffer, &mut mono)
+            .unwrap();
 
-        let stereo = AudioBuffer::try_with_data_and_settings(
-            self.stereo_buffer.as_mut_slice(),
-            AudioBufferSettings {
-                num_channels: Some(NUM_CHANNELS),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let mut stereo =
+            AudioBufferMut::try_new(self.stereo_buffer.as_mut_slice(), NUM_CHANNELS as usize)
+                .unwrap();
         self.binaural_effect
             .apply(
                 &BinauralEffectParams {
@@ -138,7 +129,7 @@ impl DirectPath {
                     peak_delays: None,
                 },
                 &mono,
-                &stereo,
+                &mut stereo,
             )
             .unwrap();
     }
@@ -185,7 +176,7 @@ impl ConvolutionPath {
     /// Convolves `dry_buffer` with the room IR in `params` and decodes to binaural stereo.
     fn process(
         &mut self,
-        dry_buffer: &AudioBuffer<&[f32]>,
+        dry_buffer: &impl AudioBuffer,
         params: Option<&ReflectionEffectParams<Convolution>>,
         hrtf: Hrtf,
     ) {
@@ -194,18 +185,18 @@ impl ConvolutionPath {
             return;
         };
 
-        let ambisonics = AudioBuffer::try_with_data_and_settings(
+        let mut ambisonics = AudioBufferMut::try_new(
             self.ambisonics_buffer.as_mut_slice(),
-            AudioBufferSettings {
-                num_channels: Some(AMBISONICS_CHANNELS),
-                ..Default::default()
-            },
+            AMBISONICS_CHANNELS as usize,
         )
         .unwrap();
         self.reflection_effect
-            .apply(params, dry_buffer, &ambisonics)
+            .apply(params, dry_buffer, &mut ambisonics)
             .unwrap();
 
+        let mut stereo =
+            AudioBufferMut::try_new(self.stereo_buffer.as_mut_slice(), NUM_CHANNELS as usize)
+                .unwrap();
         self.decode_effect
             .apply(
                 &AmbisonicsDecodeEffectParams {
@@ -214,14 +205,7 @@ impl ConvolutionPath {
                     orientation: CoordinateSystem::default(),
                 },
                 &ambisonics,
-                &AudioBuffer::try_with_data_and_settings(
-                    self.stereo_buffer.as_mut_slice(),
-                    AudioBufferSettings {
-                        num_channels: Some(NUM_CHANNELS),
-                        ..Default::default()
-                    },
-                )
-                .unwrap(),
+                &mut stereo,
             )
             .unwrap();
     }

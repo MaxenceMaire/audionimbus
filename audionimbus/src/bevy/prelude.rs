@@ -12,7 +12,9 @@ use super::{
     system_set,
 };
 
-pub use crate::audio_buffer::{AudioBuffer, AudioBufferSettings, Sample, num_ambisonics_channels};
+pub use crate::audio_buffer::{
+    AudioBuffer, AudioBufferMut, AudioBufferRef, Sample, num_ambisonics_channels,
+};
 pub use crate::audio_settings::AudioSettings;
 pub use crate::context::Context;
 pub use crate::effect::ambisonics::SpeakerLayout;

@@ -44,12 +44,9 @@
 //!     peak_delays: None,
 //! };
 //!
-//! let input_buffer = AudioBuffer::try_with_data([1.0; 1024])?;
+//! let input_buffer = AudioBufferRef::try_from(&[1.0; 1024][..])?;
 //! let mut output_container = vec![0.0; 2 * input_buffer.num_samples() as usize];
-//! let mut output_buffer = AudioBuffer::try_with_data_and_settings(
-//!     &mut output_container,
-//!     AudioBufferSettings::with_num_channels(2),
-//! )?;
+//! let mut output_buffer = AudioBufferMut::try_new(&mut output_container, 2)?;
 //!
 //! let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 //! # Ok::<(), Box<dyn std::error::Error>>(())

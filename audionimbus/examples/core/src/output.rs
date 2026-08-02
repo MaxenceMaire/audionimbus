@@ -15,7 +15,7 @@ pub fn default_device() -> (cpal::Device, StreamConfig) {
 
     let config = StreamConfig {
         buffer_size: cpal::BufferSize::Fixed(FRAME_SIZE),
-        sample_rate: cpal::SampleRate(SAMPLE_RATE),
+        sample_rate: SAMPLE_RATE,
         channels: NUM_CHANNELS as u16,
     };
 

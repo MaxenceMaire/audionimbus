@@ -1,14 +1,14 @@
 //! Decoding Ambisonics to speakers or headphones.
 
 use super::super::{AudioEffectState, EffectError, SpeakerLayout};
-use crate::audio_buffer::{AudioBuffer, Sample};
+use crate::ChannelRequirement;
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::geometry::CoordinateSystem;
 use crate::hrtf::Hrtf;
 use crate::num_ambisonics_channels;
-use crate::{ChannelPointers, ChannelRequirement};
 use std::hash::{Hash, Hasher};
 
 /// Applies a rotation to an ambisonics audio buffer, then decodes it using panning or binaural rendering.
@@ -48,15 +48,11 @@ use std::hash::{Hash, Hasher};
 ///
 /// const FRAME_SIZE: usize = 1024;
 /// let input = vec![0.5; 4 * FRAME_SIZE]; // 4 channels
-/// let input_buffer =
-///     AudioBuffer::try_with_data_and_settings(&input, AudioBufferSettings::with_num_channels(4))?;
+/// let input_buffer = AudioBufferRef::try_new(&input, 4)?;
 /// let mut output = vec![0.0; 2 * FRAME_SIZE]; // Stereo
-/// let output_buffer = AudioBuffer::try_with_data_and_settings(
-///     &mut output,
-///     AudioBufferSettings::with_num_channels(2),
-/// )?;
+/// let mut output_buffer = AudioBufferMut::try_new(&mut output, 2)?;
 ///
-/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
@@ -146,17 +142,13 @@ impl AmbisonicsDecodeEffect {
     /// - The output buffer does not have the correct number of channels (i.e., two channels if
     ///   using binaural rendering, or as many channels as needed for the speaker layout if using
     ///   panning).
-    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+    pub fn apply(
         &mut self,
         ambisonics_decode_effect_params: &AmbisonicsDecodeEffectParams,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
+        input_buffer: &impl AudioBuffer,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_input_channels = input_buffer.num_channels() as u32;
         if num_input_channels != self.num_input_channels {
             return Err(EffectError::InvalidInputChannels {
                 expected: ChannelRequirement::Exactly(self.num_input_channels),
@@ -164,7 +156,7 @@ impl AmbisonicsDecodeEffect {
             });
         }
 
-        let num_output_channels = output_buffer.num_channels();
+        let num_output_channels = output_buffer.num_channels() as u32;
         if num_output_channels != self.num_output_channels {
             return Err(EffectError::InvalidOutputChannels {
                 expected: ChannelRequirement::Exactly(self.num_output_channels),
@@ -180,12 +172,14 @@ impl AmbisonicsDecodeEffect {
                 binaural: matches!(self.rendering, Rendering::Binaural).into(),
             };
 
+        let mut input_buffer = read_as_ffi(input_buffer);
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectApply(
                 self.raw_ptr(),
                 &raw mut ambisonics_decode_effect_params_ffi,
-                &raw mut *input_buffer.as_ffi(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *input_buffer,
+                &raw mut *output_buffer,
             )
         }
         .into();
@@ -203,11 +197,11 @@ impl AmbisonicsDecodeEffect {
     ///
     /// Returns [`EffectError`] if the output buffer does not have the correct number of channels (i.e., two channels if
     /// using binaural rendering, or as many channels as needed for the speaker layout if using panning).
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
+    pub fn tail(
+        &self,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_output_channels = output_buffer.num_channels() as u32;
         if num_output_channels != self.num_output_channels {
             return Err(EffectError::InvalidOutputChannels {
                 expected: ChannelRequirement::Exactly(self.num_output_channels),
@@ -215,10 +209,11 @@ impl AmbisonicsDecodeEffect {
             });
         }
 
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplAmbisonicsDecodeEffectGetTail(
                 self.raw_ptr(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer,
             )
         }
         .into();
@@ -365,20 +360,16 @@ mod tests {
             };
 
             let input = vec![0.5; 4 * 1024];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &input,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let input_buffer = AudioBufferRef::try_new(&input, 4).unwrap();
 
             let mut output = vec![0.0; 2 * 1024];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output, 2).unwrap();
 
-            assert!(effect.apply(&params, &input_buffer, &output_buffer).is_ok());
+            assert!(
+                effect
+                    .apply(&params, &input_buffer, &mut output_buffer)
+                    .is_ok()
+            );
         }
 
         #[test]
@@ -407,20 +398,16 @@ mod tests {
             };
 
             let input = vec![0.5; 4 * 1024];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &input,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let input_buffer = AudioBufferRef::try_new(&input, 4).unwrap();
 
             let mut output = vec![0.0; 8 * 1024];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output,
-                AudioBufferSettings::with_num_channels(8),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output, 8).unwrap();
 
-            assert!(effect.apply(&params, &input_buffer, &output_buffer).is_ok());
+            assert!(
+                effect
+                    .apply(&params, &input_buffer, &mut output_buffer)
+                    .is_ok()
+            );
         }
 
         #[test]
@@ -449,21 +436,13 @@ mod tests {
             };
 
             let input = vec![0.5; 2 * 1024];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &input,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let input_buffer = AudioBufferRef::try_new(&input, 2).unwrap();
 
             let mut output = vec![0.0; 2 * 1024];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output, 2).unwrap();
 
             assert_eq!(
-                effect.apply(&params, &input_buffer, &output_buffer),
+                effect.apply(&params, &input_buffer, &mut output_buffer),
                 Err(EffectError::InvalidInputChannels {
                     expected: ChannelRequirement::Exactly(4),
                     actual: 2,
@@ -497,21 +476,13 @@ mod tests {
             };
 
             let input = vec![0.5; 4 * 1024];
-            let input_buffer = AudioBuffer::try_with_data_and_settings(
-                &input,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let input_buffer = AudioBufferRef::try_new(&input, 4).unwrap();
 
             let mut output = vec![0.0; 3 * 1024];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output,
-                AudioBufferSettings::with_num_channels(3),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output, 3).unwrap();
 
             assert_eq!(
-                effect.apply(&params, &input_buffer, &output_buffer),
+                effect.apply(&params, &input_buffer, &mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(2),
                     actual: 3,
@@ -543,13 +514,9 @@ mod tests {
             .unwrap();
 
             let mut output = vec![0.0; 2 * 1024];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output,
-                AudioBufferSettings::with_num_channels(2),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output, 2).unwrap();
 
-            assert!(effect.tail(&output_buffer).is_ok());
+            assert!(effect.tail(&mut output_buffer).is_ok());
         }
 
         #[test]
@@ -572,14 +539,10 @@ mod tests {
             .unwrap();
 
             let mut output = vec![0.0; 4 * 1024];
-            let output_buffer = AudioBuffer::try_with_data_and_settings(
-                &mut output,
-                AudioBufferSettings::with_num_channels(4),
-            )
-            .unwrap();
+            let mut output_buffer = AudioBufferMut::try_new(&mut output, 4).unwrap();
 
             assert_eq!(
-                effect.tail(&output_buffer),
+                effect.tail(&mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(2),
                     actual: 4,

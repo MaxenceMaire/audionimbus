@@ -1,206 +1,267 @@
 use audionimbus::*;
 
 #[test]
-fn test_buffer_mix() {
-    let context = Context::default();
+fn accesses_channels() {
+    let source = [1.0, 2.0, 3.0, 4.0];
+    let source_buffer = AudioBufferRef::try_new(&source, 2).unwrap();
 
-    const FRAME_SIZE: usize = 1024;
+    assert_eq!(source_buffer.channel(0), Some(&source[..2]));
+    assert_eq!(source_buffer.channel(1), Some(&source[2..]));
+    assert_eq!(source_buffer.channel(2), None);
 
-    let source_container = vec![0.1; FRAME_SIZE];
-    let source_buffer = AudioBuffer::try_with_data(&source_container).unwrap();
-
-    let mix_container = vec![0.2; FRAME_SIZE];
-    let mut mix_buffer = AudioBuffer::try_with_data(&mix_container).unwrap();
-
-    assert!(mix_buffer.mix(&context, &source_buffer).is_ok());
-
-    assert_eq!(mix_container, vec![0.3; FRAME_SIZE]);
+    let mut destination = [0.0; 4];
+    let mut destination_buffer = AudioBufferMut::try_new(&mut destination, 2).unwrap();
+    destination_buffer
+        .channel_mut(1)
+        .unwrap()
+        .copy_from_slice(&[3.0, 4.0]);
+    assert_eq!(destination_buffer.channel(1), Some(&[3.0, 4.0][..]));
+    assert!(destination_buffer.channel_mut(2).is_none());
 }
 
 #[test]
-fn test_buffer_mix_multichannel() {
+fn mixes_mono_buffers() {
     let context = Context::default();
+    let source = vec![0.1; 1024];
+    let source_buffer = AudioBufferRef::try_from(&source[..]).unwrap();
+    let mut mixed = vec![0.2; 1024];
 
-    const FRAME_SIZE: usize = 512;
-    const NUM_CHANNELS: usize = 2;
+    AudioBufferMut::try_from(&mut mixed[..])
+        .unwrap()
+        .mix(&context, &source_buffer)
+        .unwrap();
 
-    let mut source_container = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
-    source_container.extend(std::iter::repeat_n(0.1, FRAME_SIZE));
-    source_container.extend(std::iter::repeat_n(0.2, FRAME_SIZE));
-    let source_buffer = AudioBuffer::try_with_data_and_settings(
-        &source_container,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    let mut mix_container = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
-    mix_container.extend(std::iter::repeat_n(0.3, FRAME_SIZE));
-    mix_container.extend(std::iter::repeat_n(0.4, FRAME_SIZE));
-    let mut mix_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut mix_container,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    assert!(mix_buffer.mix(&context, &source_buffer).is_ok());
-
-    // First channel: 0.3 + 0.1 = 0.4
-    assert_eq!(&mix_container[0..FRAME_SIZE], &vec![0.4; FRAME_SIZE][..]);
-    // Second channel: 0.4 + 0.2 = 0.6
-    assert_eq!(&mix_container[FRAME_SIZE..], &vec![0.6; FRAME_SIZE][..]);
+    assert_eq!(mixed, vec![0.3; 1024]);
 }
 
 #[test]
-fn test_buffer_downmix() {
+fn mixes_multichannel_buffers() {
     let context = Context::default();
+    let mut source = vec![0.1; 512];
+    source.extend(std::iter::repeat_n(0.2, 512));
+    let source_buffer = AudioBufferRef::try_new(&source, 2).unwrap();
+    let mut mixed = vec![0.3; 512];
+    mixed.extend(std::iter::repeat_n(0.4, 512));
 
-    const FRAME_SIZE: usize = 1024;
-    const NUM_CHANNELS: usize = 2;
+    AudioBufferMut::try_new(&mut mixed, 2)
+        .unwrap()
+        .mix(&context, &source_buffer)
+        .unwrap();
 
-    let mut input_container = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
-    input_container.extend(std::iter::repeat_n(0.1, FRAME_SIZE));
-    input_container.extend(std::iter::repeat_n(0.3, FRAME_SIZE));
-    let input_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut input_container,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    let mut downmix_container = vec![0.0; FRAME_SIZE];
-    let mut downmix_buffer = AudioBuffer::try_with_data(&mut downmix_container).unwrap();
-
-    assert!(downmix_buffer.downmix(&context, &input_buffer).is_ok());
-
-    assert_eq!(downmix_container, vec![0.2; FRAME_SIZE]);
+    assert_eq!(&mixed[..512], &[0.4; 512]);
+    assert_eq!(&mixed[512..], &[0.6; 512]);
 }
 
 #[test]
-fn test_buffer_downmix_multichannel() {
+fn rejects_mix_shape_mismatches() {
     let context = Context::default();
+    let source = [0.0; 8];
+    let source_buffer = AudioBufferRef::try_new(&source, 2).unwrap();
 
-    const FRAME_SIZE: usize = 512;
-    const NUM_CHANNELS: usize = 4;
-
-    let mut input_container = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
-    input_container.extend(std::iter::repeat_n(0.1, FRAME_SIZE));
-    input_container.extend(std::iter::repeat_n(0.2, FRAME_SIZE));
-    input_container.extend(std::iter::repeat_n(0.3, FRAME_SIZE));
-    input_container.extend(std::iter::repeat_n(0.4, FRAME_SIZE));
-    let input_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut input_container,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    let mut downmix_container = vec![0.0; FRAME_SIZE];
-    let mut downmix_buffer = AudioBuffer::try_with_data(&mut downmix_container).unwrap();
-
-    assert!(downmix_buffer.downmix(&context, &input_buffer).is_ok());
-
-    // Average of 0.1, 0.2, 0.3, 0.4 = 0.25
-    assert_eq!(downmix_container, vec![0.25; FRAME_SIZE]);
-}
-
-#[test]
-fn test_buffer_interleave_deinterleave() {
-    let context = Context::default();
-
-    const FRAME_SIZE: usize = 256;
-    const NUM_CHANNELS: usize = 2;
-
-    let mut deinterleaved = Vec::with_capacity(NUM_CHANNELS * FRAME_SIZE);
-    deinterleaved.extend((0..FRAME_SIZE).map(|i| i as f32)); // Channel 0
-    deinterleaved.extend((0..FRAME_SIZE).map(|i| (i + 1000) as f32)); // Channel 1
-
-    let buffer = AudioBuffer::try_with_data_and_settings(
-        &deinterleaved,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    // Interleave
-    let mut interleaved = vec![0.0; NUM_CHANNELS * FRAME_SIZE];
-    assert!(buffer.interleave(&context, &mut interleaved).is_ok());
-
-    // Verify interleaving: [ch0[0], ch1[0], ch0[1], ch1[1], ...]
-    for i in 0..FRAME_SIZE {
-        assert_eq!(interleaved[i * 2], i as f32);
-        assert_eq!(interleaved[i * 2 + 1], (i + 1000) as f32);
-    }
-
-    // Deinterleave back
-    let mut deinterleaved_back = vec![0.0; NUM_CHANNELS * FRAME_SIZE];
-    let mut buffer_back = AudioBuffer::try_with_data_and_settings(
-        &mut deinterleaved_back,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    assert!(buffer_back.deinterleave(&context, &interleaved).is_ok());
-
-    assert_eq!(deinterleaved_back, deinterleaved);
-}
-
-#[test]
-fn test_convert_ambisonics() {
-    let context = Context::default();
-
-    const FRAME_SIZE: usize = 256;
-    const NUM_CHANNELS: usize = 4; // First-order Ambisonics
-
-    let mut n3d_data = vec![0.5; NUM_CHANNELS * FRAME_SIZE];
-    let mut n3d_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut n3d_data,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    n3d_buffer.convert_ambisonics(&context, AmbisonicsType::N3D, AmbisonicsType::SN3D);
-
-    n3d_buffer.convert_ambisonics(&context, AmbisonicsType::SN3D, AmbisonicsType::N3D);
-
-    // After round-trip conversion, values should be approximately the same.
-    for &value in &n3d_data {
-        assert!(
-            (value - 0.5).abs() < 0.01,
-            "Value {} too far from 0.5",
-            value
-        );
-    }
-}
-
-#[test]
-fn test_convert_ambisonics_into() {
-    let context = Context::default();
-
-    const FRAME_SIZE: usize = 256;
-    const NUM_CHANNELS: usize = 4;
-
-    let mut n3d_data = vec![0.7; NUM_CHANNELS * FRAME_SIZE];
-    let mut n3d_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut n3d_data,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    let mut sn3d_data = vec![0.0; NUM_CHANNELS * FRAME_SIZE];
-    let mut sn3d_buffer = AudioBuffer::try_with_data_and_settings(
-        &mut sn3d_data,
-        AudioBufferSettings::with_num_channels(NUM_CHANNELS as u32),
-    )
-    .unwrap();
-
-    assert!(
-        n3d_buffer
-            .convert_ambisonics_into(
-                &context,
-                AmbisonicsType::N3D,
-                AmbisonicsType::SN3D,
-                &mut sn3d_buffer,
-            )
-            .is_ok()
+    let mut mono = [0.0; 4];
+    let error = AudioBufferMut::try_from(&mut mono[..])
+        .unwrap()
+        .mix(&context, &source_buffer)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        AudioBufferOperationError::ChannelCountMismatch {
+            self_num_channels: 1,
+            other_num_channels: 2,
+        }
     );
 
-    // Output should be written into sn3d_buffer.
-    assert_ne!(sn3d_data[0], 0.0);
+    let mut short = [0.0; 4];
+    let error = AudioBufferMut::try_new(&mut short, 2)
+        .unwrap()
+        .mix(&context, &source_buffer)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        AudioBufferOperationError::SampleCountMismatch {
+            self_num_samples: 2,
+            other_num_samples: 4,
+        }
+    );
+}
+
+#[test]
+fn downmixes_multichannel_buffer() {
+    let context = Context::default();
+    let mut source = vec![0.1; 512];
+    source.extend(std::iter::repeat_n(0.2, 512));
+    source.extend(std::iter::repeat_n(0.3, 512));
+    source.extend(std::iter::repeat_n(0.4, 512));
+    let source_buffer = AudioBufferRef::try_new(&source, 4).unwrap();
+    let mut downmixed = vec![0.0; 512];
+
+    AudioBufferMut::try_from(&mut downmixed[..])
+        .unwrap()
+        .downmix(&context, &source_buffer)
+        .unwrap();
+
+    assert_eq!(downmixed, vec![0.25; 512]);
+}
+
+#[test]
+fn rejects_non_mono_downmix_destination() {
+    let context = Context::default();
+    let source = [0.0; 8];
+    let source_buffer = AudioBufferRef::try_new(&source, 2).unwrap();
+    let mut destination = [0.0; 8];
+
+    let error = AudioBufferMut::try_new(&mut destination, 2)
+        .unwrap()
+        .downmix(&context, &source_buffer)
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        AudioBufferOperationError::DownmixDestinationNotMono { num_channels: 2 }
+    );
+}
+
+#[test]
+fn rejects_downmix_sample_count_mismatch() {
+    let context = Context::default();
+    let source = [0.0; 8];
+    let source_buffer = AudioBufferRef::try_new(&source, 2).unwrap();
+    let mut destination = [0.0; 3];
+
+    let error = AudioBufferMut::try_from(&mut destination[..])
+        .unwrap()
+        .downmix(&context, &source_buffer)
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        AudioBufferOperationError::SampleCountMismatch {
+            self_num_samples: 3,
+            other_num_samples: 4,
+        }
+    );
+}
+
+#[test]
+fn interleaves_and_deinterleaves() {
+    let context = Context::default();
+    let mut deinterleaved = (0..256).map(|sample| sample as f32).collect::<Vec<_>>();
+    deinterleaved.extend((0..256).map(|sample| (sample + 1000) as f32));
+    let buffer = AudioBufferRef::try_new(&deinterleaved, 2).unwrap();
+    let mut interleaved = vec![0.0; 512];
+
+    buffer.interleave(&context, &mut interleaved).unwrap();
+
+    for sample in 0..256 {
+        assert_eq!(interleaved[sample * 2], sample as f32);
+        assert_eq!(interleaved[sample * 2 + 1], (sample + 1000) as f32);
+    }
+
+    let mut round_trip = vec![0.0; 512];
+    AudioBufferMut::try_new(&mut round_trip, 2)
+        .unwrap()
+        .deinterleave(&context, &interleaved)
+        .unwrap();
+    assert_eq!(round_trip, deinterleaved);
+}
+
+#[test]
+fn rejects_interleave_length_mismatches() {
+    let context = Context::default();
+    let source = [0.0; 8];
+    let buffer = AudioBufferRef::try_new(&source, 2).unwrap();
+    let mut interleaved = [0.0; 7];
+
+    assert_eq!(
+        buffer.interleave(&context, &mut interleaved),
+        Err(AudioBufferOperationError::InterleaveLengthMismatch {
+            dst_len: 7,
+            expected_len: 8,
+        })
+    );
+
+    let mut destination = [0.0; 8];
+    let mut buffer = AudioBufferMut::try_new(&mut destination, 2).unwrap();
+    assert_eq!(
+        buffer.deinterleave(&context, &[0.0; 7]),
+        Err(AudioBufferOperationError::DeinterleaveLengthMismatch {
+            src_len: 7,
+            expected_len: 8,
+        })
+    );
+}
+
+#[test]
+fn converts_ambisonics_in_place() {
+    let context = Context::default();
+    let mut samples = vec![0.5; 4 * 256];
+    let mut buffer = AudioBufferMut::try_new(&mut samples, 4).unwrap();
+
+    buffer.convert_ambisonics(&context, AmbisonicsType::N3D, AmbisonicsType::SN3D);
+    buffer.convert_ambisonics(&context, AmbisonicsType::SN3D, AmbisonicsType::N3D);
+    drop(buffer);
+
+    for sample in samples {
+        assert!((sample - 0.5).abs() < 0.01);
+    }
+}
+
+#[test]
+fn converts_ambisonics_into_mutable_view() {
+    let context = Context::default();
+    let source = vec![0.7; 4 * 256];
+    let source_buffer = AudioBufferRef::try_new(&source, 4).unwrap();
+    let mut converted = vec![0.0; 4 * 256];
+
+    source_buffer
+        .convert_ambisonics_into(
+            &context,
+            AmbisonicsType::N3D,
+            AmbisonicsType::SN3D,
+            &mut AudioBufferMut::try_new(&mut converted, 4).unwrap(),
+        )
+        .unwrap();
+
+    assert_ne!(converted[0], 0.0);
+}
+
+#[test]
+fn rejects_ambisonics_shape_mismatches_separately() {
+    let context = Context::default();
+    let source = vec![0.0; 4 * 256];
+    let source_buffer = AudioBufferRef::try_new(&source, 4).unwrap();
+
+    let mut wrong_channels = vec![0.0; 2 * 512];
+    let error = source_buffer
+        .convert_ambisonics_into(
+            &context,
+            AmbisonicsType::N3D,
+            AmbisonicsType::SN3D,
+            &mut AudioBufferMut::try_new(&mut wrong_channels, 2).unwrap(),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error,
+        AudioBufferOperationError::ChannelCountMismatch {
+            self_num_channels: 4,
+            other_num_channels: 2,
+        }
+    );
+
+    let mut wrong_samples = vec![0.0; 4 * 128];
+    let error = source_buffer
+        .convert_ambisonics_into(
+            &context,
+            AmbisonicsType::N3D,
+            AmbisonicsType::SN3D,
+            &mut AudioBufferMut::try_new(&mut wrong_samples, 4).unwrap(),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error,
+        AudioBufferOperationError::SampleCountMismatch {
+            self_num_samples: 256,
+            other_num_samples: 128,
+        }
+    );
 }

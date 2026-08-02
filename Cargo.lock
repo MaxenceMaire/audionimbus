@@ -446,6 +446,7 @@ dependencies = [
  "bitflags 2.11.1",
  "object-pool",
  "slotmap",
+ "smallvec",
 ]
 
 [[package]]
@@ -3653,7 +3654,7 @@ name = "core-demo"
 version = "0.1.0"
 dependencies = [
  "audionimbus 0.15.0",
- "cpal 0.15.3",
+ "cpal 0.17.1",
 ]
 
 [[package]]

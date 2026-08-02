@@ -4,8 +4,9 @@ use super::EffectError;
 use super::audio_effect_state::AudioEffectState;
 use super::equalizer::Equalizer;
 use super::error::{ImpulseResponseSizeExceedsMaxError, NumChannelsExceedsMaxError};
+use crate::ChannelRequirement;
 use crate::Sealed;
-use crate::audio_buffer::{AudioBuffer, Sample};
+use crate::audio_buffer::{AudioBuffer, AudioBufferMut, read_as_ffi};
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
 use crate::device::true_audio_next::TrueAudioNextDevice;
@@ -15,7 +16,6 @@ use crate::simulation::{
     ConvolutionParameters, HybridParameters, ParametricParameters, ReflectionsSimulationParameters,
     TrueAudioNextParameters,
 };
-use crate::{ChannelPointers, ChannelRequirement};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
@@ -242,14 +242,11 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// )?;
 ///
 /// let input = vec![0.5; audio_settings.frame_size as usize];
-/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let input_buffer = AudioBufferRef::try_from(input.as_slice())?;
 /// let mut output = vec![0.0; (NUM_CHANNELS * audio_settings.frame_size) as usize]; // 4 channels
-/// let output_buffer = AudioBuffer::try_with_data_and_settings(
-///     &mut output,
-///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
-/// )?;
+/// let mut output_buffer = AudioBufferMut::try_new(&mut output, NUM_CHANNELS as usize)?;
 ///
-/// let _ = effect.apply(&params, &input_buffer, &output_buffer);
+/// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
@@ -326,14 +323,12 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// )?;
 ///
 /// let input = vec![0.5; audio_settings.frame_size as usize];
-/// let input_buffer = AudioBuffer::try_with_data(&input)?;
+/// let input_buffer = AudioBufferRef::try_from(input.as_slice())?;
 /// let mut reverb_output = vec![0.0; (NUM_CHANNELS * audio_settings.frame_size) as usize];
-/// let output_buffer = AudioBuffer::try_with_data_and_settings(
-///     &mut reverb_output,
-///     AudioBufferSettings::with_num_channels(NUM_CHANNELS),
-/// )?;
+/// let mut output_buffer =
+///     AudioBufferMut::try_new(&mut reverb_output, NUM_CHANNELS as usize)?;
 ///
-/// let _ = reverb_effect.apply(&reverb_params, &input_buffer, &output_buffer);
+/// let _ = reverb_effect.apply(&reverb_params, &input_buffer, &mut output_buffer);
 ///
 /// // Mix with dry signal (e.g., 70% dry, 30% reverb)
 /// // Then decode the ambisonics output for final playback
@@ -430,17 +425,13 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
     /// - The output audio buffer does not have as many channels as the impulse response specified
     ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at least one channel
     ///   (for parametric)
-    pub fn apply<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+    pub fn apply(
         &mut self,
         reflection_effect_params: &ReflectionEffectParams<T>,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
+        input_buffer: &impl AudioBuffer,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_input_channels = input_buffer.num_channels() as u32;
         if num_input_channels != 1 {
             return Err(EffectError::InvalidInputChannels {
                 expected: ChannelRequirement::Exactly(1),
@@ -448,7 +439,7 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
             });
         }
 
-        let num_output_channels = output_buffer.num_channels();
+        let num_output_channels = output_buffer.num_channels() as u32;
         if !self
             .num_output_channels
             .is_satisfied_by(num_output_channels)
@@ -459,12 +450,14 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
             });
         }
 
+        let mut input_buffer = read_as_ffi(input_buffer);
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
                 &raw mut *reflection_effect_params.as_ffi(),
-                &raw mut *input_buffer.as_ffi(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *input_buffer,
+                &raw mut *output_buffer,
                 std::ptr::null_mut(),
             )
         }
@@ -485,11 +478,11 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
     ///
     /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
     /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
-    pub fn tail<O>(&self, output_buffer: &AudioBuffer<O>) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
+    pub fn tail(
+        &self,
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_output_channels = output_buffer.num_channels() as u32;
         if !self
             .num_output_channels
             .is_satisfied_by(num_output_channels)
@@ -500,10 +493,11 @@ impl<T: ReflectionEffectType + CanApplyDirectly> ReflectionEffect<T> {
             });
         }
 
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectGetTail(
                 self.raw_ptr(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer,
                 std::ptr::null_mut(),
             )
         }
@@ -532,18 +526,14 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
     /// - The output audio buffer does not have as many channels as the impulse response specified
     ///   when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel
     ///   (for parametric)
-    pub fn apply_into_mixer<I, O, PI: ChannelPointers, PO: ChannelPointers>(
+    pub fn apply_into_mixer(
         &mut self,
         reflection_effect_params: &ReflectionEffectParams<T>,
-        input_buffer: &AudioBuffer<I, PI>,
-        output_buffer: &AudioBuffer<O, PO>,
+        input_buffer: &impl AudioBuffer,
+        output_buffer: &mut AudioBufferMut<'_>,
         mixer: &ReflectionMixer<T>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        I: AsRef<[Sample]>,
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_input_channels = input_buffer.num_channels();
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_input_channels = input_buffer.num_channels() as u32;
         if num_input_channels != 1 {
             return Err(EffectError::InvalidInputChannels {
                 expected: ChannelRequirement::Exactly(1),
@@ -551,7 +541,7 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
             });
         }
 
-        let num_output_channels = output_buffer.num_channels();
+        let num_output_channels = output_buffer.num_channels() as u32;
         if !self
             .num_output_channels
             .is_satisfied_by(num_output_channels)
@@ -562,12 +552,14 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
             });
         }
 
+        let mut input_buffer = read_as_ffi(input_buffer);
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectApply(
                 self.raw_ptr(),
                 &mut *reflection_effect_params.as_ffi(),
-                &mut *input_buffer.as_ffi(),
-                &mut *output_buffer.as_ffi(),
+                &mut *input_buffer,
+                &mut *output_buffer,
                 mixer.raw_ptr(),
             )
         }
@@ -593,15 +585,12 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
     ///
     /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the impulse response specified
     /// when creating the effect (for convolution, hybrid, and TrueAudioNext) or at lea one channel (for parametric).
-    pub fn tail_into_mixer<O>(
+    pub fn tail_into_mixer(
         &self,
-        output_buffer: &AudioBuffer<O>,
+        output_buffer: &mut AudioBufferMut<'_>,
         mixer: &ReflectionMixer<T>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_output_channels = output_buffer.num_channels() as u32;
         if !self
             .num_output_channels
             .is_satisfied_by(num_output_channels)
@@ -612,10 +601,11 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> ReflectionEffect<T> {
             });
         }
 
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let state = unsafe {
             audionimbus_sys::iplReflectionEffectGetTail(
                 self.raw_ptr(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer,
                 mixer.raw_ptr(),
             )
         }
@@ -1047,15 +1037,12 @@ impl<T: ReflectionEffectType> ReflectionMixer<T> {
     /// Returns [`EffectError`] if the output audio buffer does not have as many channels as the
     /// impulse impulse response specified when creating the effect (for convolution, hybrid, and
     /// TrueAudioNext) or at least one channel (for parametric).
-    pub fn apply<O, PO: ChannelPointers>(
+    pub fn apply(
         &mut self,
         reflection_effect_params: &mut ReflectionEffectParams<T>,
-        output_buffer: &AudioBuffer<O, PO>,
-    ) -> Result<AudioEffectState, EffectError>
-    where
-        O: AsRef<[Sample]> + AsMut<[Sample]>,
-    {
-        let num_output_channels = output_buffer.num_channels();
+        output_buffer: &mut AudioBufferMut<'_>,
+    ) -> Result<AudioEffectState, EffectError> {
+        let num_output_channels = output_buffer.num_channels() as u32;
         if !self
             .num_output_channels
             .is_satisfied_by(num_output_channels)
@@ -1066,11 +1053,12 @@ impl<T: ReflectionEffectType> ReflectionMixer<T> {
             });
         }
 
+        let mut output_buffer = output_buffer.as_ffi_mut();
         let audio_effect_state = unsafe {
             audionimbus_sys::iplReflectionMixerApply(
                 self.raw_ptr(),
                 &raw mut *reflection_effect_params.as_ffi(),
-                &raw mut *output_buffer.as_ffi(),
+                &raw mut *output_buffer,
             )
         };
         let state = audio_effect_state.into();
@@ -1201,19 +1189,16 @@ mod tests {
                 .unwrap();
 
                 let input_container = vec![0.5; audio_settings.frame_size as usize];
-                let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+                let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
 
                 let mut output_container =
-                    vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(4),
-                )
-                .unwrap();
+                    vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
                 assert!(
                     reflection_effect
-                        .apply(&reflection_effect_params, &input_buffer, &output_buffer)
+                        .apply(&reflection_effect_params, &input_buffer, &mut output_buffer)
                         .is_ok()
                 );
             }
@@ -1273,26 +1258,20 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
-                let input_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut input_container,
-                    AudioBufferSettings::with_num_channels(2),
-                )
-                .unwrap();
+                let input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
+                let input_buffer =
+                    AudioBufferRef::try_new(input_container.as_slice(), 2 as usize).unwrap();
 
                 let mut output_container =
-                    vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(4),
-                )
-                .unwrap();
+                    vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
                 assert_eq!(
                     reflection_effect.apply(
                         &reflection_effect_params,
                         &input_buffer,
-                        &output_buffer
+                        &mut output_buffer
                     ),
                     Err(EffectError::InvalidInputChannels {
                         expected: ChannelRequirement::Exactly(1),
@@ -1357,20 +1336,17 @@ mod tests {
                 .unwrap();
 
                 let input_container = vec![0.5; audio_settings.frame_size as usize];
-                let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+                let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
 
                 let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(2),
-                )
-                .unwrap();
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
 
                 assert_eq!(
                     reflection_effect.apply(
                         &reflection_effect_params,
                         &input_buffer,
-                        &output_buffer
+                        &mut output_buffer
                     ),
                     Err(EffectError::InvalidOutputChannels {
                         expected: ChannelRequirement::Exactly(4),
@@ -1439,15 +1415,12 @@ mod tests {
                 .unwrap();
 
                 let input_container = vec![0.5; audio_settings.frame_size as usize];
-                let input_buffer = AudioBuffer::try_with_data(&input_container).unwrap();
+                let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
 
                 let mut output_container =
-                    vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(4),
-                )
-                .unwrap();
+                    vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
                 let mixer = ReflectionMixer::try_new(
                     &context,
@@ -1461,7 +1434,7 @@ mod tests {
                         .apply_into_mixer(
                             &reflection_effect_params,
                             &input_buffer,
-                            &output_buffer,
+                            &mut output_buffer,
                             &mixer
                         )
                         .is_ok()
@@ -1523,20 +1496,14 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
-                let input_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut input_container,
-                    AudioBufferSettings::with_num_channels(2),
-                )
-                .unwrap();
+                let input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
+                let input_buffer =
+                    AudioBufferRef::try_new(input_container.as_slice(), 2 as usize).unwrap();
 
                 let mut output_container =
-                    vec![0.0; (num_output_channels * input_buffer.num_samples()) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(4),
-                )
-                .unwrap();
+                    vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
 
                 let mixer = ReflectionMixer::try_new(
                     &context,
@@ -1549,7 +1516,7 @@ mod tests {
                     reflection_effect.apply_into_mixer(
                         &reflection_effect_params,
                         &input_buffer,
-                        &output_buffer,
+                        &mut output_buffer,
                         &mixer
                     ),
                     Err(EffectError::InvalidInputChannels {
@@ -1614,15 +1581,12 @@ mod tests {
                 )
                 .unwrap();
 
-                let mut input_container = vec![0.5; audio_settings.frame_size as usize];
-                let input_buffer = AudioBuffer::try_with_data(&mut input_container).unwrap();
+                let input_container = vec![0.5; audio_settings.frame_size as usize];
+                let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
 
                 let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(2),
-                )
-                .unwrap();
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
 
                 let mixer = ReflectionMixer::try_new(
                     &context,
@@ -1635,7 +1599,7 @@ mod tests {
                     reflection_effect.apply_into_mixer(
                         &reflection_effect_params,
                         &input_buffer,
-                        &output_buffer,
+                        &mut output_buffer,
                         &mixer
                     ),
                     Err(EffectError::InvalidOutputChannels {
@@ -1670,13 +1634,13 @@ mod tests {
 
                 let mut output_container =
                     vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(num_output_channels),
+                let mut output_buffer = AudioBufferMut::try_new(
+                    output_container.as_mut_slice(),
+                    num_output_channels as usize,
                 )
                 .unwrap();
 
-                assert!(reflection_effect.tail(&output_buffer).is_ok());
+                assert!(reflection_effect.tail(&mut output_buffer).is_ok());
             }
 
             #[test]
@@ -1699,10 +1663,11 @@ mod tests {
                 .unwrap();
 
                 let mut output_container = vec![0.0; audio_settings.frame_size as usize];
-                let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+                let mut output_buffer =
+                    AudioBufferMut::try_from(output_container.as_mut_slice()).unwrap();
 
                 assert_eq!(
-                    reflection_effect.tail(&output_buffer),
+                    reflection_effect.tail(&mut output_buffer),
                     Err(EffectError::InvalidOutputChannels {
                         expected: ChannelRequirement::Exactly(4),
                         actual: 1
@@ -1735,9 +1700,9 @@ mod tests {
 
                 let mut output_container =
                     vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(num_output_channels),
+                let mut output_buffer = AudioBufferMut::try_new(
+                    output_container.as_mut_slice(),
+                    num_output_channels as usize,
                 )
                 .unwrap();
 
@@ -1750,7 +1715,7 @@ mod tests {
 
                 assert!(
                     reflection_effect
-                        .tail_into_mixer(&output_buffer, &mixer)
+                        .tail_into_mixer(&mut output_buffer, &mixer)
                         .is_ok()
                 );
             }
@@ -1775,7 +1740,8 @@ mod tests {
                 .unwrap();
 
                 let mut output_container = vec![0.0; audio_settings.frame_size as usize];
-                let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+                let mut output_buffer =
+                    AudioBufferMut::try_from(output_container.as_mut_slice()).unwrap();
 
                 let mixer = ReflectionMixer::try_new(
                     &context,
@@ -1785,7 +1751,7 @@ mod tests {
                 .unwrap();
 
                 assert_eq!(
-                    reflection_effect.tail_into_mixer(&output_buffer, &mixer),
+                    reflection_effect.tail_into_mixer(&mut output_buffer, &mixer),
                     Err(EffectError::InvalidOutputChannels {
                         expected: ChannelRequirement::Exactly(4),
                         actual: 1
@@ -1887,15 +1853,15 @@ mod tests {
 
                 let mut output_container =
                     vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(num_output_channels),
+                let mut output_buffer = AudioBufferMut::try_new(
+                    output_container.as_mut_slice(),
+                    num_output_channels as usize,
                 )
                 .unwrap();
 
                 assert!(
                     mixer
-                        .apply(&mut reflection_effect_params, &output_buffer)
+                        .apply(&mut reflection_effect_params, &mut output_buffer)
                         .is_ok()
                 );
             }
@@ -1957,14 +1923,11 @@ mod tests {
                 .unwrap();
 
                 let mut output_container = vec![0.0; (2 * audio_settings.frame_size) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(2),
-                )
-                .unwrap();
+                let mut output_buffer =
+                    AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
 
                 assert_eq!(
-                    mixer.apply(&mut reflection_effect_params, &output_buffer),
+                    mixer.apply(&mut reflection_effect_params, &mut output_buffer),
                     Err(EffectError::InvalidOutputChannels {
                         expected: ChannelRequirement::Exactly(4),
                         actual: 2
@@ -2030,15 +1993,15 @@ mod tests {
 
                 let mut output_container =
                     vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
-                let output_buffer = AudioBuffer::try_with_data_and_settings(
-                    &mut output_container,
-                    AudioBufferSettings::with_num_channels(num_output_channels),
+                let mut output_buffer = AudioBufferMut::try_new(
+                    output_container.as_mut_slice(),
+                    num_output_channels as usize,
                 )
                 .unwrap();
 
                 assert!(
                     mixer
-                        .apply(&mut reflection_effect_params, &output_buffer)
+                        .apply(&mut reflection_effect_params, &mut output_buffer)
                         .is_ok()
                 );
             }
@@ -2101,11 +2064,12 @@ mod tests {
 
                 // Test with 1 channel (minimum for parametric)
                 let mut output_container = vec![0.0; audio_settings.frame_size as usize];
-                let output_buffer = AudioBuffer::try_with_data(&mut output_container).unwrap();
+                let mut output_buffer =
+                    AudioBufferMut::try_from(output_container.as_mut_slice()).unwrap();
 
                 assert!(
                     mixer
-                        .apply(&mut reflection_effect_params, &output_buffer)
+                        .apply(&mut reflection_effect_params, &mut output_buffer)
                         .is_ok()
                 );
             }
