@@ -631,28 +631,32 @@ impl BatchedClosestHitCallback {
 
         let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
 
-        for (i, result) in results.iter().enumerate().take(num_rays) {
-            if let Some(hit_result) = result {
-                // SAFETY: `hits` is non-null and points to a contiguous array of `num_rays`
-                // `IPLHit` elements.
-                // `i < num_rays` (enforced by `.take(num_rays)`), so `hits.add(i)` is within
-                // bounds.
-                unsafe {
-                    *hits.add(i) = audionimbus_sys::IPLHit {
-                        distance: hit_result.distance,
-                        triangleIndex: hit_result
-                            .triangle_index
-                            .map(|idx| idx as i32)
-                            .unwrap_or(-1),
-                        objectIndex: hit_result.object_index.map(|idx| idx as i32).unwrap_or(-1),
-                        materialIndex: hit_result
-                            .material_index
-                            .map(|idx| idx as i32)
-                            .unwrap_or(-1),
-                        normal: hit_result.normal.into(),
-                        material: std::ptr::null_mut(),
-                    };
-                }
+        for i in 0..num_rays {
+            let result = results.get(i).and_then(Option::as_ref);
+            let hit = result.map_or_else(
+                || audionimbus_sys::IPLHit {
+                    distance: f32::INFINITY,
+                    triangleIndex: -1,
+                    objectIndex: -1,
+                    materialIndex: -1,
+                    normal: Vector3::default().into(),
+                    material: std::ptr::null_mut(),
+                },
+                |hit| audionimbus_sys::IPLHit {
+                    distance: hit.distance,
+                    triangleIndex: hit.triangle_index.map(|idx| idx as i32).unwrap_or(-1),
+                    objectIndex: hit.object_index.map(|idx| idx as i32).unwrap_or(-1),
+                    materialIndex: hit.material_index.map(|idx| idx as i32).unwrap_or(-1),
+                    normal: hit.normal.into(),
+                    material: std::ptr::null_mut(),
+                },
+            );
+
+            // SAFETY: `hits` is non-null and points to a contiguous array of `num_rays`
+            // `IPLHit` elements.
+            // `i < num_rays`, so `hits.add(i)` is within bounds.
+            unsafe {
+                *hits.add(i) = hit;
             }
         }
     }
@@ -735,11 +739,11 @@ impl BatchedAnyHitCallback {
 
         let results = callback(&rays_slice, min_distances_slice, max_distances_slice);
 
-        for (i, &result) in results.iter().enumerate().take(num_rays) {
+        for i in 0..num_rays {
+            let result = results.get(i).copied().unwrap_or(false);
             // SAFETY: `occluded` is non-null and points to a contiguous array of `num_rays` `u8`
             // elements.
-            // `i < num_rays` (enforced by `.take(num_rays)`), so `occluded.add(i)` is within
-            // bounds.
+            // `i < num_rays`, so `occluded.add(i)` is within bounds.
             unsafe {
                 *occluded.add(i) = if result { 1 } else { 0 };
             }
@@ -1009,4 +1013,152 @@ macro_rules! free_callback {
             closure(ptr);
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Creates a hit at the given distance.
+    fn hit(distance: f32) -> Hit {
+        Hit {
+            distance,
+            triangle_index: Some(distance as u32),
+            object_index: None,
+            material_index: None,
+            normal: Vector3::default(),
+            material: None,
+        }
+    }
+
+    mod batched_closest_hit_callback {
+        use super::*;
+
+        /// Invokes the batched closest-hit callback with three rays.
+        fn run_batched_closest_hit(results: Vec<Option<Hit>>) -> Vec<audionimbus_sys::IPLHit> {
+            let callbacks = CustomRayTracingCallbacks::new(
+                ClosestHitCallback::new(|_, _, _| None),
+                AnyHitCallback::new(|_, _, _| false),
+                BatchedClosestHitCallback::new(move |_, _, _| results.clone()),
+                BatchedAnyHitCallback::new(|_, _, _| Vec::new()),
+            );
+            let (settings, user_data) = callbacks.as_ffi_settings();
+            let rays: [audionimbus_sys::IPLRay; 3] = std::array::from_fn(|_| Ray::default().into());
+            let min_distances = [0.0; 3];
+            let max_distances = [1.0; 3];
+            let mut hits = (0..4)
+                .map(|_| audionimbus_sys::IPLHit {
+                    distance: -1.0,
+                    triangleIndex: -2,
+                    objectIndex: -2,
+                    materialIndex: -2,
+                    normal: Vector3::default().into(),
+                    material: std::ptr::null_mut(),
+                })
+                .collect::<Vec<_>>();
+
+            // SAFETY: Every input and output pointer references an array with at least three
+            // elements, and `user_data` remains alive for the call.
+            unsafe {
+                BatchedClosestHitCallback::trampoline(
+                    3,
+                    rays.as_ptr(),
+                    min_distances.as_ptr(),
+                    max_distances.as_ptr(),
+                    hits.as_mut_ptr(),
+                    settings.userData,
+                );
+            }
+            drop(user_data);
+
+            hits
+        }
+
+        #[test]
+        fn initializes_short_results() {
+            let hits = run_batched_closest_hit(vec![Some(hit(1.0))]);
+
+            assert_eq!(hits[0].distance, 1.0);
+            assert!(hits[1].distance.is_infinite());
+            assert!(hits[2].distance.is_infinite());
+        }
+
+        #[test]
+        fn ignores_long_results() {
+            let hits = run_batched_closest_hit(vec![
+                Some(hit(1.0)),
+                Some(hit(2.0)),
+                Some(hit(3.0)),
+                Some(hit(4.0)),
+            ]);
+
+            assert_eq!(hits[3].distance, -1.0);
+        }
+
+        #[test]
+        fn initializes_mixed_results() {
+            let hits = run_batched_closest_hit(vec![Some(hit(1.0)), None, Some(hit(3.0))]);
+
+            assert_eq!(hits[0].distance, 1.0);
+            assert!(hits[1].distance.is_infinite());
+            assert_eq!(hits[1].triangleIndex, -1);
+            assert_eq!(hits[2].distance, 3.0);
+        }
+    }
+
+    mod batched_any_hit_callback {
+        use super::*;
+
+        /// Invokes the batched any-hit callback with three rays.
+        fn run_batched_any_hit(results: Vec<bool>) -> Vec<u8> {
+            let callbacks = CustomRayTracingCallbacks::new(
+                ClosestHitCallback::new(|_, _, _| None),
+                AnyHitCallback::new(|_, _, _| false),
+                BatchedClosestHitCallback::new(|_, _, _| Vec::new()),
+                BatchedAnyHitCallback::new(move |_, _, _| results.clone()),
+            );
+            let (settings, user_data) = callbacks.as_ffi_settings();
+            let rays: [audionimbus_sys::IPLRay; 3] = std::array::from_fn(|_| Ray::default().into());
+            let min_distances = [0.0; 3];
+            let max_distances = [1.0; 3];
+            let mut occluded = vec![9; 4];
+
+            // SAFETY: Every input and output pointer references an array with at least three
+            // elements, and `user_data` remains alive for the call.
+            unsafe {
+                BatchedAnyHitCallback::trampoline(
+                    3,
+                    rays.as_ptr(),
+                    min_distances.as_ptr(),
+                    max_distances.as_ptr(),
+                    occluded.as_mut_ptr(),
+                    settings.userData,
+                );
+            }
+            drop(user_data);
+
+            occluded
+        }
+
+        #[test]
+        fn initializes_short_results() {
+            let occluded = run_batched_any_hit(vec![true]);
+
+            assert_eq!(&occluded[..3], &[1, 0, 0]);
+        }
+
+        #[test]
+        fn ignores_long_results() {
+            let occluded = run_batched_any_hit(vec![true, true, true, true]);
+
+            assert_eq!(occluded[3], 9);
+        }
+
+        #[test]
+        fn copies_mixed_results() {
+            let occluded = run_batched_any_hit(vec![true, false, true]);
+
+            assert_eq!(&occluded[..3], &[1, 0, 1]);
+        }
+    }
 }

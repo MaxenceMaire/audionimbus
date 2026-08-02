@@ -12,6 +12,7 @@
 - Scene and static mesh loading now keep progress callbacks alive until the native load call returns.
 - Sources now retain callback-backed direct simulation models.
 - Directivity callbacks now receive their own user data across sources and simulation threads.
+- Batched ray tracing callbacks now fill in missing results.
 
 ## [0.15.0] - 2026-07-04
 
