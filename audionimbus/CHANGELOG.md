@@ -16,6 +16,7 @@
 - Directivity callbacks now receive their own user data across sources and simulation threads.
 - Batched ray tracing callbacks now fill in missing results.
 - Serialized objects now retain input bytes needed for later deserialization.
+- HRTF creation now rejects invalid SOFA filenames instead of panicking.
 
 ## [0.15.0] - 2026-07-04
 

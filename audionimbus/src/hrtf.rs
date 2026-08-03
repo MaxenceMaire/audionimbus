@@ -53,7 +53,7 @@ impl Hrtf {
 
         let mut hrtf = Self(std::ptr::null_mut());
 
-        let (mut settings_ffi, _filename_keeper) = hrtf_settings.to_ffi();
+        let (mut settings_ffi, _filename_keeper) = hrtf_settings.to_ffi()?;
 
         let status = unsafe {
             // BUG: using sampling rates other than 44,100Hz or 48,000Hz with the default HRTF
@@ -145,12 +145,20 @@ impl HrtfSettings {
     /// alive for the duration of any FFI calls using the returned settings. The `CString` contains
     /// the SOFA filename path and is returned separately because Rust's ownership rules require
     /// it to live as long as the C pointer in the FFI struct remains valid.
-    pub fn to_ffi(&self) -> (audionimbus_sys::IPLHRTFSettings, Option<std::ffi::CString>) {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError::Initialization`] if a SOFA filename contains an interior NUL.
+    pub fn to_ffi(
+        &self,
+    ) -> Result<(audionimbus_sys::IPLHRTFSettings, Option<std::ffi::CString>), SteamAudioError>
+    {
         let (type_, sofa_data, sofa_data_size, filename_cstring) =
             if let Some(information) = &self.sofa_information {
                 match information {
                     Sofa::Filename(filename) => {
-                        let cstring = std::ffi::CString::new(filename.clone()).unwrap();
+                        let cstring = std::ffi::CString::new(filename.as_str())
+                            .map_err(|_| SteamAudioError::Initialization)?;
                         (
                             audionimbus_sys::IPLHRTFType::IPL_HRTFTYPE_SOFA,
                             std::ptr::null(),
@@ -187,7 +195,7 @@ impl HrtfSettings {
             normType: self.volume_normalization.into(),
         };
 
-        (settings, filename_cstring)
+        Ok((settings, filename_cstring))
     }
 }
 
@@ -281,5 +289,32 @@ mod tests {
         assert_eq!(hrtf.raw_ptr(), clone.raw_ptr());
         drop(hrtf);
         assert!(!clone.raw_ptr().is_null());
+    }
+
+    #[test]
+    fn converts_sofa_filename() {
+        let settings = HrtfSettings {
+            sofa_information: Some(Sofa::Filename("example.sofa".to_string())),
+            ..Default::default()
+        };
+
+        let (ffi, filename) = settings.to_ffi().unwrap();
+        let filename = filename.unwrap();
+
+        assert_eq!(ffi.sofaFileName, filename.as_ptr());
+        assert_eq!(filename.to_str().unwrap(), "example.sofa");
+    }
+
+    #[test]
+    fn try_new_rejects_sofa_filename_with_interior_nul() {
+        let context = Context::default();
+        let settings = HrtfSettings {
+            sofa_information: Some(Sofa::Filename("invalid\0filename.sofa".to_string())),
+            ..Default::default()
+        };
+
+        let result = Hrtf::try_new(&context, &AudioSettings::default(), &settings);
+
+        assert_eq!(result, Err(SteamAudioError::Initialization));
     }
 }
