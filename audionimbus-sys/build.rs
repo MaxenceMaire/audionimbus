@@ -1,5 +1,3 @@
-use std::string::ToString;
-
 #[cfg(feature = "auto-install")]
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,6 +13,8 @@ fn main() {
 
     let out_dir_path = std::env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_path);
+    let target = std::env::var("TARGET").unwrap();
+    let system_flags = system_flags(&target).unwrap_or_else(|error| panic!("{error}"));
 
     let version = version();
 
@@ -29,13 +29,23 @@ fn main() {
 
     emit_manual_link_search_path();
 
-    generate_bindings_phonon(&out_dir.join("phonon.rs"), &version, out_dir);
+    generate_bindings_phonon(&out_dir.join("phonon.rs"), &version, out_dir, &system_flags);
 
     #[cfg(feature = "fmod")]
-    generate_bindings_phonon_fmod(&out_dir.join("phonon_fmod.rs"), &version, out_dir);
+    generate_bindings_phonon_fmod(
+        &out_dir.join("phonon_fmod.rs"),
+        &version,
+        out_dir,
+        &system_flags,
+    );
 
     #[cfg(feature = "wwise")]
-    generate_bindings_phonon_wwise(&out_dir.join("phonon_wwise.rs"), &version, out_dir);
+    generate_bindings_phonon_wwise(
+        &out_dir.join("phonon_wwise.rs"),
+        &version,
+        out_dir,
+        &system_flags,
+    );
 }
 
 /// If set, adds `STEAMAUDIO_LIB_DIR` to the linker search path.
@@ -580,7 +590,12 @@ fn install_progress_enabled() -> bool {
     })
 }
 
-fn generate_bindings_phonon(output_path: &Path, version: &Version, tmp_dir: &Path) {
+fn generate_bindings_phonon(
+    output_path: &Path,
+    version: &Version,
+    tmp_dir: &Path,
+    system_flags: &[String],
+) {
     println!("cargo:rustc-link-lib=phonon");
 
     let _phonon_header_guard =
@@ -589,7 +604,7 @@ fn generate_bindings_phonon(output_path: &Path, version: &Version, tmp_dir: &Pat
     let bindings = bindgen::Builder::default()
         .header(PHONON_HEADER_PATH)
         .clang_arg(format!("-I{}", tmp_dir.display()))
-        .clang_args(system_flags())
+        .clang_args(system_flags)
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .generate()
@@ -599,7 +614,12 @@ fn generate_bindings_phonon(output_path: &Path, version: &Version, tmp_dir: &Pat
 }
 
 #[cfg(feature = "fmod")]
-fn generate_bindings_phonon_fmod(output_path: &Path, version: &Version, tmp_dir: &Path) {
+fn generate_bindings_phonon_fmod(
+    output_path: &Path,
+    version: &Version,
+    tmp_dir: &Path,
+    system_flags: &[String],
+) {
     const PHONON_FMOD_HEADER_PATH: &str = "steam-audio/fmod/src/steamaudio_fmod.h";
 
     println!("cargo:rustc-link-lib=phonon_fmod");
@@ -629,7 +649,7 @@ fn generate_bindings_phonon_fmod(output_path: &Path, version: &Version, tmp_dir:
             format!("-I{}", phonon_header_dir.display()),
             format!("-I{}", "steam-audio/fmod/include"),
         ])
-        .clang_args(system_flags())
+        .clang_args(system_flags)
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .blocklist_type("_?IPL.*")
@@ -641,7 +661,12 @@ fn generate_bindings_phonon_fmod(output_path: &Path, version: &Version, tmp_dir:
 }
 
 #[cfg(feature = "wwise")]
-fn generate_bindings_phonon_wwise(output_path: &Path, version: &Version, tmp_dir: &Path) {
+fn generate_bindings_phonon_wwise(
+    output_path: &Path,
+    version: &Version,
+    tmp_dir: &Path,
+    system_flags: &[String],
+) {
     const PHONON_WWISE_HEADER_PATH: &str =
         "steam-audio/wwise/src/SoundEnginePlugin/SteamAudioCommon.h";
 
@@ -671,7 +696,7 @@ fn generate_bindings_phonon_wwise(output_path: &Path, version: &Version, tmp_dir
             format!("-I{}", phonon_header_dir.display()),
             format!("-I{}", wwise_includes.display()),
         ])
-        .clang_args(system_flags())
+        .clang_args(system_flags)
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .allowlist_recursively(false)
@@ -756,47 +781,28 @@ impl Drop for TemporaryFileGuard {
     }
 }
 
-fn system_flags() -> Vec<String> {
-    let mut flags = vec![];
+fn system_flags(target: &str) -> Result<Vec<String>, String> {
+    let (os, cpu) = match target {
+        "i686-pc-windows-msvc" => ("IPL_OS_WINDOWS", Some("IPL_CPU_X86")),
+        "x86_64-pc-windows-msvc" => ("IPL_OS_WINDOWS", Some("IPL_CPU_X64")),
+        "i686-unknown-linux-gnu" => ("IPL_OS_LINUX", Some("IPL_CPU_X86")),
+        "x86_64-unknown-linux-gnu" => ("IPL_OS_LINUX", Some("IPL_CPU_X64")),
+        "aarch64-apple-darwin" | "x86_64-apple-darwin" => ("IPL_OS_MACOSX", None),
+        "armv7-linux-androideabi" => ("IPL_OS_ANDROID", Some("IPL_CPU_ARMV7")),
+        "aarch64-linux-android" => ("IPL_OS_ANDROID", Some("IPL_CPU_ARMV8")),
+        "i686-linux-android" => ("IPL_OS_ANDROID", Some("IPL_CPU_X86")),
+        "x86_64-linux-android" => ("IPL_OS_ANDROID", Some("IPL_CPU_X64")),
+        "aarch64-apple-ios" => ("IPL_OS_IOS", Some("IPL_CPU_ARMV8")),
+        "wasm32-unknown-emscripten" => ("IPL_OS_WASM", Some("IPL_CPU_ARMV7")),
+        _ => return Err(format!("unsupported target: {target}")),
+    };
 
-    if cfg!(target_os = "windows") {
-        flags.push("-DIPL_OS_WINDOWS");
-    } else if cfg!(target_os = "linux") {
-        flags.push("-DIPL_OS_LINUX");
-    } else if cfg!(target_os = "macos") {
-        flags.push("-DIPL_OS_MACOSX");
-    } else if cfg!(target_os = "android") {
-        flags.push("-DIPL_OS_ANDROID");
-    } else if cfg!(target_os = "ios") {
-        flags.push("-DIPL_OS_IOS");
-    } else if cfg!(target_family = "wasm") {
-        flags.push("-DIPL_OS_WASM");
+    let mut flags = vec![format!("--target={target}"), format!("-D{os}")];
+    if let Some(cpu) = cpu {
+        flags.push(format!("-D{cpu}"));
     }
 
-    if cfg!(target_os = "windows") || cfg!(target_os = "linux") {
-        if cfg!(target_pointer_width = "64") {
-            flags.push("-DIPL_CPU_X64");
-        } else if cfg!(target_pointer_width = "32") {
-            flags.push("-DIPL_CPU_X86");
-        }
-    } else if cfg!(target_os = "macos") {
-    } else if cfg!(target_os = "android") {
-        if std::env::var("TARGET").unwrap().contains("armv8") {
-            flags.push("-DIPL_CPU_ARMV8");
-        } else if cfg!(target_arch = "arm") {
-            flags.push("-DIPL_CPU_ARMV7");
-        } else if cfg!(target_arch = "x86") {
-            flags.push("-DIPL_CPU_X86");
-        } else if cfg!(target_arch = "x86_64") {
-            flags.push("-DIPL_CPU_X64");
-        }
-    } else if cfg!(target_os = "ios") {
-        flags.push("-DIPL_CPU_ARMV8");
-    } else if cfg!(target_family = "wasm") {
-        flags.push("-DIPL_CPU_ARMV7");
-    }
-
-    flags.into_iter().map(ToString::to_string).collect()
+    Ok(flags)
 }
 
 /// Forces to re-run the build script on the next build.

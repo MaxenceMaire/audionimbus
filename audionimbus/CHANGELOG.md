@@ -17,6 +17,7 @@
 - Batched ray tracing callbacks now fill in missing results.
 - Serialized objects now retain input bytes needed for later deserialization.
 - HRTF creation now rejects invalid SOFA filenames instead of panicking.
+- Generate Steam Audio bindings for the platform being built instead of the build machine.
 
 ## [0.15.0] - 2026-07-04
 
