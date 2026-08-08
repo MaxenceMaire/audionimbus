@@ -344,8 +344,8 @@ fn install_wwise_integration(
         true
     };
 
-    // Copy Wwise libraries - the actual library name might vary.
-    let wwise_lib_name = "SteamAudioWwise"; // This might need adjustment based on actual file names.
+    let archive_root = extract_dir.join("steamaudio_wwise");
+    let wwise_lib_name = "SteamAudioWwise";
     let lib_names = vec![
         format!("lib{}.so", wwise_lib_name),
         format!("lib{}.dylib", wwise_lib_name),
@@ -353,24 +353,36 @@ fn install_wwise_integration(
         format!("lib{}.a", wwise_lib_name),
     ];
 
-    // Find which one exists and copy it.
-    for lib_name in lib_names {
-        let src = extract_dir
-            .join("lib")
-            .join(&target_info.lib_dir)
-            .join(&lib_name);
-        if src.exists() {
-            copy_libraries(
-                &extract_dir.join("steamaudio_wwise"),
-                target_info,
-                &[lib_name],
-                installed_now,
-            )?;
-            break;
-        }
-    }
+    let lib_name = find_supported_library(&archive_root, &target_info.lib_dir, &lib_names)?;
+    copy_libraries(
+        &archive_root,
+        target_info,
+        &[lib_name.to_string()],
+        installed_now,
+    )?;
 
     Ok(installed_now)
+}
+
+#[cfg(all(feature = "auto-install", feature = "wwise"))]
+fn find_supported_library<'a>(
+    archive_root: &Path,
+    lib_dir: &str,
+    lib_names: &'a [String],
+) -> Result<&'a str, String> {
+    let lib_root = archive_root.join("lib").join(lib_dir);
+
+    lib_names
+        .iter()
+        .find(|lib_name| lib_root.join(lib_name).is_file())
+        .map(String::as_str)
+        .ok_or_else(|| {
+            format!(
+                "No supported Wwise library found in {} (expected one of: {})",
+                lib_root.display(),
+                lib_names.join(", ")
+            )
+        })
 }
 
 #[cfg(feature = "auto-install")]

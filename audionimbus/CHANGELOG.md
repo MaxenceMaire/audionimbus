@@ -18,6 +18,7 @@
 - Serialized objects now retain input bytes needed for later deserialization.
 - HRTF creation now rejects invalid SOFA filenames instead of panicking.
 - Generate Steam Audio bindings for the platform being built instead of the build machine.
+- Wwise auto-install now finds libraries in the downloaded archive.
 
 ## [0.15.0] - 2026-07-04
 
