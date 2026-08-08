@@ -34,14 +34,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.15.0", features = ["auto-install"] }
+//! audionimbus = { version = "0.16.0", features = ["auto-install"] }
 //! ```
 //!
 //! #### With FMOD Studio Integration
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.15.0", features = ["auto-install", "fmod"] }
+//! audionimbus = { version = "0.16.0", features = ["auto-install", "fmod"] }
 //! ```
 //!
 //! You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMODSDK="/path/to/FMOD"`).
@@ -50,7 +50,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.15.0", features = ["auto-install", "wwise"] }
+//! audionimbus = { version = "0.16.0", features = ["auto-install", "wwise"] }
 //! ```
 //!
 //! You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
@@ -59,7 +59,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.15.0", features = ["auto-install", "bevy"] }
+//! audionimbus = { version = "0.16.0", features = ["auto-install", "bevy"] }
 //! ```
 //!
 //! The `bevy` feature enables the ECS integration and pulls in the `wiring` module used to run
@@ -125,7 +125,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = "0.15.0"
+//! audionimbus = "0.16.0"
 //! ```
 //!
 //! #### Manual FMOD Studio Integration
@@ -157,7 +157,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.15.0", features = ["fmod"] }
+//! audionimbus = { version = "0.16.0", features = ["fmod"] }
 //! ```
 //!
 //! #### Manual Wwise Integration
@@ -176,7 +176,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audionimbus = { version = "0.15.0", features = ["wwise"] }
+//! audionimbus = { version = "0.16.0", features = ["wwise"] }
 //! ```
 //!
 //! ## Bevy Integration
@@ -199,6 +199,7 @@
 //!
 //! | AudioNimbus | Bevy |
 //! |-------------|------|
+//! | 0.16        | 0.19 |
 //! | 0.15        | 0.19 |
 //! | 0.14        | 0.18 |
 //!
