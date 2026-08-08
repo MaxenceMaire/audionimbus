@@ -4,6 +4,7 @@ use super::{PHONON_HEADER_PATH, Version, temporary_version_header};
 
 const PHONON_FMOD_HEADER_PATH: &str = "steam-audio/fmod/src/steamaudio_fmod.h";
 
+/// Generates the FMOD integration bindings.
 pub(super) fn generate_bindings(
     output_path: &Path,
     version: &Version,

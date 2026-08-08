@@ -9,6 +9,7 @@ mod wwise;
 
 use super::version;
 
+/// Installs enabled Steam Audio components.
 pub(super) fn handle() -> Result<bool, Box<dyn std::error::Error>> {
     let target_info = get_target_info()?;
     let cache_dir = get_cache_dir()?;
@@ -26,6 +27,7 @@ pub(super) fn handle() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 #[derive(Debug, Clone)]
+/// Information about Cargo's target.
 struct TargetInfo {
     platform: String,
     arch: String,
@@ -34,6 +36,7 @@ struct TargetInfo {
     _is_static: bool,
 }
 
+/// Returns library information for Cargo's target.
 fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
     let target = std::env::var("TARGET")?;
 
@@ -120,6 +123,7 @@ fn get_target_info() -> Result<TargetInfo, Box<dyn std::error::Error>> {
     })
 }
 
+/// Returns the installation cache path.
 fn get_cache_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let out_dir = std::env::var("OUT_DIR")?;
     let mut cache_dir = PathBuf::from(out_dir);
@@ -127,7 +131,7 @@ fn get_cache_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(cache_dir)
 }
 
-/// Returns `false` if the cache was already up to date.
+/// Installs the core Steam Audio library.
 fn install_steam_audio(
     cache_dir: &Path,
     target_info: &TargetInfo,
@@ -159,6 +163,7 @@ fn install_steam_audio(
     Ok(installed_now)
 }
 
+/// Downloads and extracts an archive when its cache is stale.
 fn install_archive(
     zip_path: &Path,
     extract_dir: &Path,
@@ -193,6 +198,7 @@ fn install_archive(
     Ok(true)
 }
 
+/// Downloads a file with an available system client.
 fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::process::Command;
 
@@ -245,6 +251,7 @@ fn download_file(url: &str, dest: &Path) -> Result<(), Box<dyn std::error::Error
     }
 }
 
+/// Verifies every entry in a ZIP archive.
 fn test_zip(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::io;
 
@@ -257,10 +264,12 @@ fn test_zip(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Validates a downloaded archive.
 fn validate_download(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     test_zip(path).map_err(|error| format!("Downloaded archive is invalid: {error}").into())
 }
 
+/// Ensures a valid archive exists in the cache.
 fn ensure_downloaded_zip(
     zip_path: &Path,
     url: &str,
@@ -290,6 +299,7 @@ fn ensure_downloaded_zip(
     })
 }
 
+/// Extracts an archive without allowing path traversal.
 fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::io;
 
@@ -337,6 +347,7 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
+/// Copies target libraries into Cargo's output directory.
 fn copy_libraries(
     extract_dir: &Path,
     target_info: &TargetInfo,
@@ -367,12 +378,14 @@ fn copy_libraries(
     Ok(())
 }
 
+/// Logs installation progress when enabled.
 fn log_install_progress(message: impl AsRef<str>) {
     if install_progress_enabled() {
         println!("cargo:warning=[auto-install] {}", message.as_ref());
     }
 }
 
+/// Returns whether installation progress is enabled.
 fn install_progress_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
 

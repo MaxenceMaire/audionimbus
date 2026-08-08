@@ -4,6 +4,7 @@ use super::{PHONON_HEADER_PATH, Version, temporary_version_header};
 
 const PHONON_WWISE_HEADER_PATH: &str = "steam-audio/wwise/src/SoundEnginePlugin/SteamAudioCommon.h";
 
+/// Generates the Wwise integration bindings.
 pub(super) fn generate_bindings(
     output_path: &Path,
     version: &Version,

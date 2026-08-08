@@ -3,7 +3,7 @@ use std::path::Path;
 use super::{TargetInfo, copy_libraries, install_archive};
 use crate::version;
 
-/// Returns `false` if the cache was already up to date.
+/// Installs the Wwise integration.
 pub(super) fn install(
     cache_dir: &Path,
     target_info: &TargetInfo,
@@ -45,6 +45,7 @@ pub(super) fn install(
     Ok(installed_now)
 }
 
+/// Returns the first available Wwise library.
 fn find_supported_library<'a>(
     archive_root: &Path,
     lib_dir: &str,

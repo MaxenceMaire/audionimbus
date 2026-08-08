@@ -50,13 +50,14 @@ fn main() {
     );
 }
 
-/// If set, adds `STEAMAUDIO_LIB_DIR` to the linker search path.
+/// Emits the configured manual library search path.
 fn emit_manual_link_search_path() {
     if let Ok(lib_dir) = std::env::var("STEAMAUDIO_LIB_DIR") {
         println!("cargo:rustc-link-search=native={lib_dir}");
     }
 }
 
+/// Generates the core bindings.
 fn generate_bindings_phonon(
     output_path: &Path,
     version: &Version,
@@ -80,6 +81,7 @@ fn generate_bindings_phonon(
     bindings.write_to_file(output_path).unwrap();
 }
 
+/// The Steam Audio version used by the build.
 struct Version {
     major: u32,
     minor: u32,
@@ -92,6 +94,7 @@ impl std::fmt::Display for Version {
     }
 }
 
+/// Returns the pinned Steam Audio version.
 fn version() -> Version {
     let major = std::env::var("CARGO_PKG_VERSION_MAJOR")
         .unwrap()
@@ -121,6 +124,7 @@ fn version() -> Version {
     }
 }
 
+/// Writes a temporary native version header.
 fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> TemporaryFileGuard {
     let packed_version = (version.major << 16) | (version.minor << 8) | version.patch;
     let version_header = format!(
@@ -142,7 +146,7 @@ fn temporary_version_header(path: &Path, version: &Version, prefix: &str) -> Tem
     TemporaryFileGuard(path.to_path_buf())
 }
 
-// The file this guard points to gets removed when the guard goes out of scope.
+/// Removes a temporary file when dropped.
 struct TemporaryFileGuard(PathBuf);
 
 impl Drop for TemporaryFileGuard {
@@ -151,6 +155,7 @@ impl Drop for TemporaryFileGuard {
     }
 }
 
+/// Returns native preprocessor flags for a target.
 fn system_flags(target: &str) -> Result<Vec<String>, String> {
     let (os, cpu) = match target {
         "i686-pc-windows-msvc" => ("IPL_OS_WINDOWS", Some("IPL_CPU_X86")),
