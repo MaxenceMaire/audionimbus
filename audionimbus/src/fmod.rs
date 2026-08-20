@@ -43,7 +43,7 @@ pub fn set_hrtf_disabled(disabled: bool) {
 pub type SourceHandle = i32;
 
 /// Registers a source for use by Steam Audio DSP effects in the audio thread, and returns the corresponding handle.
-pub fn add_source(source: &Source) -> SourceHandle {
+pub fn add_source<D, R, P, RE>(source: &Source<D, R, P, RE>) -> SourceHandle {
     unsafe { audionimbus_sys::fmod::iplFMODAddSource(source.raw_ptr()) }
 }
 
@@ -56,7 +56,7 @@ pub fn remove_source(handle: SourceHandle) {
 ///
 /// Typically, listener-centric reverb is simulated by creating a [`Source`] with the same position as the listener, and simulating reflections.
 /// To render this simulated reverb, call this function and pass it the [`Source`] used.
-pub fn set_reverb_source(source: &Source) {
+pub fn set_reverb_source<D, R, P, RE>(source: &Source<D, R, P, RE>) {
     unsafe { audionimbus_sys::fmod::iplFMODSetReverbSource(source.raw_ptr()) }
 }
 

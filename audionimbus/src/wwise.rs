@@ -59,7 +59,7 @@ pub fn set_hrtf(hrtf: &Hrtf) {
 pub type WwiseGameObjectId = u64;
 
 /// Specifies the [`Source`] used by the game engine for simulating occlusion, reflections, etc. for the given Wwise game object (identified by its AkGameObjectID).
-pub fn add_source(game_object_id: WwiseGameObjectId, source: &Source) {
+pub fn add_source<D, R, P, RE>(game_object_id: WwiseGameObjectId, source: &Source<D, R, P, RE>) {
     unsafe { audionimbus_sys::wwise::iplWwiseAddSource(game_object_id, source.raw_ptr()) }
 }
 
@@ -74,7 +74,7 @@ pub fn remove_source(game_object_id: WwiseGameObjectId) {
 ///
 /// Typically, listener-centric reverb is simulated by creating a [`Source`] with the same position as the listener, and simulating reflections.
 /// To render this simulated reverb, call this function and pass it the [`Source`] used.
-pub fn set_reverb_source(source: &Source) {
+pub fn set_reverb_source<D, R, P, RE>(source: &Source<D, R, P, RE>) {
     unsafe { audionimbus_sys::wwise::iplWwiseSetReverbSource(source.raw_ptr()) }
 }
 
