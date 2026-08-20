@@ -1,8 +1,11 @@
 use audionimbus::bevy::*;
 use bevy::camera_controller::free_camera::FreeCameraPlugin;
 use bevy::prelude::*;
-use bevy_seedling::firewheel::cpal::{CpalBackend, CpalConfig, CpalOutputConfig};
-use bevy_seedling::prelude::{RegisterNode, SeedlingPlugin};
+use bevy_seedling::platform::{
+    AudioStreamConfig,
+    cpal::{CpalConfig, CpalOutputConfig},
+};
+use bevy_seedling::prelude::{RegisterNode, SeedlingPlugins};
 
 mod audio;
 mod consts;
@@ -31,24 +34,22 @@ fn main() {
             max_order: AMBISONICS_ORDER,
         });
 
-    let seedling = SeedlingPlugin::<CpalBackend> {
-        stream_config: CpalConfig {
-            output: CpalOutputConfig {
-                desired_sample_rate: Some(SAMPLE_RATE),
-                desired_block_frames: Some(FRAME_SIZE),
-                ..Default::default()
-            },
-            input: None,
+    let stream_config = AudioStreamConfig(CpalConfig {
+        output: CpalOutputConfig {
+            desired_sample_rate: Some(SAMPLE_RATE),
+            desired_block_frames: Some(FRAME_SIZE),
+            ..Default::default()
         },
-        ..Default::default()
-    };
+        input: None,
+    });
 
     let mut app = App::new();
 
+    app.insert_resource(stream_config);
     app.add_plugins((
         DefaultPlugins,
         FreeCameraPlugin,
-        seedling,
+        SeedlingPlugins,
         SpatialAudioPlugin::new(simulation_settings),
         SpatialAudioDebugPlugin::default(),
         ScenePlugin,

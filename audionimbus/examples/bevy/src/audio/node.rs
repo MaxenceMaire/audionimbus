@@ -9,10 +9,9 @@ use bevy::prelude::*;
 use bevy_seedling::firewheel::{
     StreamInfo,
     channel_config::{ChannelConfig, ChannelCount},
-    event::ProcEvents,
     node::{
         AudioNode, AudioNodeInfo, AudioNodeProcessor, ConstructProcessorContext, EmptyConfig,
-        ProcBuffers, ProcExtra, ProcInfo, ProcessStatus,
+        NodeError, ProcBuffers, ProcExtra, ProcInfo, ProcessStatus,
     },
 };
 use std::collections::HashMap;
@@ -49,28 +48,28 @@ impl SpatialNode {
 impl AudioNode for SpatialNode {
     type Configuration = EmptyConfig;
 
-    fn info(&self, _config: &Self::Configuration) -> AudioNodeInfo {
-        AudioNodeInfo::new()
+    fn info(&self, _config: &Self::Configuration) -> Result<AudioNodeInfo, NodeError> {
+        Ok(AudioNodeInfo::new()
             .debug_name("audionimbus_spatial_node")
             .channel_config(ChannelConfig {
                 num_inputs: ChannelCount::ZERO,
                 num_outputs: ChannelCount::STEREO,
-            })
+            }))
     }
 
     fn construct_processor(
         &self,
         _config: &Self::Configuration,
         cx: ConstructProcessorContext,
-    ) -> impl AudioNodeProcessor {
-        SpatialProcessor::new(
+    ) -> Result<impl AudioNodeProcessor, NodeError> {
+        Ok(SpatialProcessor::new(
             self.entity,
             self.context.clone(),
             self.direct_output.clone(),
             self.reflections_reverb_output.clone(),
             self.direction.clone(),
             cx.stream_info,
-        )
+        ))
     }
 }
 
@@ -149,7 +148,6 @@ impl AudioNodeProcessor for SpatialProcessor {
         &mut self,
         info: &ProcInfo,
         ProcBuffers { outputs, .. }: ProcBuffers,
-        _events: &mut ProcEvents,
         _extra: &mut ProcExtra,
     ) -> ProcessStatus {
         let frames = info.frames;
@@ -160,7 +158,7 @@ impl AudioNodeProcessor for SpatialProcessor {
             self.dry_buffer[frames..].fill(0.0);
         }
 
-        let dry_audio = AudioBuffer::try_with_data(self.dry_buffer.as_slice()).unwrap();
+        let dry_audio = AudioBufferRef::try_new(self.dry_buffer.as_slice(), 1).unwrap();
 
         let direct_snapshot = self.direct_output.load();
         let direct_params = direct_snapshot
