@@ -392,9 +392,11 @@ dependencies = [
 [[package]]
 name = "audionimbus"
 version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3e2d8ec85beb519a4844b857d4f44c059b10687c05a05394946eeaf2318a472"
 dependencies = [
  "arc-swap",
- "audionimbus-sys 4.8.2-rc.3",
+ "audionimbus-sys 4.8.2-rc.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "bevy",
  "bitflags 2.11.1",
  "object-pool",
@@ -404,12 +406,10 @@ dependencies = [
 
 [[package]]
 name = "audionimbus"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3e2d8ec85beb519a4844b857d4f44c059b10687c05a05394946eeaf2318a472"
+version = "0.16.1"
 dependencies = [
  "arc-swap",
- "audionimbus-sys 4.8.2-rc.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "audionimbus-sys 4.8.2-rc.3",
  "bevy",
  "bitflags 2.11.1",
  "object-pool",
@@ -459,7 +459,7 @@ dependencies = [
 name = "bevy-demo"
 version = "0.1.0"
 dependencies = [
- "audionimbus 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "audionimbus 0.16.0",
  "bevy",
  "bevy_seedling",
  "rtrb",
@@ -2283,7 +2283,7 @@ dependencies = [
 name = "core-demo"
 version = "0.1.0"
 dependencies = [
- "audionimbus 0.16.0",
+ "audionimbus 0.16.1",
  "cpal 0.17.3",
 ]
 
