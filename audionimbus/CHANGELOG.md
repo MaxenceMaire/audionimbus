@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.16.1] - 2026-11-02
+
+### Changed
+
+- Update the Bevy demo to Audionimbus 0.16, Bevy 0.19, and bevy_seedling 0.8.
+
+### Fixed
+
+- Fix compilation of the FMOD and Wwise integrations by adding missing `Source` type parameters.
+
 ## [0.16.0] - 2026-08-08
 
 ### Changed
