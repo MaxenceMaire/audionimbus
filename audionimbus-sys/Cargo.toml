@@ -1,7 +1,7 @@
 [package]
 name = "audionimbus-sys"
 description = "Rust bindings for Steam Audio."
-version = "4.8.2-rc.3"
+version = "4.8.2-rc.4"
 edition = "2024"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -21,7 +21,7 @@ exclude = [
 
 [build-dependencies]
 bindgen = "0.71.1"
-zip = { version = "0.6", default-features = false, features = ["deflate"], optional = true }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"], optional = true }
 
 [features]
 auto-install = ["dep:zip"]

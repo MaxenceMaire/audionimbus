@@ -24,10 +24,11 @@ Add `audionimbus` to your dependencies:
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["auto-install"] }
+audionimbus = { version = "0.16.2", features = ["auto-install"] }
 ```
 
 The `auto-install` feature automatically downloads and installs Steam Audio for you.
+It requires Rust 1.88 or later.
 
 For more information, refer to the detailed [installation guide](audionimbus/README.md#installation).
 

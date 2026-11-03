@@ -4,6 +4,8 @@ This crate demonstrates how to integrate [`audionimbus`](../..) into a Bevy appl
 
 ## Running the demo
 
+The demo requires a C compiler for its Zstd backend.
+
 ```bash
 cargo run --release -p bevy-demo
 ```
