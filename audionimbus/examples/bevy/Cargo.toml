@@ -10,6 +10,23 @@ path = "src/main.rs"
 
 [dependencies]
 audionimbus = { version = "0.16", features = ["bevy"] }
-bevy = { version = "0.19", features = ["free_camera"] }
+bevy = { version = "0.19", default-features = false, features = [
+  "2d",
+  "ui",
+  "audio",
+  "bevy_anti_alias",
+  "bevy_gltf",
+  "bevy_light",
+  "bevy_mikktspace",
+  "bevy_pbr",
+  "free_camera",
+  "gltf_animation",
+  "ktx2",
+  "morph",
+  "morph_animation",
+  "smaa_luts",
+  "tonemapping_luts",
+  "zstd_c",
+] }
 bevy_seedling = "0.8"
-rtrb = "0.3.3"
+rtrb = "0.3.5"

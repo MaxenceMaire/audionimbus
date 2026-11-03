@@ -6,11 +6,13 @@
 
 - Update `audionimbus-sys` to `4.8.2-rc.4`.
 - Require Rust 1.88 or later for `auto-install`.
+- Use Bevy's C Zstd backend in the demo.
 
 ### Fixed
 
 - Address ZIP security advisories by updating the optional installer dependency to `zip 9.0.5`.
 - Fix the `grid` integer overflow advisory by updating the workspace lockfile to `1.0.1`.
+- Update workspace dependencies to resolve RustSec vulnerabilities, soundness warnings, and yanked versions.
 
 Applications that use Bevy UI must update `grid` in their own lockfiles.
 
