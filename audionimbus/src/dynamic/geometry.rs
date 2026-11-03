@@ -75,10 +75,125 @@ impl fmt::Debug for RayTracerSettings {
 
 /// A scene with a runtime-selected ray tracer.
 ///
+/// Static and runtime geometry handles cannot be mixed.
+///
 /// # Examples
 ///
-/// Static and runtime geometry use distinct handle bindings.
-/// The compiler rejects a handle from one binding where the other binding is required.
+/// ```no_run
+/// use audionimbus::Context;
+/// use audionimbus::dynamic::{RayTracerSettings, Scene};
+///
+/// let context = Context::default();
+/// let scene = Scene::try_new(&context, RayTracerSettings::Default)?;
+/// scene.commit();
+/// let _: Scene = scene;
+/// # Ok::<(), audionimbus::dynamic::SceneError>(())
+/// ```
+pub type Scene = crate::geometry::scene::Scene<crate::binding::Dynamic<RayTracerKind>>;
+
+/// A static mesh with a runtime-selected ray tracer.
+///
+/// Creates meshes with `try_new`, or loads them with `load` and `load_with_progress_callback`.
+/// Serializes default-backend meshes with `try_save`.
+/// Clones retain the same native mesh.
+pub type StaticMesh =
+    crate::geometry::static_mesh::StaticMesh<crate::binding::Dynamic<RayTracerKind>>;
+
+/// An instanced mesh with a runtime-selected ray tracer.
+///
+/// Creates instances with `try_new`, which rejects different parent and sub-scene ray tracers.
+/// Clones retain the native instance and its sub-scene.
+pub type InstancedMesh =
+    crate::geometry::instanced_mesh::InstancedMesh<crate::binding::Dynamic<RayTracerKind>>;
+
+/// Instanced mesh settings with a runtime-selected ray tracer.
+///
+/// The public `sub_scene` field contains a runtime [`Scene`].
+/// The public `transform` field contains its local-to-world matrix.
+pub type InstancedMeshSettings =
+    crate::geometry::instanced_mesh::InstancedMeshSettings<crate::binding::Dynamic<RayTracerKind>>;
+
+/// Errors produced by runtime-selected scene operations.
+#[cfg(feature = "dynamic")]
+#[derive(Debug, Eq, PartialEq)]
+pub enum SceneError {
+    /// Native scene operation failed.
+    SteamAudio(SteamAudioError),
+
+    /// Static mesh creation failed.
+    StaticMesh(StaticMeshError),
+
+    /// Two geometry handles use different ray tracers.
+    RayTracerMismatch {
+        /// The ray tracer required by the receiving handle.
+        expected: RayTracerKind,
+
+        /// The ray tracer used by the supplied handle.
+        actual: RayTracerKind,
+    },
+
+    /// The selected ray tracer does not support serialization.
+    SerializationUnsupported(RayTracerKind),
+
+    /// The selected ray tracer does not support OBJ export.
+    ObjUnsupported(RayTracerKind),
+}
+
+#[cfg(feature = "dynamic")]
+impl std::error::Error for SceneError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::SteamAudio(error) => Some(error),
+            Self::StaticMesh(error) => Some(error),
+            Self::RayTracerMismatch { .. }
+            | Self::SerializationUnsupported(_)
+            | Self::ObjUnsupported(_) => None,
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl std::fmt::Display for SceneError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SteamAudio(error) => std::fmt::Display::fmt(error, formatter),
+            Self::StaticMesh(error) => std::fmt::Display::fmt(error, formatter),
+            Self::RayTracerMismatch { expected, actual } => write!(
+                formatter,
+                "scene uses {expected:?} ray tracing but geometry uses {actual:?}"
+            ),
+            Self::SerializationUnsupported(ray_tracer) => {
+                write!(formatter, "{ray_tracer:?} ray tracing cannot be serialized")
+            }
+            Self::ObjUnsupported(ray_tracer) => {
+                write!(
+                    formatter,
+                    "{ray_tracer:?} ray tracing cannot be saved as OBJ"
+                )
+            }
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<SteamAudioError> for SceneError {
+    fn from(error: SteamAudioError) -> Self {
+        Self::SteamAudio(error)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<StaticMeshError> for SceneError {
+    fn from(error: StaticMeshError) -> Self {
+        match error {
+            StaticMeshError::SteamAudio(error) => Self::SteamAudio(error),
+            error => Self::StaticMesh(error),
+        }
+    }
+}
+
+#[cfg(doctest)]
+/// Geometry binding checks.
 ///
 /// Static constructor inference remains unchanged:
 ///
@@ -90,19 +205,6 @@ impl fmt::Debug for RayTracerSettings {
 /// scene.commit();
 /// let _: Scene = scene;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
-/// ```
-///
-/// Runtime geometry uses non-generic aliases:
-///
-/// ```no_run
-/// use audionimbus::Context;
-/// use audionimbus::dynamic::{RayTracerSettings, Scene};
-///
-/// let context = Context::default();
-/// let scene = Scene::try_new(&context, RayTracerSettings::Default)?;
-/// scene.commit();
-/// let _: Scene = scene;
-/// # Ok::<(), audionimbus::dynamic::SceneError>(())
 /// ```
 ///
 /// Static and runtime handles cannot be mixed:
@@ -214,105 +316,4 @@ impl fmt::Debug for RayTracerSettings {
 /// fn equal<T: Eq>() {}
 /// equal::<audionimbus::StaticMesh<audionimbus::DefaultRayTracer>>();
 /// ```
-pub type Scene = crate::geometry::scene::Scene<crate::binding::Dynamic<RayTracerKind>>;
-
-/// A static mesh with a runtime-selected ray tracer.
-///
-/// Creates meshes with `try_new`, or loads them with `load` and `load_with_progress_callback`.
-/// Serializes default-backend meshes with `try_save`.
-/// Clones retain the same native mesh.
-pub type StaticMesh =
-    crate::geometry::static_mesh::StaticMesh<crate::binding::Dynamic<RayTracerKind>>;
-
-/// An instanced mesh with a runtime-selected ray tracer.
-///
-/// Creates instances with `try_new`, which rejects different parent and sub-scene ray tracers.
-/// Clones retain the native instance and its sub-scene.
-pub type InstancedMesh =
-    crate::geometry::instanced_mesh::InstancedMesh<crate::binding::Dynamic<RayTracerKind>>;
-
-/// Instanced mesh settings with a runtime-selected ray tracer.
-///
-/// The public `sub_scene` field contains a runtime [`Scene`].
-/// The public `transform` field contains its local-to-world matrix.
-pub type InstancedMeshSettings =
-    crate::geometry::instanced_mesh::InstancedMeshSettings<crate::binding::Dynamic<RayTracerKind>>;
-
-/// Errors produced by runtime-selected scene operations.
-#[cfg(feature = "dynamic")]
-#[derive(Debug, Eq, PartialEq)]
-pub enum SceneError {
-    /// Native scene operation failed.
-    SteamAudio(SteamAudioError),
-
-    /// Static mesh creation failed.
-    StaticMesh(StaticMeshError),
-
-    /// Two geometry handles use different ray tracers.
-    RayTracerMismatch {
-        /// The ray tracer required by the receiving handle.
-        expected: RayTracerKind,
-
-        /// The ray tracer used by the supplied handle.
-        actual: RayTracerKind,
-    },
-
-    /// The selected ray tracer does not support serialization.
-    SerializationUnsupported(RayTracerKind),
-
-    /// The selected ray tracer does not support OBJ export.
-    ObjUnsupported(RayTracerKind),
-}
-
-#[cfg(feature = "dynamic")]
-impl std::error::Error for SceneError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::SteamAudio(error) => Some(error),
-            Self::StaticMesh(error) => Some(error),
-            Self::RayTracerMismatch { .. }
-            | Self::SerializationUnsupported(_)
-            | Self::ObjUnsupported(_) => None,
-        }
-    }
-}
-
-#[cfg(feature = "dynamic")]
-impl std::fmt::Display for SceneError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::SteamAudio(error) => std::fmt::Display::fmt(error, formatter),
-            Self::StaticMesh(error) => std::fmt::Display::fmt(error, formatter),
-            Self::RayTracerMismatch { expected, actual } => write!(
-                formatter,
-                "scene uses {expected:?} ray tracing but geometry uses {actual:?}"
-            ),
-            Self::SerializationUnsupported(ray_tracer) => {
-                write!(formatter, "{ray_tracer:?} ray tracing cannot be serialized")
-            }
-            Self::ObjUnsupported(ray_tracer) => {
-                write!(
-                    formatter,
-                    "{ray_tracer:?} ray tracing cannot be saved as OBJ"
-                )
-            }
-        }
-    }
-}
-
-#[cfg(feature = "dynamic")]
-impl From<SteamAudioError> for SceneError {
-    fn from(error: SteamAudioError) -> Self {
-        Self::SteamAudio(error)
-    }
-}
-
-#[cfg(feature = "dynamic")]
-impl From<StaticMeshError> for SceneError {
-    fn from(error: StaticMeshError) -> Self {
-        match error {
-            StaticMeshError::SteamAudio(error) => Self::SteamAudio(error),
-            error => Self::StaticMesh(error),
-        }
-    }
-}
+struct GeometryBindings;
