@@ -93,17 +93,22 @@ pub use material::Material;
 mod ray;
 pub use ray::Ray;
 
-mod scene;
+/// Geometry implementations whose bindings must stay inaccessible to downstream callers.
+pub(crate) mod scene;
 pub use scene::{
-    InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, Scene, StaticMeshHandle,
-    relative_direction,
+    InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, StaticMeshHandle,
+    TypedScene as Scene, relative_direction,
 };
 
-mod static_mesh;
-pub use static_mesh::{StaticMesh, StaticMeshError, StaticMeshSettings};
+/// Mesh implementations whose bindings must stay inaccessible to downstream callers.
+pub(crate) mod static_mesh;
+pub use static_mesh::{StaticMeshError, StaticMeshSettings, TypedStaticMesh as StaticMesh};
 
-mod instanced_mesh;
-pub use instanced_mesh::{InstancedMesh, InstancedMeshSettings};
+/// Instance implementations whose bindings must stay inaccessible to downstream callers.
+pub(crate) mod instanced_mesh;
+pub use instanced_mesh::{
+    TypedInstancedMesh as InstancedMesh, TypedInstancedMeshSettings as InstancedMeshSettings,
+};
 
 mod sphere;
 pub use sphere::Sphere;

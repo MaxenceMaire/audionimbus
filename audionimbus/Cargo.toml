@@ -24,6 +24,7 @@ smallvec = { version = "1.15", default-features = false }
 slotmap = "1.1.1"
 
 [features]
+dynamic = []
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]

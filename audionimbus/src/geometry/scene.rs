@@ -1,19 +1,29 @@
+use super::instanced_mesh::InstancedMesh;
+use super::static_mesh::StaticMesh;
 use crate::Sealed;
+use crate::binding::Static;
 use crate::callback::{CustomRayTracingCallbacks, ProgressCallback};
 use crate::context::Context;
 use crate::device::embree::EmbreeDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::error::{SteamAudioError, to_option_error};
-use crate::geometry::{Direction, InstancedMesh, Matrix, Point, StaticMesh};
+use crate::geometry::{Direction, Matrix, Point};
 use crate::ray_tracing::{
     CustomCallbackUserData, CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer,
 };
 use crate::serialized_object::SerializedObject;
 use slotmap::{DefaultKey, SlotMap};
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
+
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
+#[cfg(feature = "dynamic")]
+use crate::device::OpenClDevice;
+#[cfg(feature = "dynamic")]
+use crate::dynamic::{RayTracerKind, RayTracerSettings, SceneError};
 
 /// Marker trait for scenes that can use `try_save()`.
 pub trait SaveableAsSerialized: Sealed {}
@@ -24,21 +34,59 @@ pub trait SaveableAsObj: Sealed {}
 impl SaveableAsObj for DefaultRayTracer {}
 impl SaveableAsObj for Embree {}
 
-/// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
-///
-/// The scene object itself doesn’t contain any geometry, but is a container for [`StaticMesh`] and [`InstancedMesh`] objects, which do contain geometry.
-///
-/// [`Scene`] is generic over the [`RayTracer`] implementation.
-///
-/// `Scene` is a reference-counted handle to an underlying Steam Audio object.
-/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
-/// incrementing a reference count.
-/// The underlying object is destroyed when all handles are dropped.
+/// Storage selected by a geometry API binding.
+pub trait GeometryBinding: Copy {
+    /// Resources retained by each scene in the binding.
+    type Resources: Debug + Send + Sync;
+}
+
+impl<T: RayTracer> GeometryBinding for Static<T> {
+    type Resources = (T::Device, T::CallbackUserData);
+}
+
+/// Resources retained by a runtime-selected scene.
+#[cfg(feature = "dynamic")]
 #[derive(Debug)]
-pub struct Scene<T: RayTracer = DefaultRayTracer> {
+pub enum DynamicSceneResources {
+    /// No backend resources.
+    Default,
+
+    /// The Embree device.
+    Embree(EmbreeDevice),
+
+    /// The OpenCL and Radeon Rays devices.
+    RadeonRays {
+        /// The OpenCL device.
+        open_cl_device: OpenClDevice,
+
+        /// The Radeon Rays device.
+        radeon_rays_device: RadeonRaysDevice,
+    },
+
+    /// Custom callback storage and batch size.
+    Custom {
+        /// The callback user data referenced by native code.
+        callback_user_data: CustomCallbackUserData,
+
+        /// The ray batch size for simulator construction.
+        ray_batch_size: usize,
+    },
+}
+
+#[cfg(feature = "dynamic")]
+impl GeometryBinding for Dynamic<RayTracerKind> {
+    type Resources = DynamicSceneResources;
+}
+
+/// Geometry storage for a compile-time or runtime binding.
+#[derive(Debug)]
+pub struct Scene<F: GeometryBinding> {
+    /// The native scene pointer.
     inner: audionimbus_sys::IPLScene,
-    pub(crate) shared: Arc<Mutex<SceneShared<T>>>,
-    _marker: PhantomData<T>,
+    /// The graph registrations whose mutation must preserve scene commit synchronization.
+    pub(crate) shared: Arc<Mutex<SceneShared<F>>>,
+    /// The compile-time or runtime geometry binding.
+    binding: F,
 }
 
 /// Simulator-specific registration state for a scene hierarchy.
@@ -53,47 +101,43 @@ pub(crate) struct SceneSimulationRegistration {
 
 /// Shared ownership of [`Scene`] data across clones.
 #[derive(Debug)]
-pub(crate) struct SceneShared<T: RayTracer> {
+pub struct SceneShared<F: GeometryBinding> {
     /// Used to keep static meshes alive for the lifetime of the scene.
-    static_meshes: SlotMap<DefaultKey, StaticMesh<T>>,
+    static_meshes: SlotMap<DefaultKey, StaticMesh<F>>,
 
     /// Used to keep instanced meshes alive for the lifetime of the scene.
-    instanced_meshes: SlotMap<DefaultKey, InstancedMesh<T>>,
+    instanced_meshes: SlotMap<DefaultKey, InstancedMesh<F>>,
 
-    /// Static meshes to be dropped by the next call to [`Self::commit`].
-    static_meshes_to_remove: Vec<StaticMesh<T>>,
+    /// Static meshes to be dropped by the next call to [`Scene::commit`].
+    static_meshes_to_remove: Vec<StaticMesh<F>>,
 
-    /// Instanced meshes to be dropped by the next call to [`Self::commit`].
-    instanced_meshes_to_remove: Vec<InstancedMesh<T>>,
+    /// Instanced meshes to be dropped by the next call to [`Scene::commit`].
+    instanced_meshes_to_remove: Vec<InstancedMesh<F>>,
 
     /// Simulator registrations that currently require this scene to block commits.
     simulation_registrations: HashMap<audionimbus_sys::IPLSimulator, SceneSimulationRegistration>,
 
-    /// Keeps the device alive for the lifetime of the scene.
-    _device: T::Device,
-
-    /// Keeps the callback user data alive for custom ray tracers.
-    _callback_user_data: T::CallbackUserData,
+    /// Backend resources retained for the lifetime of the scene.
+    _resources: F::Resources,
 }
 
-impl<T: RayTracer> SceneShared<T> {
+impl<F: GeometryBinding> SceneShared<F> {
     /// Creates empty shared scene state.
-    fn new(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
+    fn new(resources: F::Resources) -> Self {
         Self {
             static_meshes: SlotMap::new(),
             instanced_meshes: SlotMap::new(),
             static_meshes_to_remove: Vec::new(),
             instanced_meshes_to_remove: Vec::new(),
             simulation_registrations: HashMap::new(),
-            _device: device,
-            _callback_user_data: callback_user_data,
+            _resources: resources,
         }
     }
 
     /// Returns handles to all sub-scenes reachable from this scene.
     ///
     /// Scenes from pending removals are included.
-    fn sub_scenes(&self) -> Vec<Scene<T>> {
+    fn sub_scenes(&self) -> Vec<Scene<F>> {
         self.instanced_meshes
             .values()
             .map(|mesh| mesh.sub_scene.clone())
@@ -128,13 +172,13 @@ impl<T: RayTracer> SceneShared<T> {
     }
 }
 
-impl<T: RayTracer> Scene<T> {
+impl<F: GeometryBinding> Scene<F> {
     /// Creates an empty scene with the specified device and returns a handle to it.
-    fn empty(device: T::Device, callback_user_data: T::CallbackUserData) -> Self {
+    fn empty(binding: F, resources: F::Resources) -> Self {
         Self {
             inner: std::ptr::null_mut(),
-            shared: Arc::new(Mutex::new(SceneShared::new(device, callback_user_data))),
-            _marker: PhantomData,
+            shared: Arc::new(Mutex::new(SceneShared::new(resources))),
+            binding,
         }
     }
 
@@ -142,13 +186,13 @@ impl<T: RayTracer> Scene<T> {
     fn from_ffi_create(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: T::CallbackUserData,
-        device: T::Device,
+        binding: F,
+        resources: F::Resources,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self::empty(device, callback_user_data);
+        let mut scene = Self::empty(binding, resources);
 
         let status = unsafe {
-            audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, scene.raw_ptr_mut())
+            audionimbus_sys::iplSceneCreate(context.raw_ptr(), settings, &raw mut scene.inner)
         };
 
         if let Some(error) = to_option_error(status) {
@@ -166,12 +210,12 @@ impl<T: RayTracer> Scene<T> {
     fn from_ffi_load(
         context: &Context,
         settings: &mut audionimbus_sys::IPLSceneSettings,
-        callback_user_data: T::CallbackUserData,
-        device: T::Device,
+        binding: F,
+        resources: F::Resources,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
-        let mut scene = Self::empty(device, callback_user_data);
+        let mut scene = Self::empty(binding, resources);
 
         let (callback_fn, user_data) =
             progress_callback
@@ -188,7 +232,7 @@ impl<T: RayTracer> Scene<T> {
                 serialized_object.raw_ptr(),
                 callback_fn,
                 user_data,
-                scene.raw_ptr_mut(),
+                &raw mut scene.inner,
             )
         };
 
@@ -259,14 +303,26 @@ impl<T: RayTracer> Scene<T> {
     }
 }
 
-impl Scene<DefaultRayTracer> {
+/// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
+///
+/// The scene object itself doesn’t contain any geometry, but is a container for [`crate::StaticMesh`] and [`crate::InstancedMesh`] objects, which do contain geometry.
+///
+/// [`crate::Scene`] is generic over the [`RayTracer`] implementation.
+///
+/// `Scene` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+pub type TypedScene<T = DefaultRayTracer> = Scene<Static<T>>;
+
+impl TypedScene<DefaultRayTracer> {
     /// Creates a new scene and returns a handle to it.
     ///
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        Self::from_ffi_create(context, &mut Self::ffi_settings(), (), ())
+        Self::from_ffi_create(context, &mut Self::ffi_settings(), Static::new(), ((), ()))
     }
 
     /// Loads a scene from a serialized object and returns a handle to it.
@@ -283,8 +339,8 @@ impl Scene<DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
-            (),
-            (),
+            Static::new(),
+            ((), ()),
             serialized_object,
             None,
         )
@@ -305,8 +361,8 @@ impl Scene<DefaultRayTracer> {
         Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(),
-            (),
-            (),
+            Static::new(),
+            ((), ()),
             serialized_object,
             Some(progress_callback),
         )
@@ -327,7 +383,7 @@ impl Scene<DefaultRayTracer> {
     }
 }
 
-impl Scene<Embree> {
+impl TypedScene<Embree> {
     /// Creates a new scene with the Embree ray tracer and returns a handle to it.
     ///
     /// # Errors
@@ -337,7 +393,12 @@ impl Scene<Embree> {
         context: &Context,
         device: EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
-        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), (), device)?;
+        let scene = Self::from_ffi_create(
+            context,
+            &mut Self::ffi_settings(&device),
+            Static::new(),
+            (device, ()),
+        )?;
         Ok(scene)
     }
 
@@ -356,8 +417,8 @@ impl Scene<Embree> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            (),
-            device,
+            Static::new(),
+            (device, ()),
             serialized_object,
             None,
         )?;
@@ -381,8 +442,8 @@ impl Scene<Embree> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            (),
-            device,
+            Static::new(),
+            (device, ()),
             serialized_object,
             Some(progress_callback),
         )?;
@@ -404,7 +465,7 @@ impl Scene<Embree> {
     }
 }
 
-impl Scene<RadeonRays> {
+impl TypedScene<RadeonRays> {
     /// Creates a new scene with the Radeon Rays ray tracer and returns a handle to it.
     ///
     /// # Errors
@@ -414,7 +475,12 @@ impl Scene<RadeonRays> {
         context: &Context,
         device: RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
-        let scene = Self::from_ffi_create(context, &mut Self::ffi_settings(&device), (), device)?;
+        let scene = Self::from_ffi_create(
+            context,
+            &mut Self::ffi_settings(&device),
+            Static::new(),
+            (device, ()),
+        )?;
         Ok(scene)
     }
 
@@ -433,8 +499,8 @@ impl Scene<RadeonRays> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            (),
-            device,
+            Static::new(),
+            (device, ()),
             serialized_object,
             None,
         )?;
@@ -458,8 +524,8 @@ impl Scene<RadeonRays> {
         let scene = Self::from_ffi_load(
             context,
             &mut Self::ffi_settings(&device),
-            (),
-            device,
+            Static::new(),
+            (device, ()),
             serialized_object,
             Some(progress_callback),
         )?;
@@ -481,7 +547,7 @@ impl Scene<RadeonRays> {
     }
 }
 
-impl Scene<CustomRayTracer> {
+impl TypedScene<CustomRayTracer> {
     /// Creates a new scene with a custom ray tracer and returns a handle to it.
     ///
     /// # Errors
@@ -495,8 +561,8 @@ impl Scene<CustomRayTracer> {
         Self::from_ffi_create(
             context,
             &mut settings,
-            CustomCallbackUserData(user_data),
-            (),
+            Static::new(),
+            ((), CustomCallbackUserData(user_data)),
         )
     }
 
@@ -516,8 +582,8 @@ impl Scene<CustomRayTracer> {
         Self::from_ffi_load(
             context,
             &mut settings,
-            CustomCallbackUserData(user_data),
-            (),
+            Static::new(),
+            ((), CustomCallbackUserData(user_data)),
             serialized_object,
             None,
         )
@@ -541,54 +607,221 @@ impl Scene<CustomRayTracer> {
         Self::from_ffi_load(
             context,
             &mut settings,
-            CustomCallbackUserData(user_data),
-            (),
+            Static::new(),
+            ((), CustomCallbackUserData(user_data)),
             serialized_object,
             Some(progress_callback),
         )
     }
 }
 
-impl<T: RayTracer> Scene<T> {
-    /// Adds a static mesh to a scene and returns a handle to it.
+#[cfg(feature = "dynamic")]
+impl RayTracerSettings {
+    /// Converts runtime settings into native settings and retained resources.
+    fn into_scene_parts(self) -> (audionimbus_sys::IPLSceneSettings, DynamicSceneResources) {
+        match self {
+            Self::Default => (
+                Scene::<Static<DefaultRayTracer>>::ffi_settings(),
+                DynamicSceneResources::Default,
+            ),
+            Self::Embree { device } => {
+                let settings = Scene::<Static<Embree>>::ffi_settings(&device);
+                (settings, DynamicSceneResources::Embree(device))
+            }
+            Self::RadeonRays {
+                open_cl_device,
+                radeon_rays_device,
+            } => {
+                let settings = Scene::<Static<RadeonRays>>::ffi_settings(&radeon_rays_device);
+                (
+                    settings,
+                    DynamicSceneResources::RadeonRays {
+                        open_cl_device,
+                        radeon_rays_device,
+                    },
+                )
+            }
+            Self::Custom {
+                callbacks,
+                ray_batch_size,
+            } => {
+                let (settings, callback_user_data) = callbacks.as_ffi_settings();
+                (
+                    settings,
+                    DynamicSceneResources::Custom {
+                        callback_user_data: CustomCallbackUserData(callback_user_data),
+                        ray_batch_size,
+                    },
+                )
+            }
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl crate::dynamic::Scene {
+    /// Creates a scene with a runtime-selected ray tracer.
     ///
-    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    /// # Errors
     ///
-    /// # Returns
+    /// - [`SceneError::SteamAudio`] when native creation fails.
+    pub fn try_new(context: &Context, settings: RayTracerSettings) -> Result<Self, SceneError> {
+        let ray_tracer = settings.kind();
+        let (mut settings, resources) = settings.into_scene_parts();
+        Self::from_ffi_create(context, &mut settings, Dynamic(ray_tracer), resources)
+            .map_err(SceneError::from)
+    }
+
+    /// Loads a scene with a runtime-selected ray tracer.
     ///
-    /// A [`StaticMeshHandle`] that can be used to reference or remove this mesh.
+    /// # Errors
     ///
-    /// # Example
+    /// - [`SceneError::SteamAudio`] when loading fails.
+    pub fn load(
+        context: &Context,
+        settings: RayTracerSettings,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SceneError> {
+        Self::load_with_optional_progress(context, settings, serialized_object, None)
+    }
+
+    /// Loads a scene with a runtime-selected ray tracer and a progress callback.
     ///
-    /// ```
-    /// # use audionimbus::*;
-    /// # let context = Context::default();
-    /// # let mut scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![
-    /// #     Point::new(0.0, 0.0, 0.0),
-    /// #     Point::new(1.0, 0.0, 0.0),
-    /// #     Point::new(0.0, 1.0, 0.0),
-    /// # ];
-    /// # let triangles = vec![Triangle::new(0, 1, 2)];
-    /// # let materials = vec![Material::default()];
-    /// # let material_indices = vec![0];
-    /// let static_mesh = StaticMesh::try_new(
-    ///     &scene,
-    ///     &StaticMeshSettings {
-    ///         vertices: &vertices,
-    ///         triangles: &triangles,
-    ///         material_indices: &material_indices,
-    ///         materials: &materials,
-    ///     },
-    /// )?;
+    /// # Errors
     ///
-    /// let handle = scene.add_static_mesh(static_mesh);
-    /// scene.commit();
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn add_static_mesh(&mut self, static_mesh: StaticMesh<T>) -> StaticMeshHandle {
+    /// - [`SceneError::SteamAudio`] when loading fails.
+    pub fn load_with_progress(
+        context: &Context,
+        settings: RayTracerSettings,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SceneError> {
+        Self::load_with_optional_progress(
+            context,
+            settings,
+            serialized_object,
+            Some(progress_callback),
+        )
+    }
+
+    /// Loads a scene with an optional progress callback.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::SteamAudio`] when loading fails.
+    fn load_with_optional_progress(
+        context: &Context,
+        settings: RayTracerSettings,
+        serialized_object: &SerializedObject,
+        progress_callback: Option<ProgressCallback>,
+    ) -> Result<Self, SceneError> {
+        let ray_tracer = settings.kind();
+        let (mut settings, resources) = settings.into_scene_parts();
+        Self::from_ffi_load(
+            context,
+            &mut settings,
+            Dynamic(ray_tracer),
+            resources,
+            serialized_object,
+            progress_callback,
+        )
+        .map_err(SceneError::from)
+    }
+
+    /// Returns the selected ray tracer.
+    pub const fn ray_tracer(&self) -> RayTracerKind {
+        self.binding.0
+    }
+
+    /// Adds a static mesh to the scene.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::RayTracerMismatch`] when the mesh uses a different ray tracer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the scene graph mutex is poisoned.
+    pub fn try_add_static_mesh(
+        &mut self,
+        static_mesh: crate::dynamic::StaticMesh,
+    ) -> Result<StaticMeshHandle, SceneError> {
+        let expected = self.ray_tracer();
+        let actual = static_mesh.binding().0;
+        if actual != expected {
+            return Err(SceneError::RayTracerMismatch { expected, actual });
+        }
+
+        Ok(self.add_static_mesh_shared(static_mesh))
+    }
+
+    /// Adds an instanced mesh to the scene.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::RayTracerMismatch`] when the mesh uses a different ray tracer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the scene graph mutex is poisoned.
+    pub fn try_add_instanced_mesh(
+        &mut self,
+        instanced_mesh: crate::dynamic::InstancedMesh,
+    ) -> Result<InstancedMeshHandle, SceneError> {
+        let expected = self.ray_tracer();
+        let actual = instanced_mesh.sub_scene.ray_tracer();
+        if actual != expected {
+            return Err(SceneError::RayTracerMismatch { expected, actual });
+        }
+
+        Ok(self.add_instanced_mesh_shared(instanced_mesh))
+    }
+
+    /// Saves the scene and returns its serialized representation.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::SerializationUnsupported`] when the scene does not use the default ray tracer.
+    /// - [`SceneError::SteamAudio`] when the destination serialized object cannot be created.
+    pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SceneError> {
+        if self.ray_tracer() != RayTracerKind::Default {
+            return Err(SceneError::SerializationUnsupported(self.ray_tracer()));
+        }
+
+        self.save_shared(context).map_err(SceneError::from)
+    }
+
+    /// Saves the scene as an OBJ file.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::ObjUnsupported`] when the ray tracer cannot export OBJ files.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the filename contains a null byte.
+    pub fn try_save_obj(&self, filename: String) -> Result<(), SceneError> {
+        if !matches!(
+            self.ray_tracer(),
+            RayTracerKind::Default | RayTracerKind::Embree
+        ) {
+            return Err(SceneError::ObjUnsupported(self.ray_tracer()));
+        }
+
+        self.save_obj_shared(filename);
+        Ok(())
+    }
+}
+
+impl<F: GeometryBinding> Scene<F> {
+    /// Adds geometry after its binding compatibility is established.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the scene graph mutex is poisoned.
+    fn add_static_mesh_shared(&mut self, static_mesh: StaticMesh<F>) -> StaticMeshHandle {
         unsafe {
-            audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr(), self.raw_ptr());
+            audionimbus_sys::iplStaticMeshAdd(static_mesh.raw_ptr_shared(), self.raw_ptr_shared());
         }
 
         let key = self
@@ -603,7 +836,7 @@ impl<T: RayTracer> Scene<T> {
 
     /// Removes a static mesh from a scene using its handle.
     ///
-    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
     ///
     /// # Returns
     ///
@@ -647,7 +880,10 @@ impl<T: RayTracer> Scene<T> {
         };
 
         unsafe {
-            audionimbus_sys::iplStaticMeshRemove(static_mesh.raw_ptr(), self.raw_ptr());
+            audionimbus_sys::iplStaticMeshRemove(
+                static_mesh.raw_ptr_shared(),
+                self.raw_ptr_shared(),
+            );
         }
 
         shared.static_meshes_to_remove.push(static_mesh);
@@ -655,56 +891,20 @@ impl<T: RayTracer> Scene<T> {
         true
     }
 
-    /// Adds an instanced mesh to a scene and returns a handle to it.
+    /// Adds geometry after its binding compatibility is established.
     ///
-    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    /// # Panics
     ///
-    /// # Returns
-    ///
-    /// An [`InstancedMeshHandle`] that can be used to reference, update, or remove this mesh.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use audionimbus::*;
-    /// # let context = Context::default();
-    /// # let mut sub_scene = Scene::try_new(&context)?;
-    /// # let vertices = vec![
-    /// #     Point::new(0.0, 0.0, 0.0),
-    /// #     Point::new(1.0, 0.0, 0.0),
-    /// #     Point::new(0.0, 1.0, 0.0),
-    /// # ];
-    /// # let triangles = vec![Triangle::new(0, 1, 2)];
-    /// # let materials = vec![Material::default()];
-    /// # let material_indices = vec![0];
-    /// # let static_mesh = StaticMesh::try_new(
-    /// #     &sub_scene,
-    /// #     &StaticMeshSettings {
-    /// #         vertices: &vertices,
-    /// #         triangles: &triangles,
-    /// #         material_indices: &material_indices,
-    /// #         materials: &materials,
-    /// #     },
-    /// # )?;
-    /// # let _ = sub_scene.add_static_mesh(static_mesh);
-    /// # sub_scene.commit();
-    /// # let mut scene = Scene::try_new(&context)?;
-    /// # let transform = Matrix4::IDENTITY;
-    /// let instanced_mesh = InstancedMesh::try_new(
-    ///     &scene,
-    ///     &InstancedMeshSettings {
-    ///         sub_scene,
-    ///         transform: Matrix4::IDENTITY,
-    ///     },
-    /// )?;
-    ///
-    /// let handle = scene.add_instanced_mesh(instanced_mesh);
-    /// scene.commit();
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn add_instanced_mesh(&mut self, instanced_mesh: InstancedMesh<T>) -> InstancedMeshHandle {
+    /// Panics if the scene graph mutex is poisoned.
+    fn add_instanced_mesh_shared(
+        &mut self,
+        instanced_mesh: InstancedMesh<F>,
+    ) -> InstancedMeshHandle {
         unsafe {
-            audionimbus_sys::iplInstancedMeshAdd(instanced_mesh.raw_ptr(), self.raw_ptr());
+            audionimbus_sys::iplInstancedMeshAdd(
+                instanced_mesh.raw_ptr_shared(),
+                self.raw_ptr_shared(),
+            );
         }
 
         let sub_scene = instanced_mesh.sub_scene.clone();
@@ -723,7 +923,7 @@ impl<T: RayTracer> Scene<T> {
 
     /// Removes an instanced mesh from a scene using its handle.
     ///
-    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
     ///
     /// # Returns
     ///
@@ -778,7 +978,10 @@ impl<T: RayTracer> Scene<T> {
         };
 
         unsafe {
-            audionimbus_sys::iplInstancedMeshRemove(instanced_mesh.raw_ptr(), self.raw_ptr());
+            audionimbus_sys::iplInstancedMeshRemove(
+                instanced_mesh.raw_ptr_shared(),
+                self.raw_ptr_shared(),
+            );
         }
 
         shared.instanced_meshes_to_remove.push(instanced_mesh);
@@ -790,7 +993,7 @@ impl<T: RayTracer> Scene<T> {
     ///
     /// This function allows the instanced mesh to be moved, rotated, and scaled dynamically.
     ///
-    /// After calling this function, [`Self::commit`] must be called for the changes to take effect.
+    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
     ///
     /// # Returns
     ///
@@ -855,8 +1058,8 @@ impl<T: RayTracer> Scene<T> {
 
         unsafe {
             audionimbus_sys::iplInstancedMeshUpdateTransform(
-                instanced_mesh.raw_ptr(),
-                self.raw_ptr(),
+                instanced_mesh.raw_ptr_shared(),
+                self.raw_ptr_shared(),
                 transform.into(),
             );
         }
@@ -867,9 +1070,9 @@ impl<T: RayTracer> Scene<T> {
     /// Commits any changes to the scene.
     ///
     /// This function should be called after any calls to the following functions, for the changes to take effect:
-    /// - [`Self::add_static_mesh`]
+    /// - [`add_static_mesh`](crate::Scene)
     /// - [`Self::remove_static_mesh`]
-    /// - [`Self::add_instanced_mesh`]
+    /// - [`add_instanced_mesh`](crate::Scene)
     /// - [`Self::remove_instanced_mesh`]
     /// - [`Self::update_instanced_mesh_transform`]
     ///
@@ -918,7 +1121,7 @@ impl<T: RayTracer> Scene<T> {
             .collect::<Vec<_>>();
 
         unsafe {
-            audionimbus_sys::iplSceneCommit(self.raw_ptr());
+            audionimbus_sys::iplSceneCommit(self.raw_ptr_shared());
         }
 
         let (removed_sub_scenes, registrations) = {
@@ -941,6 +1144,144 @@ impl<T: RayTracer> Scene<T> {
         }
     }
 
+    /// Returns the raw scene pointer.
+    /// Library callers must preserve the checked runtime geometry boundary.
+    pub(crate) const fn raw_ptr_shared(&self) -> audionimbus_sys::IPLScene {
+        self.inner
+    }
+
+    /// Returns the binding selector.
+    /// Library callers must not expose selectors as public configuration choices.
+    pub(crate) const fn binding(&self) -> F {
+        self.binding
+    }
+
+    /// Saves the scene without checking its binding capability.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] when the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] when native allocation fails.
+    /// - [`SteamAudioError::Initialization`] when a native dependency fails.
+    fn save_shared(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
+        let serialized_object = SerializedObject::try_new(context)?;
+        unsafe {
+            audionimbus_sys::iplSceneSave(self.raw_ptr_shared(), serialized_object.raw_ptr());
+        }
+
+        Ok(serialized_object)
+    }
+
+    /// Saves the scene as OBJ without checking its binding capability.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the filename contains a null byte.
+    fn save_obj_shared(&self, filename: String) {
+        let filename_c_string =
+            std::ffi::CString::new(filename).expect("failed to create a CString from the filename");
+
+        unsafe {
+            audionimbus_sys::iplSceneSaveOBJ(self.raw_ptr_shared(), filename_c_string.as_ptr());
+        }
+    }
+}
+
+impl<T: RayTracer> TypedScene<T> {
+    /// Adds a static mesh to a scene and returns a handle to it.
+    ///
+    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// A [`StaticMeshHandle`] that can be used to reference or remove this mesh.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut scene = Scene::try_new(&context)?;
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// let static_mesh = StaticMesh::try_new(
+    ///     &scene,
+    ///     &StaticMeshSettings {
+    ///         vertices: &vertices,
+    ///         triangles: &triangles,
+    ///         material_indices: &material_indices,
+    ///         materials: &materials,
+    ///     },
+    /// )?;
+    ///
+    /// let handle = scene.add_static_mesh(static_mesh);
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_static_mesh(&mut self, static_mesh: super::StaticMesh<T>) -> StaticMeshHandle {
+        self.add_static_mesh_shared(static_mesh)
+    }
+
+    /// Adds an instanced mesh to a scene and returns a handle to it.
+    ///
+    /// After calling this function, [`Scene::commit`] must be called for the changes to take effect.
+    ///
+    /// # Returns
+    ///
+    /// An [`InstancedMeshHandle`] that can be used to reference, update, or remove this mesh.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use audionimbus::*;
+    /// # let context = Context::default();
+    /// # let mut sub_scene = Scene::try_new(&context)?;
+    /// # let vertices = vec![
+    /// #     Point::new(0.0, 0.0, 0.0),
+    /// #     Point::new(1.0, 0.0, 0.0),
+    /// #     Point::new(0.0, 1.0, 0.0),
+    /// # ];
+    /// # let triangles = vec![Triangle::new(0, 1, 2)];
+    /// # let materials = vec![Material::default()];
+    /// # let material_indices = vec![0];
+    /// # let static_mesh = StaticMesh::try_new(
+    /// #     &sub_scene,
+    /// #     &StaticMeshSettings {
+    /// #         vertices: &vertices,
+    /// #         triangles: &triangles,
+    /// #         material_indices: &material_indices,
+    /// #         materials: &materials,
+    /// #     },
+    /// # )?;
+    /// # let _ = sub_scene.add_static_mesh(static_mesh);
+    /// # sub_scene.commit();
+    /// # let mut scene = Scene::try_new(&context)?;
+    /// # let transform = Matrix4::IDENTITY;
+    /// let instanced_mesh = InstancedMesh::try_new(
+    ///     &scene,
+    ///     &InstancedMeshSettings {
+    ///         sub_scene,
+    ///         transform: Matrix4::IDENTITY,
+    ///     },
+    /// )?;
+    ///
+    /// let handle = scene.add_instanced_mesh(instanced_mesh);
+    /// scene.commit();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_instanced_mesh(
+        &mut self,
+        instanced_mesh: super::InstancedMesh<T>,
+    ) -> InstancedMeshHandle {
+        self.add_instanced_mesh_shared(instanced_mesh)
+    }
+
     /// Returns the raw FFI pointer to the underlying scene.
     ///
     /// This is intended for internal use and advanced scenarios.
@@ -956,7 +1297,7 @@ impl<T: RayTracer> Scene<T> {
     }
 }
 
-impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
+impl<T: RayTracer + SaveableAsSerialized> TypedScene<T> {
     /// Saves the scene and returns its serialized representation.
     ///
     /// Typically, the serialized object will then be saved to disk.
@@ -967,15 +1308,11 @@ impl<T: RayTracer + SaveableAsSerialized> Scene<T> {
     ///
     /// Returns [`SteamAudioError`] if the destination serialized object cannot be created.
     pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
-        let serialized_object = SerializedObject::try_new(context)?;
-        unsafe {
-            audionimbus_sys::iplSceneSave(self.raw_ptr(), serialized_object.raw_ptr());
-        }
-        Ok(serialized_object)
+        self.save_shared(context)
     }
 }
 
-impl<T: RayTracer + SaveableAsObj> Scene<T> {
+impl<T: RayTracer + SaveableAsObj> TypedScene<T> {
     /// Saves a scene to an OBJ file.
     ///
     /// An OBJ file is a widely-supported 3D model file format, that can be displayed using a variety of software on most PC platforms.
@@ -985,23 +1322,20 @@ impl<T: RayTracer + SaveableAsObj> Scene<T> {
     ///
     /// `file_basename` is the absolute or relative path to the OBJ file to generate.
     pub fn save_obj(&self, filename: String) {
-        let filename_c_string =
-            std::ffi::CString::new(filename).expect("failed to create a CString from the filename");
-
-        unsafe { audionimbus_sys::iplSceneSaveOBJ(self.raw_ptr(), filename_c_string.as_ptr()) }
+        self.save_obj_shared(filename);
     }
 }
 
-impl<T: RayTracer> Drop for Scene<T> {
+impl<F: GeometryBinding> Drop for Scene<F> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplSceneRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer> Send for Scene<T> {}
-unsafe impl<T: RayTracer> Sync for Scene<T> {}
+unsafe impl<F: GeometryBinding> Send for Scene<F> {}
+unsafe impl<F: GeometryBinding> Sync for Scene<F> {}
 
-impl<T: RayTracer> Clone for Scene<T> {
+impl<F: GeometryBinding> Clone for Scene<F> {
     /// Retains an additional reference to the scene.
     ///
     /// The returned [`Scene`] shares the same underlying Steam Audio object.
@@ -1010,22 +1344,22 @@ impl<T: RayTracer> Clone for Scene<T> {
         Self {
             inner: unsafe { audionimbus_sys::iplSceneRetain(self.inner) },
             shared: Arc::clone(&self.shared),
-            _marker: PhantomData,
+            binding: self.binding,
         }
     }
 }
 
-impl<T: RayTracer> PartialEq for Scene<T> {
+impl<F: GeometryBinding> PartialEq for Scene<F> {
     fn eq(&self, other: &Self) -> bool {
-        self.raw_ptr() == other.raw_ptr()
+        self.raw_ptr_shared() == other.raw_ptr_shared()
     }
 }
 
-impl<T: RayTracer> Eq for Scene<T> {}
+impl<F: GeometryBinding> Eq for Scene<F> {}
 
-impl<T: RayTracer> Hash for Scene<T> {
+impl<F: GeometryBinding> Hash for Scene<F> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.raw_ptr(), state);
+        std::ptr::hash(self.raw_ptr_shared(), state);
     }
 }
 
@@ -1066,7 +1400,7 @@ pub fn relative_direction(
 
 /// A handle to a static mesh within a scene.
 ///
-/// This handle is returned when adding a static mesh to a scene via [`Scene::add_static_mesh`].
+/// This handle is returned when adding a static mesh to a scene via [`add_static_mesh`](crate::Scene).
 /// It can be used to reference the mesh for operations like removal.
 ///
 /// # Example
@@ -1106,7 +1440,7 @@ pub struct StaticMeshHandle(DefaultKey);
 
 /// A handle to an instanced mesh within a scene.
 ///
-/// This handle is returned when adding an instanced mesh to a scene via [`Scene::add_instanced_mesh`].
+/// This handle is returned when adding an instanced mesh to a scene via [`add_instanced_mesh`](crate::Scene).
 /// It can be used to reference the mesh for operations like removal or transform updates.
 ///
 /// # Example
@@ -1171,7 +1505,7 @@ mod tests {
     };
 
     fn registration_ref_count<D, R, P, RE>(
-        scene: &Scene<DefaultRayTracer>,
+        scene: &crate::Scene<DefaultRayTracer>,
         simulator: &Simulator<DefaultRayTracer, D, R, P, RE>,
     ) -> usize
     where
@@ -1192,7 +1526,7 @@ mod tests {
     #[test]
     fn test_default_scene() {
         let context = Context::default();
-        assert!(Scene::try_new(&context).is_ok());
+        assert!(crate::Scene::try_new(&context).is_ok());
     }
 
     #[test]
@@ -1243,13 +1577,13 @@ mod tests {
             batched_any_hit,
         );
 
-        assert!(Scene::<CustomRayTracer>::try_with_custom(&context, callbacks).is_ok());
+        assert!(crate::Scene::<CustomRayTracer>::try_with_custom(&context, callbacks).is_ok());
     }
 
     #[test]
     fn test_scene_clone() {
         let context = Context::default();
-        let scene = Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+        let scene = crate::Scene::<DefaultRayTracer>::try_new(&context).unwrap();
         let clone = scene.clone();
         assert_eq!(scene.raw_ptr(), clone.raw_ptr());
         drop(scene);
@@ -1266,8 +1600,8 @@ mod tests {
             });
         let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
             Simulator::try_new(&context, &settings).unwrap();
-        let mut root_scene = Scene::try_new(&context).unwrap();
-        let sub_scene = Scene::try_new(&context).unwrap();
+        let mut root_scene = crate::Scene::try_new(&context).unwrap();
+        let sub_scene = crate::Scene::try_new(&context).unwrap();
 
         simulator.set_scene(&root_scene);
         simulator.commit();
@@ -1295,8 +1629,8 @@ mod tests {
             });
         let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
             Simulator::try_new(&context, &settings).unwrap();
-        let mut root_scene = Scene::try_new(&context).unwrap();
-        let shared_sub_scene = Scene::try_new(&context).unwrap();
+        let mut root_scene = crate::Scene::try_new(&context).unwrap();
+        let shared_sub_scene = crate::Scene::try_new(&context).unwrap();
 
         let first_mesh = InstancedMesh::try_new(
             &root_scene,
@@ -1347,8 +1681,8 @@ mod tests {
         let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
             Simulator::try_new(&context, &settings).unwrap();
 
-        let mut old_root_scene = Scene::try_new(&context).unwrap();
-        let old_sub_scene = Scene::try_new(&context).unwrap();
+        let mut old_root_scene = crate::Scene::try_new(&context).unwrap();
+        let old_sub_scene = crate::Scene::try_new(&context).unwrap();
         let old_instanced_mesh = InstancedMesh::try_new(
             &old_root_scene,
             &InstancedMeshSettings {
@@ -1360,8 +1694,8 @@ mod tests {
         old_root_scene.add_instanced_mesh(old_instanced_mesh);
         old_root_scene.commit();
 
-        let mut new_root_scene = Scene::try_new(&context).unwrap();
-        let new_sub_scene = Scene::try_new(&context).unwrap();
+        let mut new_root_scene = crate::Scene::try_new(&context).unwrap();
+        let new_sub_scene = crate::Scene::try_new(&context).unwrap();
         let new_instanced_mesh = InstancedMesh::try_new(
             &new_root_scene,
             &InstancedMeshSettings {

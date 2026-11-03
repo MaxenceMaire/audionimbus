@@ -181,9 +181,9 @@
 //!
 //! ## Bevy Integration
 //!
-//! The [`bevy`] module provides ECS wrappers around AudioNimbus types.
+//! The `bevy` module provides ECS wrappers around AudioNimbus types.
 //!
-//! Internally, it builds on the [`wiring`] module, so simulations run on dedicated threads while
+//! Internally, it builds on the `wiring` module, so simulations run on dedicated threads while
 //! the Bevy world keeps scene and source state up to date.
 //!
 //! The integration stops at simulation output.
@@ -296,9 +296,13 @@ pub use prelude::*;
 pub mod audio_buffer;
 pub mod audio_settings;
 pub mod baking;
+mod binding;
 pub mod callback;
 pub mod context;
 pub mod device;
+#[cfg(feature = "dynamic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dynamic")))]
+pub mod dynamic;
 pub mod effect;
 mod error;
 pub use error::SteamAudioError;

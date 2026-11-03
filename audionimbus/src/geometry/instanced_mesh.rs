@@ -1,47 +1,44 @@
-use super::{Matrix, Scene};
+use super::Matrix;
+use super::scene::{GeometryBinding, Scene};
+use crate::binding::Static;
 use crate::error::{SteamAudioError, to_option_error};
-use crate::ray_tracing::{DefaultRayTracer, RayTracer};
+use crate::ray_tracing::RayTracer;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
-/// A triangle mesh that can be moved (translated), rotated, or scaled, but cannot deform.
-///
-/// Portions of a scene that undergo rigid-body motion can be represented as instanced meshes.
-/// An instanced mesh is essentially a scene (called the “sub-scene”) with a transform applied to it.
-/// Adding an instanced mesh to a scene places the sub-scene into the scene with the transform applied.
-/// For example, the sub-scene may be a prefab door, and the transform can be used to place it in a doorway and animate it as it opens or closes.
-///
-/// `InstancedMesh` is a reference-counted handle to an underlying Steam Audio object.
-/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
-/// incrementing a reference count.
-/// The underlying object is destroyed when all handles are dropped.
+#[cfg(feature = "dynamic")]
+use crate::dynamic::SceneError;
+
+/// Geometry storage for a compile-time or runtime binding.
 #[derive(Debug)]
-pub struct InstancedMesh<T: RayTracer = DefaultRayTracer> {
+pub struct InstancedMesh<F: GeometryBinding> {
+    /// The native instanced mesh pointer.
     inner: audionimbus_sys::IPLInstancedMesh,
-    pub(crate) sub_scene: Scene<T>,
-    _marker: PhantomData<T>,
+    /// The sub-scene whose replacement would break native instance ownership.
+    pub(crate) sub_scene: Scene<F>,
 }
 
-impl<T: RayTracer> InstancedMesh<T> {
-    /// Creates a new instanced mesh and returns a handle to it.
+impl<F: GeometryBinding> InstancedMesh<F> {
+    /// Creates an instanced mesh without checking runtime binding settings.
     ///
     /// # Errors
     ///
-    /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new(
-        scene: &Scene<T>,
-        settings: &InstancedMeshSettings<T>,
+    /// - [`SteamAudioError::Unspecified`] when the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] when native allocation fails.
+    /// - [`SteamAudioError::Initialization`] when a native dependency fails.
+    fn try_new_shared(
+        scene: &Scene<F>,
+        settings: &InstancedMeshSettings<F>,
     ) -> Result<Self, SteamAudioError> {
         let mut inner = std::ptr::null_mut();
 
         let mut instanced_mesh_settings_ffi = audionimbus_sys::IPLInstancedMeshSettings {
-            subScene: settings.sub_scene.raw_ptr(),
+            subScene: settings.sub_scene.raw_ptr_shared(),
             transform: settings.transform.into(),
         };
 
         let status = unsafe {
             audionimbus_sys::iplInstancedMeshCreate(
-                scene.raw_ptr(),
+                scene.raw_ptr_shared(),
                 &raw mut instanced_mesh_settings_ffi,
                 &raw mut inner,
             )
@@ -54,10 +51,42 @@ impl<T: RayTracer> InstancedMesh<T> {
         let instanced_mesh = Self {
             inner,
             sub_scene: settings.sub_scene.clone(),
-            _marker: PhantomData,
         };
 
         Ok(instanced_mesh)
+    }
+
+    /// Returns the raw instanced mesh pointer.
+    /// Library callers must preserve the checked runtime geometry boundary.
+    pub(crate) const fn raw_ptr_shared(&self) -> audionimbus_sys::IPLInstancedMesh {
+        self.inner
+    }
+}
+
+/// A triangle mesh that can be moved (translated), rotated, or scaled, but cannot deform.
+///
+/// Portions of a scene that undergo rigid-body motion can be represented as instanced meshes.
+/// An instanced mesh is essentially a scene (called the “sub-scene”) with a transform applied to it.
+/// Adding an instanced mesh to a scene places the sub-scene into the scene with the transform applied.
+/// For example, the sub-scene may be a prefab door, and the transform can be used to place it in a doorway and animate it as it opens or closes.
+///
+/// `InstancedMesh` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+pub type TypedInstancedMesh<T = crate::ray_tracing::DefaultRayTracer> = InstancedMesh<Static<T>>;
+
+impl<T: RayTracer> TypedInstancedMesh<T> {
+    /// Creates a new instanced mesh and returns a handle to it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if creation fails.
+    pub fn try_new(
+        scene: &super::Scene<T>,
+        settings: &TypedInstancedMeshSettings<T>,
+    ) -> Result<Self, SteamAudioError> {
+        Self::try_new_shared(scene, settings)
     }
 
     /// Returns the raw FFI pointer to the underlying instanced mesh.
@@ -75,16 +104,38 @@ impl<T: RayTracer> InstancedMesh<T> {
     }
 }
 
-impl<T: RayTracer> Drop for InstancedMesh<T> {
+#[cfg(feature = "dynamic")]
+impl crate::dynamic::InstancedMesh {
+    /// Creates a new instanced mesh and returns a handle to it.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::RayTracerMismatch`] when the parent and sub-scene use different ray tracers.
+    /// - [`SceneError::SteamAudio`] when native creation fails.
+    pub fn try_new(
+        scene: &crate::dynamic::Scene,
+        settings: &crate::dynamic::InstancedMeshSettings,
+    ) -> Result<Self, SceneError> {
+        let expected = scene.binding().0;
+        let actual = settings.sub_scene.binding().0;
+        if actual != expected {
+            return Err(SceneError::RayTracerMismatch { expected, actual });
+        }
+
+        Self::try_new_shared(scene, settings).map_err(SceneError::from)
+    }
+}
+
+impl<F: GeometryBinding> Drop for InstancedMesh<F> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplInstancedMeshRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer> Send for InstancedMesh<T> {}
-unsafe impl<T: RayTracer> Sync for InstancedMesh<T> {}
+unsafe impl<F: GeometryBinding> Send for InstancedMesh<F> {}
+unsafe impl<F: GeometryBinding> Sync for InstancedMesh<F> {}
 
-impl<T: RayTracer> Clone for InstancedMesh<T> {
+impl<F: GeometryBinding> Clone for InstancedMesh<F> {
     /// Retains an additional reference to the instanced mesh.
     ///
     /// The returned [`InstancedMesh`] shares the same underlying Steam Audio object.
@@ -93,33 +144,55 @@ impl<T: RayTracer> Clone for InstancedMesh<T> {
         Self {
             inner: unsafe { audionimbus_sys::iplInstancedMeshRetain(self.inner) },
             sub_scene: self.sub_scene.clone(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<T: RayTracer> PartialEq for InstancedMesh<T> {
+impl<F: GeometryBinding> PartialEq for InstancedMesh<F> {
     fn eq(&self, other: &Self) -> bool {
-        self.raw_ptr() == other.raw_ptr()
+        self.raw_ptr_shared() == other.raw_ptr_shared()
     }
 }
 
-impl<T: RayTracer> Eq for InstancedMesh<T> {}
+impl<F: GeometryBinding> Eq for InstancedMesh<F> {}
 
-impl<T: RayTracer> Hash for InstancedMesh<T> {
+impl<F: GeometryBinding> Hash for InstancedMesh<F> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.raw_ptr(), state);
+        std::ptr::hash(self.raw_ptr_shared(), state);
     }
 }
 
 /// Settings used to create an instanced mesh.
-#[derive(Debug, Clone)]
-pub struct InstancedMeshSettings<T: RayTracer = DefaultRayTracer> {
+#[derive(Debug)]
+pub struct InstancedMeshSettings<F: GeometryBinding> {
     /// Handle to the scene to be instantiated.
-    pub sub_scene: Scene<T>,
+    pub sub_scene: Scene<F>,
 
     /// Local-to-world transform that places the instance within the parent scene.
     pub transform: Matrix<f32, 4, 4>,
+}
+
+/// Instanced mesh settings for a statically selected ray tracer.
+pub type TypedInstancedMeshSettings<T = crate::ray_tracing::DefaultRayTracer> =
+    InstancedMeshSettings<Static<T>>;
+
+impl<T: RayTracer + Clone> Clone for TypedInstancedMeshSettings<T> {
+    fn clone(&self) -> Self {
+        Self {
+            sub_scene: self.sub_scene.clone(),
+            transform: self.transform,
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl Clone for crate::dynamic::InstancedMeshSettings {
+    fn clone(&self) -> Self {
+        Self {
+            sub_scene: self.sub_scene.clone(),
+            transform: self.transform,
+        }
+    }
 }
 
 #[cfg(test)]
