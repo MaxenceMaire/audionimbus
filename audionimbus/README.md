@@ -27,6 +27,7 @@ The easiest way to use `audionimbus` is with automatic installation. This will a
 
 #### Requirements
 
+- **Rust 1.88 or later**
 - **curl** or **wget** (for downloading)
 - **Clang 9.0 or later**
 
@@ -36,14 +37,14 @@ Add `audionimbus` to your `Cargo.toml` with the `auto-install` feature:
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["auto-install"] }
+audionimbus = { version = "0.16.2", features = ["auto-install"] }
 ```
 
 #### With Bevy Integration
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["auto-install", "bevy"] }
+audionimbus = { version = "0.16.2", features = ["auto-install", "bevy"] }
 ```
 
 The `bevy` feature enables the ECS integration and pulls in the `wiring` module used to run simulations on dedicated threads.
@@ -52,7 +53,7 @@ The `bevy` feature enables the ECS integration and pulls in the `wiring` module 
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["auto-install", "fmod"] }
+audionimbus = { version = "0.16.2", features = ["auto-install", "fmod"] }
 ```
 
 You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMODSDK="/path/to/FMOD"`).
@@ -61,7 +62,7 @@ You also need to set the `FMODSDK` environment variable to the path of the FMOD 
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["auto-install", "wwise"] }
+audionimbus = { version = "0.16.2", features = ["auto-install", "wwise"] }
 ```
 
 You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
@@ -126,7 +127,7 @@ Finally, add `audionimbus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus = "0.16.1"
+audionimbus = "0.16.2"
 ```
 
 #### Manual FMOD Studio Integration
@@ -158,7 +159,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["fmod"] }
+audionimbus = { version = "0.16.2", features = ["fmod"] }
 ```
 
 #### Manual Wwise Integration
@@ -177,7 +178,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus = { version = "0.16.1", features = ["wwise"] }
+audionimbus = { version = "0.16.2", features = ["wwise"] }
 ```
 
 ## Bevy Integration

@@ -320,12 +320,12 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::erro
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
         let rel_path = match entry.enclosed_name() {
-            Some(path) => path.to_owned(),
+            Some(path) => path,
             None => continue,
         };
         let outpath = dest_dir.join(rel_path);
 
-        if entry.is_dir() || entry.name().ends_with('/') {
+        if entry.is_dir() {
             fs::create_dir_all(&outpath)?;
         } else {
             if let Some(parent) = outpath.parent() {
