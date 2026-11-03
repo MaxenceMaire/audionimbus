@@ -11,3 +11,9 @@ pub use reflections::{
     ReflectionAlgorithm, ReflectionEffect, ReflectionEffectParams, ReflectionError,
     ReflectionMixer, ReflectionsParameters, ReflectionsSettings,
 };
+
+mod simulation;
+pub use simulation::{
+    SimulationError, SimulationInputs, SimulationOutputs, SimulationParameters, SimulationSettings,
+    SimulationSharedInputs, Simulator, Source,
+};

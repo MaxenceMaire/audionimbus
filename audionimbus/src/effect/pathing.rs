@@ -36,9 +36,9 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// Applying pathing involves:
 /// 1. Baking path data between probes using [`PathBaker::bake`]
 /// 2. Setting up a [`Simulator`] with a [`Scene`] and [`ProbeBatch`]
-/// 3. Adding [`Source`]s with pathing enabled (don't forget to commit using [`Simulator::commit`]!)
-/// 4. Running the simulation ([`Simulator::run_pathing`]) and retrieving the output for the source ([`Source::get_outputs`])
-/// 5. Applying the path effect using the simulation output ([`SimulationOutputs::pathing`]) as params
+/// 3. Adding [`Source`]s with pathing enabled (don't forget to commit using `Simulator::commit`!)
+/// 4. Running the simulation (`Simulator::run_pathing`) and retrieving the output for the source (`Source::get_outputs`)
+/// 5. Applying the path effect using the simulation output (`SimulationOutputs::pathing`) as params
 ///
 /// ```
 /// # use audionimbus::*;

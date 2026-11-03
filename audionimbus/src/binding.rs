@@ -25,3 +25,16 @@ impl<C> Clone for Static<C> {
 #[cfg(feature = "dynamic")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Dynamic<C>(pub C);
+
+impl<C: Default> Default for Static<C> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl<C: Default> Default for Dynamic<C> {
+    fn default() -> Self {
+        Self(C::default())
+    }
+}

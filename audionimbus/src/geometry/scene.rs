@@ -1495,6 +1495,27 @@ pub struct StaticMeshHandle(DefaultKey);
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct InstancedMeshHandle(DefaultKey);
 
+#[cfg(feature = "dynamic")]
+impl SceneShared<Dynamic<RayTracerKind>> {
+    /// Returns whether Radeon Rays resources match the supplied simulator devices.
+    pub fn uses_devices(
+        &self,
+        open_cl_device: Option<&OpenClDevice>,
+        radeon_rays_device: Option<&RadeonRaysDevice>,
+    ) -> bool {
+        match &self._resources {
+            DynamicSceneResources::RadeonRays {
+                open_cl_device: scene_open_cl_device,
+                radeon_rays_device: scene_radeon_rays_device,
+            } => {
+                open_cl_device == Some(scene_open_cl_device)
+                    && radeon_rays_device == Some(scene_radeon_rays_device)
+            }
+            _ => true,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

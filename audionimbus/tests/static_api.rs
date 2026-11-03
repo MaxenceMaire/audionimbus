@@ -120,3 +120,69 @@ fn preserves_static_reflection_api() {
     let _: ReflectionMixer<Parametric> =
         ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings).unwrap();
 }
+
+/// Accepts source declarations without simulation marker bounds.
+fn accepts_unconstrained_source<D, R, P, RE>(_: Option<audionimbus::Source<D, R, P, RE>>) {}
+
+/// Preserves the simulator's original marker bounds.
+fn accepts_static_simulator<T: RayTracer, D, R, P, RE>(
+    _: Option<audionimbus::Simulator<T, D, R, P, RE>>,
+) {
+}
+
+/// Preserves the direct input subset's explicit generic arguments.
+fn sets_static_source_inputs<D, R, P, RE>(
+    source: &audionimbus::Source<D, R, P, RE>,
+    inputs: &audionimbus::SimulationInputs<D, R, P>,
+) -> Result<(), audionimbus::ParameterValidationError>
+where
+    D: 'static + audionimbus::DirectCompatible<D> + audionimbus::SimulationFlagsProvider,
+    R: 'static + audionimbus::ReflectionsCompatible<R> + audionimbus::SimulationFlagsProvider,
+    P: 'static + audionimbus::PathingCompatible<P> + audionimbus::SimulationFlagsProvider,
+    RE: 'static,
+{
+    source.set_inputs_subset::<D, R, P, D, R, P>(inputs)
+}
+
+#[test]
+fn preserves_static_simulation_api() {
+    use audionimbus::{
+        AudioSettings, Direct, DirectSimulationParameters, DirectSimulationSettings,
+        SimulationInputs, SimulationParameters, SimulationSettings, SimulationSharedInputs,
+        Simulator, Source,
+    };
+    accepts_unconstrained_source::<String, String, String, String>(None);
+    accepts_static_simulator::<DefaultRayTracer, String, String, String, String>(None);
+    let context = Context::default();
+    let audio_settings = AudioSettings::default();
+    let settings =
+        SimulationSettings::new(&audio_settings).with_direct(DirectSimulationSettings::default());
+    let simulator = Simulator::try_new(&context, &settings).unwrap();
+    let source = Source::<Direct>::try_new::<DefaultRayTracer>(&simulator).unwrap();
+    let subset =
+        Source::<Direct>::try_new_subset::<DefaultRayTracer, Direct, (), (), ()>(&simulator)
+            .unwrap();
+    simulator.add_source::<Direct, (), (), ()>(&source);
+    simulator.remove_source::<Direct, (), (), ()>(&subset);
+    let inputs = SimulationInputs {
+        source: Default::default(),
+        parameters: SimulationParameters::new().with_direct(DirectSimulationParameters::new()),
+    };
+    sets_static_source_inputs(&source, &inputs).unwrap();
+    simulator
+        .set_shared_inputs_subset::<Direct, (), (), (), (), ()>(&SimulationSharedInputs::new(
+            Default::default(),
+        ))
+        .unwrap();
+    simulator.commit();
+    simulator.run_direct();
+    let outputs = source.get_outputs_subset::<Direct, (), ()>().unwrap();
+    let _: audionimbus::DirectEffectParams = outputs.direct();
+    let _: fn(&Simulator<DefaultRayTracer, Direct>) = Simulator::run_direct;
+    let _: fn(
+        &Source<Direct>,
+    ) -> Result<
+        audionimbus::SimulationOutputs<Direct, (), ()>,
+        audionimbus::SteamAudioError,
+    > = Source::get_outputs;
+}

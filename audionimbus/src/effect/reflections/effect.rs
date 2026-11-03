@@ -45,9 +45,9 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// Applying reflections involves:
 /// 1. Setting up a [`Simulator`] with a [`Scene`]
-/// 2. Adding [`Source`]s to the scene (don't forget to commit the changes using [`Simulator::commit`]!)
-/// 3. Running the simulation ([`Simulator::run_reflections`]) and retrieving the output for the source ([`Source::get_outputs`])
-/// 4. Applying the reflection effect to the audio buffer (or to a [`ReflectionMixer`](crate::ReflectionMixer) for better performance with supported reflection algorithms) using the simulation output ([`SimulationOutputs::reflections`]) as params
+/// 2. Adding [`Source`]s to the scene (don't forget to commit the changes using `Simulator::commit`!)
+/// 3. Running the simulation (`Simulator::run_reflections`) and retrieving the output for the source (`Source::get_outputs`)
+/// 4. Applying the reflection effect to the audio buffer (or to a [`ReflectionMixer`](crate::ReflectionMixer) for better performance with supported reflection algorithms) using the simulation output (`SimulationOutputs::reflections`) as params
 ///
 /// ```
 /// # use audionimbus::*;
@@ -925,12 +925,16 @@ impl<B: ReflectionBinding> ReflectionEffectParams<B> {
         Ok(())
     }
 
+    /// Constructs params from FFI representation.
+    ///
+    /// Only simulator outputs can establish the retained impulse response contract.
     /// Retains native parameter resources for the selected binding.
     ///
     /// # Safety
     ///
     /// The impulse response and device must match the binding and remain valid until retained.
-    unsafe fn from_ffi_shared(
+    /// The `ir` pointer in `params` must remain valid for the lifetime of the params.
+    pub(crate) unsafe fn from_ffi_unchecked(
         params: audionimbus_sys::IPLReflectionEffectParams,
         source: audionimbus_sys::IPLSource,
         binding: B,
@@ -972,22 +976,6 @@ impl crate::dynamic::ReflectionEffectParams {
     /// Returns the selected algorithm.
     pub const fn algorithm(&self) -> ReflectionAlgorithm {
         self.binding.0
-    }
-}
-
-impl<T: ReflectionEffectType> TypedReflectionEffectParams<T> {
-    /// Constructs params from FFI representation.
-    ///
-    /// Only simulator outputs can establish the retained impulse response contract.
-    ///
-    /// # Safety
-    ///
-    /// The `ir` pointer in `params` must remain valid for the lifetime of the params.
-    pub(crate) unsafe fn from_ffi_unchecked(
-        params: audionimbus_sys::IPLReflectionEffectParams,
-        source: audionimbus_sys::IPLSource,
-    ) -> Self {
-        unsafe { Self::from_ffi_shared(params, source, Static::new()) }
     }
 }
 
