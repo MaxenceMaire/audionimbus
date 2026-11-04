@@ -7,14 +7,27 @@ use super::SourceWithInputs;
 use crate::error::SteamAudioError;
 use crate::simulation::{ParameterValidationError, SimulationError};
 
-mod direct;
-pub use direct::*;
-mod pathing;
-pub use pathing::*;
-mod reflections;
-pub use reflections::*;
-mod reflections_reverb;
-pub use reflections_reverb::*;
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod direct;
+pub use direct::{AsDirectInput, DirectInput, DirectInputOwned, TypedDirectStep as DirectStep};
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod pathing;
+pub use pathing::{
+    AsPathingInput, PathingInput, PathingInputOwned, TypedPathingStep as PathingStep,
+};
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod reflections;
+pub use reflections::{
+    AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned,
+    TypedReflectionsOutput as ReflectionsOutput, TypedReflectionsStep as ReflectionsStep,
+};
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod reflections_reverb;
+pub use reflections_reverb::{
+    AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbInputOwned,
+    TypedReflectionsReverbOutput as ReflectionsReverbOutput,
+    TypedReflectionsReverbStep as ReflectionsReverbStep,
+};
 
 /// Defines the simulation logic for a single step.
 pub trait SimulationStep<I>: Send + 'static {

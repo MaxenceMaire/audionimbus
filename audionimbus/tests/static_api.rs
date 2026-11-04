@@ -235,3 +235,144 @@ fn preserves_static_baking_api() {
     let _: ReflectionsBaker<'_, audionimbus::ray_tracing::CustomRayTracer> =
         ReflectionsBaker::<audionimbus::ray_tracing::CustomRayTracer>::new(16);
 }
+
+#[cfg(feature = "wiring")]
+#[test]
+fn preserves_static_worker_extension_points() {
+    use arc_swap::ArcSwap;
+    use audionimbus::ray_tracing::DefaultRayTracer;
+    use audionimbus::wiring::*;
+    use audionimbus::*;
+    use object_pool::Pool;
+    use std::collections::HashMap;
+    use std::sync::{Arc, Condvar, Mutex, atomic::AtomicBool};
+    use std::time::{Duration, Instant};
+
+    /// An application-owned input frame.
+    struct Inputs {
+        /// The sources published by the application.
+        sources: Vec<(u32, SourceWithInputs<Direct, (), (), ()>)>,
+        /// The listener parameters used by direct simulation.
+        shared_inputs: SimulationSharedInputs<Direct>,
+    }
+
+    impl Resolve for Inputs {
+        type Resolved<'a> = &'a Self;
+
+        fn resolve(&self) -> Self::Resolved<'_> {
+            self
+        }
+    }
+
+    impl AsDirectInput<u32, Direct, (), (), ()> for &Inputs {
+        fn as_direct_input(&self) -> DirectInput<'_, u32, Direct, (), (), ()> {
+            DirectInput {
+                sources: &self.sources,
+                shared_inputs: &self.shared_inputs,
+            }
+        }
+    }
+
+    impl Allocate<&Inputs> for HashMap<u32, DirectEffectParams> {
+        fn allocate(input: &&Inputs) -> Self {
+            Self::with_capacity(input.sources.len())
+        }
+    }
+
+    /// An application-owned step using the public direct input contract.
+    struct Step(DirectStep<u32, DefaultRayTracer, (), (), ()>);
+
+    impl SimulationStep<&Inputs> for Step {
+        type Output = HashMap<u32, DirectEffectParams>;
+        type Error = SimulationStepError;
+
+        fn run(&mut self, input: &&Inputs, output: &mut Self::Output) -> Result<(), Self::Error> {
+            self.0.run(input, output)
+        }
+    }
+
+    let context = Context::default();
+    let settings = SimulationSettings::new(&AudioSettings::default())
+        .with_direct(DirectSimulationSettings::default());
+    let simulator = Simulator::try_new(&context, &settings).unwrap();
+    let source = Source::<Direct>::try_new(&simulator).unwrap();
+    simulator.add_source(&source);
+    simulator.commit();
+    let mut simulation = Simulation::new::<u32>(simulator);
+    simulation.update_sources(|sources| {
+        sources.push((
+            1,
+            SourceWithInputs {
+                source,
+                simulation_inputs: SimulationInputs {
+                    parameters: SimulationParameters::new().with_direct(
+                        DirectSimulationParameters::new().with_distance_attenuation(
+                            DistanceAttenuationModel::Callback {
+                                callback: audionimbus::callback::DistanceAttenuationCallback::new(
+                                    |_| 0.5,
+                                ),
+                                dirty: true,
+                            },
+                        ),
+                    ),
+                    ..Default::default()
+                },
+            },
+        ))
+    });
+    let frame = DirectFrame::<u32, Direct, (), (), ()> {
+        sources: simulation.sources.clone(),
+        shared_inputs: Default::default(),
+    };
+    let mut direct_step = DirectStep::new::<u32>(simulation.simulator().clone());
+    let mut direct_output = HashMap::new();
+    direct_step
+        .run(&frame.resolve(), &mut direct_output)
+        .unwrap();
+    assert_eq!(direct_output[&1].distance_attenuation, Some(0.5));
+    let input = Arc::new(ArcSwap::new(Arc::new(Inputs {
+        sources: simulation.sources.load().iter().cloned().collect(),
+        shared_inputs: Default::default(),
+    })));
+    let pool = Arc::new(Pool::new(1, HashMap::<u32, DirectEffectParams>::new));
+    let output = Arc::new(ArcSwap::new(Arc::new(pool.pull_owned(HashMap::new))));
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let paused = Arc::new((Mutex::new(false), Condvar::new()));
+    simulation.shutdowns.push(shutdown.clone());
+    simulation.paused.push(paused.clone());
+    let simulator = simulation.simulator().clone();
+    let scene = Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+    simulation.request_scene_commits(&[scene]);
+    simulation.request_simulator_commit();
+    let worker =
+        SimulationRunner::<Inputs, HashMap<u32, DirectEffectParams>, DefaultRayTracer>::new(
+            input,
+            output.clone(),
+            simulation.simulator_commit_needed.clone(),
+            move || simulator.commit(),
+            simulation.pending_scene_commits.clone(),
+            shutdown,
+            paused,
+        )
+        .spawn(
+            Step(DirectStep::new::<u32>(simulation.simulator().clone())),
+            |error| panic!("{error}"),
+        );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while output
+        .load()
+        .get(&1)
+        .and_then(|parameters| parameters.distance_attenuation)
+        != Some(0.5)
+    {
+        assert!(
+            Instant::now() < deadline,
+            "custom static worker did not publish output"
+        );
+        std::thread::yield_now();
+    }
+    assert!(simulation.pending_scene_commits.load().is_empty());
+    simulation.pause();
+    simulation.shutdown();
+    worker.join().unwrap();
+}

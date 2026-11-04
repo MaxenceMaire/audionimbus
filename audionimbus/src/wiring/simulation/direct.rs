@@ -1,11 +1,26 @@
-use super::super::runner::{DirectFrame, SimulationRunner};
-use super::super::step::{DirectStep, SimulationStepError};
+use super::pipeline::Simulation as BoundSimulation;
 use super::{SharedSimulationOutput, Simulation, SimulationControls};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
+use crate::binding::Static;
 use crate::effect::DirectEffectParams;
+use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
+use crate::simulation::simulator::Simulator as BoundSimulator;
 use crate::simulation::{
     Direct, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider,
+};
+use crate::wiring::{
+    Allocate, DirectFrame, SimulationStep, SimulationStepError,
+    binding::FrameBinding,
+    runner::{
+        direct::{
+            DirectFrame as BoundDirectFrame, ResolvedDirectFrame as BoundResolvedDirectFrame,
+        },
+        worker::SimulationRunner as BoundSimulationRunner,
+    },
+    step::direct::{DirectBinding, DirectStep as BoundDirectStep},
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
@@ -27,11 +42,42 @@ where
     pub fn spawn_direct(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> DirectSimulation<SourceId, R, P, RE> {
-        let input = Arc::new(ArcSwap::new(Arc::new(DirectFrame {
+    ) -> TypedDirectSimulation<SourceId, R, P, RE> {
+        let frame = DirectFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
-        })));
+        };
+
+        self.spawn_direct_shared(frame, on_error)
+    }
+}
+
+impl<SourceId, B> BoundSimulation<SourceId, B>
+where
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
+    B: DirectBinding + 'static,
+    B::Sources: FrameBinding + 'static,
+    BoundSimulator<B>: Send + Sync + Clone,
+    BoundScene<B::Geometry>: Send + Sync,
+    B::Error: Send + 'static,
+{
+    /// Starts this worker with the selected frame and simulation binding.
+    fn spawn_direct_shared(
+        &mut self,
+        frame: BoundDirectFrame<SourceId, B::Sources>,
+        on_error: impl Fn(B::Error) + Send + 'static,
+    ) -> DirectSimulation<SourceId, B::Sources>
+    where
+        BoundDirectFrame<SourceId, B::Sources>: Send + Sync,
+        for<'a> BoundDirectStep<SourceId, B>: SimulationStep<
+                BoundResolvedDirectFrame<'a, SourceId, B::Sources>,
+                Output = HashMap<SourceId, DirectEffectParams>,
+                Error = B::Error,
+            >,
+        for<'a> HashMap<SourceId, DirectEffectParams>:
+            Allocate<BoundResolvedDirectFrame<'a, SourceId, B::Sources>>,
+    {
+        let input = Arc::new(ArcSwap::new(Arc::new(frame)));
 
         let output = SharedSimulationOutput::<HashMap<SourceId, DirectEffectParams>>(Arc::new(
             ArcSwap::new(Arc::new(
@@ -45,7 +91,7 @@ where
         self.paused.push(paused.clone());
 
         let simulator_for_commit = self.simulator.clone();
-        let handle = SimulationRunner::new(
+        let handle = BoundSimulationRunner::new(
             input.clone(),
             output.0.clone(),
             self.simulator_commit_needed.clone(),
@@ -55,7 +101,7 @@ where
             paused.clone(),
         )
         .spawn(
-            DirectStep::new::<SourceId>(self.simulator.clone()),
+            BoundDirectStep::<SourceId, B>::from(self.simulator.clone()),
             on_error,
         );
 
@@ -70,29 +116,26 @@ where
 /// A running direct simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub struct DirectSimulation<SourceId, R, P, RE>
+pub type TypedDirectSimulation<SourceId, R, P, RE> =
+    DirectSimulation<SourceId, Static<(Direct, R, P, RE)>>;
+
+/// A running worker with binding-specific input and output storage.
+pub struct DirectSimulation<SourceId, B: FrameBinding>
 where
     SourceId: 'static + Send + Sync,
-    RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Shared input frame, updated each game frame.
-    input: SharedDirectInput<SourceId, R, P, RE>,
+    input: Arc<ArcSwap<BoundDirectFrame<SourceId, B>>>,
     /// Shared output, read by the audio thread.
     output: SharedSimulationOutput<HashMap<SourceId, DirectEffectParams>>,
     /// Thread lifecycle controls.
     controls: SimulationControls,
 }
 
-impl<SourceId, R, P, RE> DirectSimulation<SourceId, R, P, RE>
+impl<SourceId, B: FrameBinding> DirectSimulation<SourceId, B>
 where
     SourceId: 'static + Send + Sync,
-    RE: ReflectionEffectCompatible<R, RE>,
 {
-    /// Updates the input frame used on the next run.
-    pub fn set_input(&self, frame: DirectFrame<SourceId, Direct, R, P, RE>) {
-        self.input.store(Arc::new(frame));
-    }
-
     /// Returns the shared output produced by this simulation thread.
     pub fn output(&self) -> SharedSimulationOutput<HashMap<SourceId, DirectEffectParams>> {
         self.output.clone()
@@ -119,8 +162,52 @@ where
     }
 }
 
-/// Shared, atomically-swappable input frame for a direct simulation thread.
-type SharedDirectInput<SourceId, R, P, RE> = Arc<ArcSwap<DirectFrame<SourceId, Direct, R, P, RE>>>;
+impl<SourceId, R, P, RE> TypedDirectSimulation<SourceId, R, P, RE>
+where
+    SourceId: 'static + Send + Sync,
+    RE: ReflectionEffectCompatible<R, RE>,
+{
+    /// Updates the input frame used on the next run.
+    pub fn set_input(&self, frame: DirectFrame<SourceId, Direct, R, P, RE>) {
+        self.input.store(Arc::new(frame));
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl<SourceId: 'static + Send + Sync + Clone + Hash + Eq> crate::dynamic::Simulation<SourceId> {
+    /// Spawns a direct simulation thread.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::dynamic::SimulationError::DisabledModes`] if the mode is unavailable.
+    pub fn spawn_direct(
+        &mut self,
+        on_error: impl Fn(crate::dynamic::SimulationError) + Send + 'static,
+    ) -> Result<crate::dynamic::DirectSimulation<SourceId>, crate::dynamic::SimulationError> {
+        let disabled = crate::SimulationFlags::DIRECT & !self.simulator.flags();
+        if !disabled.is_empty() {
+            return Err(crate::dynamic::SimulationError::DisabledModes(disabled));
+        }
+        let frame = BoundDirectFrame::<SourceId, Dynamic<()>> {
+            sources: self.sources.clone(),
+            shared_inputs: Default::default(),
+        };
+
+        Ok(self.spawn_direct_shared(frame, on_error))
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl<SourceId: 'static + Send + Sync> crate::dynamic::DirectSimulation<SourceId> {
+    /// Updates shared inputs for the next worker iteration.
+    pub fn set_input(&self, shared_inputs: crate::dynamic::SimulationSharedInputs) {
+        let frame = BoundDirectFrame::<SourceId, Dynamic<()>> {
+            sources: self.input.load().sources.clone(),
+            shared_inputs,
+        };
+        self.input.store(Arc::new(frame));
+    }
+}
 
 #[cfg(test)]
 mod tests {

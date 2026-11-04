@@ -22,8 +22,8 @@
 //! The example below wires up direct (occlusion/attenuation) and reflections simulation
 //! for a small scene with two sources.
 //! It mirrors a typical game-loop structure [split into separate threads](crate::simulation#multi-threading-architecture):
-//! - Game thread: Calls [`Simulation::update_sources`] each frame to publish the latest sources.
-//! - Simulation threads: Spawned by [`Simulation::spawn_direct`] and similar methods; runs continuously,
+//! - Game thread: Calls [`Simulation::update_sources`](crate::wiring::simulation::Simulation) each frame to publish the latest sources.
+//! - Simulation threads: Spawned by [`Simulation::spawn_direct`](crate::wiring::simulation::Simulation) and similar methods; runs continuously,
 //!   picking up the latest sources on each iteration.
 //! - Audio thread: Reads the most recent simulation outputs available and applies the
 //!   corresponding effects.
@@ -152,17 +152,14 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! Individual simulations also expose their own [`pause`](DirectSimulation::pause) /
-//! [`resume`](DirectSimulation::resume) methods for finer control.
+//! Individual simulations also expose their own [`pause`](crate::wiring::simulation::DirectSimulation) /
+//! [`resume`](crate::wiring::simulation::DirectSimulation) methods for finer control.
 
 #[cfg(doc)]
 use crate::simulation::{Simulator, Source};
-#[cfg(doc)]
-use runner::SimulationRunner;
-#[cfg(doc)]
-use simulation::Simulation;
-#[cfg(doc)]
-use step::SimulationStep;
+
+mod binding;
+mod input;
 
 pub mod runner;
 pub mod simulation;

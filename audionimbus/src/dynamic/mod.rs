@@ -20,3 +20,12 @@ pub use simulation::{
 
 mod baking;
 pub use baking::{BakeError, PathBaker, ReflectionsBaker};
+
+#[cfg(feature = "wiring")]
+mod wiring;
+#[cfg(feature = "wiring")]
+pub use wiring::{
+    DirectSimulation, PathingSimulation, ReflectionsOutput, ReflectionsReverbOutput,
+    ReflectionsReverbSimulation, ReflectionsSimulation, Simulation, SimulationRunner,
+    SourceWithInputs,
+};

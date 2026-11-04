@@ -1,6 +1,7 @@
 //! Room acoustics and reverberation effects.
 
-mod binding;
+/// Bindings must stay inaccessible to prevent mixing static and runtime effect handles.
+pub(crate) mod binding;
 pub use binding::{
     CanApplyDirectly, CanUseReflectionMixer, Convolution, Hybrid, Parametric, ReflectionEffectType,
     TrueAudioNext,

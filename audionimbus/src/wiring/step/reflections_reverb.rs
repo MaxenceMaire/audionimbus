@@ -1,33 +1,45 @@
-use super::super::simulation::SourceWithInputs;
-use super::{SimulationStep, SimulationStepError, SourceEntries};
-use crate::effect::{ReflectionEffectParams, ReflectionEffectType};
+use super::reflections::{ReflectionsBinding, ReflectionsSourceBinding};
+use super::{SimulationStep, SourceEntries};
+use crate::binding::Static;
+#[cfg(doc)]
+use crate::effect::ReflectionEffectParams;
+use crate::effect::reflections::{
+    binding::ReflectionBinding, effect::ReflectionEffectParams as BoundReflectionEffectParams,
+};
 use crate::ray_tracing::RayTracer;
+use crate::simulation::simulator::Simulator as BoundSimulator;
 use crate::simulation::{
-    DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
-    SimulationFlagsProvider, SimulationSharedInputs, Simulator,
+    ReflectionEffectCompatible, Reflections, SimulationSharedInputs, Simulator,
+};
+use crate::wiring::{
+    SourceWithInputs,
+    binding::PipelineBinding,
+    input::{InputView, Reverb, StepInput},
 };
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs reflections and listener-centric reverb simulation simultaneously.
-pub struct ReflectionsReverbStep<SourceId, T, D, P, RE>
-where
-    T: RayTracer,
-{
-    /// The [`Simulator`] used by the step.
-    simulator: Simulator<T, D, Reflections, P, RE>,
+pub type TypedReflectionsReverbStep<SourceId, T, D, P, RE> =
+    ReflectionsReverbStep<SourceId, Static<(T, D, Reflections, P, RE)>>;
+
+/// A simulation step with binding-specific handles and errors.
+pub struct ReflectionsReverbStep<SourceId, B: PipelineBinding> {
+    /// The simulator used by this step.
+    simulator: BoundSimulator<B>,
+    /// The source identifier marker.
     _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, D, P, RE> ReflectionsReverbStep<(), T, D, P, RE>
+impl<T, D, P, RE> TypedReflectionsReverbStep<(), T, D, P, RE>
 where
     T: RayTracer,
 {
     /// Creates a new reflections and reverb simulation step.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, Reflections, P, RE>,
-    ) -> ReflectionsReverbStep<SourceId, T, D, P, RE> {
+    ) -> TypedReflectionsReverbStep<SourceId, T, D, P, RE> {
         ReflectionsReverbStep {
             simulator,
             _source_id: PhantomData,
@@ -35,60 +47,66 @@ where
     }
 }
 
-impl<SourceId, T, D, P, RE, I> SimulationStep<I> for ReflectionsReverbStep<SourceId, T, D, P, RE>
+impl<SourceId, B, I> SimulationStep<I> for ReflectionsReverbStep<SourceId, B>
 where
-    T: 'static + RayTracer,
-    D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
-    P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
-    RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
-    (): DirectCompatible<D>
-        + PathingCompatible<P>
-        + DirectCompatible<I::LD>
-        + PathingCompatible<I::LP>,
+    B: ReflectionsBinding + 'static,
+    BoundSimulator<B>: Send,
     SourceId: 'static + Clone + Send + Sync + Hash + Eq,
-    I: AsReflectionsReverbInput<SourceId, D, Reflections, P, RE>,
-    I::LD: 'static + Send + Sync + DirectCompatible<I::LD> + SimulationFlagsProvider,
-    I::LP: 'static + Send + Sync + PathingCompatible<I::LP> + SimulationFlagsProvider,
+    I: InputView<SourceId, B::Sources, Reverb>,
+    B::Sources: ReflectionsSourceBinding<B::Reflection, B::Error>,
+    I::Listener: ReflectionsSourceBinding<B::Reflection, B::Error>,
 {
-    type Output = ReflectionsReverbOutput<SourceId, RE>;
-    type Error = SimulationStepError;
+    type Output = ReflectionsReverbOutput<SourceId, B::Reflection>;
+    type Error = B::Error;
 
     fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
-        let input = frame.as_reflections_reverb_input();
+        let input = frame.input();
+        B::set_shared(&self.simulator, input.shared_inputs)?;
 
-        self.simulator
-            .set_shared_reflections_inputs(input.shared_inputs)?;
-
-        for (
-            _,
-            SourceWithInputs {
-                source,
-                simulation_inputs,
-            },
-        ) in input.sources
-        {
-            source.set_reflections_inputs(simulation_inputs)?;
+        for (_, source_with_inputs) in input.sources {
+            <B::Sources as ReflectionsSourceBinding<B::Reflection, B::Error>>::set_source(
+                &source_with_inputs.source,
+                &source_with_inputs.simulation_inputs,
+            )?;
         }
 
         if let Some(listener) = input.listener {
-            listener
-                .source
-                .set_reflections_inputs(&listener.simulation_inputs)?;
+            I::Listener::set_source(&listener.source, &listener.simulation_inputs)?;
         }
 
-        self.simulator.run_reflections()?;
+        B::run(&self.simulator)?;
 
-        for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
-            output
-                .sources
-                .insert(id.clone(), source.get_reflections_outputs()?);
+        for (id, source_with_inputs) in input.sources {
+            output.sources.insert(
+                id.clone(),
+                <B::Sources as ReflectionsSourceBinding<B::Reflection, B::Error>>::output(
+                    &source_with_inputs.source,
+                )?,
+            );
         }
 
         if let Some(listener) = input.listener {
-            output.listener = Some(listener.source.get_reflections_outputs()?);
+            output.listener = Some(I::Listener::output(&listener.source)?);
         }
 
         Ok(())
+    }
+}
+
+impl<SourceId, D, R, P, RE, I> InputView<SourceId, Static<(D, R, P, RE)>, Reverb> for I
+where
+    RE: ReflectionEffectCompatible<R, RE>,
+    I: AsReflectionsReverbInput<SourceId, D, R, P, RE>,
+{
+    type Listener = Static<(I::LD, R, I::LP, RE)>;
+
+    fn input(&self) -> StepInput<'_, SourceId, Static<(D, R, P, RE)>, Self::Listener> {
+        let input = self.as_reflections_reverb_input();
+        StepInput {
+            sources: input.sources,
+            listener: input.listener,
+            shared_inputs: input.shared_inputs,
+        }
     }
 }
 
@@ -153,25 +171,28 @@ where
 }
 
 /// Combined per-source reflections and listener-centric reverb output.
+pub type TypedReflectionsReverbOutput<SourceId, RE> =
+    ReflectionsReverbOutput<SourceId, crate::binding::Static<RE>>;
+
+/// Output parameters selected by a reflection binding.
 #[derive(Debug)]
-pub struct ReflectionsReverbOutput<SourceId, RE>
+pub struct ReflectionsReverbOutput<SourceId, B: ReflectionBinding>
 where
     SourceId: Hash + Eq,
-    RE: ReflectionEffectType,
 {
     /// Per-source reflection effect params.
-    pub sources: HashMap<SourceId, ReflectionEffectParams<RE>>,
+    pub sources: HashMap<SourceId, BoundReflectionEffectParams<B>>,
     /// Listener-centric reverb.
     ///
     /// `None` if no listener is present in the scene, or until the first simulation run with a
     /// listener completes.
-    pub listener: Option<ReflectionEffectParams<RE>>,
+    pub listener: Option<BoundReflectionEffectParams<B>>,
 }
 
-impl<SourceId, RE> Default for ReflectionsReverbOutput<SourceId, RE>
+impl<SourceId, B> Default for ReflectionsReverbOutput<SourceId, B>
 where
     SourceId: Hash + Eq,
-    RE: ReflectionEffectType,
+    B: ReflectionBinding,
 {
     fn default() -> Self {
         Self {
@@ -181,10 +202,10 @@ where
     }
 }
 
-unsafe impl<SourceId, RE> Send for ReflectionsReverbOutput<SourceId, RE>
+unsafe impl<SourceId, B> Send for ReflectionsReverbOutput<SourceId, B>
 where
     SourceId: Send + Hash + Eq,
-    RE: ReflectionEffectType,
+    B: ReflectionBinding,
 {
 }
 
@@ -195,9 +216,18 @@ where
 /// while the audio thread is still reading the previous version.
 ///
 /// However the chance of an overlap is slim and a data race is likely inaudible.
-unsafe impl<SourceId, RE> Sync for ReflectionsReverbOutput<SourceId, RE>
+unsafe impl<SourceId, B> Sync for ReflectionsReverbOutput<SourceId, B>
 where
     SourceId: Sync + Hash + Eq,
-    RE: ReflectionEffectType,
+    B: ReflectionBinding,
 {
+}
+
+impl<SourceId, B: PipelineBinding> From<BoundSimulator<B>> for ReflectionsReverbStep<SourceId, B> {
+    fn from(simulator: BoundSimulator<B>) -> Self {
+        Self {
+            simulator,
+            _source_id: PhantomData,
+        }
+    }
 }
