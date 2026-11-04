@@ -230,24 +230,6 @@ fn preserves_static_baking_api() {
         PathBakeParams,
     ) -> Result<(), BakeError> = PathBaker::<DefaultRayTracer>::bake;
 
-    #[cfg(feature = "dynamic")]
-    {
-        let _: fn(
-            &audionimbus::dynamic::ReflectionsBaker<'static>,
-            &Context,
-            &mut audionimbus::ProbeBatch,
-            &audionimbus::dynamic::Scene,
-            ReflectionsBakeParams,
-        ) -> Result<(), BakeError> = audionimbus::dynamic::ReflectionsBaker::bake;
-        let _: fn(
-            &audionimbus::dynamic::PathBaker,
-            &Context,
-            &mut audionimbus::ProbeBatch,
-            &audionimbus::dynamic::Scene,
-            PathBakeParams,
-        ) -> Result<(), BakeError> = audionimbus::dynamic::PathBaker::bake;
-    }
-
     let _: ReflectionsBaker<'_, audionimbus::ray_tracing::Embree> =
         ReflectionsBaker::<audionimbus::ray_tracing::Embree>::new();
     let _: ReflectionsBaker<'_, audionimbus::ray_tracing::CustomRayTracer> =

@@ -184,7 +184,7 @@ fn processes_runtime_baked_outputs() {
                             num_threads: 1,
                         },
                     );
-                    if matches!(bake, Err(runtime::BakeError::BakeInProgress)) {
+                    if matches!(bake, Err(BakeError::BakeInProgress)) {
                         busy_rejections.fetch_add(1, Ordering::Relaxed);
                     }
                 }

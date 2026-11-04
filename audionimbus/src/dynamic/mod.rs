@@ -19,5 +19,4 @@ pub use simulation::{
 };
 
 mod baking;
-pub use crate::baking::BakeError;
-pub use baking::{PathBaker, ReflectionsBaker};
+pub use baking::{BakeError, PathBaker, ReflectionsBaker};

@@ -227,16 +227,16 @@ impl<'a> crate::dynamic::ReflectionsBaker<'a> {
     ///
     /// # Errors
     ///
-    /// - [`BakeError::RayTracerMismatch`] if the scene uses another backend.
-    /// - [`BakeError::DeviceMismatch`] if Radeon Rays devices differ.
-    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    /// - [`crate::dynamic::BakeError::RayTracerMismatch`] if the scene uses another backend.
+    /// - [`crate::dynamic::BakeError::DeviceMismatch`] if Radeon Rays devices differ.
+    /// - [`crate::dynamic::BakeError::Bake`] if another bake is in progress.
     pub fn bake(
         &self,
         context: &Context,
         probe_batch: &mut ProbeBatch,
         scene: &crate::dynamic::Scene,
         params: ReflectionsBakeParams,
-    ) -> Result<(), BakeError> {
+    ) -> Result<(), crate::dynamic::BakeError> {
         self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None)
     }
 
@@ -244,9 +244,9 @@ impl<'a> crate::dynamic::ReflectionsBaker<'a> {
     ///
     /// # Errors
     ///
-    /// - [`BakeError::RayTracerMismatch`] if the scene uses another backend.
-    /// - [`BakeError::DeviceMismatch`] if Radeon Rays devices differ.
-    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    /// - [`crate::dynamic::BakeError::RayTracerMismatch`] if the scene uses another backend.
+    /// - [`crate::dynamic::BakeError::DeviceMismatch`] if Radeon Rays devices differ.
+    /// - [`crate::dynamic::BakeError::Bake`] if another bake is in progress.
     pub fn bake_with_progress_callback(
         &self,
         context: &Context,
@@ -254,7 +254,7 @@ impl<'a> crate::dynamic::ReflectionsBaker<'a> {
         scene: &crate::dynamic::Scene,
         params: ReflectionsBakeParams,
         progress_callback: ProgressCallback,
-    ) -> Result<(), BakeError> {
+    ) -> Result<(), crate::dynamic::BakeError> {
         self.bake_with_optional_progress_callback(
             context,
             probe_batch,
@@ -268,9 +268,9 @@ impl<'a> crate::dynamic::ReflectionsBaker<'a> {
     ///
     /// # Errors
     ///
-    /// - [`BakeError::RayTracerMismatch`] if the scene uses another backend.
-    /// - [`BakeError::DeviceMismatch`] if Radeon Rays devices differ.
-    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    /// - [`crate::dynamic::BakeError::RayTracerMismatch`] if the scene uses another backend.
+    /// - [`crate::dynamic::BakeError::DeviceMismatch`] if Radeon Rays devices differ.
+    /// - [`crate::dynamic::BakeError::Bake`] if another bake is in progress.
     fn bake_with_optional_progress_callback(
         &self,
         context: &Context,
@@ -278,11 +278,11 @@ impl<'a> crate::dynamic::ReflectionsBaker<'a> {
         scene: &crate::dynamic::Scene,
         params: ReflectionsBakeParams,
         progress_callback: Option<ProgressCallback>,
-    ) -> Result<(), BakeError> {
+    ) -> Result<(), crate::dynamic::BakeError> {
         let expected = self.binding.0;
         let actual = scene.ray_tracer();
         if expected != actual {
-            return Err(BakeError::RayTracerMismatch { expected, actual });
+            return Err(crate::dynamic::BakeError::RayTracerMismatch { expected, actual });
         }
 
         if !scene
@@ -291,10 +291,11 @@ impl<'a> crate::dynamic::ReflectionsBaker<'a> {
             .unwrap()
             .uses_devices(self.open_cl_device, self.radeon_rays_device)
         {
-            return Err(BakeError::DeviceMismatch);
+            return Err(crate::dynamic::BakeError::DeviceMismatch);
         }
 
         self.bake_shared(context, probe_batch, scene, params, progress_callback)
+            .map_err(crate::dynamic::BakeError::Bake)
     }
 }
 

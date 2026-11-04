@@ -680,24 +680,31 @@ impl crate::dynamic::Scene {
     ///
     /// # Errors
     ///
-    /// - [`SceneError::SteamAudio`] when native creation fails.
-    pub fn try_new(context: &Context, settings: RayTracerSettings) -> Result<Self, SceneError> {
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
+    pub fn try_new(
+        context: &Context,
+        settings: RayTracerSettings,
+    ) -> Result<Self, SteamAudioError> {
         let ray_tracer = settings.kind();
         let (mut settings, resources) = settings.into_scene_parts();
+
         Self::from_ffi_create(context, &mut settings, Dynamic(ray_tracer), resources)
-            .map_err(SceneError::from)
     }
 
     /// Loads a scene with a runtime-selected ray tracer.
     ///
     /// # Errors
     ///
-    /// - [`SceneError::SteamAudio`] when loading fails.
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
     pub fn load(
         context: &Context,
         settings: RayTracerSettings,
         serialized_object: &SerializedObject,
-    ) -> Result<Self, SceneError> {
+    ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress(context, settings, serialized_object, None)
     }
 
@@ -705,13 +712,15 @@ impl crate::dynamic::Scene {
     ///
     /// # Errors
     ///
-    /// - [`SceneError::SteamAudio`] when loading fails.
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
     pub fn load_with_progress(
         context: &Context,
         settings: RayTracerSettings,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
-    ) -> Result<Self, SceneError> {
+    ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress(
             context,
             settings,
@@ -724,15 +733,18 @@ impl crate::dynamic::Scene {
     ///
     /// # Errors
     ///
-    /// - [`SceneError::SteamAudio`] when loading fails.
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
     fn load_with_optional_progress(
         context: &Context,
         settings: RayTracerSettings,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
-    ) -> Result<Self, SceneError> {
+    ) -> Result<Self, SteamAudioError> {
         let ray_tracer = settings.kind();
         let (mut settings, resources) = settings.into_scene_parts();
+
         Self::from_ffi_load(
             context,
             &mut settings,
@@ -741,7 +753,6 @@ impl crate::dynamic::Scene {
             serialized_object,
             progress_callback,
         )
-        .map_err(SceneError::from)
     }
 
     /// Returns the selected ray tracer.

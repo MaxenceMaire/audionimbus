@@ -8,7 +8,10 @@ use audionimbus::dynamic::{
     InstancedMesh, InstancedMeshSettings, RayTracerKind, RayTracerSettings, Scene, SceneError,
     StaticMesh,
 };
-use audionimbus::{Context, Material, Matrix, Point, StaticMeshSettings, Triangle};
+use audionimbus::{
+    Context, Material, Matrix, Point, StaticMeshError, StaticMeshSettings, SteamAudioError,
+    Triangle,
+};
 use std::sync::Arc;
 
 mod scene {
@@ -17,7 +20,9 @@ mod scene {
     #[test]
     fn rejects_mixed_geometry() {
         let context = Context::default();
-        let mut default_scene = Scene::try_new(&context, RayTracerSettings::Default).unwrap();
+        let default_scene: Result<_, SteamAudioError> =
+            Scene::try_new(&context, RayTracerSettings::Default);
+        let mut default_scene = default_scene.unwrap();
         let mut custom_scene = Scene::try_new(
             &context,
             RayTracerSettings::Custom {
@@ -31,7 +36,7 @@ mod scene {
             },
         )
         .unwrap();
-        let mesh = StaticMesh::try_new(
+        let mesh: Result<_, StaticMeshError> = StaticMesh::try_new(
             &default_scene,
             &StaticMeshSettings {
                 vertices: &[
@@ -43,8 +48,8 @@ mod scene {
                 materials: &[Material::CONCRETE],
                 material_indices: &[0],
             },
-        )
-        .unwrap();
+        );
+        let mesh = mesh.unwrap();
         assert!(matches!(
             custom_scene.try_add_static_mesh(mesh.clone()),
             Err(SceneError::RayTracerMismatch {
@@ -195,8 +200,11 @@ mod scene {
         scene_clone.commit();
         assert!(scene_clone.remove_static_mesh(handle));
         scene_clone.commit();
-        let loaded = Scene::load(&context, RayTracerSettings::Default, &scene_bytes).unwrap();
-        let mesh = StaticMesh::load(&loaded, &mesh_bytes).unwrap();
+        let loaded: Result<_, SteamAudioError> =
+            Scene::load(&context, RayTracerSettings::Default, &scene_bytes);
+        let loaded = loaded.unwrap();
+        let mesh: Result<_, SteamAudioError> = StaticMesh::load(&loaded, &mesh_bytes);
+        let mesh = mesh.unwrap();
         assert_eq!(
             mesh.try_save(&context).unwrap().to_vec(),
             mesh_bytes.to_vec()

@@ -4,9 +4,10 @@
 
 ### Changed
 
-- **Breaking:** Add `BakeError::RayTracerMismatch` and `BakeError::DeviceMismatch` when `dynamic` is enabled.
-  Exhaustive matches on `BakeError` must handle these variants.
-  Static and runtime baking use the same error type.
+- **Breaking:** Runtime scene creation/loading, static mesh loading, and reflection effect creation return `SteamAudioError` directly.
+  Runtime static mesh creation returns `StaticMeshError` directly.
+  Remove `SceneError::StaticMesh` and its `From<StaticMeshError>` conversion.
+  Handle mesh validation through `StaticMeshError`.
 
 ## [0.16.2] - 2026-11-03
 

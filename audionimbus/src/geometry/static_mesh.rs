@@ -263,44 +263,48 @@ impl crate::dynamic::StaticMesh {
     ///
     /// # Errors
     ///
-    /// - [`SceneError::StaticMesh`] when the settings are invalid.
-    /// - [`SceneError::SteamAudio`] when native creation fails.
+    /// - [`StaticMeshError::MaterialIndexCountMismatch`] if triangle and material counts differ.
+    /// - [`StaticMeshError::VertexIndexOutOfBounds`] if a triangle refers to a missing vertex.
+    /// - [`StaticMeshError::MaterialIndexOutOfBounds`] if a triangle refers to a missing material.
+    /// - [`StaticMeshError::SteamAudio`] if native creation fails.
     pub fn try_new(
         scene: &crate::dynamic::Scene,
         settings: &StaticMeshSettings,
-    ) -> Result<Self, SceneError> {
-        Self::try_new_shared(scene, settings).map_err(SceneError::from)
+    ) -> Result<Self, StaticMeshError> {
+        Self::try_new_shared(scene, settings)
     }
 
     /// Loads a static mesh from a serialized object.
     ///
     /// # Errors
     ///
-    /// - [`SceneError::SteamAudio`] when loading fails.
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
     pub fn load(
         scene: &crate::dynamic::Scene,
         serialized_object: &SerializedObject,
-    ) -> Result<Self, SceneError> {
+    ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(scene, serialized_object, None)
-            .map_err(SceneError::from)
     }
 
     /// Loads a static mesh with a progress callback.
     ///
     /// # Errors
     ///
-    /// - [`SceneError::SteamAudio`] when loading fails.
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
     pub fn load_with_progress_callback(
         scene: &crate::dynamic::Scene,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
-    ) -> Result<Self, SceneError> {
+    ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(
             scene,
             serialized_object,
             Some(progress_callback),
         )
-        .map_err(SceneError::from)
     }
 
     /// Saves the static mesh and returns its serialized representation.

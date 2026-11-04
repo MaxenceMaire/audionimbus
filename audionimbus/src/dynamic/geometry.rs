@@ -1,8 +1,8 @@
 //! Runtime-selected geometry.
 
+use crate::SteamAudioError;
 use crate::callback::CustomRayTracingCallbacks;
 use crate::device::{EmbreeDevice, OpenClDevice, RadeonRaysDevice};
-use crate::{StaticMeshError, SteamAudioError};
 use std::fmt;
 
 /// A ray tracer selected at runtime.
@@ -87,7 +87,7 @@ impl fmt::Debug for RayTracerSettings {
 /// let scene = Scene::try_new(&context, RayTracerSettings::Default)?;
 /// scene.commit();
 /// let _: Scene = scene;
-/// # Ok::<(), audionimbus::dynamic::SceneError>(())
+/// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
 pub type Scene = crate::geometry::scene::Scene<crate::binding::Dynamic<RayTracerKind>>;
 
@@ -120,9 +120,6 @@ pub enum SceneError {
     /// Native scene operation failed.
     SteamAudio(SteamAudioError),
 
-    /// Static mesh creation failed.
-    StaticMesh(StaticMeshError),
-
     /// Two geometry handles use different ray tracers.
     RayTracerMismatch {
         /// The ray tracer required by the receiving handle.
@@ -144,7 +141,6 @@ impl std::error::Error for SceneError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::SteamAudio(error) => Some(error),
-            Self::StaticMesh(error) => Some(error),
             Self::RayTracerMismatch { .. }
             | Self::SerializationUnsupported(_)
             | Self::ObjUnsupported(_) => None,
@@ -157,7 +153,6 @@ impl std::fmt::Display for SceneError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SteamAudio(error) => std::fmt::Display::fmt(error, formatter),
-            Self::StaticMesh(error) => std::fmt::Display::fmt(error, formatter),
             Self::RayTracerMismatch { expected, actual } => write!(
                 formatter,
                 "scene uses {expected:?} ray tracing but geometry uses {actual:?}"
@@ -179,16 +174,6 @@ impl std::fmt::Display for SceneError {
 impl From<SteamAudioError> for SceneError {
     fn from(error: SteamAudioError) -> Self {
         Self::SteamAudio(error)
-    }
-}
-
-#[cfg(feature = "dynamic")]
-impl From<StaticMeshError> for SceneError {
-    fn from(error: StaticMeshError) -> Self {
-        match error {
-            StaticMeshError::SteamAudio(error) => Self::SteamAudio(error),
-            error => Self::StaticMesh(error),
-        }
     }
 }
 

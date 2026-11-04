@@ -2,6 +2,7 @@
 
 use super::RayTracerKind;
 use crate::binding::Dynamic;
+use std::fmt;
 
 /// A reflection baker borrowing runtime backend settings.
 ///
@@ -15,6 +16,44 @@ pub type ReflectionsBaker<'a> =
 
 /// A path baker for runtime scenes.
 pub type PathBaker = crate::baking::pathing::baker::PathBaker<Dynamic<RayTracerKind>>;
+
+/// Errors from runtime reflection baking.
+#[derive(Debug, Eq, PartialEq)]
+pub enum BakeError {
+    /// Another native bake is already in progress.
+    Bake(crate::BakeError),
+    /// The scene and reflection baker use different ray tracers.
+    RayTracerMismatch {
+        /// The baker's ray tracer.
+        expected: RayTracerKind,
+        /// The scene's ray tracer.
+        actual: RayTracerKind,
+    },
+    /// The scene and reflection baker use different devices.
+    DeviceMismatch,
+}
+
+impl fmt::Display for BakeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Bake(error) => error.fmt(formatter),
+            Self::RayTracerMismatch { expected, actual } => write!(
+                formatter,
+                "bake ray tracer mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::DeviceMismatch => write!(formatter, "bake devices do not match"),
+        }
+    }
+}
+
+impl std::error::Error for BakeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Bake(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[cfg(doctest)]
 /// Baker binding checks.

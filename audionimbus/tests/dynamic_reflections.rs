@@ -5,7 +5,7 @@ use audionimbus::dynamic::{
 };
 use audionimbus::{
     AudioBufferMut, AudioSettings, ChannelRequirement, Context, EffectError,
-    ReflectionEffectSettings,
+    ReflectionEffectSettings, SteamAudioError,
 };
 
 #[test]
@@ -22,13 +22,13 @@ fn processes_cpu_tails() {
         ReflectionAlgorithm::Parametric,
         ReflectionAlgorithm::Hybrid,
     ] {
-        let mut reflection_effect = ReflectionEffect::try_new(
+        let reflection_effect: Result<_, SteamAudioError> = ReflectionEffect::try_new(
             &context,
             &audio_settings,
             &reflection_effect_settings,
             algorithm,
-        )
-        .unwrap();
+        );
+        let mut reflection_effect = reflection_effect.unwrap();
         assert_eq!(reflection_effect.algorithm(), algorithm);
         let cloned_effect = reflection_effect.clone();
         drop(reflection_effect);

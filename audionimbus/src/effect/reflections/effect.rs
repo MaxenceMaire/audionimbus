@@ -225,20 +225,21 @@ impl crate::dynamic::ReflectionEffect {
     ///
     /// # Errors
     ///
-    /// - [`ReflectionError::SteamAudio`] when native creation fails.
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
     pub fn try_new(
         context: &Context,
         audio_settings: &AudioSettings,
         reflection_effect_settings: &ReflectionEffectSettings,
         algorithm: ReflectionAlgorithm,
-    ) -> Result<Self, ReflectionError> {
+    ) -> Result<Self, SteamAudioError> {
         Self::try_new_shared(
             context,
             audio_settings,
             reflection_effect_settings,
             Dynamic(algorithm),
         )
-        .map_err(ReflectionError::SteamAudio)
     }
 
     /// Returns the selected algorithm.
