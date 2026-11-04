@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** Add `BakeError::RayTracerMismatch` and `BakeError::DeviceMismatch` when `dynamic` is enabled.
+  Exhaustive matches on `BakeError` must handle these variants.
+  Static and runtime baking use the same error type.
+
 ## [0.16.2] - 2026-11-03
 
 ### Changed

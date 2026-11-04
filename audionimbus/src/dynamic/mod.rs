@@ -17,3 +17,7 @@ pub use simulation::{
     SimulationError, SimulationInputs, SimulationOutputs, SimulationParameters, SimulationSettings,
     SimulationSharedInputs, Simulator, Source,
 };
+
+mod baking;
+pub use crate::baking::BakeError;
+pub use baking::{PathBaker, ReflectionsBaker};

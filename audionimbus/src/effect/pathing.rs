@@ -34,7 +34,7 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// # Examples
 ///
 /// Applying pathing involves:
-/// 1. Baking path data between probes using [`PathBaker::bake`]
+/// 1. Baking path data between probes using [`PathBaker::bake`](PathBaker)
 /// 2. Setting up a [`Simulator`] with a [`Scene`] and [`ProbeBatch`]
 /// 3. Adding [`Source`]s with pathing enabled (don't forget to commit using `Simulator::commit`!)
 /// 4. Running the simulation (`Simulator::run_pathing`) and retrieving the output for the source (`Source::get_outputs`)

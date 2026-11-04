@@ -38,10 +38,17 @@ impl SaveableAsObj for Embree {}
 pub trait GeometryBinding: Copy {
     /// Resources retained by each scene in the binding.
     type Resources: Debug + Send + Sync;
+
+    /// Returns the native scene type.
+    fn scene_type(self) -> audionimbus_sys::IPLSceneType;
 }
 
 impl<T: RayTracer> GeometryBinding for Static<T> {
     type Resources = (T::Device, T::CallbackUserData);
+
+    fn scene_type(self) -> audionimbus_sys::IPLSceneType {
+        T::scene_type()
+    }
 }
 
 /// Resources retained by a runtime-selected scene.
@@ -76,6 +83,15 @@ pub enum DynamicSceneResources {
 #[cfg(feature = "dynamic")]
 impl GeometryBinding for Dynamic<RayTracerKind> {
     type Resources = DynamicSceneResources;
+
+    fn scene_type(self) -> audionimbus_sys::IPLSceneType {
+        match self.0 {
+            RayTracerKind::Default => DefaultRayTracer::scene_type(),
+            RayTracerKind::Embree => Embree::scene_type(),
+            RayTracerKind::RadeonRays => RadeonRays::scene_type(),
+            RayTracerKind::Custom => CustomRayTracer::scene_type(),
+        }
+    }
 }
 
 /// Geometry storage for a compile-time or runtime binding.

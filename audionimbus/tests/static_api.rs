@@ -186,3 +186,70 @@ fn preserves_static_simulation_api() {
         audionimbus::SteamAudioError,
     > = Source::get_outputs;
 }
+
+/// Preserves static probe calls through a generic scene reference.
+fn generates_static_probes<T: RayTracer>(
+    probe_array: &mut audionimbus::ProbeArray,
+    scene: &Scene<T>,
+    params: &audionimbus::ProbeGenerationParams,
+) {
+    probe_array.generate_probes(scene, params);
+}
+
+#[test]
+fn preserves_static_baking_api() {
+    use audionimbus::{
+        BakeError, PathBakeParams, PathBaker, ProbeArray, ProbeGenerationParams,
+        ReflectionsBakeParams, ReflectionsBaker,
+    };
+    let context = Context::default();
+    let scene = Scene::try_new(&context).unwrap();
+    let mut probe_array = ProbeArray::try_new(&context).unwrap();
+    generates_static_probes(
+        &mut probe_array,
+        &scene,
+        &ProbeGenerationParams::Centroid {
+            transform: Matrix4::IDENTITY,
+        },
+    );
+    let _: audionimbus::baking::reflections::ReflectionsBaker<'_, DefaultRayTracer> =
+        ReflectionsBaker::<DefaultRayTracer>::new();
+    let _: audionimbus::baking::pathing::PathBaker<DefaultRayTracer> = PathBaker::new();
+    let _: fn(
+        &ReflectionsBaker<'static, DefaultRayTracer>,
+        &Context,
+        &mut audionimbus::ProbeBatch,
+        &Scene,
+        ReflectionsBakeParams,
+    ) -> Result<(), BakeError> = ReflectionsBaker::<'static, DefaultRayTracer>::bake;
+    let _: fn(
+        &PathBaker<DefaultRayTracer>,
+        &Context,
+        &mut audionimbus::ProbeBatch,
+        &Scene,
+        PathBakeParams,
+    ) -> Result<(), BakeError> = PathBaker::<DefaultRayTracer>::bake;
+
+    #[cfg(feature = "dynamic")]
+    {
+        let _: fn(
+            &audionimbus::dynamic::ReflectionsBaker<'static>,
+            &Context,
+            &mut audionimbus::ProbeBatch,
+            &audionimbus::dynamic::Scene,
+            ReflectionsBakeParams,
+        ) -> Result<(), BakeError> = audionimbus::dynamic::ReflectionsBaker::bake;
+        let _: fn(
+            &audionimbus::dynamic::PathBaker,
+            &Context,
+            &mut audionimbus::ProbeBatch,
+            &audionimbus::dynamic::Scene,
+            PathBakeParams,
+        ) -> Result<(), BakeError> = audionimbus::dynamic::PathBaker::bake;
+    }
+
+    let _: ReflectionsBaker<'_, audionimbus::ray_tracing::Embree> =
+        ReflectionsBaker::<audionimbus::ray_tracing::Embree>::new();
+    let _: ReflectionsBaker<'_, audionimbus::ray_tracing::CustomRayTracer> =
+        ReflectionsBaker::<audionimbus::ray_tracing::CustomRayTracer>::new(16);
+}

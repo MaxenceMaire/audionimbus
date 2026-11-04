@@ -4,7 +4,10 @@ use crate::baking::BakedDataIdentifier;
 use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{SteamAudioError, to_option_error};
-use crate::geometry::{Matrix, Scene, Sphere};
+#[cfg(test)]
+use crate::geometry::Scene;
+use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
+use crate::geometry::{Matrix, Sphere};
 use crate::serialized_object::SerializedObject;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
@@ -41,11 +44,15 @@ impl ProbeArray {
     }
 
     /// Generates probes and adds them to the probe array.
-    pub fn generate_probes(&mut self, scene: &Scene, probe_params: &ProbeGenerationParams) {
+    pub fn generate_probes<B: GeometryBinding>(
+        &mut self,
+        scene: &BoundScene<B>,
+        probe_params: &ProbeGenerationParams,
+    ) {
         unsafe {
             audionimbus_sys::iplProbeArrayGenerateProbes(
                 self.raw_ptr(),
-                scene.raw_ptr(),
+                scene.raw_ptr_shared(),
                 &mut audionimbus_sys::IPLProbeGenerationParams::from(*probe_params),
             );
         }

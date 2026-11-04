@@ -1,62 +1,71 @@
 //! Reflections backing.
 
-use super::BakedDataIdentifier;
-use super::{BAKE_LOCK, BakeError};
+use crate::baking::BakeError;
+use crate::baking::BakedDataIdentifier;
+use crate::baking::bake_lock::BAKE_LOCK;
+use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::geometry::Scene;
+use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
-use std::marker::PhantomData;
 
 #[cfg(doc)]
-use super::BakedDataVariation;
+use crate::baking::BakedDataVariation;
 
 /// A baker of reflections.
 ///
 /// Simulating reflections in real-time is a very compute-intensive process.
-/// [`ReflectionsBaker`] lets you bake, or precompute reflections throughout a scene (or part of a scene) beforehand.
+/// [`crate::ReflectionsBaker`] lets you bake, or precompute reflections throughout a scene (or part of a scene) beforehand.
 ///
 /// Reflections are baked at several points that you specify.
 /// Each of these points is called a probe and belong to a [`ProbeBatch`].
 ///
 /// Just like game engines use light probes to store the variation of lighting throughout a scene, Steam Audio uses acoustic probes to store the variation of acoustic data (in this case, reflections) throughout a scene.
+pub type TypedReflectionsBaker<'a, T> = ReflectionsBaker<'a, Static<T>>;
+
+/// Storage shared by static and runtime reflection bakers.
 #[derive(Default)]
-pub struct ReflectionsBaker<'a, T: RayTracer> {
+pub struct ReflectionsBaker<'a, B: GeometryBinding> {
+    /// The custom ray batch size used by native baking.
     ray_batch_size: i32,
+    /// The borrowed OpenCL device.
     open_cl_device: Option<&'a OpenClDevice>,
+    /// The borrowed Radeon Rays device.
     radeon_rays_device: Option<&'a RadeonRaysDevice>,
-    _marker: PhantomData<T>,
+    /// The geometry binding selected for this baker.
+    binding: B,
 }
 
-impl ReflectionsBaker<'_, DefaultRayTracer> {
-    /// Creates a new [`ReflectionsBaker`].
+impl TypedReflectionsBaker<'_, DefaultRayTracer> {
+    /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new() -> Self {
         Self {
             ray_batch_size: 0,
             open_cl_device: None,
             radeon_rays_device: None,
-            _marker: PhantomData,
+            binding: Static::new(),
         }
     }
 }
 
-impl ReflectionsBaker<'_, Embree> {
-    /// Creates a new [`ReflectionsBaker`].
+impl TypedReflectionsBaker<'_, Embree> {
+    /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new() -> Self {
         Self {
             ray_batch_size: 0,
             open_cl_device: None,
             radeon_rays_device: None,
-            _marker: PhantomData,
+            binding: Static::new(),
         }
     }
 }
 
-impl<'a> ReflectionsBaker<'a, RadeonRays> {
-    /// Creates a new [`ReflectionsBaker`].
+impl<'a> TypedReflectionsBaker<'a, RadeonRays> {
+    /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new(
         open_cl_device: &'a OpenClDevice,
         radeon_rays_device: &'a RadeonRaysDevice,
@@ -65,24 +74,24 @@ impl<'a> ReflectionsBaker<'a, RadeonRays> {
             ray_batch_size: 0,
             open_cl_device: Some(open_cl_device),
             radeon_rays_device: Some(radeon_rays_device),
-            _marker: PhantomData,
+            binding: Static::new(),
         }
     }
 }
 
-impl ReflectionsBaker<'_, CustomRayTracer> {
-    /// Creates a new [`ReflectionsBaker`].
+impl TypedReflectionsBaker<'_, CustomRayTracer> {
+    /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new(ray_batch_size: u32) -> Self {
         Self {
             ray_batch_size: ray_batch_size as i32,
             open_cl_device: None,
             radeon_rays_device: None,
-            _marker: PhantomData,
+            binding: Static::new(),
         }
     }
 }
 
-impl<T: RayTracer> ReflectionsBaker<'_, T> {
+impl<T: RayTracer> TypedReflectionsBaker<'_, T> {
     /// Bakes a single layer of reflections data in a probe batch.
     ///
     /// Only one bake can be in progress at any point in time.
@@ -97,7 +106,7 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         scene: &Scene<T>,
         params: ReflectionsBakeParams,
     ) -> Result<(), BakeError> {
-        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None)
+        self.bake_shared(context, probe_batch, scene, params, None)
     }
 
     /// Bakes a single layer of reflections data in a probe batch, with a progress callback.
@@ -115,15 +124,11 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         params: ReflectionsBakeParams,
         progress_callback: ProgressCallback,
     ) -> Result<(), BakeError> {
-        self.bake_with_optional_progress_callback(
-            context,
-            probe_batch,
-            scene,
-            params,
-            Some(progress_callback),
-        )
+        self.bake_shared(context, probe_batch, scene, params, Some(progress_callback))
     }
+}
 
+impl<B: GeometryBinding> ReflectionsBaker<'_, B> {
     /// Bakes a single layer of reflections data in a probe batch, with an optional progress callback.
     ///
     /// Only one bake can be in progress at any point in time.
@@ -131,11 +136,11 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
     /// # Errors
     ///
     /// Returns [`BakeError`] if another bake operation is already in progress.
-    fn bake_with_optional_progress_callback(
+    fn bake_shared(
         &self,
         context: &Context,
         probe_batch: &mut ProbeBatch,
-        scene: &Scene<T>,
+        scene: &BoundScene<B>,
         params: ReflectionsBakeParams,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
@@ -152,9 +157,9 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
         );
 
         let mut ffi_params = audionimbus_sys::IPLReflectionsBakeParams {
-            scene: scene.raw_ptr(),
+            scene: scene.raw_ptr_shared(),
             probeBatch: probe_batch.raw_ptr(),
-            sceneType: T::scene_type(),
+            sceneType: self.binding.scene_type(),
             identifier: params.identifier.into(),
             bakeFlags: params.bake_flags.into(),
             numRays: params.num_rays as i32,
@@ -190,6 +195,106 @@ impl<T: RayTracer> ReflectionsBaker<'_, T> {
     /// Cancels any running bakes of reflections data.
     pub fn cancel_bake(&self, context: &Context) {
         unsafe { audionimbus_sys::iplReflectionsBakerCancelBake(context.raw_ptr()) }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl<'a> crate::dynamic::ReflectionsBaker<'a> {
+    /// Creates a baker using the supplied backend settings.
+    pub fn new(ray_tracer_settings: &'a crate::dynamic::RayTracerSettings) -> Self {
+        use crate::dynamic::RayTracerSettings;
+
+        let (ray_batch_size, open_cl_device, radeon_rays_device) = match ray_tracer_settings {
+            RayTracerSettings::Default | RayTracerSettings::Embree { .. } => (0, None, None),
+            RayTracerSettings::RadeonRays {
+                open_cl_device,
+                radeon_rays_device,
+            } => (0, Some(open_cl_device), Some(radeon_rays_device)),
+            RayTracerSettings::Custom { ray_batch_size, .. } => {
+                (*ray_batch_size as i32, None, None)
+            }
+        };
+
+        Self {
+            ray_batch_size,
+            open_cl_device,
+            radeon_rays_device,
+            binding: crate::binding::Dynamic(ray_tracer_settings.kind()),
+        }
+    }
+
+    /// Bakes a reflection layer into the probe batch.
+    ///
+    /// # Errors
+    ///
+    /// - [`BakeError::RayTracerMismatch`] if the scene uses another backend.
+    /// - [`BakeError::DeviceMismatch`] if Radeon Rays devices differ.
+    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    pub fn bake(
+        &self,
+        context: &Context,
+        probe_batch: &mut ProbeBatch,
+        scene: &crate::dynamic::Scene,
+        params: ReflectionsBakeParams,
+    ) -> Result<(), BakeError> {
+        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None)
+    }
+
+    /// Bakes a reflection layer with progress notifications.
+    ///
+    /// # Errors
+    ///
+    /// - [`BakeError::RayTracerMismatch`] if the scene uses another backend.
+    /// - [`BakeError::DeviceMismatch`] if Radeon Rays devices differ.
+    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    pub fn bake_with_progress_callback(
+        &self,
+        context: &Context,
+        probe_batch: &mut ProbeBatch,
+        scene: &crate::dynamic::Scene,
+        params: ReflectionsBakeParams,
+        progress_callback: ProgressCallback,
+    ) -> Result<(), BakeError> {
+        self.bake_with_optional_progress_callback(
+            context,
+            probe_batch,
+            scene,
+            params,
+            Some(progress_callback),
+        )
+    }
+
+    /// Validates the scene before baking a reflection layer.
+    ///
+    /// # Errors
+    ///
+    /// - [`BakeError::RayTracerMismatch`] if the scene uses another backend.
+    /// - [`BakeError::DeviceMismatch`] if Radeon Rays devices differ.
+    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    fn bake_with_optional_progress_callback(
+        &self,
+        context: &Context,
+        probe_batch: &mut ProbeBatch,
+        scene: &crate::dynamic::Scene,
+        params: ReflectionsBakeParams,
+        progress_callback: Option<ProgressCallback>,
+    ) -> Result<(), BakeError> {
+        let expected = self.binding.0;
+        let actual = scene.ray_tracer();
+        if expected != actual {
+            return Err(BakeError::RayTracerMismatch { expected, actual });
+        }
+
+        if !scene
+            .shared
+            .lock()
+            .unwrap()
+            .uses_devices(self.open_cl_device, self.radeon_rays_device)
+        {
+            return Err(BakeError::DeviceMismatch);
+        }
+
+        self.bake_shared(context, probe_batch, scene, params, progress_callback)
     }
 }
 
@@ -262,6 +367,7 @@ impl From<ReflectionsBakeFlags> for audionimbus_sys::IPLReflectionsBakeFlags {
 pub mod tests {
     use crate::*;
 
+    /// Creates the scene used by the bake cases.
     fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
         let mut scene = Scene::try_new(context).unwrap();
 
@@ -316,6 +422,7 @@ pub mod tests {
         scene
     }
 
+    /// Creates the probe batch used by the bake cases.
     fn test_probe_batch(context: &Context, scene: &Scene) -> ProbeBatch {
         let mut probe_batch = ProbeBatch::try_new(context).unwrap();
 
@@ -338,6 +445,7 @@ pub mod tests {
 
     // This test runs at the module level to avoid concurrent execution
     // with other bake tests, which would cause BakeError::BakeInProgress.
+    /// Exercises native baking with and without progress callbacks.
     pub fn test_bake() {
         // Run test cases sequentially to avoid BakeError::BakeInProgress.
 

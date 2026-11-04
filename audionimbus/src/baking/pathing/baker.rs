@@ -1,23 +1,26 @@
 //! Path baking.
 
-use super::BakedDataIdentifier;
-use super::{BAKE_LOCK, BakeError};
+use crate::baking::BakeError;
+use crate::baking::BakedDataIdentifier;
+use crate::baking::bake_lock::BAKE_LOCK;
+use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::geometry::Scene;
+use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::RayTracer;
 use std::marker::PhantomData;
 
 #[cfg(doc)]
-use super::BakedDataVariation;
+use crate::baking::BakedDataVariation;
 
 /// A baker of pathing data.
 ///
 /// Pathing is an alternative simulation method to reflections that finds the shortest
 /// unoccluded paths from sources to listeners by traveling between probes.
 ///
-/// [`PathBaker`] lets you bake, or precompute pathing data throughout a scene (or part
+/// [`crate::PathBaker`] lets you bake, or precompute pathing data throughout a scene (or part
 /// of a scene) beforehand. This precomputation is typically done offline since pathing
 /// requires probe generation.
 ///
@@ -27,13 +30,16 @@ use super::BakedDataVariation;
 /// Just like game engines use light probes to store the variation of lighting throughout
 /// a scene, Steam Audio uses acoustic probes to store the variation of acoustic data
 /// (in this case, pathing information) throughout a scene.
-#[derive(Default)]
-pub struct PathBaker<T: RayTracer> {
-    _marker: PhantomData<T>,
+pub type TypedPathBaker<T> = PathBaker<Static<T>>;
+
+/// Storage shared by static and runtime path bakers.
+pub struct PathBaker<B: GeometryBinding> {
+    /// The scene binding accepted by this baker.
+    _marker: PhantomData<B>,
 }
 
-impl<T: RayTracer> PathBaker<T> {
-    /// Creates a new [`PathBaker`].
+impl<T: RayTracer> TypedPathBaker<T> {
+    /// Creates a new [`crate::PathBaker`].
     pub const fn new() -> Self {
         Self {
             _marker: PhantomData,
@@ -54,7 +60,7 @@ impl<T: RayTracer> PathBaker<T> {
         scene: &Scene<T>,
         params: PathBakeParams,
     ) -> Result<(), BakeError> {
-        self.bake_with_optional_progress_callback(context, probe_batch, scene, params, None)
+        self.bake_shared(context, probe_batch, scene, params, None)
     }
 
     /// Bakes a single layer of pathing data in a probe batch, with a progress callback.
@@ -72,15 +78,11 @@ impl<T: RayTracer> PathBaker<T> {
         params: PathBakeParams,
         progress_callback: ProgressCallback,
     ) -> Result<(), BakeError> {
-        self.bake_with_optional_progress_callback(
-            context,
-            probe_batch,
-            scene,
-            params,
-            Some(progress_callback),
-        )
+        self.bake_shared(context, probe_batch, scene, params, Some(progress_callback))
     }
+}
 
+impl<B: GeometryBinding> PathBaker<B> {
     /// Bakes a single layer of pathing data in a probe batch, with an optional progress callback.
     ///
     /// Only one bake can be in progress at any point in time.
@@ -88,11 +90,11 @@ impl<T: RayTracer> PathBaker<T> {
     /// # Errors
     ///
     /// Returns [`BakeError`] if another bake operation is already in progress.
-    fn bake_with_optional_progress_callback(
+    fn bake_shared(
         &self,
         context: &Context,
         probe_batch: &mut ProbeBatch,
-        scene: &Scene<T>,
+        scene: &BoundScene<B>,
         params: PathBakeParams,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<(), BakeError> {
@@ -100,6 +102,7 @@ impl<T: RayTracer> PathBaker<T> {
         // We pass a no-op callback instead until the fix is released.
         // See: https://github.com/ValveSoftware/steam-audio/issues/523
         // TODO: Remove this workaround when fix is released.
+        /// Ignores native progress notifications.
         unsafe extern "C" fn noop(_: f32, _: *mut std::ffi::c_void) {}
 
         let _guard = BAKE_LOCK
@@ -112,7 +115,7 @@ impl<T: RayTracer> PathBaker<T> {
         );
 
         let mut ffi_params = audionimbus_sys::IPLPathBakeParams {
-            scene: scene.raw_ptr(),
+            scene: scene.raw_ptr_shared(),
             probeBatch: probe_batch.raw_ptr(),
             identifier: params.identifier.into(),
             numSamples: params.num_samples as i32,
@@ -138,6 +141,60 @@ impl<T: RayTracer> PathBaker<T> {
     /// Cancels any running bakes of pathing data.
     pub fn cancel_bake(&self, context: &Context) {
         unsafe { audionimbus_sys::iplPathBakerCancelBake(context.raw_ptr()) }
+    }
+}
+
+impl<T: RayTracer + Default> Default for TypedPathBaker<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl crate::dynamic::PathBaker {
+    /// Creates a path baker for runtime scenes.
+    pub const fn new() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+
+    /// Bakes a pathing layer into the probe batch.
+    ///
+    /// # Errors
+    ///
+    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    pub fn bake(
+        &self,
+        context: &Context,
+        probe_batch: &mut ProbeBatch,
+        scene: &crate::dynamic::Scene,
+        params: PathBakeParams,
+    ) -> Result<(), BakeError> {
+        self.bake_shared(context, probe_batch, scene, params, None)
+    }
+
+    /// Bakes a pathing layer with progress notifications.
+    ///
+    /// # Errors
+    ///
+    /// - [`BakeError::BakeInProgress`] if another bake is in progress.
+    pub fn bake_with_progress_callback(
+        &self,
+        context: &Context,
+        probe_batch: &mut ProbeBatch,
+        scene: &crate::dynamic::Scene,
+        params: PathBakeParams,
+        progress_callback: ProgressCallback,
+    ) -> Result<(), BakeError> {
+        self.bake_shared(context, probe_batch, scene, params, Some(progress_callback))
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl Default for crate::dynamic::PathBaker {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -175,6 +232,7 @@ pub struct PathBakeParams {
 pub mod tests {
     use crate::*;
 
+    /// Creates the scene used by the bake cases.
     fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
         let mut scene = Scene::try_new(context).unwrap();
 
@@ -229,6 +287,7 @@ pub mod tests {
         scene
     }
 
+    /// Creates the probe batch used by the bake cases.
     fn test_probe_batch(context: &Context, scene: &Scene) -> ProbeBatch {
         let mut probe_batch = ProbeBatch::try_new(context).unwrap();
 
@@ -251,6 +310,7 @@ pub mod tests {
 
     // This test runs at the module level to avoid concurrent execution
     // with other bake tests, which would cause BakeError::BakeInProgress.
+    /// Exercises native baking with and without progress callbacks.
     pub fn test_bake() {
         // Run test cases sequentially to avoid BakeError::BakeInProgress.
 
