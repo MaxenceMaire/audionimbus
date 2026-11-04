@@ -3,7 +3,7 @@
 /// Baker implementations whose binding selectors must stay inaccessible to downstream callers.
 pub(crate) mod baker;
 pub use baker::{
-    ReflectionsBakeFlags, ReflectionsBakeParams, TypedReflectionsBaker as ReflectionsBaker,
+    ReflectionsBakeFlags, ReflectionsBakeParams, StaticReflectionsBaker as ReflectionsBaker,
 };
 
 #[cfg(test)]

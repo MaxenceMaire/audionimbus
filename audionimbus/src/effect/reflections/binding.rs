@@ -8,8 +8,6 @@ use crate::Sealed;
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
-#[cfg(feature = "dynamic")]
-use crate::dynamic::ReflectionAlgorithm;
 use crate::simulation::{
     ConvolutionParameters, HybridParameters, ParametricParameters, ReflectionsSimulationParameters,
     TrueAudioNextParameters,
@@ -183,6 +181,20 @@ impl<T: ReflectionEffectType> ReflectionBinding for Static<T> {
     fn num_output_channels(self, settings: &ReflectionEffectSettings) -> ChannelRequirement {
         T::num_output_channels(settings)
     }
+}
+
+/// A reflection algorithm selected at construction.
+#[cfg(feature = "dynamic")]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ReflectionAlgorithm {
+    /// Multi-channel convolution reverb.
+    Convolution,
+    /// Parametric reverb.
+    Parametric,
+    /// Combined convolution and parametric reverb.
+    Hybrid,
+    /// GPU convolution through AMD TrueAudio Next.
+    TrueAudioNext,
 }
 
 #[cfg(feature = "dynamic")]

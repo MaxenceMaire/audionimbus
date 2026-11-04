@@ -1,5 +1,7 @@
 use super::scene::{GeometryBinding, Scene};
 use super::{Material, Point, Triangle};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
@@ -9,9 +11,9 @@ use crate::serialized_object::SerializedObject;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "dynamic")]
-use crate::dynamic::RayTracerKind;
+use super::scene::RayTracerKind;
 #[cfg(feature = "dynamic")]
-use crate::dynamic::SceneError;
+use super::scene::SceneError;
 
 /// Geometry storage for a compile-time or runtime binding.
 #[derive(Debug, PartialEq, Eq)]
@@ -179,9 +181,17 @@ impl<F: GeometryBinding> StaticMesh<F> {
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-pub type TypedStaticMesh<T> = StaticMesh<Static<T>>;
+pub type StaticStaticMesh<T> = StaticMesh<Static<T>>;
 
-impl<T: RayTracer> TypedStaticMesh<T> {
+/// A static mesh with a runtime-selected ray tracer.
+///
+/// Creates meshes with `try_new`, or loads them with `load` and `load_with_progress_callback`.
+/// Serializes default-backend meshes with `try_save`.
+/// Clones retain the same native mesh.
+#[cfg(feature = "dynamic")]
+pub type DynamicStaticMesh = StaticMesh<Dynamic<RayTracerKind>>;
+
+impl<T: RayTracer> StaticStaticMesh<T> {
     /// Creates a new static mesh and returns a handle to it.
     ///
     /// # Errors
@@ -242,7 +252,7 @@ impl<T: RayTracer> TypedStaticMesh<T> {
     }
 }
 
-impl TypedStaticMesh<DefaultRayTracer> {
+impl StaticStaticMesh<DefaultRayTracer> {
     /// Saves the static mesh and returns its serialized representation.
     ///
     /// Typically, the serialized object will then be saved to disk.
@@ -258,7 +268,7 @@ impl TypedStaticMesh<DefaultRayTracer> {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::StaticMesh {
+impl DynamicStaticMesh {
     /// Creates a new static mesh and returns a handle to it.
     ///
     /// # Errors

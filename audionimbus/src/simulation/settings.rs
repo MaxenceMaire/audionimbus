@@ -36,15 +36,15 @@ pub struct SimulationSettings<B: SimulatorBinding> {
 
 // SAFETY: The raw pointers in IPLSimulationSettings point to devices owned by the struct and
 // remain valid for its lifetime.
-unsafe impl<T: RayTracer, D, R, P, RE> Send for TypedSimulationSettings<T, D, R, P, RE> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Send for StaticSimulationSettings<T, D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
-unsafe impl Send for dynamic::SimulationSettings {}
+unsafe impl Send for DynamicSimulationSettings {}
 
-unsafe impl<T: RayTracer, D, R, P, RE> Sync for TypedSimulationSettings<T, D, R, P, RE> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Sync for StaticSimulationSettings<T, D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
-unsafe impl Sync for dynamic::SimulationSettings {}
+unsafe impl Sync for DynamicSimulationSettings {}
 
 impl<B: SimulatorBinding> SimulationSettings<B> {
     /// Returns the audio settings stored in these simulation settings.
@@ -98,10 +98,14 @@ impl<B: SimulatorBinding> SimulationSettings<B> {
 ///     });
 /// # Ok::<(), audionimbus::SteamAudioError>(())
 /// ```
-pub type TypedSimulationSettings<T, D = (), R = (), P = (), RE = ()> =
+pub type StaticSimulationSettings<T, D = (), R = (), P = (), RE = ()> =
     SimulationSettings<Static<(T, D, R, P, RE)>>;
 
-impl TypedSimulationSettings<DefaultRayTracer, (), (), (), ()> {
+/// Creation settings with runtime simulation modes and algorithms.
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulationSettings = SimulationSettings<Dynamic<SimulationChoices>>;
+
+impl StaticSimulationSettings<DefaultRayTracer, (), (), (), ()> {
     /// Creates new simulation settings with all simulations disabled by default.
     pub fn new(audio_settings: &AudioSettings) -> Self {
         let settings = audionimbus_sys::IPLSimulationSettings {
@@ -135,9 +139,9 @@ impl TypedSimulationSettings<DefaultRayTracer, (), (), (), ()> {
     }
 }
 
-impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
+impl<D, R, P, RE> StaticSimulationSettings<DefaultRayTracer, D, R, P, RE> {
     /// Switches to the Embree ray tracer.
-    pub fn with_embree(self) -> TypedSimulationSettings<Embree, D, R, P, RE> {
+    pub fn with_embree(self) -> StaticSimulationSettings<Embree, D, R, P, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -147,7 +151,7 @@ impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
         } = self;
         settings.sceneType = Embree::scene_type();
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -166,7 +170,7 @@ impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
         self,
         open_cl_device: OpenClDevice,
         radeon_rays_device: RadeonRaysDevice,
-    ) -> TypedSimulationSettings<RadeonRays, D, R, P, RE> {
+    ) -> StaticSimulationSettings<RadeonRays, D, R, P, RE> {
         let Self {
             mut settings,
             true_audio_next_device,
@@ -176,7 +180,7 @@ impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
         settings.openCLDevice = open_cl_device.raw_ptr();
         settings.radeonRaysDevice = radeon_rays_device.raw_ptr();
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device: Some(open_cl_device),
@@ -193,7 +197,7 @@ impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
     pub fn with_custom_ray_tracer(
         self,
         ray_batch_size: u32,
-    ) -> TypedSimulationSettings<CustomRayTracer, D, R, P, RE> {
+    ) -> StaticSimulationSettings<CustomRayTracer, D, R, P, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -204,7 +208,7 @@ impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
         settings.sceneType = CustomRayTracer::scene_type();
         settings.rayBatchSize = ray_batch_size as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -214,12 +218,12 @@ impl<D, R, P, RE> TypedSimulationSettings<DefaultRayTracer, D, R, P, RE> {
     }
 }
 
-impl<T: RayTracer, D, R, P, RE> TypedSimulationSettings<T, D, R, P, RE> {
+impl<T: RayTracer, D, R, P, RE> StaticSimulationSettings<T, D, R, P, RE> {
     /// Enables direct simulation.
     pub fn with_direct(
         self,
         direct_settings: DirectSimulationSettings,
-    ) -> TypedSimulationSettings<T, Direct, R, P, RE> {
+    ) -> StaticSimulationSettings<T, Direct, R, P, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -231,7 +235,7 @@ impl<T: RayTracer, D, R, P, RE> TypedSimulationSettings<T, D, R, P, RE> {
         settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_DIRECT;
         settings.maxNumOcclusionSamples = direct_settings.max_num_occlusion_samples as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -244,7 +248,7 @@ impl<T: RayTracer, D, R, P, RE> TypedSimulationSettings<T, D, R, P, RE> {
     pub fn with_reflections<A: ReflectionsAlgorithm>(
         self,
         algorithm_settings: A,
-    ) -> TypedSimulationSettings<T, D, Reflections, P, A::EffectType> {
+    ) -> StaticSimulationSettings<T, D, Reflections, P, A::EffectType> {
         algorithm_settings.apply(self)
     }
 
@@ -252,7 +256,7 @@ impl<T: RayTracer, D, R, P, RE> TypedSimulationSettings<T, D, R, P, RE> {
     pub fn with_pathing(
         self,
         pathing_settings: PathingSimulationSettings,
-    ) -> TypedSimulationSettings<T, D, R, Pathing, RE> {
+    ) -> StaticSimulationSettings<T, D, R, Pathing, RE> {
         let Self {
             mut settings,
             open_cl_device,
@@ -264,7 +268,7 @@ impl<T: RayTracer, D, R, P, RE> TypedSimulationSettings<T, D, R, P, RE> {
         settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
         settings.numVisSamples = pathing_settings.num_visibility_samples as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -275,10 +279,10 @@ impl<T: RayTracer, D, R, P, RE> TypedSimulationSettings<T, D, R, P, RE> {
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::SimulationSettings {
+impl DynamicSimulationSettings {
     /// Creates settings with the default ray tracer and no simulation modes.
     pub fn new(audio_settings: &AudioSettings) -> Self {
-        let simulation_settings = TypedSimulationSettings::new(audio_settings);
+        let simulation_settings = StaticSimulationSettings::new(audio_settings);
 
         Self {
             settings: simulation_settings.settings,
@@ -341,15 +345,15 @@ impl dynamic::SimulationSettings {
     /// Enables the selected reflection algorithm.
     pub fn with_reflections(
         mut self,
-        reflections_settings: impl Into<dynamic::ReflectionsSettings>,
+        reflections_settings: impl Into<ReflectionsSettings>,
     ) -> Self {
         let reflections_settings = reflections_settings.into();
         self.binding.0.flags |= SimulationFlags::REFLECTIONS;
         self.binding.0.reflection_algorithm = Some(reflections_settings.algorithm());
-        let simulation_settings = TypedSimulationSettings::new(&self.audio_settings());
+        let simulation_settings = StaticSimulationSettings::new(&self.audio_settings());
         let (reflection_settings, open_cl_device, true_audio_next_device) =
             match reflections_settings {
-                dynamic::ReflectionsSettings::Convolution(reflections_settings) => {
+                ReflectionsSettings::Convolution(reflections_settings) => {
                     let simulation_settings =
                         simulation_settings.with_reflections(reflections_settings);
                     (
@@ -358,7 +362,7 @@ impl dynamic::SimulationSettings {
                         simulation_settings.true_audio_next_device,
                     )
                 }
-                dynamic::ReflectionsSettings::Parametric(reflections_settings) => {
+                ReflectionsSettings::Parametric(reflections_settings) => {
                     let simulation_settings =
                         simulation_settings.with_reflections(reflections_settings);
                     (
@@ -367,7 +371,7 @@ impl dynamic::SimulationSettings {
                         simulation_settings.true_audio_next_device,
                     )
                 }
-                dynamic::ReflectionsSettings::Hybrid(reflections_settings) => {
+                ReflectionsSettings::Hybrid(reflections_settings) => {
                     let simulation_settings =
                         simulation_settings.with_reflections(reflections_settings);
                     (
@@ -376,7 +380,7 @@ impl dynamic::SimulationSettings {
                         simulation_settings.true_audio_next_device,
                     )
                 }
-                dynamic::ReflectionsSettings::TrueAudioNext(reflections_settings) => {
+                ReflectionsSettings::TrueAudioNext(reflections_settings) => {
                     let simulation_settings =
                         simulation_settings.with_reflections(reflections_settings);
                     (
@@ -426,7 +430,7 @@ impl dynamic::SimulationSettings {
 }
 
 impl<T: RayTracer + Clone, D: Clone, R: Clone, P: Clone, RE: Clone> Clone
-    for TypedSimulationSettings<T, D, R, P, RE>
+    for StaticSimulationSettings<T, D, R, P, RE>
 {
     /// Retains the devices used by these settings.
     fn clone(&self) -> Self {
@@ -435,7 +439,7 @@ impl<T: RayTracer + Clone, D: Clone, R: Clone, P: Clone, RE: Clone> Clone
 }
 
 #[cfg(feature = "dynamic")]
-impl Clone for dynamic::SimulationSettings {
+impl Clone for DynamicSimulationSettings {
     fn clone(&self) -> Self {
         self.clone_shared()
     }
@@ -472,8 +476,8 @@ pub trait ReflectionsAlgorithm: Sealed {
     /// Applies the algorithm settings to the specified simulation settings.
     fn apply<T: RayTracer, D, R, P, RE>(
         self,
-        settings: TypedSimulationSettings<T, D, R, P, RE>,
-    ) -> TypedSimulationSettings<T, D, Reflections, P, Self::EffectType>;
+        settings: StaticSimulationSettings<T, D, R, P, RE>,
+    ) -> StaticSimulationSettings<T, D, Reflections, P, Self::EffectType>;
 }
 
 /// Settings for multi-channel convolution reverb.
@@ -516,9 +520,9 @@ impl ReflectionsAlgorithm for ConvolutionSettings {
 
     fn apply<T: RayTracer, D, R, P, RE>(
         self,
-        simulation_settings: TypedSimulationSettings<T, D, R, P, RE>,
-    ) -> TypedSimulationSettings<T, D, Reflections, P, Self::EffectType> {
-        let TypedSimulationSettings {
+        simulation_settings: StaticSimulationSettings<T, D, R, P, RE>,
+    ) -> StaticSimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let StaticSimulationSettings {
             mut settings,
             open_cl_device,
             radeon_rays_device,
@@ -536,7 +540,7 @@ impl ReflectionsAlgorithm for ConvolutionSettings {
         settings.numThreads = self.num_threads as i32;
         settings.maxOrder = self.max_order as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -599,9 +603,9 @@ impl ReflectionsAlgorithm for ParametricSettings {
 
     fn apply<T: RayTracer, D, R, P, RE>(
         self,
-        simulation_settings: TypedSimulationSettings<T, D, R, P, RE>,
-    ) -> TypedSimulationSettings<T, D, Reflections, P, Self::EffectType> {
-        let TypedSimulationSettings {
+        simulation_settings: StaticSimulationSettings<T, D, R, P, RE>,
+    ) -> StaticSimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let StaticSimulationSettings {
             mut settings,
             open_cl_device,
             radeon_rays_device,
@@ -619,7 +623,7 @@ impl ReflectionsAlgorithm for ParametricSettings {
         settings.numThreads = self.num_threads as i32;
         settings.maxOrder = self.max_order as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -669,9 +673,9 @@ impl ReflectionsAlgorithm for HybridSettings {
 
     fn apply<T: RayTracer, D, R, P, RE>(
         self,
-        simulation_settings: TypedSimulationSettings<T, D, R, P, RE>,
-    ) -> TypedSimulationSettings<T, D, Reflections, P, Self::EffectType> {
-        let TypedSimulationSettings {
+        simulation_settings: StaticSimulationSettings<T, D, R, P, RE>,
+    ) -> StaticSimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let StaticSimulationSettings {
             mut settings,
             open_cl_device,
             radeon_rays_device,
@@ -689,7 +693,7 @@ impl ReflectionsAlgorithm for HybridSettings {
         settings.numThreads = self.num_threads as i32;
         settings.maxOrder = self.max_order as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device,
@@ -745,9 +749,9 @@ impl ReflectionsAlgorithm for TrueAudioNextSettings {
 
     fn apply<T: RayTracer, D, R, P, RE>(
         self,
-        simulation_settings: TypedSimulationSettings<T, D, R, P, RE>,
-    ) -> TypedSimulationSettings<T, D, Reflections, P, Self::EffectType> {
-        let TypedSimulationSettings {
+        simulation_settings: StaticSimulationSettings<T, D, R, P, RE>,
+    ) -> StaticSimulationSettings<T, D, Reflections, P, Self::EffectType> {
+        let StaticSimulationSettings {
             mut settings,
             radeon_rays_device,
             ..
@@ -765,7 +769,7 @@ impl ReflectionsAlgorithm for TrueAudioNextSettings {
         settings.numThreads = self.num_threads as i32;
         settings.maxOrder = self.max_order as i32;
 
-        TypedSimulationSettings {
+        StaticSimulationSettings {
             binding: Static::new(),
             settings,
             open_cl_device: Some(self.open_cl_device),
@@ -782,6 +786,61 @@ impl Sealed for ParametricSettings {}
 impl Sealed for HybridSettings {}
 
 impl Sealed for TrueAudioNextSettings {}
+
+/// Simulation settings for a runtime-selected reflection algorithm.
+#[cfg(feature = "dynamic")]
+#[derive(Clone, Debug)]
+pub enum ReflectionsSettings {
+    /// Multi-channel convolution settings.
+    Convolution(ConvolutionSettings),
+    /// Parametric reverb settings.
+    Parametric(ParametricSettings),
+    /// Combined convolution and parametric settings.
+    Hybrid(HybridSettings),
+    /// GPU convolution settings and devices.
+    TrueAudioNext(TrueAudioNextSettings),
+}
+
+#[cfg(feature = "dynamic")]
+impl ReflectionsSettings {
+    /// Returns the selected algorithm.
+    pub const fn algorithm(&self) -> ReflectionAlgorithm {
+        match self {
+            Self::Convolution(_) => ReflectionAlgorithm::Convolution,
+            Self::Parametric(_) => ReflectionAlgorithm::Parametric,
+            Self::Hybrid(_) => ReflectionAlgorithm::Hybrid,
+            Self::TrueAudioNext(_) => ReflectionAlgorithm::TrueAudioNext,
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<ConvolutionSettings> for ReflectionsSettings {
+    fn from(convolution_settings: ConvolutionSettings) -> Self {
+        Self::Convolution(convolution_settings)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<ParametricSettings> for ReflectionsSettings {
+    fn from(parametric_settings: ParametricSettings) -> Self {
+        Self::Parametric(parametric_settings)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<HybridSettings> for ReflectionsSettings {
+    fn from(hybrid_settings: HybridSettings) -> Self {
+        Self::Hybrid(hybrid_settings)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<TrueAudioNextSettings> for ReflectionsSettings {
+    fn from(true_audio_next_settings: TrueAudioNextSettings) -> Self {
+        Self::TrueAudioNext(true_audio_next_settings)
+    }
+}
 
 /// Settings used for pathing simulation.
 #[derive(Debug, Copy, Clone)]

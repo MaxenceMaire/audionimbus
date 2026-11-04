@@ -10,10 +10,10 @@ pub use binding::{
 /// Effect implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod effect;
 pub use effect::{
-    ReflectionEffectIR, ReflectionEffectSettings, TypedReflectionEffect as ReflectionEffect,
-    TypedReflectionEffectParams as ReflectionEffectParams,
+    ReflectionEffectIR, ReflectionEffectSettings, StaticReflectionEffect as ReflectionEffect,
+    StaticReflectionEffectParams as ReflectionEffectParams,
 };
 
 /// Mixer implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod mixer;
-pub use mixer::TypedReflectionMixer as ReflectionMixer;
+pub use mixer::StaticReflectionMixer as ReflectionMixer;

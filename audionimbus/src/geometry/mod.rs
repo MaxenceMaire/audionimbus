@@ -97,17 +97,17 @@ pub use ray::Ray;
 pub(crate) mod scene;
 pub use scene::{
     InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, StaticMeshHandle,
-    TypedScene as Scene, relative_direction,
+    StaticScene as Scene, relative_direction,
 };
 
 /// Mesh implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod static_mesh;
-pub use static_mesh::{StaticMeshError, StaticMeshSettings, TypedStaticMesh as StaticMesh};
+pub use static_mesh::{StaticMeshError, StaticMeshSettings, StaticStaticMesh as StaticMesh};
 
 /// Instance implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod instanced_mesh;
 pub use instanced_mesh::{
-    TypedInstancedMesh as InstancedMesh, TypedInstancedMeshSettings as InstancedMeshSettings,
+    StaticInstancedMesh as InstancedMesh, StaticInstancedMeshSettings as InstancedMeshSettings,
 };
 
 mod sphere;

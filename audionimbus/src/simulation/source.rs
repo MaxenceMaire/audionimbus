@@ -1,9 +1,9 @@
 //! Simulation sources, retained resources, and selected outputs.
 
-use super::inputs::{InputBinding, SimulationInputs, TypedSimulationInputs};
+use super::inputs::{InputBinding, SimulationInputs, StaticSimulationInputs};
 #[cfg(feature = "dynamic")]
 use super::simulator::{SimulationChoices, SimulatorShared};
-use super::simulator::{Simulator, SimulatorBinding, TypedSimulator};
+use super::simulator::{Simulator, SimulatorBinding, StaticSimulator};
 use super::{
     Direct, DirectCompatible, DirectSimulationParameters, OcclusionAlgorithm,
     ParameterValidationError, Pathing, PathingCompatible, ReflectionEffectCompatible, Reflections,
@@ -103,7 +103,11 @@ impl SourceResources for DynamicSourceResources {
 /// The underlying object is destroyed when all handles are dropped.
 ///
 /// Generic over the types of simulation that may be run for this source.
-pub type TypedSource<D = (), R = (), P = (), RE = ()> = Source<Static<(D, R, P, RE)>>;
+pub type StaticSource<D = (), R = (), P = (), RE = ()> = Source<Static<(D, R, P, RE)>>;
+
+/// A source using a subset of its creating simulator's available modes.
+#[cfg(feature = "dynamic")]
+pub type DynamicSource = Source<Dynamic<SourceChoices>>;
 
 /// Storage shared by static and runtime sources.
 #[derive(Debug)]
@@ -149,7 +153,7 @@ struct SourceShared<O> {
     _pathing_probes: Option<ProbeBatch>,
 }
 
-impl<D, R, P, RE> TypedSource<D, R, P, RE>
+impl<D, R, P, RE> StaticSource<D, R, P, RE>
 where
     D: 'static,
     R: 'static,
@@ -177,7 +181,7 @@ where
     /// # Errors
     ///
     /// Returns [`SteamAudioError`] if creation fails.
-    pub fn try_new<T>(simulator: &TypedSimulator<T, D, R, P, RE>) -> Result<Self, SteamAudioError>
+    pub fn try_new<T>(simulator: &StaticSimulator<T, D, R, P, RE>) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
         D: 'static + DirectCompatible<D> + SimulationFlagsProvider,
@@ -220,7 +224,7 @@ where
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new_subset<T, SimD, SimR, SimP, SimRE>(
-        simulator: &TypedSimulator<T, SimD, SimR, SimP, SimRE>,
+        simulator: &StaticSimulator<T, SimD, SimR, SimP, SimRE>,
     ) -> Result<Self, SteamAudioError>
     where
         T: RayTracer,
@@ -292,7 +296,7 @@ where
     /// set during simulator initialization.
     pub fn set_inputs<InD, InR, InP>(
         &self,
-        inputs: &TypedSimulationInputs<InD, InR, InP>,
+        inputs: &StaticSimulationInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         D: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
@@ -362,7 +366,7 @@ where
     /// set during simulator initialization.
     pub fn set_inputs_subset<SubD, SubR, SubP, InD, InR, InP>(
         &self,
-        inputs: &TypedSimulationInputs<InD, InR, InP>,
+        inputs: &StaticSimulationInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         SubD: DirectCompatible<D> + DirectCompatible<InD> + SimulationFlagsProvider,
@@ -390,7 +394,7 @@ where
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
     /// [`crate::SimulationOutputs`].
-    pub fn get_outputs(&self) -> Result<TypedSimulationOutputs<D, R, P, RE>, SteamAudioError>
+    pub fn get_outputs(&self) -> Result<StaticSimulationOutputs<D, R, P, RE>, SteamAudioError>
     where
         D: DirectCompatible<D> + SimulationFlagsProvider,
         R: ReflectionsCompatible<R> + SimulationFlagsProvider,
@@ -418,7 +422,7 @@ where
     /// [`crate::SimulationOutputs`].
     pub fn get_outputs_subset<OutD, OutR, OutP>(
         &self,
-    ) -> Result<TypedSimulationOutputs<OutD, OutR, OutP, RE>, SteamAudioError>
+    ) -> Result<StaticSimulationOutputs<OutD, OutR, OutP, RE>, SteamAudioError>
     where
         OutD: DirectCompatible<D> + SimulationFlagsProvider,
         OutR: ReflectionsCompatible<R> + SimulationFlagsProvider,
@@ -429,7 +433,7 @@ where
     }
 }
 
-impl<D, R, P, RE> TypedSource<D, R, P, RE> {
+impl<D, R, P, RE> StaticSource<D, R, P, RE> {
     /// Returns a mutable reference to the raw FFI pointer.
     ///
     /// This is intended for internal use and advanced scenarios.
@@ -438,7 +442,7 @@ impl<D, R, P, RE> TypedSource<D, R, P, RE> {
     }
 }
 
-impl<R, P, RE> TypedSource<Direct, R, P, RE>
+impl<R, P, RE> StaticSource<Direct, R, P, RE>
 where
     R: 'static,
     P: 'static,
@@ -481,7 +485,7 @@ where
     /// set during simulator initialization.
     pub fn set_direct_inputs<InR, InP>(
         &self,
-        inputs: &TypedSimulationInputs<Direct, InR, InP>,
+        inputs: &StaticSimulationInputs<Direct, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         InR: ReflectionsCompatible<R> + SimulationFlagsProvider,
@@ -507,7 +511,7 @@ where
     }
 }
 
-impl<D, P, RE> TypedSource<D, Reflections, P, RE>
+impl<D, P, RE> StaticSource<D, Reflections, P, RE>
 where
     D: 'static,
     P: 'static,
@@ -558,7 +562,7 @@ where
     /// set during simulator initialization.
     pub fn set_reflections_inputs<InD, InP>(
         &self,
-        inputs: &TypedSimulationInputs<InD, Reflections, InP>,
+        inputs: &StaticSimulationInputs<InD, Reflections, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
@@ -584,7 +588,7 @@ where
     }
 }
 
-impl<D, R, RE> TypedSource<D, R, Pathing, RE>
+impl<D, R, RE> StaticSource<D, R, Pathing, RE>
 where
     D: 'static,
     R: 'static,
@@ -638,7 +642,7 @@ where
     /// set during simulator initialization.
     pub fn set_pathing_inputs<InD, InR>(
         &self,
-        inputs: &TypedSimulationInputs<InD, InR, Pathing>,
+        inputs: &StaticSimulationInputs<InD, InR, Pathing>,
     ) -> Result<(), ParameterValidationError>
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
@@ -670,12 +674,12 @@ impl<B: SourceBinding> Drop for Source<B> {
     }
 }
 
-unsafe impl<D, R, P, RE> Send for TypedSource<D, R, P, RE> {}
+unsafe impl<D, R, P, RE> Send for StaticSource<D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
 unsafe impl Send for dynamic::Source {}
 
-unsafe impl<D, R, P, RE> Sync for TypedSource<D, R, P, RE> {}
+unsafe impl<D, R, P, RE> Sync for StaticSource<D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
 unsafe impl Sync for dynamic::Source {}
@@ -899,7 +903,7 @@ impl<B: SourceBinding> Source<B> {
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::Source {
+impl DynamicSource {
     /// Creates a source for a subset of the simulator's available modes.
     ///
     /// # Errors
@@ -1146,7 +1150,11 @@ pub struct OutputSelection {
 }
 
 /// Simulation results for a source.
-pub type TypedSimulationOutputs<D, R, P, RE = ()> = SimulationOutputs<Static<(D, R, P, RE)>>;
+pub type StaticSimulationOutputs<D, R, P, RE = ()> = SimulationOutputs<Static<(D, R, P, RE)>>;
+
+/// Selected source outputs and their retained resources.
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulationOutputs = SimulationOutputs<Dynamic<OutputSelection>>;
 
 /// Storage shared by static and runtime simulation outputs.
 #[derive(Debug)]
@@ -1197,21 +1205,21 @@ impl<B> SimulationOutputs<B> {
     }
 }
 
-impl<D, R, P, RE> TypedSimulationOutputs<D, R, P, RE> {
+impl<D, R, P, RE> StaticSimulationOutputs<D, R, P, RE> {
     /// Returns mutable access to the native output pointer.
     pub const fn raw_ptr_mut(&mut self) -> &mut *mut audionimbus_sys::IPLSimulationOutputs {
         &mut self.inner
     }
 }
 
-impl<R, P, RE> TypedSimulationOutputs<Direct, R, P, RE> {
+impl<R, P, RE> StaticSimulationOutputs<Direct, R, P, RE> {
     /// Returns direct simulation output.
     pub fn direct(&self) -> DirectEffectParams {
         unsafe { (*self.inner).direct.into() }
     }
 }
 
-impl<D, P, RE> TypedSimulationOutputs<D, Reflections, P, RE>
+impl<D, P, RE> StaticSimulationOutputs<D, Reflections, P, RE>
 where
     RE: ReflectionEffectType,
 {
@@ -1227,14 +1235,14 @@ where
     }
 }
 
-impl<D, R, RE> TypedSimulationOutputs<D, R, Pathing, RE> {
+impl<D, R, RE> StaticSimulationOutputs<D, R, Pathing, RE> {
     /// Returns pathing simulation output.
     pub fn pathing(&self) -> PathEffectParams {
         unsafe { (*self.inner).pathing.into() }
     }
 }
 
-unsafe impl<D, R, P, RE> Send for TypedSimulationOutputs<D, R, P, RE> {}
+unsafe impl<D, R, P, RE> Send for StaticSimulationOutputs<D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
 unsafe impl Send for dynamic::SimulationOutputs {}
@@ -1251,7 +1259,7 @@ impl<B> Drop for SimulationOutputs<B> {
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::SimulationOutputs {
+impl DynamicSimulationOutputs {
     /// Returns direct output when direct simulation was requested.
     pub fn direct(&self) -> Option<DirectEffectParams> {
         self._binding
@@ -1297,7 +1305,7 @@ impl dynamic::SimulationOutputs {
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::Source {
+impl DynamicSource {
     /// Returns the identity of the creating simulator allocation.
     ///
     /// Creator storage must stay internal to preserve simulator registration lock ordering.

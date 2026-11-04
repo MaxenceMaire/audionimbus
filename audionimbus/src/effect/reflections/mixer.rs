@@ -1,7 +1,7 @@
 //! Reflection mixers and native output retrieval.
 
 use super::binding::ReflectionBinding;
-use super::effect::{ReflectionEffectParams, TypedReflectionEffectParams};
+use super::effect::{ReflectionEffectParams, StaticReflectionEffectParams};
 use super::{ReflectionEffectSettings, ReflectionEffectType};
 use crate::ChannelRequirement;
 use crate::audio_buffer::AudioBufferMut;
@@ -24,7 +24,24 @@ use std::hash::{Hash, Hasher};
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-pub type TypedReflectionMixer<T> = ReflectionMixer<Static<T>>;
+pub type StaticReflectionMixer<T> = ReflectionMixer<Static<T>>;
+
+/// A reflection mixer with a runtime-selected algorithm.
+///
+/// ```
+/// use audionimbus::{AudioBufferMut, AudioEffectState};
+/// use audionimbus::dynamic::{ReflectionEffectParams, ReflectionError, ReflectionMixer};
+///
+/// fn mix(
+///     reflection_mixer: &mut ReflectionMixer,
+///     reflection_effect_params: &ReflectionEffectParams,
+///     output_buffer: &mut AudioBufferMut<'_>,
+/// ) -> Result<AudioEffectState, ReflectionError> {
+///     reflection_mixer.apply(reflection_effect_params, output_buffer)
+/// }
+/// ```
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionMixer = ReflectionMixer<Dynamic<ReflectionAlgorithm>>;
 
 /// Reflection mixer storage for either API binding.
 #[derive(Debug)]
@@ -40,7 +57,7 @@ pub struct ReflectionMixer<B: ReflectionBinding> {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::ReflectionMixer {
+impl DynamicReflectionMixer {
     /// Creates a reflection mixer with the selected algorithm.
     ///
     /// # Errors
@@ -97,7 +114,7 @@ impl crate::dynamic::ReflectionMixer {
     }
 }
 
-impl<T: ReflectionEffectType> TypedReflectionMixer<T> {
+impl<T: ReflectionEffectType> StaticReflectionMixer<T> {
     /// Creates a new reflection mixer and returns a handle to it.
     ///
     /// # Errors
@@ -177,7 +194,7 @@ impl<B: ReflectionBinding> ReflectionMixer<B> {
     }
 }
 
-impl<T: ReflectionEffectType> TypedReflectionMixer<T> {
+impl<T: ReflectionEffectType> StaticReflectionMixer<T> {
     /// Retrieves the contents of the reflection mixer and places it into the audio buffer.
     ///
     /// The output audio buffer must have as many channels as the impulse response specified when
@@ -191,7 +208,7 @@ impl<T: ReflectionEffectType> TypedReflectionMixer<T> {
     /// TrueAudioNext) or at least one channel (for parametric).
     pub fn apply(
         &mut self,
-        reflection_effect_params: &mut TypedReflectionEffectParams<T>,
+        reflection_effect_params: &mut StaticReflectionEffectParams<T>,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         self.apply_shared(reflection_effect_params, output_buffer)

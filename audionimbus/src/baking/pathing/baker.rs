@@ -3,10 +3,14 @@
 use crate::baking::BakeError;
 use crate::baking::BakedDataIdentifier;
 use crate::baking::bake_lock::BAKE_LOCK;
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::geometry::Scene;
+#[cfg(feature = "dynamic")]
+use crate::geometry::scene::RayTracerKind;
 use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::RayTracer;
@@ -30,7 +34,11 @@ use crate::baking::BakedDataVariation;
 /// Just like game engines use light probes to store the variation of lighting throughout
 /// a scene, Steam Audio uses acoustic probes to store the variation of acoustic data
 /// (in this case, pathing information) throughout a scene.
-pub type TypedPathBaker<T> = PathBaker<Static<T>>;
+pub type StaticPathBaker<T> = PathBaker<Static<T>>;
+
+/// A path baker for runtime scenes.
+#[cfg(feature = "dynamic")]
+pub type DynamicPathBaker = PathBaker<Dynamic<RayTracerKind>>;
 
 /// Storage shared by static and runtime path bakers.
 pub struct PathBaker<B: GeometryBinding> {
@@ -38,7 +46,7 @@ pub struct PathBaker<B: GeometryBinding> {
     _marker: PhantomData<B>,
 }
 
-impl<T: RayTracer> TypedPathBaker<T> {
+impl<T: RayTracer> StaticPathBaker<T> {
     /// Creates a new [`crate::PathBaker`].
     pub const fn new() -> Self {
         Self {
@@ -144,14 +152,14 @@ impl<B: GeometryBinding> PathBaker<B> {
     }
 }
 
-impl<T: RayTracer + Default> Default for TypedPathBaker<T> {
+impl<T: RayTracer + Default> Default for StaticPathBaker<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::PathBaker {
+impl DynamicPathBaker {
     /// Creates a path baker for runtime scenes.
     pub const fn new() -> Self {
         Self {
@@ -192,7 +200,7 @@ impl crate::dynamic::PathBaker {
 }
 
 #[cfg(feature = "dynamic")]
-impl Default for crate::dynamic::PathBaker {
+impl Default for DynamicPathBaker {
     fn default() -> Self {
         Self::new()
     }

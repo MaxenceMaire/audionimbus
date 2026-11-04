@@ -4,6 +4,8 @@ use super::{SharedSimulationOutput, Simulation, SimulationControls};
 use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::effect::ReflectionEffectType;
+#[cfg(feature = "dynamic")]
+use crate::effect::reflections::binding::ReflectionAlgorithm;
 use crate::effect::reflections::binding::ReflectionBinding;
 use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
@@ -52,7 +54,7 @@ where
     pub fn spawn_reflections(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> TypedReflectionsSimulation<SourceId, D, P, RE> {
+    ) -> StaticReflectionsSimulation<SourceId, D, P, RE> {
         let frame = ReflectionsFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -128,8 +130,13 @@ where
 /// A running reflections simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub type TypedReflectionsSimulation<SourceId, D, P, RE> =
+pub type StaticReflectionsSimulation<SourceId, D, P, RE> =
     ReflectionsSimulation<SourceId, Static<(D, Reflections, P, RE)>, Static<RE>>;
+
+/// A running reflection simulation worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsSimulation<SourceId> =
+    ReflectionsSimulation<SourceId, Dynamic<()>, Dynamic<ReflectionAlgorithm>>;
 
 /// A running worker with binding-specific input and output storage.
 pub struct ReflectionsSimulation<SourceId, B: FrameBinding, E: ReflectionBinding + 'static>
@@ -175,7 +182,7 @@ where
     }
 }
 
-impl<SourceId, D, P, RE> TypedReflectionsSimulation<SourceId, D, P, RE>
+impl<SourceId, D, P, RE> StaticReflectionsSimulation<SourceId, D, P, RE>
 where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
@@ -214,7 +221,7 @@ impl<SourceId: 'static + Send + Sync + Clone + Hash + Eq> crate::dynamic::Simula
 }
 
 #[cfg(feature = "dynamic")]
-impl<SourceId: 'static + Send + Sync> crate::dynamic::ReflectionsSimulation<SourceId> {
+impl<SourceId: 'static + Send + Sync> DynamicReflectionsSimulation<SourceId> {
     /// Updates shared inputs for the next worker iteration.
     pub fn set_input(&self, shared_inputs: crate::dynamic::SimulationSharedInputs) {
         let frame = BoundReflectionsFrame::<SourceId, Dynamic<()>> {

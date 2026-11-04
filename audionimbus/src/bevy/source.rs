@@ -34,7 +34,7 @@ impl<C: SimulationConfiguration> Clone for Source<C> {
 impl<C: SimulationConfiguration> Source<C> {
     /// Creates a new source using the [`Simulation`] resource.
     ///
-    /// Mirrors [`crate::simulation::Source::try_new`].
+    /// Mirrors [`crate::simulation::Source::try_new`](crate::simulation::Source#method.try_new).
     pub fn try_new(simulation: &Simulation<C>) -> Result<Self, SteamAudioError> {
         crate::simulation::Source::<
             C::Direct,

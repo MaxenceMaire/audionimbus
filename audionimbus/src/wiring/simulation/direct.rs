@@ -42,7 +42,7 @@ where
     pub fn spawn_direct(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> TypedDirectSimulation<SourceId, R, P, RE> {
+    ) -> StaticDirectSimulation<SourceId, R, P, RE> {
         let frame = DirectFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -116,8 +116,12 @@ where
 /// A running direct simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub type TypedDirectSimulation<SourceId, R, P, RE> =
+pub type StaticDirectSimulation<SourceId, R, P, RE> =
     DirectSimulation<SourceId, Static<(Direct, R, P, RE)>>;
+
+/// A running direct simulation worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicDirectSimulation<SourceId> = DirectSimulation<SourceId, Dynamic<()>>;
 
 /// A running worker with binding-specific input and output storage.
 pub struct DirectSimulation<SourceId, B: FrameBinding>
@@ -162,7 +166,7 @@ where
     }
 }
 
-impl<SourceId, R, P, RE> TypedDirectSimulation<SourceId, R, P, RE>
+impl<SourceId, R, P, RE> StaticDirectSimulation<SourceId, R, P, RE>
 where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
@@ -198,7 +202,7 @@ impl<SourceId: 'static + Send + Sync + Clone + Hash + Eq> crate::dynamic::Simula
 }
 
 #[cfg(feature = "dynamic")]
-impl<SourceId: 'static + Send + Sync> crate::dynamic::DirectSimulation<SourceId> {
+impl<SourceId: 'static + Send + Sync> DynamicDirectSimulation<SourceId> {
     /// Updates shared inputs for the next worker iteration.
     pub fn set_input(&self, shared_inputs: crate::dynamic::SimulationSharedInputs) {
         let frame = BoundDirectFrame::<SourceId, Dynamic<()>> {

@@ -23,7 +23,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs direct simulation.
-pub type TypedDirectStep<SourceId, T, R, P, RE> =
+pub type StaticDirectStep<SourceId, T, R, P, RE> =
     DirectStep<SourceId, Static<(T, Direct, R, P, RE)>>;
 
 /// A simulation step with binding-specific handles and errors.
@@ -34,14 +34,14 @@ pub struct DirectStep<SourceId, B: PipelineBinding> {
     _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, R, P, RE> TypedDirectStep<(), T, R, P, RE>
+impl<T, R, P, RE> StaticDirectStep<(), T, R, P, RE>
 where
     T: RayTracer,
 {
     /// Creates a new direct simulation step.
     pub fn new<SourceId>(
         simulator: Simulator<T, Direct, R, P, RE>,
-    ) -> TypedDirectStep<SourceId, T, R, P, RE> {
+    ) -> StaticDirectStep<SourceId, T, R, P, RE> {
         DirectStep {
             simulator,
             _source_id: PhantomData,

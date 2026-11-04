@@ -38,19 +38,19 @@
 pub(crate) mod simulator;
 pub use simulator::{
     PathingVisualizationCallback, ReflectionsSharedInputs,
-    TypedSimulationSharedInputs as SimulationSharedInputs, TypedSimulator as Simulator,
+    StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
 };
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod source;
-pub use source::{TypedSimulationOutputs as SimulationOutputs, TypedSource as Source};
+pub use source::{StaticSimulationOutputs as SimulationOutputs, StaticSource as Source};
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod settings;
 pub use settings::{
     ConvolutionSettings, DirectSimulationSettings, HybridSettings, ParametricSettings,
-    PathingSimulationSettings, ReflectionsAlgorithm, TrueAudioNextSettings,
-    TypedSimulationSettings as SimulationSettings,
+    PathingSimulationSettings, ReflectionsAlgorithm,
+    StaticSimulationSettings as SimulationSettings, TrueAudioNextSettings,
 };
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
@@ -58,8 +58,8 @@ pub(crate) mod inputs;
 pub use inputs::{
     ConvolutionParameters, DirectSimulationParameters, HybridParameters, Occlusion,
     OcclusionAlgorithm, ParametricParameters, PathingSimulationParameters,
-    ReflectionsSimulationParameters, SimulationParameters, TransmissionParameters,
-    TrueAudioNextParameters, TypedSimulationInputs as SimulationInputs,
+    ReflectionsSimulationParameters, SimulationParameters,
+    StaticSimulationInputs as SimulationInputs, TransmissionParameters, TrueAudioNextParameters,
 };
 
 mod modes;

@@ -3,15 +3,21 @@
 use crate::baking::BakeError;
 use crate::baking::BakedDataIdentifier;
 use crate::baking::bake_lock::BAKE_LOCK;
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::device::open_cl::OpenClDevice;
 use crate::device::radeon_rays::RadeonRaysDevice;
 use crate::geometry::Scene;
+#[cfg(feature = "dynamic")]
+use crate::geometry::scene::RayTracerKind;
 use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays, RayTracer};
+#[cfg(feature = "dynamic")]
+use std::fmt;
 
 #[cfg(doc)]
 use crate::baking::BakedDataVariation;
@@ -25,7 +31,17 @@ use crate::baking::BakedDataVariation;
 /// Each of these points is called a probe and belong to a [`ProbeBatch`].
 ///
 /// Just like game engines use light probes to store the variation of lighting throughout a scene, Steam Audio uses acoustic probes to store the variation of acoustic data (in this case, reflections) throughout a scene.
-pub type TypedReflectionsBaker<'a, T> = ReflectionsBaker<'a, Static<T>>;
+pub type StaticReflectionsBaker<'a, T> = ReflectionsBaker<'a, Static<T>>;
+
+/// A reflection baker borrowing runtime backend settings.
+///
+/// ```
+/// use audionimbus::dynamic::{RayTracerSettings, ReflectionsBaker};
+/// let ray_tracer_settings = RayTracerSettings::Default;
+/// let reflections_baker = ReflectionsBaker::new(&ray_tracer_settings);
+/// ```
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsBaker<'a> = ReflectionsBaker<'a, Dynamic<RayTracerKind>>;
 
 /// Storage shared by static and runtime reflection bakers.
 #[derive(Default)]
@@ -40,7 +56,7 @@ pub struct ReflectionsBaker<'a, B: GeometryBinding> {
     binding: B,
 }
 
-impl TypedReflectionsBaker<'_, DefaultRayTracer> {
+impl StaticReflectionsBaker<'_, DefaultRayTracer> {
     /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new() -> Self {
         Self {
@@ -52,7 +68,7 @@ impl TypedReflectionsBaker<'_, DefaultRayTracer> {
     }
 }
 
-impl TypedReflectionsBaker<'_, Embree> {
+impl StaticReflectionsBaker<'_, Embree> {
     /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new() -> Self {
         Self {
@@ -64,7 +80,7 @@ impl TypedReflectionsBaker<'_, Embree> {
     }
 }
 
-impl<'a> TypedReflectionsBaker<'a, RadeonRays> {
+impl<'a> StaticReflectionsBaker<'a, RadeonRays> {
     /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new(
         open_cl_device: &'a OpenClDevice,
@@ -79,7 +95,7 @@ impl<'a> TypedReflectionsBaker<'a, RadeonRays> {
     }
 }
 
-impl TypedReflectionsBaker<'_, CustomRayTracer> {
+impl StaticReflectionsBaker<'_, CustomRayTracer> {
     /// Creates a new [`crate::ReflectionsBaker`].
     pub const fn new(ray_batch_size: u32) -> Self {
         Self {
@@ -91,7 +107,7 @@ impl TypedReflectionsBaker<'_, CustomRayTracer> {
     }
 }
 
-impl<T: RayTracer> TypedReflectionsBaker<'_, T> {
+impl<T: RayTracer> StaticReflectionsBaker<'_, T> {
     /// Bakes a single layer of reflections data in a probe batch.
     ///
     /// Only one bake can be in progress at any point in time.
@@ -199,7 +215,7 @@ impl<B: GeometryBinding> ReflectionsBaker<'_, B> {
 }
 
 #[cfg(feature = "dynamic")]
-impl<'a> crate::dynamic::ReflectionsBaker<'a> {
+impl<'a> DynamicReflectionsBaker<'a> {
     /// Creates a baker using the supplied backend settings.
     pub fn new(ray_tracer_settings: &'a crate::dynamic::RayTracerSettings) -> Self {
         use crate::dynamic::RayTracerSettings;
@@ -620,3 +636,86 @@ pub mod tests {
         }
     }
 }
+
+/// Errors from runtime reflection baking.
+#[cfg(feature = "dynamic")]
+#[derive(Debug, Eq, PartialEq)]
+pub enum DynamicBakeError {
+    /// Another native bake is already in progress.
+    Bake(crate::BakeError),
+    /// The scene and reflection baker use different ray tracers.
+    RayTracerMismatch {
+        /// The baker's ray tracer.
+        expected: RayTracerKind,
+        /// The scene's ray tracer.
+        actual: RayTracerKind,
+    },
+    /// The scene and reflection baker use different devices.
+    DeviceMismatch,
+}
+
+#[cfg(feature = "dynamic")]
+impl fmt::Display for DynamicBakeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Bake(error) => error.fmt(formatter),
+            Self::RayTracerMismatch { expected, actual } => write!(
+                formatter,
+                "bake ray tracer mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::DeviceMismatch => write!(formatter, "bake devices do not match"),
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl std::error::Error for DynamicBakeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Bake(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(all(doctest, feature = "dynamic"))]
+/// Baker binding checks.
+///
+/// ```compile_fail
+/// use audionimbus::{Context, ProbeBatch, ReflectionsBaker, ReflectionsBakeParams, ray_tracing::DefaultRayTracer};
+/// fn bake(context: &Context, probes: &mut ProbeBatch, scene: &audionimbus::dynamic::Scene, params: ReflectionsBakeParams) {
+///     ReflectionsBaker::<DefaultRayTracer>::new().bake(context, probes, scene, params);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{Context, ProbeBatch, ReflectionsBakeParams, Scene};
+/// fn bake(baker: &audionimbus::dynamic::ReflectionsBaker<'_>, context: &Context, probes: &mut ProbeBatch, scene: &Scene, params: ReflectionsBakeParams) {
+///     baker.bake(context, probes, scene, params);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{Context, ProbeBatch, PathBaker, PathBakeParams};
+/// fn bake(context: &Context, probes: &mut ProbeBatch, scene: &audionimbus::dynamic::Scene, params: PathBakeParams) {
+///     PathBaker::new().bake(context, probes, scene, params);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{Context, ProbeBatch, PathBakeParams, Scene};
+/// fn bake(context: &Context, probes: &mut ProbeBatch, scene: &Scene, params: PathBakeParams) {
+///     audionimbus::dynamic::PathBaker::new().bake(context, probes, scene, params);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{ReflectionsBaker, dynamic::RayTracerKind};
+/// let _: Option<ReflectionsBaker<'static, RayTracerKind>> = None;
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{PathBaker, dynamic::RayTracerKind};
+/// let _: Option<PathBaker<RayTracerKind>> = None;
+/// ```
+struct BakingBindings;

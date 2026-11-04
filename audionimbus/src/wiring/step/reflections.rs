@@ -2,6 +2,8 @@ use super::{SimulationStep, SimulationStepError, SourceEntries};
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
+#[cfg(feature = "dynamic")]
+use crate::effect::reflections::binding::ReflectionAlgorithm;
 use crate::effect::reflections::{
     binding::ReflectionBinding, effect::ReflectionEffectParams as BoundReflectionEffectParams,
 };
@@ -26,7 +28,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs reflections simulation.
-pub type TypedReflectionsStep<SourceId, T, D, P, RE> =
+pub type StaticReflectionsStep<SourceId, T, D, P, RE> =
     ReflectionsStep<SourceId, Static<(T, D, Reflections, P, RE)>>;
 
 /// A simulation step with binding-specific handles and errors.
@@ -37,14 +39,14 @@ pub struct ReflectionsStep<SourceId, B: PipelineBinding> {
     _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, D, P, RE> TypedReflectionsStep<(), T, D, P, RE>
+impl<T, D, P, RE> StaticReflectionsStep<(), T, D, P, RE>
 where
     T: RayTracer,
 {
     /// Creates a new reflections simulation step.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, Reflections, P, RE>,
-    ) -> TypedReflectionsStep<SourceId, T, D, P, RE> {
+    ) -> StaticReflectionsStep<SourceId, T, D, P, RE> {
         ReflectionsStep {
             simulator,
             _source_id: PhantomData,
@@ -152,8 +154,13 @@ where
 }
 
 /// Combined per-source reflections output.
-pub type TypedReflectionsOutput<SourceId, RE> =
+pub type StaticReflectionsOutput<SourceId, RE> =
     ReflectionsOutput<SourceId, crate::binding::Static<RE>>;
+
+/// Per-source reflection parameters retained by a runtime worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsOutput<SourceId> =
+    ReflectionsOutput<SourceId, Dynamic<ReflectionAlgorithm>>;
 
 /// Output parameters selected by a reflection binding.
 #[derive(Debug)]

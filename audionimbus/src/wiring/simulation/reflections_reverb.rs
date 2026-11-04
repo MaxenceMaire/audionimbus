@@ -4,6 +4,8 @@ use super::{SharedSimulationOutput, Simulation, SimulationControls, SourceWithIn
 use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::effect::ReflectionEffectType;
+#[cfg(feature = "dynamic")]
+use crate::effect::reflections::binding::ReflectionAlgorithm;
 use crate::effect::reflections::binding::ReflectionBinding;
 use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
@@ -53,7 +55,7 @@ where
     pub fn spawn_reflections_reverb<LD, LP>(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> TypedReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
+    ) -> StaticReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
     where
         LD: 'static + Send + Sync + DirectCompatible<LD> + SimulationFlagsProvider,
         LP: 'static + Send + Sync + PathingCompatible<LP> + SimulationFlagsProvider,
@@ -135,13 +137,18 @@ where
 /// A running reflections and reverb simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub type TypedReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P> =
+pub type StaticReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P> =
     ReflectionsReverbSimulation<
         SourceId,
         Static<(D, Reflections, P, RE)>,
         Static<RE>,
         Static<(LD, Reflections, LP, RE)>,
     >;
+
+/// A running reflection and listener reverb worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsReverbSimulation<SourceId> =
+    ReflectionsReverbSimulation<SourceId, Dynamic<()>, Dynamic<ReflectionAlgorithm>>;
 
 /// A running worker with binding-specific input and output storage.
 pub struct ReflectionsReverbSimulation<
@@ -191,7 +198,7 @@ where
     }
 }
 
-impl<SourceId, D, P, RE, LD, LP> TypedReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
+impl<SourceId, D, P, RE, LD, LP> StaticReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
 where
     SourceId: 'static + Send + Sync + Hash + Eq,
     RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,

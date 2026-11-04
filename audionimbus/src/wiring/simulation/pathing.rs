@@ -42,7 +42,7 @@ where
     pub fn spawn_pathing(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> TypedPathingSimulation<SourceId, D, R, RE> {
+    ) -> StaticPathingSimulation<SourceId, D, R, RE> {
         let frame = PathingFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
@@ -114,8 +114,12 @@ where
 /// A running pathing simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub type TypedPathingSimulation<SourceId, D, R, RE> =
+pub type StaticPathingSimulation<SourceId, D, R, RE> =
     PathingSimulation<SourceId, Static<(D, R, Pathing, RE)>>;
+
+/// A running pathing simulation worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicPathingSimulation<SourceId> = PathingSimulation<SourceId, Dynamic<()>>;
 
 /// A running worker with binding-specific input and output storage.
 pub struct PathingSimulation<SourceId, B: FrameBinding>
@@ -160,7 +164,7 @@ where
     }
 }
 
-impl<SourceId, D, R, RE> TypedPathingSimulation<SourceId, D, R, RE>
+impl<SourceId, D, R, RE> StaticPathingSimulation<SourceId, D, R, RE>
 where
     SourceId: 'static + Send + Sync,
     RE: ReflectionEffectCompatible<R, RE>,
@@ -196,7 +200,7 @@ impl<SourceId: 'static + Send + Sync + Clone + Hash + Eq> crate::dynamic::Simula
 }
 
 #[cfg(feature = "dynamic")]
-impl<SourceId: 'static + Send + Sync> crate::dynamic::PathingSimulation<SourceId> {
+impl<SourceId: 'static + Send + Sync> DynamicPathingSimulation<SourceId> {
     /// Updates shared inputs for the next worker iteration.
     pub fn set_input(&self, shared_inputs: crate::dynamic::SimulationSharedInputs) {
         let frame = BoundPathingFrame::<SourceId, Dynamic<()>> {

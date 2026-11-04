@@ -1,9 +1,9 @@
 //! Simulation handles, scene registration, and shared listener inputs.
 
-use super::settings::{SimulationSettings, TypedSimulationSettings};
+use super::settings::{SimulationSettings, StaticSimulationSettings};
 #[cfg(feature = "dynamic")]
 use super::source::DynamicSourceResources;
-use super::source::{Source, SourceBinding, TypedSource};
+use super::source::{Source, SourceBinding, StaticSource};
 use super::{
     Direct, DirectCompatible, ParameterValidationError, Pathing, PathingCompatible,
     ReflectionEffectCompatible, Reflections, ReflectionsCompatible, SimulationError,
@@ -21,6 +21,8 @@ use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::ray_tracing::RayTracer;
 use crate::{AudioSettings, Context, CoordinateSystem, ProbeBatch, Scene, SteamAudioError};
 use std::collections::HashMap;
+#[cfg(feature = "dynamic")]
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -138,7 +140,39 @@ impl SimulatorBinding for Dynamic<SimulationChoices> {
 /// let outputs = source.get_outputs()?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub type TypedSimulator<T, D = (), R = (), P = (), RE = ()> = Simulator<Static<(T, D, R, P, RE)>>;
+pub type StaticSimulator<T, D = (), R = (), P = (), RE = ()> = Simulator<Static<(T, D, R, P, RE)>>;
+
+/// A simulator with runtime-selected modes, backend, and reflection algorithm.
+///
+/// Static and runtime simulation handles cannot be mixed.
+///
+/// ```
+/// use audionimbus::{AudioSettings, Context, CoordinateSystem, DirectSimulationParameters,
+///     DirectSimulationSettings, DistanceAttenuationModel, SimulationFlags};
+/// use audionimbus::dynamic::{SimulationInputs, SimulationParameters, SimulationSettings,
+///     SimulationSharedInputs, Simulator, Source};
+/// let context = Context::default();
+/// let settings = SimulationSettings::new(&AudioSettings::default())
+///     .with_direct(DirectSimulationSettings::default());
+/// let simulator = Simulator::try_new(&context, &settings)?;
+/// let source = Source::try_new(&simulator, SimulationFlags::DIRECT)?;
+/// simulator.try_add_source(&source)?;
+/// simulator.commit();
+/// source.set_inputs(&SimulationInputs {
+///     source: CoordinateSystem::default(),
+///     parameters: SimulationParameters {
+///         direct: Some(DirectSimulationParameters::new()
+///             .with_distance_attenuation(DistanceAttenuationModel::default())),
+///         ..Default::default()
+///     },
+/// })?;
+/// simulator.set_shared_inputs(SimulationFlags::DIRECT, &SimulationSharedInputs::default())?;
+/// simulator.run_direct()?;
+/// let parameters = source.get_direct_outputs()?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulator = Simulator<Dynamic<SimulationChoices>>;
 
 /// Storage shared by static and runtime simulators.
 pub struct Simulator<B: SimulatorBinding> {
@@ -234,7 +268,7 @@ impl<B: SimulatorBinding> Default for SimulatorShared<B> {
     }
 }
 
-impl<T, D, R, P, RE> TypedSimulator<T, D, R, P, RE>
+impl<T, D, R, P, RE> StaticSimulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -274,7 +308,7 @@ where
     /// ```
     pub fn try_new(
         context: &Context,
-        settings: &TypedSimulationSettings<T, D, R, P, RE>,
+        settings: &StaticSimulationSettings<T, D, R, P, RE>,
     ) -> Result<Self, SteamAudioError> {
         let mut flags = SimulationFlags::empty();
         if std::any::TypeId::of::<D>() == std::any::TypeId::of::<Direct>() {
@@ -303,8 +337,10 @@ where
     /// Adds a source to the set of sources processed by a simulator in subsequent simulations.
     ///
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
-    pub fn add_source<SrcD, SrcR, SrcP, SrcRE>(&self, source: &TypedSource<SrcD, SrcR, SrcP, SrcRE>)
-    where
+    pub fn add_source<SrcD, SrcR, SrcP, SrcRE>(
+        &self,
+        source: &StaticSource<SrcD, SrcR, SrcP, SrcRE>,
+    ) where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
         SrcP: PathingCompatible<P> + 'static,
@@ -318,7 +354,7 @@ where
     /// Call [`Self::commit`] after calling this function for the changes to take effect.
     pub fn remove_source<SrcD, SrcR, SrcP, SrcRE>(
         &self,
-        source: &TypedSource<SrcD, SrcR, SrcP, SrcRE>,
+        source: &StaticSource<SrcD, SrcR, SrcP, SrcRE>,
     ) where
         SrcD: DirectCompatible<D> + 'static,
         SrcR: ReflectionsCompatible<R> + 'static,
@@ -388,7 +424,7 @@ where
     /// simulator initialization.
     pub fn set_shared_inputs<InD, InR, InP>(
         &self,
-        shared_inputs: &TypedSimulationSharedInputs<InD, InR, InP>,
+        shared_inputs: &StaticSimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         D: DirectCompatible<D> + SimulationFlagsProvider,
@@ -471,11 +507,11 @@ where
     pub fn set_shared_inputs_subset<SubD, SubR, SubP, InD, InR, InP>(
         &self,
         // `InD` and `InP` are intentionally loosely constrained here.
-        // `TypedSimulationSharedInputs` does not contain any Direct- or Pathing-specific data.
+        // `StaticSimulationSharedInputs` does not contain any Direct- or Pathing-specific data.
         // Allowing arbitrary `InD` and `InP` avoids forcing callers to construct a value via
-        // `TypedSimulationSharedInputs::with_direct` and `TypedSimulationSharedInputs::with_pathing`, which
+        // `StaticSimulationSharedInputs::with_direct` and `StaticSimulationSharedInputs::with_pathing`, which
         // would add unnecessary boilerplate with no semantic benefit.
-        shared_inputs: &TypedSimulationSharedInputs<InD, InR, InP>,
+        shared_inputs: &StaticSimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         SubD: DirectCompatible<D> + SimulationFlagsProvider,
@@ -517,7 +553,7 @@ impl<B: SimulatorBinding> Simulator<B> {
     }
 }
 
-impl<T, R, P, RE> TypedSimulator<T, Direct, R, P, RE>
+impl<T, R, P, RE> StaticSimulator<T, Direct, R, P, RE>
 where
     T: RayTracer,
     R: 'static,
@@ -555,7 +591,7 @@ where
     /// simulator initialization.
     pub fn set_shared_direct_inputs<InD, InR, InP>(
         &self,
-        shared_inputs: &TypedSimulationSharedInputs<InD, InR, InP>,
+        shared_inputs: &StaticSimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         InD: DirectCompatible<Direct> + SimulationFlagsProvider,
@@ -580,7 +616,7 @@ where
     }
 }
 
-impl<T, D, P, RE> TypedSimulator<T, D, Reflections, P, RE>
+impl<T, D, P, RE> StaticSimulator<T, D, Reflections, P, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -630,7 +666,7 @@ where
     /// simulator initialization.
     pub fn set_shared_reflections_inputs<InD, InP>(
         &self,
-        shared_inputs: &TypedSimulationSharedInputs<InD, Reflections, InP>,
+        shared_inputs: &StaticSimulationSharedInputs<InD, Reflections, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
@@ -660,7 +696,7 @@ where
     }
 }
 
-impl<T, D, R, RE> TypedSimulator<T, D, R, Pathing, RE>
+impl<T, D, R, RE> StaticSimulator<T, D, R, Pathing, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -698,7 +734,7 @@ where
     /// simulator initialization.
     pub fn set_shared_pathing_inputs<InD, InR, InP>(
         &self,
-        shared_inputs: &TypedSimulationSharedInputs<InD, InR, InP>,
+        shared_inputs: &StaticSimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where
         InD: DirectCompatible<D> + SimulationFlagsProvider,
@@ -735,17 +771,17 @@ impl<B: SimulatorBinding> Drop for Simulator<B> {
     }
 }
 
-unsafe impl<T: RayTracer, D, R, P, RE> Send for TypedSimulator<T, D, R, P, RE> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Send for StaticSimulator<T, D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
 unsafe impl Send for dynamic::Simulator {}
 
-unsafe impl<T: RayTracer, D, R, P, RE> Sync for TypedSimulator<T, D, R, P, RE> {}
+unsafe impl<T: RayTracer, D, R, P, RE> Sync for StaticSimulator<T, D, R, P, RE> {}
 
 #[cfg(feature = "dynamic")]
 unsafe impl Sync for dynamic::Simulator {}
 
-impl<T, D, R, P, RE> Clone for TypedSimulator<T, D, R, P, RE>
+impl<T, D, R, P, RE> Clone for StaticSimulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -761,7 +797,7 @@ where
     }
 }
 
-impl<T, D, R, P, RE> PartialEq for TypedSimulator<T, D, R, P, RE>
+impl<T, D, R, P, RE> PartialEq for StaticSimulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -774,7 +810,7 @@ where
     }
 }
 
-impl<T, D, R, P, RE> Eq for TypedSimulator<T, D, R, P, RE>
+impl<T, D, R, P, RE> Eq for StaticSimulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -784,7 +820,7 @@ where
 {
 }
 
-impl<T, D, R, P, RE> Hash for TypedSimulator<T, D, R, P, RE>
+impl<T, D, R, P, RE> Hash for StaticSimulator<T, D, R, P, RE>
 where
     T: RayTracer,
     D: 'static,
@@ -835,7 +871,7 @@ impl<B: SimulatorBinding> Simulator<B> {
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
             binding: binding.clone(),
-            // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `TypedSimulator`.
+            // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `StaticSimulator`.
             #[allow(clippy::arc_with_non_send_sync)]
             shared: Arc::new(Mutex::new(SimulatorShared::default())),
             audio_settings: settings.audio_settings(),
@@ -1190,7 +1226,7 @@ impl<B: SimulatorBinding> Simulator<B> {
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::Simulator {
+impl DynamicSimulator {
     /// Creates a simulator with the selected modes, backend, and algorithm.
     ///
     /// # Errors
@@ -1367,32 +1403,36 @@ impl dynamic::Simulator {
 }
 
 #[cfg(feature = "dynamic")]
-impl Clone for dynamic::Simulator {
+impl Clone for DynamicSimulator {
     fn clone(&self) -> Self {
         self.clone_shared()
     }
 }
 
 #[cfg(feature = "dynamic")]
-impl PartialEq for dynamic::Simulator {
+impl PartialEq for DynamicSimulator {
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner
     }
 }
 
 #[cfg(feature = "dynamic")]
-impl Eq for dynamic::Simulator {}
+impl Eq for DynamicSimulator {}
 
 #[cfg(feature = "dynamic")]
-impl Hash for dynamic::Simulator {
+impl Hash for DynamicSimulator {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         std::ptr::hash(self.inner, hasher);
     }
 }
 
 /// Simulation parameters that are not specific to any source.
-pub type TypedSimulationSharedInputs<D = (), R = (), P = ()> =
+pub type StaticSimulationSharedInputs<D = (), R = (), P = ()> =
     SimulationSharedInputs<Static<(D, R, P)>>;
+
+/// Listener coordinates and shared runtime simulation inputs.
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulationSharedInputs = SimulationSharedInputs<Dynamic<()>>;
 
 /// Storage shared by static and runtime shared inputs.
 #[derive(Default, Debug)]
@@ -1410,7 +1450,7 @@ pub struct SimulationSharedInputs<B> {
     _binding: B,
 }
 
-impl TypedSimulationSharedInputs {
+impl StaticSimulationSharedInputs {
     /// Creates new [`crate::SimulationSharedInputs`].
     ///
     /// # Arguments
@@ -1426,9 +1466,9 @@ impl TypedSimulationSharedInputs {
     }
 }
 
-impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
+impl<D, R, P> StaticSimulationSharedInputs<D, R, P> {
     /// Returns shared simulation inputs with direct simulation.
-    pub fn with_direct(self) -> TypedSimulationSharedInputs<Direct, R, P> {
+    pub fn with_direct(self) -> StaticSimulationSharedInputs<Direct, R, P> {
         let Self {
             listener,
             reflections_shared_inputs,
@@ -1436,7 +1476,7 @@ impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
             ..
         } = self;
 
-        TypedSimulationSharedInputs {
+        StaticSimulationSharedInputs {
             _binding: Static::new(),
             listener,
             reflections_shared_inputs,
@@ -1448,14 +1488,14 @@ impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
     pub fn with_reflections(
         self,
         inputs: ReflectionsSharedInputs,
-    ) -> TypedSimulationSharedInputs<D, Reflections, P> {
+    ) -> StaticSimulationSharedInputs<D, Reflections, P> {
         let Self {
             listener,
             pathing_visualization_callback,
             ..
         } = self;
 
-        TypedSimulationSharedInputs {
+        StaticSimulationSharedInputs {
             _binding: Static::new(),
             listener,
             reflections_shared_inputs: Some(inputs),
@@ -1464,7 +1504,7 @@ impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
     }
 
     /// Sets the pathing simulation values of the shared inputs.
-    pub fn with_pathing(self) -> TypedSimulationSharedInputs<D, R, Pathing> {
+    pub fn with_pathing(self) -> StaticSimulationSharedInputs<D, R, Pathing> {
         let Self {
             listener,
             reflections_shared_inputs,
@@ -1472,7 +1512,7 @@ impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
             ..
         } = self;
 
-        TypedSimulationSharedInputs {
+        StaticSimulationSharedInputs {
             _binding: Static::new(),
             listener,
             reflections_shared_inputs,
@@ -1489,14 +1529,14 @@ impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
     pub fn with_pathing_visualization_callback(
         self,
         pathing_visualization_callback: PathingVisualizationCallback,
-    ) -> TypedSimulationSharedInputs<D, R, Pathing> {
+    ) -> StaticSimulationSharedInputs<D, R, Pathing> {
         let Self {
             listener,
             reflections_shared_inputs,
             ..
         } = self;
 
-        TypedSimulationSharedInputs {
+        StaticSimulationSharedInputs {
             _binding: Static::new(),
             listener,
             reflections_shared_inputs,
@@ -1505,14 +1545,14 @@ impl<D, R, P> TypedSimulationSharedInputs<D, R, P> {
     }
 }
 
-impl<D, P> TypedSimulationSharedInputs<D, Reflections, P> {
+impl<D, P> StaticSimulationSharedInputs<D, Reflections, P> {
     /// Sets the shared inputs to use for reflections simulation.
     pub fn set_reflections_shared_inputs(&mut self, shared_inputs: ReflectionsSharedInputs) {
         self.reflections_shared_inputs.replace(shared_inputs);
     }
 }
 
-impl<D, R> TypedSimulationSharedInputs<D, R, Pathing> {
+impl<D, R> StaticSimulationSharedInputs<D, R, Pathing> {
     /// Sets the visualization callback to use for pathing simulation.
     pub fn set_pathing_visualization_callback(
         &mut self,
@@ -1568,7 +1608,7 @@ impl<B> From<&SimulationSharedInputs<B>> for audionimbus_sys::IPLSimulationShare
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::SimulationSharedInputs {
+impl DynamicSimulationSharedInputs {
     /// Creates shared inputs for the supplied listener.
     pub fn new(listener: CoordinateSystem) -> Self {
         Self {
@@ -1619,14 +1659,14 @@ impl<B: Clone> SimulationSharedInputs<B> {
     }
 }
 
-impl<D: Clone, R: Clone, P: Clone> Clone for TypedSimulationSharedInputs<D, R, P> {
+impl<D: Clone, R: Clone, P: Clone> Clone for StaticSimulationSharedInputs<D, R, P> {
     fn clone(&self) -> Self {
         self.clone_shared()
     }
 }
 
 #[cfg(feature = "dynamic")]
-impl Clone for dynamic::SimulationSharedInputs {
+impl Clone for DynamicSimulationSharedInputs {
     fn clone(&self) -> Self {
         self.clone_shared()
     }
@@ -1674,7 +1714,7 @@ impl<B: SimulatorBinding> Simulator<B> {
 }
 
 #[cfg(feature = "dynamic")]
-impl dynamic::Simulator {
+impl DynamicSimulator {
     /// Returns the creator identity and devices retained by a new runtime source.
     ///
     /// Creator storage must stay internal to preserve simulator registration lock ordering.
@@ -1687,11 +1727,165 @@ impl dynamic::Simulator {
     }
 }
 
+/// Errors from runtime simulation construction, inputs, and output retrieval.
+#[cfg(feature = "dynamic")]
+#[derive(Debug)]
+pub enum DynamicSimulationError {
+    /// A native operation failed.
+    SteamAudio(crate::SteamAudioError),
+    /// Simulation parameters exceed creation limits.
+    ParameterValidation(crate::ParameterValidationError),
+    /// Simulation requires a committed scene or probes.
+    Simulation(crate::SimulationError),
+    /// Requested modes are unavailable.
+    DisabledModes(SimulationFlags),
+    /// Requested flags contain unknown bits.
+    UnknownFlags(u32),
+    /// Required shared inputs are absent for these modes.
+    MissingInputs(SimulationFlags),
+    /// The scene and simulator use different ray tracers.
+    RayTracerMismatch {
+        /// The simulator's ray tracer.
+        expected: RayTracerKind,
+        /// The scene's ray tracer.
+        actual: RayTracerKind,
+    },
+    /// Source inputs use a different reflection algorithm.
+    AlgorithmMismatch {
+        /// The source's reflection algorithm.
+        expected: ReflectionAlgorithm,
+        /// The input parameters' reflection algorithm.
+        actual: ReflectionAlgorithm,
+    },
+    /// Related handles use different native devices.
+    DeviceMismatch,
+    /// A different simulator created the supplied source.
+    ForeignSource,
+}
+
+#[cfg(feature = "dynamic")]
+impl fmt::Display for DynamicSimulationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SteamAudio(error) => error.fmt(formatter),
+            Self::ParameterValidation(error) => error.fmt(formatter),
+            Self::Simulation(error) => error.fmt(formatter),
+            Self::DisabledModes(flags) => {
+                write!(formatter, "simulation modes are unavailable: {flags:?}")
+            }
+            Self::UnknownFlags(bits) => write!(formatter, "unknown simulation flags: {bits:#x}"),
+            Self::MissingInputs(flags) => {
+                write!(formatter, "missing shared simulation inputs: {flags:?}")
+            }
+            Self::RayTracerMismatch { expected, actual } => write!(
+                formatter,
+                "ray tracer mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::AlgorithmMismatch { expected, actual } => write!(
+                formatter,
+                "reflection algorithm mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::DeviceMismatch => write!(formatter, "simulation devices do not match"),
+            Self::ForeignSource => write!(formatter, "another simulator created this source"),
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl std::error::Error for DynamicSimulationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::SteamAudio(error) => Some(error),
+            Self::ParameterValidation(error) => Some(error),
+            Self::Simulation(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(all(doctest, feature = "dynamic"))]
+/// Simulation binding checks.
+///
+/// ```compile_fail
+/// use audionimbus::{Simulator, ray_tracing::DefaultRayTracer};
+/// fn add(simulator: &Simulator<DefaultRayTracer>, source: &audionimbus::dynamic::Source) {
+///     simulator.add_source(source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn add(simulator: &audionimbus::dynamic::Simulator, source: &audionimbus::Source) {
+///     simulator.try_add_source(source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{Simulator, ray_tracing::DefaultRayTracer};
+/// fn scene(simulator: &mut Simulator<DefaultRayTracer>, scene: &audionimbus::dynamic::Scene) {
+///     simulator.set_scene(scene);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn scene(simulator: &mut audionimbus::dynamic::Simulator, scene: &audionimbus::Scene) {
+///     simulator.try_set_scene(scene);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn inputs(source: &audionimbus::Source, inputs: &audionimbus::dynamic::SimulationInputs) {
+///     source.set_inputs(inputs);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn inputs(source: &audionimbus::dynamic::Source, inputs: &audionimbus::SimulationInputs) {
+///     source.set_inputs(inputs);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn settings(context: &audionimbus::Context, settings: &audionimbus::dynamic::SimulationSettings) {
+///     audionimbus::Simulator::try_new(context, settings);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn settings(context: &audionimbus::Context, settings: &audionimbus::SimulationSettings<audionimbus::ray_tracing::DefaultRayTracer>) {
+///     audionimbus::dynamic::Simulator::try_new(context, settings);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn outputs(source: &audionimbus::dynamic::Source) {
+///     let _: audionimbus::SimulationOutputs<(), (), ()> = source.get_outputs().unwrap();
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn outputs(source: &audionimbus::Source) {
+///     let _: audionimbus::dynamic::SimulationOutputs = source.get_outputs().unwrap();
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn mutate(simulator: &mut audionimbus::dynamic::Simulator) {
+///     simulator.raw_ptr_mut();
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn mutate(source: &mut audionimbus::dynamic::Source) {
+///     source.raw_ptr_mut();
+/// }
+/// ```
+struct SimulationBindings;
+
 #[cfg(test)]
 mod tests {
     use super::{
-        TypedSimulationSettings as SimulationSettings, TypedSimulator as Simulator,
-        TypedSource as Source,
+        StaticSimulationSettings as SimulationSettings, StaticSimulator as Simulator,
+        StaticSource as Source,
     };
     use crate::*;
 

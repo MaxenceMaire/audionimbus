@@ -1,8 +1,12 @@
 use super::reflections::{ReflectionsBinding, ReflectionsSourceBinding};
 use super::{SimulationStep, SourceEntries};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
 #[cfg(doc)]
 use crate::effect::ReflectionEffectParams;
+#[cfg(feature = "dynamic")]
+use crate::effect::reflections::binding::ReflectionAlgorithm;
 use crate::effect::reflections::{
     binding::ReflectionBinding, effect::ReflectionEffectParams as BoundReflectionEffectParams,
 };
@@ -21,7 +25,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs reflections and listener-centric reverb simulation simultaneously.
-pub type TypedReflectionsReverbStep<SourceId, T, D, P, RE> =
+pub type StaticReflectionsReverbStep<SourceId, T, D, P, RE> =
     ReflectionsReverbStep<SourceId, Static<(T, D, Reflections, P, RE)>>;
 
 /// A simulation step with binding-specific handles and errors.
@@ -32,14 +36,14 @@ pub struct ReflectionsReverbStep<SourceId, B: PipelineBinding> {
     _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, D, P, RE> TypedReflectionsReverbStep<(), T, D, P, RE>
+impl<T, D, P, RE> StaticReflectionsReverbStep<(), T, D, P, RE>
 where
     T: RayTracer,
 {
     /// Creates a new reflections and reverb simulation step.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, Reflections, P, RE>,
-    ) -> TypedReflectionsReverbStep<SourceId, T, D, P, RE> {
+    ) -> StaticReflectionsReverbStep<SourceId, T, D, P, RE> {
         ReflectionsReverbStep {
             simulator,
             _source_id: PhantomData,
@@ -171,8 +175,13 @@ where
 }
 
 /// Combined per-source reflections and listener-centric reverb output.
-pub type TypedReflectionsReverbOutput<SourceId, RE> =
+pub type StaticReflectionsReverbOutput<SourceId, RE> =
     ReflectionsReverbOutput<SourceId, crate::binding::Static<RE>>;
+
+/// Per-source reflections and optional listener reverb retained by a runtime worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsReverbOutput<SourceId> =
+    ReflectionsReverbOutput<SourceId, Dynamic<ReflectionAlgorithm>>;
 
 /// Output parameters selected by a reflection binding.
 #[derive(Debug)]

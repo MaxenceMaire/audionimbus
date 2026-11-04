@@ -22,7 +22,7 @@ use std::hash::Hash;
 use crate::wiring::simulation::Simulation;
 
 /// Input frame for reflections simulation.
-pub type TypedReflectionsFrame<SourceId, D, R, P, RE> =
+pub type StaticReflectionsFrame<SourceId, D, R, P, RE> =
     ReflectionsFrame<SourceId, Static<(D, R, P, RE)>>;
 
 /// Frame storage selected by a source binding.
@@ -81,7 +81,7 @@ impl<SourceId, B: FrameBinding> Resolve for ReflectionsFrame<SourceId, B> {
 /// A snapshot of a [`ReflectionsFrame`](crate::wiring::runner::ReflectionsFrame) for use during a single simulation step.
 ///
 /// Keeps the sources alive for the duration of the step.
-pub type TypedResolvedReflectionsFrame<'a, SourceId, D, R, P, RE> =
+pub type StaticResolvedReflectionsFrame<'a, SourceId, D, R, P, RE> =
     ResolvedReflectionsFrame<'a, SourceId, Static<(D, R, P, RE)>>;
 
 /// A retained source snapshot and borrowed shared inputs.

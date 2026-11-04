@@ -12,19 +12,19 @@ use super::runner::SimulationRunner;
 pub(crate) mod pipeline;
 use pipeline::SimulationControls;
 pub use pipeline::{
-    SharedSimulationOutput, TypedSharedSources as SharedSources, TypedSimulation as Simulation,
-    TypedSourceWithInputs as SourceWithInputs, TypedSourcesPool as SourcesPool,
+    SharedSimulationOutput, StaticSharedSources as SharedSources, StaticSimulation as Simulation,
+    StaticSourceWithInputs as SourceWithInputs, StaticSourcesPool as SourcesPool,
 };
 
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod direct;
-pub use direct::TypedDirectSimulation as DirectSimulation;
+pub use direct::StaticDirectSimulation as DirectSimulation;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections;
-pub use reflections::TypedReflectionsSimulation as ReflectionsSimulation;
+pub use reflections::StaticReflectionsSimulation as ReflectionsSimulation;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections_reverb;
-pub use reflections_reverb::TypedReflectionsReverbSimulation as ReflectionsReverbSimulation;
+pub use reflections_reverb::StaticReflectionsReverbSimulation as ReflectionsReverbSimulation;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod pathing;
-pub use pathing::TypedPathingSimulation as PathingSimulation;
+pub use pathing::StaticPathingSimulation as PathingSimulation;

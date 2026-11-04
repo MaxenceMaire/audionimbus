@@ -1,6 +1,10 @@
 //! Shared worker loop and frame allocation contracts.
 
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
+#[cfg(feature = "dynamic")]
+use crate::geometry::scene::RayTracerKind;
 use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::wiring::binding::InputBinding;
 use crate::wiring::step::SimulationStep;
@@ -14,7 +18,11 @@ use std::sync::{
 };
 
 /// Drives a [`SimulationStep`] on a dedicated thread.
-pub type TypedSimulationRunner<I, O, T> = SimulationRunner<I, O, Static<T>>;
+pub type StaticSimulationRunner<I, O, T> = SimulationRunner<I, O, Static<T>>;
+
+/// A simulation runner accepting runtime scene commits.
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulationRunner<I, O> = SimulationRunner<I, O, Dynamic<RayTracerKind>>;
 
 /// A worker loop with scene storage selected by its geometry binding.
 pub struct SimulationRunner<I, O, B: GeometryBinding> {

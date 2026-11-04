@@ -11,10 +11,14 @@ use crate::effect::equalizer::Equalizer;
 use crate::effect::error::{ImpulseResponseSizeExceedsMaxError, NumChannelsExceedsMaxError};
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ffi_wrapper::FFIWrapper;
+#[cfg(feature = "dynamic")]
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
+#[cfg(feature = "dynamic")]
+use super::binding::ReflectionAlgorithm;
 use super::binding::ReflectionBinding;
-use super::mixer::{ReflectionMixer, TypedReflectionMixer};
+use super::mixer::{ReflectionMixer, StaticReflectionMixer};
 use super::{
     CanApplyDirectly, CanUseReflectionMixer, Convolution, Hybrid, Parametric, ReflectionEffectType,
     TrueAudioNext,
@@ -22,8 +26,6 @@ use super::{
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
-#[cfg(feature = "dynamic")]
-use crate::dynamic::{ReflectionAlgorithm, ReflectionError};
 
 #[cfg(doc)]
 use crate::effect::AmbisonicsDecodeEffect;
@@ -203,7 +205,36 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// // Then decode the ambisonics output for final playback
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub type TypedReflectionEffect<T> = ReflectionEffect<Static<T>>;
+pub type StaticReflectionEffect<T> = ReflectionEffect<Static<T>>;
+
+/// A reflection effect with a runtime-selected algorithm.
+///
+/// Static and runtime reflection handles cannot be mixed.
+///
+/// ```
+/// use audionimbus::{AudioBufferMut, AudioSettings, Context, ReflectionEffectSettings};
+/// use audionimbus::dynamic::{ReflectionAlgorithm, ReflectionEffect, ReflectionMixer};
+/// let context = Context::default();
+/// let audio_settings = AudioSettings::default();
+/// let settings = ReflectionEffectSettings {
+///     impulse_response_size: audio_settings.sampling_rate,
+///     num_channels: 4,
+/// };
+/// let mut effect = ReflectionEffect::try_new(
+///     &context, &audio_settings, &settings, ReflectionAlgorithm::Convolution,
+/// )?;
+/// let mut mixer = ReflectionMixer::try_new(
+///     &context, &audio_settings, &settings, effect.algorithm(),
+/// )?;
+/// let mut samples = vec![0.0; 4 * audio_settings.frame_size as usize];
+/// let mut output = AudioBufferMut::try_new(&mut samples, 4)?;
+/// effect.tail_into_mixer(&mut output, &mixer)?;
+/// effect.reset();
+/// mixer.reset();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionEffect = ReflectionEffect<Dynamic<ReflectionAlgorithm>>;
 
 /// Reflection effect storage for either API binding.
 #[derive(Debug)]
@@ -220,7 +251,7 @@ pub struct ReflectionEffect<B: ReflectionBinding> {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::ReflectionEffect {
+impl DynamicReflectionEffect {
     /// Creates a reflection effect with the selected algorithm.
     ///
     /// # Errors
@@ -364,7 +395,7 @@ impl crate::dynamic::ReflectionEffect {
     }
 }
 
-impl<T: ReflectionEffectType> TypedReflectionEffect<T> {
+impl<T: ReflectionEffectType> StaticReflectionEffect<T> {
     /// Creates a new reflection effect and returns a handle to it.
     ///
     /// # Errors
@@ -451,7 +482,7 @@ impl<B: ReflectionBinding> ReflectionEffect<B> {
     }
 }
 
-impl<T: ReflectionEffectType + CanApplyDirectly> TypedReflectionEffect<T> {
+impl<T: ReflectionEffectType + CanApplyDirectly> StaticReflectionEffect<T> {
     /// Applies a reflection effect to an audio buffer.
     ///
     /// This effect CANNOT be applied in-place.
@@ -469,7 +500,7 @@ impl<T: ReflectionEffectType + CanApplyDirectly> TypedReflectionEffect<T> {
     ///   (for parametric)
     pub fn apply(
         &mut self,
-        reflection_effect_params: &TypedReflectionEffectParams<T>,
+        reflection_effect_params: &StaticReflectionEffectParams<T>,
         input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
@@ -496,7 +527,7 @@ impl<T: ReflectionEffectType + CanApplyDirectly> TypedReflectionEffect<T> {
     }
 }
 
-impl<T: ReflectionEffectType + CanUseReflectionMixer> TypedReflectionEffect<T> {
+impl<T: ReflectionEffectType + CanUseReflectionMixer> StaticReflectionEffect<T> {
     /// Applies a reflection effect to an audio buffer.
     ///
     /// The output of this effect will be mixed into the given mixer.
@@ -517,10 +548,10 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> TypedReflectionEffect<T> {
     ///   (for parametric)
     pub fn apply_into_mixer(
         &mut self,
-        reflection_effect_params: &TypedReflectionEffectParams<T>,
+        reflection_effect_params: &StaticReflectionEffectParams<T>,
         input_buffer: &impl AudioBuffer,
         output_buffer: &mut AudioBufferMut<'_>,
-        mixer: &TypedReflectionMixer<T>,
+        mixer: &StaticReflectionMixer<T>,
     ) -> Result<AudioEffectState, EffectError> {
         self.apply_shared(
             reflection_effect_params,
@@ -550,7 +581,7 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> TypedReflectionEffect<T> {
     pub fn tail_into_mixer(
         &self,
         output_buffer: &mut AudioBufferMut<'_>,
-        mixer: &TypedReflectionMixer<T>,
+        mixer: &StaticReflectionMixer<T>,
     ) -> Result<AudioEffectState, EffectError> {
         self.tail_shared(output_buffer, Some(mixer))
     }
@@ -695,7 +726,11 @@ pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
 unsafe impl Send for ReflectionEffectIR {}
 
 /// Parameters for applying a reflection effect to an audio buffer.
-pub type TypedReflectionEffectParams<T> = ReflectionEffectParams<Static<T>>;
+pub type StaticReflectionEffectParams<T> = ReflectionEffectParams<Static<T>>;
+
+/// Reflection outputs from a runtime-selected source.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionEffectParams = ReflectionEffectParams<Dynamic<ReflectionAlgorithm>>;
 
 /// Reflection parameters for either API binding.
 #[derive(Debug, PartialEq)]
@@ -740,7 +775,7 @@ pub struct ReflectionEffectParams<B: ReflectionBinding> {
     binding: B,
 }
 
-impl TypedReflectionEffectParams<Convolution> {
+impl StaticReflectionEffectParams<Convolution> {
     /// Constructs multi-channel convolution reverb params.
     ///
     /// # Arguments
@@ -776,7 +811,7 @@ impl TypedReflectionEffectParams<Convolution> {
     }
 }
 
-impl TypedReflectionEffectParams<Parametric> {
+impl StaticReflectionEffectParams<Parametric> {
     /// Constructs parametric (or artificial) reverb params.
     ///
     /// # Arguments
@@ -802,7 +837,7 @@ impl TypedReflectionEffectParams<Parametric> {
     }
 }
 
-impl TypedReflectionEffectParams<Hybrid> {
+impl StaticReflectionEffectParams<Hybrid> {
     /// Constructs params for a hybrid of convolution and parametric reverb.
     ///
     /// # Arguments
@@ -844,7 +879,7 @@ impl TypedReflectionEffectParams<Hybrid> {
     }
 }
 
-impl TypedReflectionEffectParams<TrueAudioNext> {
+impl StaticReflectionEffectParams<TrueAudioNext> {
     /// Constructs multi-channel convolution reverb (using AMD TrueAudio Next for GPU acceleration)
     /// params.
     ///
@@ -973,7 +1008,7 @@ impl<B: ReflectionBinding> ReflectionEffectParams<B> {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::ReflectionEffectParams {
+impl DynamicReflectionEffectParams {
     /// Returns the selected algorithm.
     pub const fn algorithm(&self) -> ReflectionAlgorithm {
         self.binding.0
@@ -1018,6 +1053,151 @@ impl<B: ReflectionBinding> ReflectionEffectParams<B> {
         FFIWrapper::new(reflection_effect_params)
     }
 }
+
+/// Errors from runtime reflection creation and processing.
+#[cfg(feature = "dynamic")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReflectionError {
+    /// Native creation failed.
+    SteamAudio(SteamAudioError),
+    /// An audio buffer has an invalid channel count.
+    Effect(EffectError),
+    /// Related reflection handles use different algorithms.
+    AlgorithmMismatch {
+        /// The algorithm required by the receiving handle.
+        expected: ReflectionAlgorithm,
+        /// The algorithm supplied by the related handle.
+        actual: ReflectionAlgorithm,
+    },
+    /// The selected algorithm requires a mixer.
+    DirectApplyUnsupported,
+    /// The selected algorithm does not support a mixer.
+    MixerUnsupported,
+}
+
+#[cfg(feature = "dynamic")]
+impl fmt::Display for ReflectionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SteamAudio(error) => error.fmt(f),
+            Self::Effect(error) => error.fmt(f),
+            Self::AlgorithmMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "reflection algorithm mismatch: expected {expected:?}, got {actual:?}"
+                )
+            }
+            Self::DirectApplyUnsupported => write!(f, "reflection algorithm requires a mixer"),
+            Self::MixerUnsupported => write!(f, "reflection algorithm does not support a mixer"),
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl std::error::Error for ReflectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::SteamAudio(error) => Some(error),
+            Self::Effect(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(all(doctest, feature = "dynamic"))]
+/// Reflection binding checks.
+///
+/// Static and runtime parameters remain separate:
+///
+/// ```compile_fail
+/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionEffectParams};
+/// use audionimbus::dynamic::ReflectionEffect;
+/// fn apply(effect: &mut ReflectionEffect, params: &ReflectionEffectParams<Convolution>,
+///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
+///     effect.apply(params, input, output);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionEffect};
+/// use audionimbus::dynamic::ReflectionEffectParams;
+/// fn apply(effect: &mut ReflectionEffect<Convolution>, params: &ReflectionEffectParams,
+///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
+///     effect.apply(params, input, output);
+/// }
+/// ```
+///
+/// Runtime algorithms do not satisfy static capability bounds:
+///
+/// ```compile_fail
+/// use audionimbus::ReflectionEffect;
+/// use audionimbus::dynamic::ReflectionAlgorithm;
+/// let _: Option<ReflectionEffect<ReflectionAlgorithm>> = None;
+/// ```
+///
+/// Static TAN effects retain their mixer requirement:
+///
+/// ```compile_fail
+/// use audionimbus::{AudioBufferRef, AudioBufferMut, ReflectionEffect, ReflectionEffectParams, TrueAudioNext};
+/// fn apply(effect: &mut ReflectionEffect<TrueAudioNext>, params: &ReflectionEffectParams<TrueAudioNext>,
+///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
+///     effect.apply(params, input, output);
+/// }
+/// ```
+///
+/// Runtime effects do not expose raw-pointer mutation:
+///
+/// ```compile_fail
+/// use audionimbus::dynamic::ReflectionEffect;
+/// fn replace(effect: &mut ReflectionEffect) {
+///     effect.raw_ptr_mut();
+/// }
+/// ```
+/// ```compile_fail
+/// use audionimbus::{AudioBufferMut, ReflectionEffect, TrueAudioNext};
+/// fn tail(effect: &ReflectionEffect<TrueAudioNext>, output: &mut AudioBufferMut<'_>) {
+///     effect.tail(output);
+/// }
+/// ```
+///
+/// Static output parameters cannot be converted into runtime outputs:
+///
+/// ```compile_fail
+/// use audionimbus::{Convolution, ReflectionEffectParams};
+/// fn convert(params: ReflectionEffectParams<Convolution>) -> audionimbus::dynamic::ReflectionEffectParams {
+///     params.into()
+/// }
+/// ```
+///
+/// Runtime output parameters cannot be converted into static outputs:
+///
+/// ```compile_fail
+/// use audionimbus::{Convolution, ReflectionEffectParams};
+/// fn convert(params: audionimbus::dynamic::ReflectionEffectParams) -> ReflectionEffectParams<Convolution> {
+///     params.into()
+/// }
+/// ```
+///
+/// Static and runtime mixers remain separate:
+///
+/// ```compile_fail
+/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionMixer};
+/// use audionimbus::dynamic::{ReflectionEffect, ReflectionEffectParams};
+/// fn apply(effect: &mut ReflectionEffect, params: &ReflectionEffectParams, mixer: &ReflectionMixer<Convolution>,
+///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
+///     effect.apply_into_mixer(params, input, output, mixer);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionEffect, ReflectionEffectParams};
+/// use audionimbus::dynamic::ReflectionMixer;
+/// fn apply(effect: &mut ReflectionEffect<Convolution>, params: &ReflectionEffectParams<Convolution>, mixer: &ReflectionMixer,
+///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
+///     effect.apply_into_mixer(params, input, output, mixer);
+/// }
+/// ```
+struct ReflectionBindings;
 
 #[cfg(test)]
 mod tests {

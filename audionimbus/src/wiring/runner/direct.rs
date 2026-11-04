@@ -20,7 +20,7 @@ use std::hash::Hash;
 use crate::wiring::simulation::Simulation;
 
 /// Input frame for direct simulation.
-pub type TypedDirectFrame<SourceId, D, R, P, RE> = DirectFrame<SourceId, Static<(D, R, P, RE)>>;
+pub type StaticDirectFrame<SourceId, D, R, P, RE> = DirectFrame<SourceId, Static<(D, R, P, RE)>>;
 
 /// Frame storage selected by a source binding.
 pub struct DirectFrame<SourceId, B: FrameBinding> {
@@ -48,7 +48,7 @@ impl<SourceId, B: FrameBinding> Resolve for DirectFrame<SourceId, B> {
 /// A snapshot of a [`DirectFrame`](crate::wiring::runner::DirectFrame) for use during a single simulation step.
 ///
 /// Keeps the current sources alive for the duration of the step.
-pub type TypedResolvedDirectFrame<'a, SourceId, D, R, P, RE> =
+pub type StaticResolvedDirectFrame<'a, SourceId, D, R, P, RE> =
     ResolvedDirectFrame<'a, SourceId, Static<(D, R, P, RE)>>;
 
 /// A retained source snapshot and borrowed shared inputs.

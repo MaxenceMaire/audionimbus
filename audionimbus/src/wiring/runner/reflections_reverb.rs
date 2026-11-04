@@ -22,7 +22,7 @@ use std::hash::Hash;
 use crate::wiring::simulation::Simulation;
 
 /// Input frame for reflections and reverb simulation.
-pub type TypedReflectionsReverbFrame<SourceId, D, R, P, RE, LD = D, LP = P> =
+pub type StaticReflectionsReverbFrame<SourceId, D, R, P, RE, LD = D, LP = P> =
     ReflectionsReverbFrame<SourceId, Static<(D, R, P, RE)>, Static<(LD, R, LP, RE)>>;
 
 /// Frame storage selected by a source binding.
@@ -79,7 +79,7 @@ impl<SourceId, B: FrameBinding, L: InputBinding> Resolve
 /// A snapshot of a [`ReflectionsReverbFrame`](crate::wiring::runner::ReflectionsReverbFrame) for use during a single simulation step.
 ///
 /// Keeps the sources alive for the duration of the step.
-pub type TypedResolvedReflectionsReverbFrame<'a, SourceId, D, R, P, RE, LD, LP> =
+pub type StaticResolvedReflectionsReverbFrame<'a, SourceId, D, R, P, RE, LD, LP> =
     ResolvedReflectionsReverbFrame<'a, SourceId, Static<(D, R, P, RE)>, Static<(LD, R, LP, RE)>>;
 
 /// A retained source snapshot and borrowed shared inputs.

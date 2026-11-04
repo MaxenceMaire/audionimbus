@@ -1,11 +1,15 @@
 //! Shared simulation pipelines and publication buffers.
 
 use crate::audio_settings::AudioSettings;
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::Simulator;
 use crate::simulation::inputs::SimulationInputs as BoundInputs;
+#[cfg(feature = "dynamic")]
+use crate::simulation::simulator::SimulationChoices;
 use crate::simulation::simulator::Simulator as BoundSimulator;
 use crate::simulation::source::Source as BoundSource;
 use crate::wiring::binding::{InputBinding, PipelineBinding};
@@ -81,7 +85,26 @@ use crate::wiring::runner::SimulationRunner;
 /// reflections_simulation.join().expect("reflections thread panicked");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub type TypedSimulation<SourceId, T, D, R, P, RE> = Simulation<SourceId, Static<(T, D, R, P, RE)>>;
+pub type StaticSimulation<SourceId, T, D, R, P, RE> =
+    Simulation<SourceId, Static<(T, D, R, P, RE)>>;
+
+/// A simulation pipeline with runtime source participation.
+///
+/// ```
+/// use audionimbus::{AudioSettings, Context, DirectSimulationSettings};
+/// use audionimbus::dynamic::{Simulation, SimulationSettings, Simulator};
+/// let context = Context::default();
+/// let settings = SimulationSettings::new(&AudioSettings::default())
+///     .with_direct(DirectSimulationSettings::default());
+/// let simulator = Simulator::try_new(&context, &settings)?;
+/// let mut simulation = Simulation::new::<u32>(simulator);
+/// let mut worker = simulation.spawn_direct(|error| eprintln!("{error}"))?;
+/// simulation.shutdown();
+/// worker.join().unwrap();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulation<SourceId = ()> = Simulation<SourceId, Dynamic<SimulationChoices>>;
 
 /// Storage shared by static and runtime simulation pipelines.
 pub struct Simulation<SourceId, B: PipelineBinding> {
@@ -202,19 +225,19 @@ impl<SourceId, B: PipelineBinding> Drop for Simulation<SourceId, B> {
     }
 }
 
-impl<T: RayTracer, D, R, P, RE> TypedSimulation<(), T, D, R, P, RE> {
+impl<T: RayTracer, D, R, P, RE> StaticSimulation<(), T, D, R, P, RE> {
     /// Creates a new simulation pipeline.
     ///
     /// `SourceId` is the identifier type for audio sources.
     /// It enables mapping each output back to its originating source.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, R, P, RE>,
-    ) -> TypedSimulation<SourceId, T, D, R, P, RE> {
+    ) -> StaticSimulation<SourceId, T, D, R, P, RE> {
         Self::new_shared(simulator)
     }
 }
 
-impl<SourceId, T: RayTracer, D, R, P, RE> TypedSimulation<SourceId, T, D, R, P, RE> {
+impl<SourceId, T: RayTracer, D, R, P, RE> StaticSimulation<SourceId, T, D, R, P, RE> {
     /// Updates the sources used by all simulation threads on their next run.
     ///
     /// `f` receives a pooled `Vec` to populate with the new frame's `(SourceId, SourceWithInputs)`
@@ -317,7 +340,11 @@ impl Drop for SimulationControls {
 }
 
 /// A pair of source and simulation inputs.
-pub type TypedSourceWithInputs<D, R, P, RE> = SourceWithInputs<Static<(D, R, P, RE)>>;
+pub type StaticSourceWithInputs<D, R, P, RE> = SourceWithInputs<Static<(D, R, P, RE)>>;
+
+/// A runtime source paired with its simulation inputs.
+#[cfg(feature = "dynamic")]
+pub type DynamicSourceWithInputs = SourceWithInputs<Dynamic<()>>;
 
 /// Source handles and inputs selected by a pipeline binding.
 pub struct SourceWithInputs<B: InputBinding> {
@@ -354,13 +381,14 @@ where
 }
 
 /// A pool of source list buffers, shared across simulation threads.
-pub type TypedSourcesPool<SourceId, D, R, P, RE> = SourcesPool<SourceId, Static<(D, R, P, RE)>>;
+pub type StaticSourcesPool<SourceId, D, R, P, RE> = SourcesPool<SourceId, Static<(D, R, P, RE)>>;
 
 /// A pool of published buffers selected by a pipeline binding.
 pub type SourcesPool<SourceId, B> = Arc<Pool<<B as InputBinding>::Sources<SourceId>>>;
 
 /// A shared, atomically-swappable source list.
-pub type TypedSharedSources<SourceId, D, R, P, RE> = SharedSources<SourceId, Static<(D, R, P, RE)>>;
+pub type StaticSharedSources<SourceId, D, R, P, RE> =
+    SharedSources<SourceId, Static<(D, R, P, RE)>>;
 
 /// Published buffers shared by the game and simulation threads.
 pub type SharedSources<SourceId, B> =
@@ -387,6 +415,23 @@ impl<T: 'static + Send + Sync> Clone for SharedSimulationOutput<T> {
         Self(self.0.clone())
     }
 }
+
+#[cfg(all(doctest, feature = "dynamic"))]
+/// Worker binding checks.
+///
+/// ```compile_fail
+/// use audionimbus::wiring::Simulation;
+/// fn pipeline(simulator: audionimbus::dynamic::Simulator) {
+///     Simulation::new::<u32>(simulator);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn inputs(worker: &audionimbus::dynamic::DirectSimulation<u32>) {
+///     worker.set_input(audionimbus::SimulationSharedInputs::default());
+/// }
+/// ```
+struct WiringBindings;
 
 #[cfg(test)]
 mod tests {
@@ -491,7 +536,7 @@ mod tests {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::Simulation {
+impl DynamicSimulation {
     /// Creates a simulation pipeline with runtime choices.
     pub fn new<SourceId>(
         simulator: crate::dynamic::Simulator,
@@ -501,7 +546,7 @@ impl crate::dynamic::Simulation {
 }
 
 #[cfg(feature = "dynamic")]
-impl<SourceId: Clone> crate::dynamic::Simulation<SourceId> {
+impl<SourceId: Clone> DynamicSimulation<SourceId> {
     /// Validates and publishes sources for their available worker modes.
     ///
     /// Missing parameters disable their modes on the next worker iteration.
@@ -570,7 +615,7 @@ impl<SourceId: Clone> crate::dynamic::Simulation<SourceId> {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::SourceWithInputs {
+impl DynamicSourceWithInputs {
     /// Returns the first creator, participation, or reflection algorithm mismatch.
     fn validation_error(
         &self,

@@ -11,27 +11,27 @@
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod worker;
 use worker::SourcesGuard;
-pub use worker::{Allocate, Clear, Resolve, Shrink, TypedSimulationRunner as SimulationRunner};
+pub use worker::{Allocate, Clear, Resolve, Shrink, StaticSimulationRunner as SimulationRunner};
 
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod direct;
 pub use direct::{
-    TypedDirectFrame as DirectFrame, TypedResolvedDirectFrame as ResolvedDirectFrame,
+    StaticDirectFrame as DirectFrame, StaticResolvedDirectFrame as ResolvedDirectFrame,
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod pathing;
 pub use pathing::{
-    TypedPathingFrame as PathingFrame, TypedResolvedPathingFrame as ResolvedPathingFrame,
+    StaticPathingFrame as PathingFrame, StaticResolvedPathingFrame as ResolvedPathingFrame,
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections;
 pub use reflections::{
-    TypedReflectionsFrame as ReflectionsFrame,
-    TypedResolvedReflectionsFrame as ResolvedReflectionsFrame,
+    StaticReflectionsFrame as ReflectionsFrame,
+    StaticResolvedReflectionsFrame as ResolvedReflectionsFrame,
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections_reverb;
 pub use reflections_reverb::{
-    TypedReflectionsReverbFrame as ReflectionsReverbFrame,
-    TypedResolvedReflectionsReverbFrame as ResolvedReflectionsReverbFrame,
+    StaticReflectionsReverbFrame as ReflectionsReverbFrame,
+    StaticResolvedReflectionsReverbFrame as ResolvedReflectionsReverbFrame,
 };

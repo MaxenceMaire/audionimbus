@@ -20,7 +20,7 @@ use std::hash::Hash;
 use crate::wiring::simulation::Simulation;
 
 /// Input frame for pathing simulation.
-pub type TypedPathingFrame<SourceId, D, R, P, RE> = PathingFrame<SourceId, Static<(D, R, P, RE)>>;
+pub type StaticPathingFrame<SourceId, D, R, P, RE> = PathingFrame<SourceId, Static<(D, R, P, RE)>>;
 
 /// Frame storage selected by a source binding.
 pub struct PathingFrame<SourceId, B: FrameBinding> {
@@ -58,7 +58,7 @@ impl<SourceId, B: FrameBinding> Resolve for PathingFrame<SourceId, B> {
 /// A snapshot of a [`PathingFrame`](crate::wiring::runner::PathingFrame) for use during a single simulation step.
 ///
 /// Keeps the sources alive for the duration of the step.
-pub type TypedResolvedPathingFrame<'a, SourceId, D, R, P, RE> =
+pub type StaticResolvedPathingFrame<'a, SourceId, D, R, P, RE> =
     ResolvedPathingFrame<'a, SourceId, Static<(D, R, P, RE)>>;
 
 /// A retained source snapshot and borrowed shared inputs.

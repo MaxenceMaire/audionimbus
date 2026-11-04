@@ -9,24 +9,24 @@ use crate::simulation::{ParameterValidationError, SimulationError};
 
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod direct;
-pub use direct::{AsDirectInput, DirectInput, DirectInputOwned, TypedDirectStep as DirectStep};
+pub use direct::{AsDirectInput, DirectInput, DirectInputOwned, StaticDirectStep as DirectStep};
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod pathing;
 pub use pathing::{
-    AsPathingInput, PathingInput, PathingInputOwned, TypedPathingStep as PathingStep,
+    AsPathingInput, PathingInput, PathingInputOwned, StaticPathingStep as PathingStep,
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections;
 pub use reflections::{
     AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned,
-    TypedReflectionsOutput as ReflectionsOutput, TypedReflectionsStep as ReflectionsStep,
+    StaticReflectionsOutput as ReflectionsOutput, StaticReflectionsStep as ReflectionsStep,
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections_reverb;
 pub use reflections_reverb::{
     AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbInputOwned,
-    TypedReflectionsReverbOutput as ReflectionsReverbOutput,
-    TypedReflectionsReverbStep as ReflectionsReverbStep,
+    StaticReflectionsReverbOutput as ReflectionsReverbOutput,
+    StaticReflectionsReverbStep as ReflectionsReverbStep,
 };
 
 /// Defines the simulation logic for a single step.

@@ -35,14 +35,14 @@ where
 {
     /// Creates a new scene.
     ///
-    /// Mirrors [`Scene::<DefaultRayTracer>::try_new`](crate::geometry::Scene::<DefaultRayTracer>::try_new).
+    /// Mirrors [`Scene::<DefaultRayTracer>::try_new`](crate::geometry::Scene#method.try_new).
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
         crate::geometry::Scene::<DefaultRayTracer>::try_new(context).map(Self)
     }
 
     /// Loads a scene from a serialized object.
     ///
-    /// Mirrors [`Scene::<DefaultRayTracer>::load`](crate::geometry::Scene::<DefaultRayTracer>::load).
+    /// Mirrors [`Scene::<DefaultRayTracer>::load`](crate::geometry::Scene#method.load).
     pub fn load(
         context: &Context,
         serialized_object: &SerializedObject,
@@ -59,7 +59,7 @@ where
 
     /// Loads a scene from a serialized object with a progress callback.
     ///
-    /// Mirrors [`Scene::<DefaultRayTracer>::load_with_progress`](crate::geometry::Scene::<DefaultRayTracer>::load_with_progress).
+    /// Mirrors [`Scene::<DefaultRayTracer>::load_with_progress`](crate::geometry::Scene#method.load_with_progress).
     pub fn load_with_progress(
         context: &Context,
         serialized_object: &SerializedObject,
@@ -91,7 +91,7 @@ where
 {
     /// Creates a new scene with the Embree ray tracer.
     ///
-    /// Mirrors [`Scene::<Embree>::try_with_embree`](crate::geometry::Scene::<Embree>::try_with_embree).
+    /// Mirrors [`Scene::<Embree>::try_with_embree`](crate::geometry::Scene#method.try_with_embree).
     pub fn try_with_embree(
         context: &Context,
         device: EmbreeDevice,
@@ -101,7 +101,7 @@ where
 
     /// Loads a scene from a serialized object using Embree.
     ///
-    /// Mirrors [`Scene::<Embree>::load_embree`](crate::geometry::Scene::<Embree>::load_embree).
+    /// Mirrors [`Scene::<Embree>::load_embree`](crate::geometry::Scene#method.load_embree).
     pub fn load_embree(
         context: &Context,
         device: EmbreeDevice,
@@ -123,7 +123,7 @@ where
 
     /// Loads a scene from a serialized object using Embree with a progress callback.
     ///
-    /// Mirrors [`Scene::<Embree>::load_embree_with_progress`](crate::geometry::Scene::<Embree>::load_embree_with_progress).
+    /// Mirrors [`Scene::<Embree>::load_embree_with_progress`](crate::geometry::Scene#method.load_embree_with_progress).
     pub fn load_embree_with_progress(
         context: &Context,
         device: EmbreeDevice,
@@ -158,7 +158,7 @@ where
 {
     /// Creates a new scene with the Radeon Rays ray tracer.
     ///
-    /// Mirrors [`Scene::<RadeonRays>::try_with_radeon_rays`](crate::geometry::Scene::<RadeonRays>::try_with_radeon_rays).
+    /// Mirrors [`Scene::<RadeonRays>::try_with_radeon_rays`](crate::geometry::Scene#method.try_with_radeon_rays).
     pub fn try_with_radeon_rays(
         context: &Context,
         device: RadeonRaysDevice,
@@ -168,7 +168,7 @@ where
 
     /// Loads a scene from a serialized object using Radeon Rays.
     ///
-    /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays`](crate::geometry::Scene::<RadeonRays>::load_radeon_rays).
+    /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays`](crate::geometry::Scene#method.load_radeon_rays).
     pub fn load_radeon_rays(
         context: &Context,
         device: RadeonRaysDevice,
@@ -191,7 +191,7 @@ where
 
     /// Loads a scene from a serialized object using Radeon Rays with a progress callback.
     ///
-    /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays_with_progress`](crate::geometry::Scene::<RadeonRays>::load_radeon_rays_with_progress).
+    /// Mirrors [`Scene::<RadeonRays>::load_radeon_rays_with_progress`](crate::geometry::Scene#method.load_radeon_rays_with_progress).
     pub fn load_radeon_rays_with_progress(
         context: &Context,
         device: RadeonRaysDevice,
@@ -231,7 +231,7 @@ where
 {
     /// Creates a new scene with a custom ray tracer.
     ///
-    /// Mirrors [`Scene::<CustomRayTracer>::try_with_custom`](crate::geometry::Scene::<CustomRayTracer>::try_with_custom).
+    /// Mirrors [`Scene::<CustomRayTracer>::try_with_custom`](crate::geometry::Scene#method.try_with_custom).
     pub fn try_with_custom(
         context: &Context,
         callbacks: CustomRayTracingCallbacks,
@@ -241,7 +241,7 @@ where
 
     /// Loads a scene from a serialized object using a custom ray tracer.
     ///
-    /// Mirrors [`Scene::<CustomRayTracer>::load_custom`](crate::geometry::Scene::<CustomRayTracer>::load_custom).
+    /// Mirrors [`Scene::<CustomRayTracer>::load_custom`](crate::geometry::Scene#method.load_custom).
     pub fn load_custom(
         context: &Context,
         callbacks: CustomRayTracingCallbacks,
@@ -268,7 +268,7 @@ where
 
     /// Loads a scene from a serialized object using a custom ray tracer with a progress callback.
     ///
-    /// Mirrors [`Scene::<CustomRayTracer>::load_custom_with_progress`](crate::geometry::Scene::<CustomRayTracer>::load_custom_with_progress).
+    /// Mirrors [`Scene::<CustomRayTracer>::load_custom_with_progress`](crate::geometry::Scene#method.load_custom_with_progress).
     pub fn load_custom_with_progress(
         context: &Context,
         callbacks: CustomRayTracingCallbacks,

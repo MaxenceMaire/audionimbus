@@ -17,9 +17,9 @@ fn preserves_static_geometry_api() {
     accepts_unconstrained_static_mesh::<String>(None);
 
     let context = Context::default();
-    let mut scene = Scene::try_new(&context).unwrap();
-    let explicit_scene = Scene::<DefaultRayTracer>::try_new(&context).unwrap();
-    let _: Scene = explicit_scene;
+    let scene = Scene::try_new(&context).unwrap();
+    let scene: audionimbus::prelude::Scene = scene;
+    let mut scene: audionimbus::geometry::Scene<DefaultRayTracer> = scene;
 
     let mesh = StaticMesh::try_new(
         &scene,
@@ -38,7 +38,7 @@ fn preserves_static_geometry_api() {
     add_static_mesh(&mut scene, mesh);
     scene.commit();
 
-    let sub_scene = Scene::try_new(&context).unwrap();
+    let sub_scene = Scene::<DefaultRayTracer>::try_new(&context).unwrap();
     let instance = InstancedMesh::try_new(
         &scene,
         &InstancedMeshSettings {
@@ -284,7 +284,7 @@ fn preserves_static_worker_extension_points() {
 
     impl SimulationStep<&Inputs> for Step {
         type Output = HashMap<u32, DirectEffectParams>;
-        type Error = SimulationStepError;
+        type Error = audionimbus::wiring::step::SimulationStepError;
 
         fn run(&mut self, input: &&Inputs, output: &mut Self::Output) -> Result<(), Self::Error> {
             self.0.run(input, output)

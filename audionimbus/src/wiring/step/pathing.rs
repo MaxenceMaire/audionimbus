@@ -23,7 +23,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs pathing simulation.
-pub type TypedPathingStep<SourceId, T, D, R, RE> =
+pub type StaticPathingStep<SourceId, T, D, R, RE> =
     PathingStep<SourceId, Static<(T, D, R, Pathing, RE)>>;
 
 /// A simulation step with binding-specific handles and errors.
@@ -34,14 +34,14 @@ pub struct PathingStep<SourceId, B: PipelineBinding> {
     _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, D, R, RE> TypedPathingStep<(), T, D, R, RE>
+impl<T, D, R, RE> StaticPathingStep<(), T, D, R, RE>
 where
     T: RayTracer,
 {
     /// Creates a new pathing simulation step.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, R, Pathing, RE>,
-    ) -> TypedPathingStep<SourceId, T, D, R, RE> {
+    ) -> StaticPathingStep<SourceId, T, D, R, RE> {
         PathingStep {
             simulator,
             _source_id: PhantomData,

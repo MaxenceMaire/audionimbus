@@ -1,12 +1,14 @@
 //! Source participation parameters and native input conversion.
 
+#[cfg(feature = "dynamic")]
+use super::SimulationFlags;
 use super::{Direct, Pathing, Reflections};
 use crate::baking::{BakedDataIdentifier, BakedDataVariation};
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
 #[cfg(feature = "dynamic")]
-use crate::dynamic;
+use crate::effect::reflections::binding::ReflectionAlgorithm;
 use crate::model::{
     air_absorption::AirAbsorptionModel, deviation::DeviationModel, directivity::Directivity,
     distance_attenuation::DistanceAttenuationModel,
@@ -45,7 +47,7 @@ impl<D, R, P> InputBinding for Static<(D, R, P)> {
 
 #[cfg(feature = "dynamic")]
 impl InputBinding for Dynamic<()> {
-    type Parameters = dynamic::SimulationParameters;
+    type Parameters = DynamicSimulationParameters;
 
     fn direct(parameters: &Self::Parameters) -> &Option<DirectSimulationParameters> {
         &parameters.direct
@@ -56,18 +58,10 @@ impl InputBinding for Dynamic<()> {
             .reflections
             .as_ref()
             .map(|parameters| match parameters {
-                dynamic::ReflectionsParameters::Convolution(parameters) => {
-                    parameters.clone().into_data()
-                }
-                dynamic::ReflectionsParameters::Parametric(parameters) => {
-                    parameters.clone().into_data()
-                }
-                dynamic::ReflectionsParameters::Hybrid(parameters) => {
-                    parameters.clone().into_data()
-                }
-                dynamic::ReflectionsParameters::TrueAudioNext(parameters) => {
-                    parameters.clone().into_data()
-                }
+                ReflectionsParameters::Convolution(parameters) => parameters.clone().into_data(),
+                ReflectionsParameters::Parametric(parameters) => parameters.clone().into_data(),
+                ReflectionsParameters::Hybrid(parameters) => parameters.clone().into_data(),
+                ReflectionsParameters::TrueAudioNext(parameters) => parameters.clone().into_data(),
             })
     }
 
@@ -77,7 +71,11 @@ impl InputBinding for Dynamic<()> {
 }
 
 /// Simulation inputs for a source.
-pub type TypedSimulationInputs<D = (), R = (), P = ()> = SimulationInputs<Static<(D, R, P)>>;
+pub type StaticSimulationInputs<D = (), R = (), P = ()> = SimulationInputs<Static<(D, R, P)>>;
+
+/// Source coordinates and runtime participation parameters.
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulationInputs = SimulationInputs<Dynamic<()>>;
 
 /// Storage shared by static and runtime source inputs.
 #[derive(Clone, Default, Debug)]
@@ -281,6 +279,37 @@ impl<D, R> SimulationParameters<D, R, Pathing> {
     /// Sets the parameters to use for path simulation.
     pub fn set_pathing_simulation_parameters(&mut self, params: PathingSimulationParameters) {
         self.pathing_simulation.replace(params);
+    }
+}
+
+/// Optional source participation parameters for each simulation mode.
+#[cfg(feature = "dynamic")]
+#[derive(Clone, Default, Debug)]
+pub struct DynamicSimulationParameters {
+    /// The direct simulation parameters.
+    pub direct: Option<DirectSimulationParameters>,
+    /// The reflection simulation parameters and algorithm.
+    pub reflections: Option<ReflectionsParameters>,
+    /// The pathing simulation parameters and probes.
+    pub pathing: Option<PathingSimulationParameters>,
+}
+
+#[cfg(feature = "dynamic")]
+impl DynamicSimulationParameters {
+    /// Returns the modes enabled by these parameters.
+    pub fn flags(&self) -> SimulationFlags {
+        let mut flags = SimulationFlags::empty();
+        if self.direct.is_some() {
+            flags |= SimulationFlags::DIRECT;
+        }
+        if self.reflections.is_some() {
+            flags |= SimulationFlags::REFLECTIONS;
+        }
+        if self.pathing.is_some() {
+            flags |= SimulationFlags::PATHING;
+        }
+
+        flags
     }
 }
 
@@ -547,6 +576,61 @@ impl IntoSimulationData for TrueAudioNextParameters {
             hybrid_reverb_transition_time: 0.0,
             hybrid_reverb_overlap_percent: 0.0,
         }
+    }
+}
+
+/// Source parameters for a runtime-selected reflection algorithm.
+#[cfg(feature = "dynamic")]
+#[derive(Clone, Debug)]
+pub enum ReflectionsParameters {
+    /// Multi-channel convolution parameters.
+    Convolution(ConvolutionParameters),
+    /// Parametric reverb parameters.
+    Parametric(ParametricParameters),
+    /// Combined convolution and parametric parameters.
+    Hybrid(HybridParameters),
+    /// GPU convolution parameters.
+    TrueAudioNext(TrueAudioNextParameters),
+}
+
+#[cfg(feature = "dynamic")]
+impl ReflectionsParameters {
+    /// Returns the selected algorithm.
+    pub const fn algorithm(&self) -> ReflectionAlgorithm {
+        match self {
+            Self::Convolution(_) => ReflectionAlgorithm::Convolution,
+            Self::Parametric(_) => ReflectionAlgorithm::Parametric,
+            Self::Hybrid(_) => ReflectionAlgorithm::Hybrid,
+            Self::TrueAudioNext(_) => ReflectionAlgorithm::TrueAudioNext,
+        }
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<ConvolutionParameters> for ReflectionsParameters {
+    fn from(convolution_parameters: ConvolutionParameters) -> Self {
+        Self::Convolution(convolution_parameters)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<ParametricParameters> for ReflectionsParameters {
+    fn from(parametric_parameters: ParametricParameters) -> Self {
+        Self::Parametric(parametric_parameters)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<HybridParameters> for ReflectionsParameters {
+    fn from(hybrid_parameters: HybridParameters) -> Self {
+        Self::Hybrid(hybrid_parameters)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<TrueAudioNextParameters> for ReflectionsParameters {
+    fn from(true_audio_next_parameters: TrueAudioNextParameters) -> Self {
+        Self::TrueAudioNext(true_audio_next_parameters)
     }
 }
 

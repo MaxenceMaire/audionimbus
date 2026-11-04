@@ -1,12 +1,14 @@
 use super::Matrix;
 use super::scene::{GeometryBinding, Scene};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ray_tracing::RayTracer;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "dynamic")]
-use crate::dynamic::SceneError;
+use super::scene::{RayTracerKind, SceneError};
 
 /// Geometry storage for a compile-time or runtime binding.
 #[derive(Debug)]
@@ -74,9 +76,16 @@ impl<F: GeometryBinding> InstancedMesh<F> {
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
 /// incrementing a reference count.
 /// The underlying object is destroyed when all handles are dropped.
-pub type TypedInstancedMesh<T = crate::ray_tracing::DefaultRayTracer> = InstancedMesh<Static<T>>;
+pub type StaticInstancedMesh<T = crate::ray_tracing::DefaultRayTracer> = InstancedMesh<Static<T>>;
 
-impl<T: RayTracer> TypedInstancedMesh<T> {
+/// An instanced mesh with a runtime-selected ray tracer.
+///
+/// Creates instances with `try_new`, which rejects different parent and sub-scene ray tracers.
+/// Clones retain the native instance and its sub-scene.
+#[cfg(feature = "dynamic")]
+pub type DynamicInstancedMesh = InstancedMesh<Dynamic<RayTracerKind>>;
+
+impl<T: RayTracer> StaticInstancedMesh<T> {
     /// Creates a new instanced mesh and returns a handle to it.
     ///
     /// # Errors
@@ -84,7 +93,7 @@ impl<T: RayTracer> TypedInstancedMesh<T> {
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
         scene: &super::Scene<T>,
-        settings: &TypedInstancedMeshSettings<T>,
+        settings: &StaticInstancedMeshSettings<T>,
     ) -> Result<Self, SteamAudioError> {
         Self::try_new_shared(scene, settings)
     }
@@ -105,7 +114,7 @@ impl<T: RayTracer> TypedInstancedMesh<T> {
 }
 
 #[cfg(feature = "dynamic")]
-impl crate::dynamic::InstancedMesh {
+impl DynamicInstancedMesh {
     /// Creates a new instanced mesh and returns a handle to it.
     ///
     /// # Errors
@@ -173,10 +182,17 @@ pub struct InstancedMeshSettings<F: GeometryBinding> {
 }
 
 /// Instanced mesh settings for a statically selected ray tracer.
-pub type TypedInstancedMeshSettings<T = crate::ray_tracing::DefaultRayTracer> =
+pub type StaticInstancedMeshSettings<T = crate::ray_tracing::DefaultRayTracer> =
     InstancedMeshSettings<Static<T>>;
 
-impl<T: RayTracer + Clone> Clone for TypedInstancedMeshSettings<T> {
+/// Instanced mesh settings with a runtime-selected ray tracer.
+///
+/// The public `sub_scene` field contains a runtime [`crate::dynamic::Scene`].
+/// The public `transform` field contains its local-to-world matrix.
+#[cfg(feature = "dynamic")]
+pub type DynamicInstancedMeshSettings = InstancedMeshSettings<Dynamic<RayTracerKind>>;
+
+impl<T: RayTracer + Clone> Clone for StaticInstancedMeshSettings<T> {
     fn clone(&self) -> Self {
         Self {
             sub_scene: self.sub_scene.clone(),
@@ -186,7 +202,7 @@ impl<T: RayTracer + Clone> Clone for TypedInstancedMeshSettings<T> {
 }
 
 #[cfg(feature = "dynamic")]
-impl Clone for crate::dynamic::InstancedMeshSettings {
+impl Clone for DynamicInstancedMeshSettings {
     fn clone(&self) -> Self {
         Self {
             sub_scene: self.sub_scene.clone(),
