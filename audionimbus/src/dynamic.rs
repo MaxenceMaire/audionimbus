@@ -50,7 +50,13 @@ pub use crate::wiring::{
 /// Bevy components and resources with runtime choices.
 #[cfg(feature = "bevy")]
 pub mod bevy {
-    pub use crate::bevy::asset::{ProbeBatchAsset, ProbeBatchAssetLoader, ProbeBatchAssetSource};
+    pub use crate::bevy::asset::{
+        DynamicSceneAssetSource as SceneAssetSource, ProbeBatchAsset, ProbeBatchAssetLoader,
+        ProbeBatchAssetSource, SceneAsset, SceneAssetLoader,
+    };
+    pub use crate::bevy::debug::{
+        DynamicSpatialAudioDebugPlugin as SpatialAudioDebugPlugin, WireframeColor, WireframePalette,
+    };
     pub use crate::bevy::error::{
         DynamicIntegrationErrorEvent as IntegrationErrorEvent,
         DynamicSimulationErrorEvent as SimulationErrorEvent, IntegrationOperation,

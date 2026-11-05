@@ -5,7 +5,8 @@ mod r#static {
     #[cfg(not(feature = "static"))]
     use audionimbus as core;
     use audionimbus::bevy::{
-        configuration::SimulationConfiguration, error, geometry, plugin, runner, simulation, source,
+        asset, configuration::SimulationConfiguration, debug, error, geometry, plugin, runner,
+        simulation, source,
     };
     #[cfg(feature = "static")]
     use audionimbus::r#static as core;
@@ -105,6 +106,12 @@ mod r#static {
                 .with_direct(core::DirectSimulationSettings::default())
                 .with_reflections(core::ConvolutionSettings::default()),
         );
+        let handle = Handle::<asset::SceneAsset>::default();
+        let _: asset::SceneAssetSource<CustomConfiguration> =
+            asset::SceneAssetSource::new(handle.clone());
+        let _: audionimbus::bevy::SceneAssetSource = asset::SceneAssetSource::new(handle);
+        let _debug_plugin = debug::SpatialAudioDebugPlugin::with_config::<CustomConfiguration>();
+        let _default_debug_plugin = debug::SpatialAudioDebugPlugin::new();
         let mut app = App::new();
         app.add_observer(|event: On<error::SimulationErrorEvent>| {
             let _: audionimbus::wiring::SimulationStepError = event.error;
@@ -148,6 +155,76 @@ mod r#static {
             .resource::<simulation::Simulation<CustomConfiguration>>()
             .shutdown();
         simulation.shutdown();
+    }
+
+    #[test]
+    fn computes_debug_defaults_once() {
+        use bevy::asset::AssetPlugin;
+        use bevy::gizmos::GizmoPlugin;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        /// The number of implicit parameter computations.
+        static PARAMETER_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+        /// A configuration with observable implicit parameter construction.
+        #[derive(TypePath)]
+        struct DebugConfiguration;
+
+        impl SimulationConfiguration for DebugConfiguration {
+            type RayTracer = core::DefaultRayTracer;
+            type Direct = core::Direct;
+            type Reflections = core::Reflections;
+            type Pathing = core::Pathing;
+            type ReflectionEffect = core::Convolution;
+
+            fn implicit_source_parameters()
+            -> core::SimulationParameters<core::Direct, core::Reflections, core::Pathing>
+            {
+                PARAMETER_CALLS.fetch_add(1, Ordering::Relaxed);
+
+                Default::default()
+            }
+        }
+
+        let context = core::Context::default();
+        let settings = core::SimulationSettings::new(&core::AudioSettings::default())
+            .with_direct(core::DirectSimulationSettings::default())
+            .with_reflections(core::ConvolutionSettings::default())
+            .with_pathing(core::PathingSimulationSettings::default());
+        let simulator = core::Simulator::try_new(&context, &settings).unwrap();
+        let source = core::Source::try_new(&simulator).unwrap();
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            GizmoPlugin,
+        ))
+        .init_resource::<Assets<Mesh>>()
+        .init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>()
+        .add_plugins(debug::SpatialAudioDebugPlugin::with_config::<
+            DebugConfiguration,
+        >());
+        let first = app
+            .world_mut()
+            .spawn((
+                source::Source::<DebugConfiguration>(source.clone()),
+                Transform::default(),
+            ))
+            .id();
+        let second = app
+            .world_mut()
+            .spawn((
+                source::Source::<DebugConfiguration>(source),
+                Transform::default(),
+            ))
+            .id();
+        app.update();
+        assert_eq!(PARAMETER_CALLS.load(Ordering::Relaxed), 1);
+        app.world_mut().entity_mut(first).despawn();
+        app.world_mut().entity_mut(second).despawn();
+        app.update();
+        assert_eq!(PARAMETER_CALLS.load(Ordering::Relaxed), 2);
     }
 }
 
@@ -1015,6 +1092,299 @@ mod runtime {
         );
         app.world().resource::<audio::Simulation>().shutdown();
     }
+
+    #[test]
+    fn reloads_scene_asset_geometry() {
+        use bevy::asset::{AssetEvent, AssetPlugin};
+        let settings = core::SimulationSettings::new(&AudioSettings::default())
+            .with_direct(DirectSimulationSettings::default());
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin))
+            .init_resource::<Assets<Mesh>>()
+            .add_plugins(
+                audio::SpatialAudioPlugin::with_settings(settings).with_runners(
+                    audio::RunnerSettings {
+                        direct: false,
+                        reflections: audio::ReflectionsRunner::Disabled,
+                        pathing: false,
+                    },
+                ),
+            );
+        let context = app.world().resource::<Context>().clone();
+        let scene = core::Scene::try_new(&context, core::RayTracerSettings::Default).unwrap();
+        let bytes = scene.try_save(&context).unwrap().to_vec();
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<audio::SceneAsset>>()
+            .add(audio::SceneAsset::new(bytes.clone()));
+        let scene_entity = app
+            .world_mut()
+            .spawn((
+                audio::SceneAssetSource::with_ray_tracer(
+                    handle.clone(),
+                    core::RayTracerSettings::Default,
+                ),
+                audio::MainScene,
+                Transform::default(),
+            ))
+            .id();
+        let sub_scene_entity = app
+            .world_mut()
+            .spawn((
+                audio::SceneAssetSource::with_ray_tracer(
+                    handle.clone(),
+                    core::RayTracerSettings::Default,
+                ),
+                Transform::default(),
+            ))
+            .id();
+        let mesh = app
+            .world_mut()
+            .resource_mut::<Assets<Mesh>>()
+            .add(Mesh::from(Cuboid::default()));
+        let mesh_entity = app
+            .world_mut()
+            .spawn((
+                audio::StaticMesh,
+                Mesh3d(mesh),
+                Transform::default(),
+                ChildOf(sub_scene_entity),
+            ))
+            .id();
+        let instance_entity = app
+            .world_mut()
+            .spawn((
+                audio::InstancedMesh(sub_scene_entity),
+                Transform::from_xyz(0.0, 0.0, 1.0),
+                ChildOf(scene_entity),
+            ))
+            .id();
+        let source = core::Source::try_new(
+            app.world().resource::<audio::Simulation>().simulator(),
+            SimulationFlags::DIRECT,
+        )
+        .unwrap();
+        app.world_mut().spawn(audio::Source::from(source.clone()));
+        for stage in 0..6 {
+            match stage {
+                1 => {
+                    app.world_mut()
+                        .resource_mut::<Assets<audio::SceneAsset>>()
+                        .insert(handle.id(), audio::SceneAsset::new(bytes.clone()))
+                        .unwrap();
+                    app.world_mut()
+                        .write_message(AssetEvent::<audio::SceneAsset>::Modified {
+                            id: handle.id(),
+                        });
+                }
+                2 | 3 => {
+                    let replacement = app
+                        .world_mut()
+                        .resource_mut::<Assets<audio::SceneAsset>>()
+                        .add(audio::SceneAsset::new(bytes.clone()));
+                    app.world_mut()
+                        .entity_mut(if stage == 2 {
+                            sub_scene_entity
+                        } else {
+                            scene_entity
+                        })
+                        .insert(audio::SceneAssetSource::with_ray_tracer(
+                            replacement,
+                            core::RayTracerSettings::Default,
+                        ));
+                }
+                4 => {
+                    app.world_mut()
+                        .entity_mut(mesh_entity)
+                        .remove::<audio::StaticMesh>();
+                }
+                5 => {
+                    app.world_mut()
+                        .entity_mut(mesh_entity)
+                        .insert(audio::StaticMesh);
+                    app.world_mut()
+                        .entity_mut(instance_entity)
+                        .remove::<audio::InstancedMesh>();
+                }
+                _ => {}
+            }
+            app.update();
+            assert!(
+                app.world()
+                    .entity(scene_entity)
+                    .contains::<audio::MainScene>()
+            );
+            app.world()
+                .get::<audio::Scene>(sub_scene_entity)
+                .unwrap()
+                .commit();
+            app.world()
+                .get::<audio::Scene>(scene_entity)
+                .unwrap()
+                .commit();
+            let simulation = app.world().resource::<audio::Simulation>();
+            simulation.simulator().commit();
+            source
+                .set_inputs(&core::SimulationInputs {
+                    source: CoordinateSystem {
+                        origin: audionimbus::Point::new(0.0, 0.0, 2.0),
+                        ..Default::default()
+                    },
+                    parameters: core::SimulationParameters {
+                        direct: Some(DirectSimulationParameters::new().with_occlusion(
+                            audionimbus::Occlusion::new(audionimbus::OcclusionAlgorithm::Raycast),
+                        )),
+                        ..Default::default()
+                    },
+                })
+                .unwrap();
+            simulation.simulator().run_direct().unwrap();
+            assert_eq!(
+                source.get_direct_outputs().unwrap().occlusion,
+                Some(if stage < 4 { 0.0 } else { 1.0 }),
+                "asset stage {stage}"
+            );
+        }
+        app.world_mut()
+            .entity_mut(sub_scene_entity)
+            .remove::<audio::Scene>();
+        app.world_mut()
+            .entity_mut(scene_entity)
+            .remove::<audio::Scene>();
+        assert!(
+            !app.world()
+                .entity(scene_entity)
+                .contains::<audio::MainScene>()
+        );
+        app.world().resource::<audio::Simulation>().shutdown();
+    }
+
+    #[test]
+    fn draws_runtime_sources_and_geometry() {
+        use bevy::asset::AssetPlugin;
+        use bevy::gizmos::{GizmoAsset, GizmoPlugin};
+        let settings = core::SimulationSettings::new(&AudioSettings::default())
+            .with_direct(DirectSimulationSettings::default())
+            .with_reflections(audionimbus::ParametricSettings {
+                max_num_rays: 64,
+                num_diffuse_samples: 8,
+                max_duration: 1.0,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            GizmoPlugin,
+        ))
+        .init_resource::<Assets<Mesh>>()
+        .init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>()
+        .add_plugins((
+            audio::SpatialAudioPlugin::with_settings(settings).with_runners(
+                audio::RunnerSettings {
+                    direct: false,
+                    reflections: audio::ReflectionsRunner::Disabled,
+                    pathing: false,
+                },
+            ),
+            audio::SpatialAudioDebugPlugin::with_runtime(),
+        ));
+        let context = app.world().resource::<Context>();
+        let scene =
+            audio::Scene::try_with_ray_tracer(context, core::RayTracerSettings::Default).unwrap();
+        let scene_entity = app
+            .world_mut()
+            .spawn((scene, audio::MainScene, Transform::default()))
+            .id();
+        let source = audio::Source::try_with_flags(
+            app.world().resource::<audio::Simulation>(),
+            SimulationFlags::DIRECT | SimulationFlags::REFLECTIONS,
+        )
+        .unwrap();
+        let entity = app
+            .world_mut()
+            .spawn((
+                source,
+                Transform::from_xyz(3.0, 0.0, 0.0),
+                ChildOf(scene_entity),
+                audio::WireframeColor(Color::srgb(1.0, 0.0, 0.0)),
+            ))
+            .id();
+        #[cfg(feature = "static")]
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(audionimbus::r#static::bevy::SourceParameters::default());
+        app.update();
+        let gizmos = app.world().resource::<Assets<GizmoAsset>>();
+        let source_gizmo = gizmos.iter().next().unwrap().1.buffer();
+        assert!(!source_gizmo.strip_positions.is_empty());
+        assert!(source_gizmo.list_positions.is_empty());
+        assert!(
+            source_gizmo
+                .strip_positions
+                .iter()
+                .filter(|position| position.is_finite())
+                .all(|position| (position.x - 3.0).abs() <= 0.101)
+        );
+        assert!(
+            source_gizmo
+                .strip_colors
+                .iter()
+                .zip(&source_gizmo.strip_positions)
+                .filter(|(_, position)| position.is_finite())
+                .all(|(color, _)| *color == bevy::color::LinearRgba::RED)
+        );
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(audio::SourceParameters::from(core::SimulationParameters {
+                direct: Some(
+                    DirectSimulationParameters::new()
+                        .with_directivity(audionimbus::Directivity::WeightedDipole {
+                            weight: 1.0,
+                            power: 1.0,
+                        })
+                        .with_occlusion(audionimbus::Occlusion::new(
+                            audionimbus::OcclusionAlgorithm::Volumetric {
+                                radius: 0.5,
+                                num_occlusion_samples: 8,
+                            },
+                        )),
+                ),
+                ..Default::default()
+            }));
+        app.update();
+        let gizmos = app.world().resource::<Assets<GizmoAsset>>();
+        let source_gizmo = gizmos.iter().next().unwrap().1.buffer();
+        assert!(!source_gizmo.list_positions.is_empty());
+        assert!(
+            source_gizmo
+                .strip_positions
+                .iter()
+                .any(|position| position.x > 3.4)
+        );
+        app.world_mut().entity_mut(entity).despawn();
+        let mesh = app
+            .world_mut()
+            .resource_mut::<Assets<Mesh>>()
+            .add(Mesh::from(Cuboid::default()));
+        app.world_mut().spawn((
+            audio::StaticMesh,
+            Mesh3d(mesh),
+            ChildOf(scene_entity),
+            Transform::default(),
+        ));
+        app.update();
+        let gizmos = app.world().resource::<Assets<GizmoAsset>>();
+        assert!(
+            gizmos
+                .iter()
+                .any(|(_, gizmo)| !gizmo.buffer().list_positions.is_empty())
+        );
+        app.world().resource::<audio::Simulation>().shutdown();
+    }
 }
 
 #[test]
@@ -1030,6 +1400,38 @@ fn exports_selected_bevy_paths() {
     #[cfg(feature = "dynamic")]
     let _: Option<audionimbus::bevy::RunnerSettings> = None;
 
+    let _: fn(&audionimbus::bevy::asset::SceneAssetSource) =
+        |_: &audionimbus::bevy::SceneAssetSource| {};
+    let _: fn(&audionimbus::bevy::debug::SpatialAudioDebugPlugin) =
+        |_: &audionimbus::bevy::SpatialAudioDebugPlugin| {};
+    let handle = bevy::prelude::Handle::<audionimbus::bevy::SceneAsset>::default();
+    #[cfg(any(feature = "static", not(feature = "dynamic")))]
+    let asset: audionimbus::bevy::prelude::SceneAssetSource =
+        audionimbus::bevy::SceneAssetSource::new(handle);
+    #[cfg(any(feature = "static", not(feature = "dynamic")))]
+    let debug: audionimbus::bevy::prelude::SpatialAudioDebugPlugin =
+        audionimbus::bevy::SpatialAudioDebugPlugin::new();
+    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    let asset: audionimbus::bevy::prelude::SceneAssetSource =
+        audionimbus::bevy::SceneAssetSource::with_ray_tracer(
+            handle,
+            audionimbus::dynamic::RayTracerSettings::Default,
+        );
+    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    let debug: audionimbus::bevy::prelude::SpatialAudioDebugPlugin =
+        audionimbus::bevy::SpatialAudioDebugPlugin::with_runtime();
+    #[cfg(feature = "static")]
+    let _: (
+        audionimbus::r#static::bevy::SceneAssetSource,
+        audionimbus::r#static::bevy::SpatialAudioDebugPlugin,
+    ) = (asset, debug);
+    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    let _: (
+        audionimbus::dynamic::bevy::SceneAssetSource,
+        audionimbus::dynamic::bevy::SpatialAudioDebugPlugin,
+    ) = (asset, debug);
+    #[cfg(not(any(feature = "static", feature = "dynamic")))]
+    drop((asset, debug));
     let context = audionimbus::Context::default();
     #[cfg(any(feature = "static", not(feature = "dynamic")))]
     let scene: audionimbus::bevy::geometry::Scene =

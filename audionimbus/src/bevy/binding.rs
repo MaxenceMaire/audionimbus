@@ -9,14 +9,14 @@ use crate::wiring::simulation::pipeline::{StaticSimulation, StaticSourceWithInpu
 use crate::{Context, CoordinateSystem};
 use bevy::ecs::system::{SystemParam, SystemParamItem};
 use bevy::prelude::Entity;
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::{Borrow, BorrowMut, Cow};
 
 /// Handle selection that keeps source and simulator bindings inseparable.
 pub trait ConfigurationBinding: Send + Sync + 'static {
     type InstancedMeshError: std::error::Error;
     type Geometry: GeometryBinding + 'static;
     type Pipeline: crate::wiring::binding::PipelineBinding<Geometry = Self::Geometry>;
-    type Inputs: crate::simulation::inputs::InputBinding;
+    type Inputs: crate::simulation::inputs::InputBinding<Parameters = Self::Parameters>;
     type Simulation: Borrow<crate::wiring::simulation::pipeline::Simulation<Entity, Self::Pipeline>>
         + BorrowMut<crate::wiring::simulation::pipeline::Simulation<Entity, Self::Pipeline>>
         + Send
@@ -26,6 +26,8 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
     type SimulationAccess: SystemParam + 'static;
     type Source: Clone + Send + Sync + 'static;
     type Parameters: Clone + Send + Sync + 'static;
+    /// The configuration-wide defaults used by debug drawing.
+    type DebugParameters;
     type SourceWithInputs;
     type SharedInputs: Borrow<crate::simulation::simulator::SimulationSharedInputs<Self::Inputs>>
         + BorrowMut<crate::simulation::simulator::SimulationSharedInputs<Self::Inputs>>
@@ -50,6 +52,14 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
     ///
     /// Panics if native simulator creation fails.
     fn simulation(context: &Context, settings: &Self::Settings) -> Self::Simulation;
+    /// Returns shared source parameters for debug drawing.
+    fn debug_parameters() -> Self::DebugParameters;
+    /// Selects explicit parameters or the debug fallback for a source.
+    fn source_debug_parameters<'a>(
+        source: &Self::Source,
+        parameters: Option<&'a Self::Parameters>,
+        default_parameters: &'a Self::DebugParameters,
+    ) -> Cow<'a, Self::Parameters>;
     fn implicit_parameters(source: &Self::Source) -> Self::Parameters;
     fn listener_parameters(source: &Self::Source) -> Self::Parameters;
     fn source_with_inputs(
@@ -160,6 +170,7 @@ impl<C: SimulationConfiguration> ConfigurationBinding for C {
         C::ReflectionEffect,
     >;
     type Parameters = SimulationParameters<C::Direct, C::Reflections, C::Pathing>;
+    type DebugParameters = Self::Parameters;
     type SourceWithInputs =
         StaticSourceWithInputs<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>;
     type SharedInputs = crate::simulation::simulator::StaticSimulationSharedInputs<
@@ -203,6 +214,18 @@ impl<C: SimulationConfiguration> ConfigurationBinding for C {
             .expect("failed to create simulator");
 
         StaticSimulation::new::<Entity>(simulator)
+    }
+
+    fn debug_parameters() -> Self::DebugParameters {
+        C::implicit_source_parameters()
+    }
+
+    fn source_debug_parameters<'a>(
+        _: &Self::Source,
+        parameters: Option<&'a Self::Parameters>,
+        default_parameters: &'a Self::DebugParameters,
+    ) -> Cow<'a, Self::Parameters> {
+        Cow::Borrowed(parameters.unwrap_or(default_parameters))
     }
 
     fn implicit_parameters(_: &Self::Source) -> Self::Parameters {
@@ -304,6 +327,7 @@ impl ConfigurationBinding for RuntimeConfiguration {
     type SimulationAccess = bevy::prelude::ResMut<'static, super::simulation::Simulation<Self>>;
     type Source = crate::dynamic::Source;
     type Parameters = crate::dynamic::SimulationParameters;
+    type DebugParameters = ();
     type SourceWithInputs = crate::dynamic::SourceWithInputs;
     type SharedInputs = crate::dynamic::SimulationSharedInputs;
     type Settings = crate::dynamic::SimulationSettings;
@@ -320,6 +344,19 @@ impl ConfigurationBinding for RuntimeConfiguration {
             .expect("failed to create simulator");
 
         crate::dynamic::Simulation::new::<Entity>(simulator)
+    }
+
+    fn debug_parameters() -> Self::DebugParameters {}
+
+    fn source_debug_parameters<'a>(
+        source: &Self::Source,
+        parameters: Option<&'a Self::Parameters>,
+        _: &'a Self::DebugParameters,
+    ) -> Cow<'a, Self::Parameters> {
+        parameters.map_or_else(
+            || Cow::Owned(Self::implicit_parameters(source)),
+            Cow::Borrowed,
+        )
     }
 
     fn implicit_parameters(source: &Self::Source) -> Self::Parameters {

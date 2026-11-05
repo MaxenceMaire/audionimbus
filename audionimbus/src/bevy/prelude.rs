@@ -37,7 +37,11 @@ pub use asset::{
     ProbeBatchAsset, ProbeBatchAssetLoader, ProbeBatchAssetSource, SceneAsset, SceneAssetLoader,
 };
 pub use configuration::*;
-pub use debug::{SpatialAudioDebugPlugin, WireframeColor, WireframePalette};
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use debug::DynamicSpatialAudioDebugPlugin as SpatialAudioDebugPlugin;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use debug::SpatialAudioDebugPlugin;
+pub use debug::{WireframeColor, WireframePalette};
 pub use error::*;
 pub use geometry::{InstancedMesh, MainScene, StaticMesh, SubSceneOf};
 pub use hrtf::*;
@@ -59,6 +63,7 @@ pub use system_set::*;
 /// Default-configuration alias for [`asset::SceneAssetSource`].
 ///
 /// Import [`asset::SceneAssetSource`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
 pub type SceneAssetSource = asset::SceneAssetSource<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`geometry::Scene`].
@@ -128,3 +133,6 @@ pub use runner::DynamicReflectionsReverbSimulation as ReflectionsReverbSimulatio
 
 #[cfg(all(feature = "dynamic", not(feature = "static")))]
 pub use runner::DynamicPathingSimulation as PathingSimulation;
+
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use asset::DynamicSceneAssetSource as SceneAssetSource;

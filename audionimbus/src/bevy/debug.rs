@@ -21,12 +21,14 @@
 //! `C` must match the [`SpatialAudioPlugin`](crate::bevy::SpatialAudioPlugin) configuration used
 //! by the rest of the app.
 
+use super::binding::{ConfigurationBinding, DefaultConfiguration};
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
 use super::geometry::{Scene, SpawnedInstancedMesh, SpawnedStaticMesh, SubSceneOf};
 use super::source::SourceParameters;
 use super::system_set::SpatialAudioSet;
 use crate::model::Directivity;
 use crate::simulation::OcclusionAlgorithm;
+use crate::simulation::inputs::InputBinding;
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::{
     App, Assets, ChildOf, Color, Component, Entity, Gizmos, GlobalTransform, IntoScheduleConfigs,
@@ -44,7 +46,7 @@ const SOURCE_OCCLUSION_RESOLUTION: u32 = 24;
 /// Optional plugin that draws acoustic geometry as wireframe overlays.
 ///
 /// `C` must be the same as the [`SpatialAudioPlugin`](crate::bevy::SpatialAudioPlugin)'s.
-pub struct SpatialAudioDebugPlugin<C: SimulationConfiguration = DefaultSimulationConfiguration> {
+pub struct SpatialAudioDebugPlugin<C: ConfigurationBinding = DefaultConfiguration> {
     _phantom: PhantomData<C>,
 }
 
@@ -72,7 +74,7 @@ impl Default for SpatialAudioDebugPlugin<DefaultSimulationConfiguration> {
     }
 }
 
-impl<C: SimulationConfiguration + 'static> Plugin for SpatialAudioDebugPlugin<C> {
+impl<C: ConfigurationBinding> Plugin for SpatialAudioDebugPlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<WireframePalette>();
         app.add_systems(
@@ -86,6 +88,21 @@ impl<C: SimulationConfiguration + 'static> Plugin for SpatialAudioDebugPlugin<C>
                 .after(SpatialAudioSet::SyncGeometry)
                 .after(SpatialAudioSet::SyncSources),
         );
+    }
+}
+
+/// Runtime debug drawing plugin.
+#[cfg(feature = "dynamic")]
+pub type DynamicSpatialAudioDebugPlugin =
+    SpatialAudioDebugPlugin<super::binding::RuntimeConfiguration>;
+
+#[cfg(feature = "dynamic")]
+impl DynamicSpatialAudioDebugPlugin {
+    /// Creates a debug plugin for runtime components.
+    pub fn with_runtime() -> Self {
+        Self {
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -149,7 +166,7 @@ pub struct WireframeColor(pub Color);
 ///
 /// Static meshes whose containing scene is referenced as a sub-scene are skipped.
 /// Those meshes are instead drawn by [`draw_instanced_sub_scene`] once per spawned instance.
-fn draw_top_level_static_mesh<C: SimulationConfiguration>(
+fn draw_top_level_static_mesh<C: ConfigurationBinding>(
     static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh<C>)>,
     sub_scenes: Query<(), With<SubSceneOf>>,
     mesh_assets: Res<Assets<Mesh>>,
@@ -175,7 +192,7 @@ fn draw_top_level_static_mesh<C: SimulationConfiguration>(
 }
 
 /// Draws wireframes for sub-scene geometry once per spawned instanced mesh.
-fn draw_instanced_sub_scene<C: SimulationConfiguration>(
+fn draw_instanced_sub_scene<C: ConfigurationBinding>(
     instanced_meshes: Query<(&GlobalTransform, &SpawnedInstancedMesh<C>)>,
     scene_transforms: Query<&GlobalTransform, With<Scene<C>>>,
     static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh<C>)>,
@@ -215,24 +232,22 @@ fn draw_instanced_sub_scene<C: SimulationConfiguration>(
 
 /// Draws debug glyphs for spatial audio sources.
 #[allow(clippy::type_complexity)]
-fn draw_sources<C: SimulationConfiguration>(
-    sources: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            Option<&SourceParameters<C>>,
-            Option<&WireframeColor>,
-        ),
-        With<super::source::Source<C>>,
-    >,
+fn draw_sources<C: ConfigurationBinding>(
+    sources: Query<(
+        Entity,
+        &GlobalTransform,
+        &super::source::Source<C>,
+        Option<&SourceParameters<C>>,
+        Option<&WireframeColor>,
+    )>,
     parents: Query<&ChildOf>,
     scenes: Query<(), With<Scene<C>>>,
     palette: Res<WireframePalette>,
     mut gizmos: Gizmos,
 ) {
-    let default_parameters = SourceParameters::<C>::default();
+    let default_parameters = C::debug_parameters();
 
-    for (entity, transform, source_parameters, override_color) in &sources {
+    for (entity, transform, source, source_parameters, override_color) in &sources {
         let color = override_color.map_or_else(
             || {
                 find_scene_ancestor_color(entity, &parents, &scenes, &palette)
@@ -250,8 +265,12 @@ fn draw_sources<C: SimulationConfiguration>(
             .sphere(source_isometry, SOURCE_SPHERE_RADIUS, color)
             .resolution(SOURCE_SPHERE_RESOLUTION);
 
-        let parameters = &source_parameters.unwrap_or(&default_parameters).0;
-        let Some(direct_parameters) = parameters.direct_simulation_parameters() else {
+        let parameters = C::source_debug_parameters(
+            &source.0,
+            source_parameters.map(|parameters| &parameters.0),
+            &default_parameters,
+        );
+        let Some(direct_parameters) = C::Inputs::direct(&parameters) else {
             continue;
         };
 
@@ -341,7 +360,7 @@ fn source_has_directionality(directivity: &Directivity) -> bool {
 }
 
 /// Finds the nearest ancestor scene and returns its palette color.
-fn find_scene_ancestor_color<C: SimulationConfiguration>(
+fn find_scene_ancestor_color<C: ConfigurationBinding>(
     entity: Entity,
     parents: &Query<&ChildOf>,
     scenes: &Query<(), With<Scene<C>>>,

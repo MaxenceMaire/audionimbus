@@ -306,16 +306,19 @@ where
         app.add_observer(on_scene_removed::<C>);
 
         use super::asset::{
-            ProbeBatchAsset, ProbeBatchAssetLoader, sync_probe_batches_from_assets,
+            ProbeBatchAsset, ProbeBatchAssetLoader, SceneAsset, SceneAssetLoader,
+            sync_probe_batches_from_assets, sync_scenes_from_assets,
         };
         use bevy::asset::{AssetApp, AssetServer};
         use bevy::prelude::resource_exists;
         if app.world().contains_resource::<AssetServer>() {
             app.init_asset::<ProbeBatchAsset>()
-                .init_asset_loader::<ProbeBatchAssetLoader>();
+                .init_asset_loader::<ProbeBatchAssetLoader>()
+                .init_asset::<SceneAsset>()
+                .init_asset_loader::<SceneAssetLoader>();
             app.add_systems(
                 PostUpdate,
-                sync_probe_batches_from_assets
+                (sync_probe_batches_from_assets, sync_scenes_from_assets::<C>)
                     .run_if(resource_exists::<Context>)
                     .in_set(SpatialAudioSet::SyncAssets),
             );
@@ -407,9 +410,6 @@ pub trait PluginSystems: ConfigurationBinding {
 
 impl<C: SimulationConfiguration> PluginSystems for C {
     fn add_systems(app: &mut App, _: &()) {
-        use super::asset::{SceneAsset, SceneAssetLoader, sync_scenes_from_assets};
-        use bevy::asset::{AssetApp, AssetServer};
-        use bevy::prelude::{IntoScheduleConfigs, PostUpdate, resource_exists};
         app.add_systems(
             PostUpdate,
             sync_sources::<C>
@@ -423,16 +423,6 @@ impl<C: SimulationConfiguration> PluginSystems for C {
             on_main_scene_added::<C>
                 .map(|outcome| outcome.unwrap_or_else(|event| match event.error {})),
         );
-        if app.world().contains_resource::<AssetServer>() {
-            app.init_asset::<SceneAsset>()
-                .init_asset_loader::<SceneAssetLoader>();
-            app.add_systems(
-                PostUpdate,
-                sync_scenes_from_assets::<C>
-                    .run_if(resource_exists::<Context>)
-                    .in_set(super::system_set::SpatialAudioSet::SyncAssets),
-            );
-        }
     }
 }
 

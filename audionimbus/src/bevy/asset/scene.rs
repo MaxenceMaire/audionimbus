@@ -1,7 +1,8 @@
 //! Scene asset.
 
 use super::with_serialized_object;
-use crate::bevy::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
+use crate::bevy::binding::{ConfigurationBinding, DefaultConfiguration};
+use crate::bevy::configuration::SimulationConfiguration;
 use crate::bevy::geometry::{MainScene, Scene};
 use crate::callback::CustomRayTracingCallbacks;
 use crate::context::Context;
@@ -63,7 +64,7 @@ impl AssetLoader for SceneAssetLoader {
 /// Component that automatically instantiates a [`Scene`] from a [`SceneAsset`] when the backing
 /// asset finishes loading or is hot-reloaded.
 #[derive(Component)]
-pub struct SceneAssetSource<C: SimulationConfiguration = DefaultSimulationConfiguration> {
+pub struct SceneAssetSource<C: ConfigurationBinding = DefaultConfiguration> {
     /// Asset handle.
     handle: Handle<SceneAsset>,
     /// Asset loader.
@@ -141,15 +142,14 @@ where
     }
 }
 
-impl<C: SimulationConfiguration> SceneAssetSource<C> {
+impl<C: ConfigurationBinding> SceneAssetSource<C> {
     /// Creates a source component with a custom loader closure.
     fn with_loader(
         handle: Handle<SceneAsset>,
         loader: impl Fn(
             &Context,
             &SceneAsset,
-        )
-            -> Result<crate::geometry::scene::StaticScene<C::RayTracer>, SteamAudioError>
+        ) -> Result<crate::geometry::scene::Scene<C::Geometry>, SteamAudioError>
         + Send
         + Sync
         + 'static,
@@ -161,13 +161,32 @@ impl<C: SimulationConfiguration> SceneAssetSource<C> {
     }
 }
 
+/// Runtime scene asset component.
+#[cfg(feature = "dynamic")]
+pub type DynamicSceneAssetSource = SceneAssetSource<crate::bevy::binding::RuntimeConfiguration>;
+
+#[cfg(feature = "dynamic")]
+impl DynamicSceneAssetSource {
+    /// Creates a scene asset source with the selected ray tracer.
+    pub fn with_ray_tracer(
+        handle: Handle<SceneAsset>,
+        settings: crate::dynamic::RayTracerSettings,
+    ) -> Self {
+        Self::with_loader(handle, move |context, asset| {
+            with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+                crate::dynamic::Scene::load(context, settings.clone(), serialized_object)
+            })
+        })
+    }
+}
+
 /// Scene asset loader.
 type SceneLoader<C> = Arc<
     dyn Fn(
             &Context,
             &SceneAsset,
         ) -> Result<
-            crate::geometry::scene::StaticScene<<C as SimulationConfiguration>::RayTracer>,
+            crate::geometry::scene::Scene<<C as ConfigurationBinding>::Geometry>,
             SteamAudioError,
         > + Send
         + Sync,
@@ -175,8 +194,10 @@ type SceneLoader<C> = Arc<
 
 /// Inserts or replaces [`Scene<C>`] on entities with [`SceneAssetSource<C>`] when their backing
 /// asset becomes ready, is modified, or the stored handle changes.
+///
+/// Asset replacement must precede geometry registration to prevent stale scene handles.
 #[allow(clippy::type_complexity)]
-pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
+pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
     mut commands: Commands,
     context: Res<Context>,
     scene_assets: Res<Assets<SceneAsset>>,
@@ -207,7 +228,10 @@ pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
             Ok(inner_scene) => {
                 let had_main_scene = main_scenes.contains(entity);
 
-                commands.entity(entity).insert(Scene::<C>(inner_scene));
+                commands
+                    .entity(entity)
+                    .remove::<Scene<C>>()
+                    .insert(Scene::<C>(inner_scene));
 
                 if had_main_scene {
                     // Explicit remove guarantees `On<Add, MainScene>` fires.
