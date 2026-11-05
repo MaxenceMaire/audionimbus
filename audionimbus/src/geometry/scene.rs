@@ -433,9 +433,9 @@ impl<F: GeometryBinding> Scene<F> {
 
 /// A 3D scene, which can contain geometry objects that can interact with acoustic rays.
 ///
-/// The scene object itself doesn’t contain any geometry, but is a container for [`crate::StaticMesh`] and [`crate::InstancedMesh`] objects, which do contain geometry.
+/// The scene object itself doesn’t contain any geometry, but is a container for [`crate::geometry::StaticMesh`] and [`crate::geometry::InstancedMesh`] objects, which do contain geometry.
 ///
-/// [`crate::Scene`] is generic over the [`RayTracer`] implementation.
+/// [`crate::geometry::Scene`] is generic over the [`RayTracer`] implementation.
 ///
 /// `Scene` is a reference-counted handle to an underlying Steam Audio object.
 /// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
@@ -961,7 +961,10 @@ impl<F: GeometryBinding> Scene<F> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{Scene, StaticMesh};
     /// # let context = Context::default();
     /// # let mut scene = Scene::try_new(&context)?;
     /// # let vertices = vec![
@@ -986,6 +989,9 @@ impl<F: GeometryBinding> Scene<F> {
     /// assert!(scene.remove_static_mesh(handle));
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn remove_static_mesh(&mut self, handle: StaticMeshHandle) -> bool {
         let mut shared = self.shared.lock().unwrap();
@@ -1048,7 +1054,10 @@ impl<F: GeometryBinding> Scene<F> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{InstancedMesh, InstancedMeshSettings, Scene, StaticMesh};
     /// # let context = Context::default();
     /// # let mut sub_scene = Scene::try_new(&context)?;
     /// # let vertices = vec![
@@ -1084,6 +1093,9 @@ impl<F: GeometryBinding> Scene<F> {
     /// assert!(scene.remove_instanced_mesh(handle));
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn remove_instanced_mesh(&mut self, handle: InstancedMeshHandle) -> bool {
         let mut shared = self.shared.lock().unwrap();
@@ -1118,7 +1130,10 @@ impl<F: GeometryBinding> Scene<F> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{InstancedMesh, InstancedMeshSettings, Scene, StaticMesh};
     /// # let context = Context::default();
     /// # let mut sub_scene = Scene::try_new(&context)?;
     /// # let vertices = vec![
@@ -1160,6 +1175,9 @@ impl<F: GeometryBinding> Scene<F> {
     /// assert!(scene.update_instanced_mesh_transform(handle, new_transform));
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn update_instanced_mesh_transform(
         &mut self,
@@ -1185,9 +1203,9 @@ impl<F: GeometryBinding> Scene<F> {
     /// Commits any changes to the scene.
     ///
     /// This function should be called after any calls to the following functions, for the changes to take effect:
-    /// - [`add_static_mesh`](crate::Scene)
+    /// - [`add_static_mesh`](crate::geometry::Scene)
     /// - [`Self::remove_static_mesh`]
-    /// - [`add_instanced_mesh`](crate::Scene)
+    /// - [`add_instanced_mesh`](crate::geometry::Scene)
     /// - [`Self::remove_instanced_mesh`]
     /// - [`Self::update_instanced_mesh_transform`]
     ///
@@ -1199,7 +1217,10 @@ impl<F: GeometryBinding> Scene<F> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{Scene, StaticMesh};
     /// # let context = Context::default();
     /// # let mut scene = Scene::try_new(&context)?;
     /// # let vertices = vec![
@@ -1223,6 +1244,9 @@ impl<F: GeometryBinding> Scene<F> {
     /// let handle = scene.add_static_mesh(static_mesh);
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn commit(&self) {
         let locks = {
@@ -1314,7 +1338,10 @@ impl<T: RayTracer> StaticScene<T> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{Scene, StaticMesh};
     /// # let context = Context::default();
     /// # let mut scene = Scene::try_new(&context)?;
     /// # let vertices = vec![
@@ -1338,8 +1365,14 @@ impl<T: RayTracer> StaticScene<T> {
     /// let handle = scene.add_static_mesh(static_mesh);
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
-    pub fn add_static_mesh(&mut self, static_mesh: super::StaticMesh<T>) -> StaticMeshHandle {
+    pub fn add_static_mesh(
+        &mut self,
+        static_mesh: crate::geometry::static_mesh::StaticStaticMesh<T>,
+    ) -> StaticMeshHandle {
         self.add_static_mesh_shared(static_mesh)
     }
 
@@ -1354,7 +1387,10 @@ impl<T: RayTracer> StaticScene<T> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{InstancedMesh, InstancedMeshSettings, Scene, StaticMesh};
     /// # let context = Context::default();
     /// # let mut sub_scene = Scene::try_new(&context)?;
     /// # let vertices = vec![
@@ -1389,10 +1425,13 @@ impl<T: RayTracer> StaticScene<T> {
     /// let handle = scene.add_instanced_mesh(instanced_mesh);
     /// scene.commit();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn add_instanced_mesh(
         &mut self,
-        instanced_mesh: super::InstancedMesh<T>,
+        instanced_mesh: crate::geometry::instanced_mesh::StaticInstancedMesh<T>,
     ) -> InstancedMeshHandle {
         self.add_instanced_mesh_shared(instanced_mesh)
     }
@@ -1515,13 +1554,16 @@ pub fn relative_direction(
 
 /// A handle to a static mesh within a scene.
 ///
-/// This handle is returned when adding a static mesh to a scene via [`add_static_mesh`](crate::Scene).
+/// This handle is returned when adding a static mesh to a scene via [`add_static_mesh`](crate::geometry::Scene).
 /// It can be used to reference the mesh for operations like removal.
 ///
 /// # Example
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::{Scene, StaticMesh};
 /// # let context = Context::default();
 /// # let mut scene = Scene::try_new(&context)?;
 /// # let vertices = vec![
@@ -1549,19 +1591,25 @@ pub fn relative_direction(
 /// scene.remove_static_mesh(handle);
 /// scene.commit();
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StaticMeshHandle(DefaultKey);
 
 /// A handle to an instanced mesh within a scene.
 ///
-/// This handle is returned when adding an instanced mesh to a scene via [`add_instanced_mesh`](crate::Scene).
+/// This handle is returned when adding an instanced mesh to a scene via [`add_instanced_mesh`](crate::geometry::Scene).
 /// It can be used to reference the mesh for operations like removal or transform updates.
 ///
 /// # Example
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::{InstancedMesh, InstancedMeshSettings, Scene, StaticMesh};
 /// # let context = Context::default();
 /// # let mut sub_scene = Scene::try_new(&context)?;
 /// # let vertices = vec![
@@ -1606,6 +1654,9 @@ pub struct StaticMeshHandle(DefaultKey);
 /// assert!(scene.update_instanced_mesh_transform(handle, new_transform));
 /// scene.commit();
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct InstancedMeshHandle(DefaultKey);
@@ -1695,19 +1746,25 @@ impl From<SteamAudioError> for SceneError {
     }
 }
 
-#[cfg(all(doctest, feature = "dynamic"))]
+#[cfg(all(doctest, feature = "dynamic", feature = "static"))]
 /// Geometry binding checks.
 ///
 /// Static constructor inference remains unchanged:
 ///
 /// ```no_run
-/// use audionimbus::{Context, Scene};
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), audionimbus::SteamAudioError> {
+/// use audionimbus::Context;
+/// use audionimbus::r#static::Scene;
 ///
 /// let context = Context::default();
 /// let scene = Scene::try_new(&context)?;
 /// scene.commit();
 /// let _: Scene = scene;
 /// # Ok::<(), audionimbus::SteamAudioError>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 ///
 /// Static and runtime handles cannot be mixed:
@@ -1724,7 +1781,7 @@ impl From<SteamAudioError> for SceneError {
 ///     material_indices: &[0],
 ///     materials: &[Material::CONCRETE],
 /// })?;
-/// let mut static_scene = audionimbus::Scene::try_new(&context)?;
+/// let mut static_scene = audionimbus::r#static::Scene::try_new(&context)?;
 /// static_scene.add_static_mesh(mesh);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -1732,7 +1789,7 @@ impl From<SteamAudioError> for SceneError {
 /// Runtime choices cannot be used as static marker types:
 ///
 /// ```compile_fail
-/// use audionimbus::Scene;
+/// use audionimbus::r#static::Scene;
 /// use audionimbus::dynamic::RayTracerKind;
 ///
 /// let _: Option<Scene<RayTracerKind>> = None;
@@ -1741,10 +1798,16 @@ impl From<SteamAudioError> for SceneError {
 /// Static insertion keeps its existing generic bound:
 ///
 /// ```
-/// use audionimbus::{Scene, StaticMesh, RayTracer};
+/// # #[cfg(feature = "static")]
+/// # fn main() {
+/// use audionimbus::RayTracer;
+/// use audionimbus::r#static::{Scene, StaticMesh};
 /// fn insert<T: RayTracer>(scene: &mut Scene<T>, mesh: StaticMesh<T>) {
 ///     scene.add_static_mesh(mesh);
 /// }
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 ///
 /// Runtime insertion accepts runtime meshes:
@@ -1760,7 +1823,8 @@ impl From<SteamAudioError> for SceneError {
 /// Static meshes cannot enter runtime scenes:
 ///
 /// ```compile_fail
-/// use audionimbus::{StaticMesh, DefaultRayTracer};
+/// use audionimbus::DefaultRayTracer;
+/// use audionimbus::r#static::StaticMesh;
 /// use audionimbus::dynamic::Scene;
 /// fn insert(scene: &mut Scene, mesh: StaticMesh<DefaultRayTracer>) {
 ///     scene.try_add_static_mesh(mesh);
@@ -1770,7 +1834,8 @@ impl From<SteamAudioError> for SceneError {
 /// Runtime scenes cannot become static instance settings:
 ///
 /// ```compile_fail
-/// use audionimbus::{InstancedMeshSettings, Matrix4};
+/// use audionimbus::Matrix4;
+/// use audionimbus::r#static::InstancedMeshSettings;
 /// use audionimbus::dynamic::Scene;
 /// fn settings(sub_scene: Scene) -> InstancedMeshSettings {
 ///     InstancedMeshSettings { sub_scene, transform: Matrix4::IDENTITY }
@@ -1780,7 +1845,8 @@ impl From<SteamAudioError> for SceneError {
 /// Static scenes cannot become runtime instance settings:
 ///
 /// ```compile_fail
-/// use audionimbus::{Scene, Matrix4};
+/// use audionimbus::Matrix4;
+/// use audionimbus::r#static::Scene;
 /// use audionimbus::dynamic::InstancedMeshSettings;
 /// fn settings(sub_scene: Scene) -> InstancedMeshSettings {
 ///     InstancedMeshSettings { sub_scene, transform: Matrix4::IDENTITY }
@@ -1791,7 +1857,7 @@ impl From<SteamAudioError> for SceneError {
 ///
 /// ```compile_fail
 /// fn unpin<T: Unpin>() {}
-/// unpin::<audionimbus::StaticMesh<std::marker::PhantomPinned>>();
+/// unpin::<audionimbus::r#static::StaticMesh<std::marker::PhantomPinned>>();
 /// ```
 ///
 /// Runtime bindings cannot escape through the shared implementation:
@@ -1810,28 +1876,33 @@ impl From<SteamAudioError> for SceneError {
 ///
 /// ```compile_fail
 /// fn hash<T: std::hash::Hash>() {}
-/// hash::<audionimbus::StaticMesh<String>>();
+/// hash::<audionimbus::r#static::StaticMesh<String>>();
 /// ```
 ///
 /// Static mesh equality still requires marker equality:
 ///
 /// ```compile_fail
 /// fn equal<T: Eq>() {}
-/// equal::<audionimbus::StaticMesh<audionimbus::DefaultRayTracer>>();
+/// equal::<audionimbus::r#static::StaticMesh<audionimbus::DefaultRayTracer>>();
 /// ```
 struct GeometryBindings;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::instanced_mesh::{
+        StaticInstancedMesh as InstancedMesh, StaticInstancedMeshSettings as InstancedMeshSettings,
+    };
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::simulator::StaticSimulator as Simulator;
     use crate::{
         AnyHitCallback, AudioSettings, BatchedAnyHitCallback, BatchedClosestHitCallback,
-        ClosestHitCallback, CustomRayTracingCallbacks, Direct, DirectSimulationSettings,
-        InstancedMesh, InstancedMeshSettings, Matrix4, SimulationSettings, Simulator, Vector3,
+        ClosestHitCallback, CustomRayTracingCallbacks, Direct, DirectSimulationSettings, Matrix4,
+        Vector3,
     };
 
     fn registration_ref_count<D, R, P, RE>(
-        scene: &crate::Scene<DefaultRayTracer>,
+        scene: &StaticScene<DefaultRayTracer>,
         simulator: &Simulator<DefaultRayTracer, D, R, P, RE>,
     ) -> usize
     where
@@ -1852,7 +1923,7 @@ mod tests {
     #[test]
     fn test_default_scene() {
         let context = Context::default();
-        assert!(crate::Scene::try_new(&context).is_ok());
+        assert!(StaticScene::try_new(&context).is_ok());
     }
 
     #[test]
@@ -1903,13 +1974,13 @@ mod tests {
             batched_any_hit,
         );
 
-        assert!(crate::Scene::<CustomRayTracer>::try_with_custom(&context, callbacks).is_ok());
+        assert!(StaticScene::<CustomRayTracer>::try_with_custom(&context, callbacks).is_ok());
     }
 
     #[test]
     fn test_scene_clone() {
         let context = Context::default();
-        let scene = crate::Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+        let scene = StaticScene::<DefaultRayTracer>::try_new(&context).unwrap();
         let clone = scene.clone();
         assert_eq!(scene.raw_ptr(), clone.raw_ptr());
         drop(scene);
@@ -1926,8 +1997,8 @@ mod tests {
             });
         let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
             Simulator::try_new(&context, &settings).unwrap();
-        let mut root_scene = crate::Scene::try_new(&context).unwrap();
-        let sub_scene = crate::Scene::try_new(&context).unwrap();
+        let mut root_scene = StaticScene::try_new(&context).unwrap();
+        let sub_scene = StaticScene::try_new(&context).unwrap();
 
         simulator.set_scene(&root_scene);
         simulator.commit();
@@ -1955,8 +2026,8 @@ mod tests {
             });
         let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
             Simulator::try_new(&context, &settings).unwrap();
-        let mut root_scene = crate::Scene::try_new(&context).unwrap();
-        let shared_sub_scene = crate::Scene::try_new(&context).unwrap();
+        let mut root_scene = StaticScene::try_new(&context).unwrap();
+        let shared_sub_scene = StaticScene::try_new(&context).unwrap();
 
         let first_mesh = InstancedMesh::try_new(
             &root_scene,
@@ -2007,8 +2078,8 @@ mod tests {
         let mut simulator: Simulator<DefaultRayTracer, Direct, (), (), ()> =
             Simulator::try_new(&context, &settings).unwrap();
 
-        let mut old_root_scene = crate::Scene::try_new(&context).unwrap();
-        let old_sub_scene = crate::Scene::try_new(&context).unwrap();
+        let mut old_root_scene = StaticScene::try_new(&context).unwrap();
+        let old_sub_scene = StaticScene::try_new(&context).unwrap();
         let old_instanced_mesh = InstancedMesh::try_new(
             &old_root_scene,
             &InstancedMeshSettings {
@@ -2020,8 +2091,8 @@ mod tests {
         old_root_scene.add_instanced_mesh(old_instanced_mesh);
         old_root_scene.commit();
 
-        let mut new_root_scene = crate::Scene::try_new(&context).unwrap();
-        let new_sub_scene = crate::Scene::try_new(&context).unwrap();
+        let mut new_root_scene = StaticScene::try_new(&context).unwrap();
+        let new_sub_scene = StaticScene::try_new(&context).unwrap();
         let new_instanced_mesh = InstancedMesh::try_new(
             &new_root_scene,
             &InstancedMeshSettings {

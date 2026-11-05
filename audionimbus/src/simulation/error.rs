@@ -12,7 +12,7 @@ pub enum SimulationError {
 
     /// Attempted to run reflection simulation without a scene set.
     ///
-    /// Reflection simulation requires a [`crate::Scene`] to be set on the simulator via
+    /// Reflection simulation requires a [`crate::geometry::Scene`] to be set on the simulator via
     /// `Simulator::set_scene` and committed via `Simulator::commit` before
     /// running simulations.
     ReflectionsWithoutScene,

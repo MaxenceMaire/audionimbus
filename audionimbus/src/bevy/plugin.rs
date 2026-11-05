@@ -20,9 +20,11 @@ use super::source::{
 use super::system_set::SpatialAudioSet;
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
+use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+use crate::simulation::simulator::StaticSimulator as Simulator;
 use crate::simulation::{
     ConvolutionSettings, Direct, DirectCompatible, DirectSimulationSettings, PathingCompatible,
-    Reflections, ReflectionsCompatible, SimulationFlagsProvider, SimulationSettings, Simulator,
+    Reflections, ReflectionsCompatible, SimulationFlagsProvider,
 };
 use bevy::asset::{AssetApp, AssetServer};
 use bevy::prelude::{
@@ -135,7 +137,10 @@ where
     /// need listener-centric reverb.
     ///
     /// ```rust
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::SimulationSettings;
     /// # use audionimbus::bevy::*;
     /// #
     /// # let audio_settings = AudioSettings::default();
@@ -164,6 +169,9 @@ where
     /// SpatialAudioPlugin::with_config::<MyConfig>(settings)
     ///     .with_runners::<RunnerDirect, RunnerReflections, ()>();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn with_runners<RD2, RR2, RP2>(self) -> SpatialAudioPlugin<C, RD2, RR2, RP2>
     where
@@ -228,7 +236,8 @@ where
 
         let simulator = Simulator::try_new(&context, &self.simulation_settings)
             .expect("failed to create simulator");
-        let simulation = crate::wiring::simulation::Simulation::new::<Entity>(simulator);
+        let simulation =
+            crate::wiring::simulation::pipeline::StaticSimulation::new::<Entity>(simulator);
 
         world.insert_resource(Simulation::<C>(simulation));
         world.insert_resource(SimulationSharedInputs::<C>::default());

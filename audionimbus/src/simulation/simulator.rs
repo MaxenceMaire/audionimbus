@@ -6,8 +6,8 @@ use super::source::DynamicSourceResources;
 use super::source::{Source, SourceBinding, StaticSource};
 use super::{
     Direct, DirectCompatible, ParameterValidationError, Pathing, PathingCompatible,
-    ReflectionEffectCompatible, Reflections, ReflectionsCompatible, SimulationError,
-    SimulationFlags, SimulationFlagsProvider,
+    ReflectionEffectCompatible, Reflections, ReflectionsCompatible, SimulationFlags,
+    SimulationFlagsProvider,
 };
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
@@ -17,9 +17,11 @@ use crate::device::{OpenClDevice, RadeonRaysDevice, TrueAudioNextDevice};
 #[cfg(feature = "dynamic")]
 use crate::dynamic::{self, RayTracerKind, ReflectionAlgorithm};
 use crate::error::to_option_error;
+use crate::geometry::scene::StaticScene as Scene;
 use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::ray_tracing::RayTracer;
-use crate::{AudioSettings, Context, CoordinateSystem, ProbeBatch, Scene, SteamAudioError};
+use crate::simulation::error::SimulationError;
+use crate::{AudioSettings, Context, CoordinateSystem, ProbeBatch, SteamAudioError};
 use std::collections::HashMap;
 #[cfg(feature = "dynamic")]
 use std::fmt;
@@ -98,7 +100,11 @@ impl SimulatorBinding for Dynamic<SimulationChoices> {
 /// Basic simulation workflow (shown with direct sound; reflections and pathing follow a similar pattern):
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::Scene;
+/// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, SimulationSharedInputs, Simulator, Source};
 /// # let context = Context::default();
 /// let audio_settings = AudioSettings::default();
 ///
@@ -139,6 +145,9 @@ impl SimulatorBinding for Dynamic<SimulationChoices> {
 /// // Get results.
 /// let outputs = source.get_outputs()?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 pub type StaticSimulator<T, D = (), R = (), P = (), RE = ()> = Simulator<Static<(T, D, R, P, RE)>>;
 
@@ -237,7 +246,7 @@ where
 /// A shared lock for one simulation mode.
 pub type SimulationLock = Arc<Mutex<()>>;
 
-/// Shared ownership of [`crate::Simulator`] data across clones.
+/// Shared ownership of [`crate::simulation::Simulator`] data across clones.
 #[derive(Debug)]
 pub struct SimulatorShared<B: SimulatorBinding> {
     /// Number of probes after the last commit.
@@ -276,7 +285,7 @@ where
     P: 'static,
     RE: 'static,
 {
-    /// Creates a new [`crate::Simulator`] and returns a handle to it.
+    /// Creates a new [`crate::simulation::Simulator`] and returns a handle to it.
     ///
     /// # Errors
     ///
@@ -285,7 +294,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), audionimbus::SteamAudioError> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, Simulator};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// let settings = SimulationSettings::new(&audio_settings)
@@ -305,6 +317,9 @@ where
     ///     });
     /// let simulator = Simulator::try_new(&context, &settings)?;
     /// # Ok::<(), audionimbus::SteamAudioError>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn try_new(
         context: &Context,
@@ -388,7 +403,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, SimulationSharedInputs, Simulator};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -412,6 +430,9 @@ where
     ///     });
     /// simulator.set_shared_inputs(&shared_inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -465,7 +486,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, SimulationSharedInputs, Simulator};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -494,6 +518,9 @@ where
     /// // Reflections simulation thread... Does not block the direct thread.
     /// simulator.set_shared_inputs_subset::<(), Reflections, (), _, _, _>(&shared_inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -568,7 +595,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, SimulationSharedInputs, Simulator};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -579,6 +609,9 @@ where
     /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default());
     /// simulator.set_shared_direct_inputs(&shared_inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -631,7 +664,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, SimulationSharedInputs, Simulator};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -654,6 +690,9 @@ where
     ///     });
     /// simulator.set_shared_reflections_inputs(&shared_inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -711,7 +750,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, SimulationSharedInputs, Simulator};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -722,6 +764,9 @@ where
     /// let shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default());
     /// simulator.set_shared_pathing_inputs(&shared_inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -791,7 +836,7 @@ where
 {
     /// Retains an additional reference to the simulator.
     ///
-    /// The returned [`crate::Simulator`] shares the same underlying Steam Audio object.
+    /// The returned [`crate::simulation::Simulator`] shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         self.clone_shared()
     }
@@ -1451,7 +1496,7 @@ pub struct SimulationSharedInputs<B> {
 }
 
 impl StaticSimulationSharedInputs {
-    /// Creates new [`crate::SimulationSharedInputs`].
+    /// Creates new [`crate::simulation::SimulationSharedInputs`].
     ///
     /// # Arguments
     ///
@@ -1736,7 +1781,7 @@ pub enum DynamicSimulationError {
     /// Simulation parameters exceed creation limits.
     ParameterValidation(crate::ParameterValidationError),
     /// Simulation requires a committed scene or probes.
-    Simulation(crate::SimulationError),
+    Simulation(SimulationError),
     /// Requested modes are unavailable.
     DisabledModes(SimulationFlags),
     /// Requested flags contain unknown bits.
@@ -1803,67 +1848,69 @@ impl std::error::Error for DynamicSimulationError {
     }
 }
 
-#[cfg(all(doctest, feature = "dynamic"))]
+#[cfg(all(doctest, feature = "dynamic", feature = "static"))]
 /// Simulation binding checks.
 ///
 /// ```compile_fail
-/// use audionimbus::{Simulator, ray_tracing::DefaultRayTracer};
+/// use audionimbus::DefaultRayTracer;
+/// use audionimbus::r#static::Simulator;
 /// fn add(simulator: &Simulator<DefaultRayTracer>, source: &audionimbus::dynamic::Source) {
 ///     simulator.add_source(source);
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn add(simulator: &audionimbus::dynamic::Simulator, source: &audionimbus::Source) {
+/// fn add(simulator: &audionimbus::dynamic::Simulator, source: &audionimbus::r#static::Source) {
 ///     simulator.try_add_source(source);
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// use audionimbus::{Simulator, ray_tracing::DefaultRayTracer};
+/// use audionimbus::DefaultRayTracer;
+/// use audionimbus::r#static::Simulator;
 /// fn scene(simulator: &mut Simulator<DefaultRayTracer>, scene: &audionimbus::dynamic::Scene) {
 ///     simulator.set_scene(scene);
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn scene(simulator: &mut audionimbus::dynamic::Simulator, scene: &audionimbus::Scene) {
+/// fn scene(simulator: &mut audionimbus::dynamic::Simulator, scene: &audionimbus::r#static::Scene) {
 ///     simulator.try_set_scene(scene);
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn inputs(source: &audionimbus::Source, inputs: &audionimbus::dynamic::SimulationInputs) {
+/// fn inputs(source: &audionimbus::r#static::Source, inputs: &audionimbus::dynamic::SimulationInputs) {
 ///     source.set_inputs(inputs);
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn inputs(source: &audionimbus::dynamic::Source, inputs: &audionimbus::SimulationInputs) {
+/// fn inputs(source: &audionimbus::dynamic::Source, inputs: &audionimbus::r#static::SimulationInputs) {
 ///     source.set_inputs(inputs);
 /// }
 /// ```
 ///
 /// ```compile_fail
 /// fn settings(context: &audionimbus::Context, settings: &audionimbus::dynamic::SimulationSettings) {
-///     audionimbus::Simulator::try_new(context, settings);
+///     audionimbus::r#static::Simulator::try_new(context, settings);
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn settings(context: &audionimbus::Context, settings: &audionimbus::SimulationSettings<audionimbus::ray_tracing::DefaultRayTracer>) {
+/// fn settings(context: &audionimbus::Context, settings: &audionimbus::r#static::SimulationSettings<audionimbus::ray_tracing::DefaultRayTracer>) {
 ///     audionimbus::dynamic::Simulator::try_new(context, settings);
 /// }
 /// ```
 ///
 /// ```compile_fail
 /// fn outputs(source: &audionimbus::dynamic::Source) {
-///     let _: audionimbus::SimulationOutputs<(), (), ()> = source.get_outputs().unwrap();
+///     let _: audionimbus::r#static::SimulationOutputs<(), (), ()> = source.get_outputs().unwrap();
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn outputs(source: &audionimbus::Source) {
+/// fn outputs(source: &audionimbus::r#static::Source) {
 ///     let _: audionimbus::dynamic::SimulationOutputs = source.get_outputs().unwrap();
 /// }
 /// ```
@@ -1887,6 +1934,7 @@ mod tests {
         StaticSimulationSettings as SimulationSettings, StaticSimulator as Simulator,
         StaticSource as Source,
     };
+    use crate::geometry::scene::StaticScene as Scene;
     use crate::*;
 
     mod source {

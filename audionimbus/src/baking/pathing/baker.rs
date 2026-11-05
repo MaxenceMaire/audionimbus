@@ -1,16 +1,16 @@
 //! Path baking.
 
-use crate::baking::BakeError;
 use crate::baking::BakedDataIdentifier;
 use crate::baking::bake_lock::BAKE_LOCK;
+use crate::baking::error::BakeError;
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
-use crate::geometry::Scene;
 #[cfg(feature = "dynamic")]
 use crate::geometry::scene::RayTracerKind;
+use crate::geometry::scene::StaticScene as Scene;
 use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::probe::ProbeBatch;
 use crate::ray_tracing::RayTracer;
@@ -24,7 +24,7 @@ use crate::baking::BakedDataVariation;
 /// Pathing is an alternative simulation method to reflections that finds the shortest
 /// unoccluded paths from sources to listeners by traveling between probes.
 ///
-/// [`crate::PathBaker`] lets you bake, or precompute pathing data throughout a scene (or part
+/// [`crate::baking::pathing::PathBaker`] lets you bake, or precompute pathing data throughout a scene (or part
 /// of a scene) beforehand. This precomputation is typically done offline since pathing
 /// requires probe generation.
 ///
@@ -47,7 +47,7 @@ pub struct PathBaker<B: GeometryBinding> {
 }
 
 impl<T: RayTracer> StaticPathBaker<T> {
-    /// Creates a new [`crate::PathBaker`].
+    /// Creates a new [`crate::baking::pathing::PathBaker`].
     pub const fn new() -> Self {
         Self {
             _marker: PhantomData,
@@ -238,6 +238,9 @@ pub struct PathBakeParams {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::baking::pathing::baker::StaticPathBaker as PathBaker;
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::geometry::static_mesh::StaticStaticMesh as StaticMesh;
     use crate::*;
 
     /// Creates the scene used by the bake cases.

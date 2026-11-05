@@ -180,6 +180,31 @@
 //! audionimbus = { version = "0.16.2", features = ["wwise"] }
 //! ```
 //!
+//! ## Static and runtime types
+//!
+//! The default features are `static` and `wiring`.
+//! Runtime types require the `dynamic` feature.
+//! Enable it to use `audionimbus::dynamic`.
+//!
+//! `audionimbus::Scene`, `prelude::Scene`, and `geometry::Scene` follow the same feature rule.
+//!
+//! | Mode features | Ordinary imports | Fixed imports |
+//! | --- | --- | --- |
+//! | Neither | Static | None |
+//! | `static` | Static | `r#static` |
+//! | `dynamic` | Runtime | `dynamic` |
+//! | Both | Static | `r#static` and `dynamic` |
+//!
+//! To use runtime types through ordinary imports, disable default features.
+//!
+//! ```toml
+//! [dependencies]
+//! audionimbus = { version = "0.16.2", default-features = false, features = ["dynamic"] }
+//! ```
+//!
+//! Cargo combines the features that dependencies request for the same version of `audionimbus`.
+//! If another dependency enables `static`, ordinary imports use static types.
+//!
 //! ## Bevy Integration
 //!
 //! The `bevy` module provides ECS wrappers around AudioNimbus types.
@@ -294,6 +319,10 @@ const NUM_BANDS: u32 = 3;
 pub mod prelude;
 pub use prelude::*;
 
+#[cfg(feature = "static")]
+#[cfg_attr(docsrs, doc(cfg(feature = "static")))]
+pub mod r#static;
+
 pub mod audio_buffer;
 pub mod audio_settings;
 pub mod baking;
@@ -337,3 +366,11 @@ pub mod wwise;
 #[cfg(feature = "bevy")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bevy")))]
 pub mod bevy;
+
+#[cfg(all(doctest, not(feature = "static")))]
+/// The disabled static module.
+///
+/// ```compile_fail
+/// use audionimbus::r#static;
+/// ```
+struct StaticFeature;

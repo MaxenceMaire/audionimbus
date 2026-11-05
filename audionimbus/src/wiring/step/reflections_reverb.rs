@@ -4,7 +4,7 @@ use super::{SimulationStep, SourceEntries};
 use crate::binding::Dynamic;
 use crate::binding::Static;
 #[cfg(doc)]
-use crate::effect::ReflectionEffectParams;
+use crate::effect::reflections::ReflectionEffectParams;
 #[cfg(feature = "dynamic")]
 use crate::effect::reflections::binding::ReflectionAlgorithm;
 use crate::effect::reflections::{
@@ -12,14 +12,13 @@ use crate::effect::reflections::{
 };
 use crate::ray_tracing::RayTracer;
 use crate::simulation::simulator::Simulator as BoundSimulator;
-use crate::simulation::{
-    ReflectionEffectCompatible, Reflections, SimulationSharedInputs, Simulator,
+use crate::simulation::simulator::{
+    StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
 };
-use crate::wiring::{
-    SourceWithInputs,
-    binding::PipelineBinding,
-    input::{InputView, Reverb, StepInput},
-};
+use crate::simulation::{ReflectionEffectCompatible, Reflections};
+use crate::wiring::binding::PipelineBinding;
+use crate::wiring::input::{InputView, Reverb, StepInput};
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;

@@ -32,7 +32,9 @@ use crate::effect::AmbisonicsDecodeEffect;
 #[cfg(doc)]
 use crate::geometry::Scene;
 #[cfg(doc)]
-use crate::simulation::{SimulationOutputs, Simulator, Source};
+use crate::simulation::Simulator;
+#[cfg(doc)]
+use crate::simulation::{SimulationOutputs, Source};
 
 /// Applies the result of physics-based reflections simulation to an audio buffer.
 ///
@@ -49,10 +51,15 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// 1. Setting up a [`Simulator`] with a [`Scene`]
 /// 2. Adding [`Source`]s to the scene (don't forget to commit the changes using `Simulator::commit`!)
 /// 3. Running the simulation (`Simulator::run_reflections`) and retrieving the output for the source (`Source::get_outputs`)
-/// 4. Applying the reflection effect to the audio buffer (or to a [`ReflectionMixer`](crate::ReflectionMixer) for better performance with supported reflection algorithms) using the simulation output (`SimulationOutputs::reflections`) as params
+/// 4. Applying the reflection effect to the audio buffer (or to a [`ReflectionMixer`](crate::effect::reflections::ReflectionMixer) for better performance with supported reflection algorithms) using the simulation output (`SimulationOutputs::reflections`) as params
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::ReflectionEffect;
+/// # use audionimbus::r#static::Scene;
+/// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, SimulationSharedInputs, Simulator, Source};
 /// let context = Context::default();
 /// let audio_settings = AudioSettings::default();
 ///
@@ -119,6 +126,9 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 ///
 /// let _ = effect.apply(&params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 ///
 /// # Simulating Reverb
@@ -127,7 +137,12 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// by placing a source at the listener's position:
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::ReflectionEffect;
+/// # use audionimbus::r#static::Scene;
+/// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, SimulationSharedInputs, Simulator, Source};
 /// let context = Context::default();
 /// let audio_settings = AudioSettings::default();
 ///
@@ -204,6 +219,9 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// // Mix with dry signal (e.g., 70% dry, 30% reverb)
 /// // Then decode the ambisonics output for final playback
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 pub type StaticReflectionEffect<T> = ReflectionEffect<Static<T>>;
 
@@ -532,7 +550,7 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> StaticReflectionEffect<T> 
     ///
     /// The output of this effect will be mixed into the given mixer.
     ///
-    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`](crate::ReflectionMixer::apply).
+    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`](crate::effect::reflections::ReflectionMixer::apply).
     /// This can have a performance benefit if using convolution.
     ///
     /// The input audio buffer must have one channel, and the output audio buffer must have as many
@@ -566,7 +584,7 @@ impl<T: ReflectionEffectType + CanUseReflectionMixer> StaticReflectionEffect<T> 
     /// After the input to the reflection effect has stopped, this function must be called instead of [`Self::apply`] until the return value indicates that no more tail samples remain.
     ///
     /// The tail samples will be mixed into the given mixer.
-    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`](crate::ReflectionMixer::apply).
+    /// The mixed output can be retrieved elsewhere in the audio pipeline using [`ReflectionMixer::apply`](crate::effect::reflections::ReflectionMixer::apply).
     /// This can have a performance benefit if using convolution.
     /// If using TAN, specifying a mixer is required.
     ///
@@ -684,7 +702,7 @@ unsafe impl<B: ReflectionBinding> Sync for ReflectionEffect<B> {}
 impl<B: ReflectionBinding> Clone for ReflectionEffect<B> {
     /// Retains an additional reference to the reflection effect.
     ///
-    /// The returned [`ReflectionEffect`](crate::ReflectionEffect) shares the same underlying Steam Audio object.
+    /// The returned [`ReflectionEffect`](crate::effect::reflections::ReflectionEffect) shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The reflection effect will not be destroyed until all references are released.
         Self {
@@ -719,7 +737,7 @@ pub struct ReflectionEffectSettings {
     pub num_channels: u32,
 }
 
-/// The impulse response of [`ReflectionEffectParams`](crate::ReflectionEffectParams).
+/// The impulse response of [`ReflectionEffectParams`](crate::effect::reflections::ReflectionEffectParams).
 #[derive(Debug, Eq, PartialEq)]
 pub struct ReflectionEffectIR(pub audionimbus_sys::IPLReflectionEffectIR);
 
@@ -1104,13 +1122,14 @@ impl std::error::Error for ReflectionError {
     }
 }
 
-#[cfg(all(doctest, feature = "dynamic"))]
+#[cfg(all(doctest, feature = "dynamic", feature = "static"))]
 /// Reflection binding checks.
 ///
 /// Static and runtime parameters remain separate:
 ///
 /// ```compile_fail
-/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionEffectParams};
+/// use audionimbus::{AudioBufferMut, AudioBufferRef, Convolution};
+/// use audionimbus::r#static::ReflectionEffectParams;
 /// use audionimbus::dynamic::ReflectionEffect;
 /// fn apply(effect: &mut ReflectionEffect, params: &ReflectionEffectParams<Convolution>,
 ///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
@@ -1119,7 +1138,8 @@ impl std::error::Error for ReflectionError {
 /// ```
 ///
 /// ```compile_fail
-/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionEffect};
+/// use audionimbus::{AudioBufferMut, AudioBufferRef, Convolution};
+/// use audionimbus::r#static::ReflectionEffect;
 /// use audionimbus::dynamic::ReflectionEffectParams;
 /// fn apply(effect: &mut ReflectionEffect<Convolution>, params: &ReflectionEffectParams,
 ///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
@@ -1130,7 +1150,7 @@ impl std::error::Error for ReflectionError {
 /// Runtime algorithms do not satisfy static capability bounds:
 ///
 /// ```compile_fail
-/// use audionimbus::ReflectionEffect;
+/// use audionimbus::r#static::ReflectionEffect;
 /// use audionimbus::dynamic::ReflectionAlgorithm;
 /// let _: Option<ReflectionEffect<ReflectionAlgorithm>> = None;
 /// ```
@@ -1138,7 +1158,8 @@ impl std::error::Error for ReflectionError {
 /// Static TAN effects retain their mixer requirement:
 ///
 /// ```compile_fail
-/// use audionimbus::{AudioBufferRef, AudioBufferMut, ReflectionEffect, ReflectionEffectParams, TrueAudioNext};
+/// use audionimbus::{AudioBufferMut, AudioBufferRef, TrueAudioNext};
+/// use audionimbus::r#static::{ReflectionEffect, ReflectionEffectParams};
 /// fn apply(effect: &mut ReflectionEffect<TrueAudioNext>, params: &ReflectionEffectParams<TrueAudioNext>,
 ///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
 ///     effect.apply(params, input, output);
@@ -1154,7 +1175,8 @@ impl std::error::Error for ReflectionError {
 /// }
 /// ```
 /// ```compile_fail
-/// use audionimbus::{AudioBufferMut, ReflectionEffect, TrueAudioNext};
+/// use audionimbus::{AudioBufferMut, TrueAudioNext};
+/// use audionimbus::r#static::ReflectionEffect;
 /// fn tail(effect: &ReflectionEffect<TrueAudioNext>, output: &mut AudioBufferMut<'_>) {
 ///     effect.tail(output);
 /// }
@@ -1163,7 +1185,8 @@ impl std::error::Error for ReflectionError {
 /// Static output parameters cannot be converted into runtime outputs:
 ///
 /// ```compile_fail
-/// use audionimbus::{Convolution, ReflectionEffectParams};
+/// use audionimbus::Convolution;
+/// use audionimbus::r#static::ReflectionEffectParams;
 /// fn convert(params: ReflectionEffectParams<Convolution>) -> audionimbus::dynamic::ReflectionEffectParams {
 ///     params.into()
 /// }
@@ -1172,7 +1195,8 @@ impl std::error::Error for ReflectionError {
 /// Runtime output parameters cannot be converted into static outputs:
 ///
 /// ```compile_fail
-/// use audionimbus::{Convolution, ReflectionEffectParams};
+/// use audionimbus::Convolution;
+/// use audionimbus::r#static::ReflectionEffectParams;
 /// fn convert(params: audionimbus::dynamic::ReflectionEffectParams) -> ReflectionEffectParams<Convolution> {
 ///     params.into()
 /// }
@@ -1181,7 +1205,8 @@ impl std::error::Error for ReflectionError {
 /// Static and runtime mixers remain separate:
 ///
 /// ```compile_fail
-/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionMixer};
+/// use audionimbus::{AudioBufferMut, AudioBufferRef, Convolution};
+/// use audionimbus::r#static::ReflectionMixer;
 /// use audionimbus::dynamic::{ReflectionEffect, ReflectionEffectParams};
 /// fn apply(effect: &mut ReflectionEffect, params: &ReflectionEffectParams, mixer: &ReflectionMixer<Convolution>,
 ///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
@@ -1190,7 +1215,8 @@ impl std::error::Error for ReflectionError {
 /// ```
 ///
 /// ```compile_fail
-/// use audionimbus::{AudioBufferRef, AudioBufferMut, Convolution, ReflectionEffect, ReflectionEffectParams};
+/// use audionimbus::{AudioBufferMut, AudioBufferRef, Convolution};
+/// use audionimbus::r#static::{ReflectionEffect, ReflectionEffectParams};
 /// use audionimbus::dynamic::ReflectionMixer;
 /// fn apply(effect: &mut ReflectionEffect<Convolution>, params: &ReflectionEffectParams<Convolution>, mixer: &ReflectionMixer,
 ///          input: &AudioBufferRef<'_>, output: &mut AudioBufferMut<'_>) {
@@ -1201,6 +1227,14 @@ struct ReflectionBindings;
 
 #[cfg(test)]
 mod tests {
+    use crate::effect::reflections::effect::StaticReflectionEffect as ReflectionEffect;
+    use crate::effect::reflections::mixer::StaticReflectionMixer as ReflectionMixer;
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::simulator::{
+        StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
+    };
+    use crate::simulation::source::StaticSource as Source;
     use crate::*;
 
     mod reflection_effect {

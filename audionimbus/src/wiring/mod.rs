@@ -29,8 +29,12 @@
 //!   corresponding effects.
 //!
 //! ```
-//! # use audionimbus::wiring::*;
+//! # #[cfg(feature = "static")]
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use audionimbus::r#static::*;
 //! # use audionimbus::*;
+//! # use audionimbus::r#static::Scene;
+//! # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
 //! # let context = Context::default();
 //! # let audio_settings = AudioSettings::default();
 //! let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -120,6 +124,9 @@
 //! direct_simulation.join().expect("direct simulation thread panicked");
 //! reflections_simulation.join().expect("reflections simulation thread panicked");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # }
+//! # #[cfg(not(feature = "static"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Pausing and resuming simulation threads
@@ -129,8 +136,11 @@
 //! without tearing them down:
 //!
 //! ```
-//! # use audionimbus::wiring::*;
+//! # #[cfg(feature = "static")]
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use audionimbus::r#static::*;
 //! # use audionimbus::*;
+//! # use audionimbus::r#static::{SimulationSettings, Simulator};
 //! # let context = Context::default();
 //! # let audio_settings = AudioSettings::default();
 //! # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -150,13 +160,18 @@
 //! // Resume when gameplay is about to start again.
 //! simulation.resume();
 //! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # }
+//! # #[cfg(not(feature = "static"))]
+//! # fn main() {}
 //! ```
 //!
 //! Individual simulations also expose their own [`pause`](crate::wiring::simulation::DirectSimulation) /
 //! [`resume`](crate::wiring::simulation::DirectSimulation) methods for finer control.
 
 #[cfg(doc)]
-use crate::simulation::{Simulator, Source};
+use crate::simulation::Simulator;
+#[cfg(doc)]
+use crate::simulation::Source;
 
 mod binding;
 mod input;

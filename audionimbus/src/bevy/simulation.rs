@@ -25,7 +25,7 @@ impl<C: SimulationConfiguration> DerefMut for Simulation<C> {
 }
 
 /// Wiring simulation.
-type WiringSimulation<C> = crate::wiring::simulation::Simulation<
+type WiringSimulation<C> = crate::wiring::simulation::pipeline::StaticSimulation<
     Entity,
     <C as SimulationConfiguration>::RayTracer,
     <C as SimulationConfiguration>::Direct,
@@ -37,12 +37,16 @@ type WiringSimulation<C> = crate::wiring::simulation::Simulation<
 /// Shared simulation inputs, updated each frame by the game thread.
 #[derive(Resource, Debug)]
 pub struct SimulationSharedInputs<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub crate::simulation::SimulationSharedInputs<C::Direct, C::Reflections, C::Pathing>,
+    pub  crate::simulation::simulator::StaticSimulationSharedInputs<
+        C::Direct,
+        C::Reflections,
+        C::Pathing,
+    >,
 );
 
 impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
     fn default() -> Self {
-        Self(crate::simulation::SimulationSharedInputs::default())
+        Self(crate::simulation::simulator::StaticSimulationSharedInputs::default())
     }
 }
 

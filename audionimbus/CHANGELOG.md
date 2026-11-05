@@ -4,10 +4,12 @@
 
 ### Changed
 
-- **Breaking:** Runtime scene creation/loading, static mesh loading, and reflection effect creation return `SteamAudioError` directly.
-  Runtime static mesh creation returns `StaticMeshError` directly.
-  Remove `SceneError::StaticMesh` and its `From<StaticMeshError>` conversion.
-  Handle mesh validation through `StaticMeshError`.
+- **Breaking:** Root, prelude, and subsystem imports use runtime types with only `dynamic` and static types otherwise.
+- **Breaking:** Runtime scene creation and loading return `SteamAudioError` directly.
+- **Breaking:** Runtime static mesh loading returns `SteamAudioError` directly.
+- **Breaking:** Runtime reflection effect creation returns `SteamAudioError` directly.
+- **Breaking:** Runtime static mesh creation returns `StaticMeshError` directly.
+- **Breaking:** Remove `SceneError::StaticMesh` and its `From<StaticMeshError>` conversion.
 
 ## [0.16.2] - 2026-11-03
 

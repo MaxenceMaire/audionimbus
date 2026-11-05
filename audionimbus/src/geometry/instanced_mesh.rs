@@ -92,7 +92,7 @@ impl<T: RayTracer> StaticInstancedMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if creation fails.
     pub fn try_new(
-        scene: &super::Scene<T>,
+        scene: &crate::geometry::scene::StaticScene<T>,
         settings: &StaticInstancedMeshSettings<T>,
     ) -> Result<Self, SteamAudioError> {
         Self::try_new_shared(scene, settings)
@@ -213,6 +213,8 @@ impl Clone for DynamicInstancedMeshSettings {
 
 #[cfg(test)]
 mod tests {
+    use crate::geometry::instanced_mesh::StaticInstancedMesh as InstancedMesh;
+    use crate::geometry::scene::StaticScene as Scene;
     use crate::*;
 
     #[test]
@@ -228,10 +230,11 @@ mod tests {
             [0.0, 0.0, 0.0, 1.0],
         ]);
 
-        let instanced_mesh_settings = geometry::InstancedMeshSettings {
-            sub_scene,
-            transform,
-        };
+        let instanced_mesh_settings =
+            crate::geometry::instanced_mesh::StaticInstancedMeshSettings {
+                sub_scene,
+                transform,
+            };
         let instanced_mesh = InstancedMesh::try_new(&main_scene, &instanced_mesh_settings).unwrap();
         let clone = instanced_mesh.clone();
         assert_eq!(instanced_mesh.raw_ptr(), clone.raw_ptr());

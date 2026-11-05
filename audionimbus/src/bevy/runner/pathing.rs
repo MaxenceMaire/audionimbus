@@ -75,15 +75,24 @@ fn sync_pathing_frame<C>(
     });
 }
 
-/// Resource wrapping a [`wiring::PathingSimulation`](crate::wiring::PathingSimulation).
+/// Resource wrapping a [`wiring::PathingSimulation`](crate::wiring::simulation::PathingSimulation).
 #[derive(Resource)]
 pub struct PathingSimulation<C: SimulationConfiguration>(
-    pub crate::wiring::PathingSimulation<Entity, C::Direct, C::Reflections, C::ReflectionEffect>,
+    pub  crate::wiring::simulation::pathing::StaticPathingSimulation<
+        Entity,
+        C::Direct,
+        C::Reflections,
+        C::ReflectionEffect,
+    >,
 );
 
 impl<C: SimulationConfiguration> Deref for PathingSimulation<C> {
-    type Target =
-        crate::wiring::PathingSimulation<Entity, C::Direct, C::Reflections, C::ReflectionEffect>;
+    type Target = crate::wiring::simulation::pathing::StaticPathingSimulation<
+        Entity,
+        C::Direct,
+        C::Reflections,
+        C::ReflectionEffect,
+    >;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

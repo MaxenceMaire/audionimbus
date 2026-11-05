@@ -6,11 +6,11 @@ use crate::binding::Dynamic;
 use crate::binding::Static;
 use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
-use crate::simulation::Simulator;
 use crate::simulation::inputs::SimulationInputs as BoundInputs;
 #[cfg(feature = "dynamic")]
 use crate::simulation::simulator::SimulationChoices;
 use crate::simulation::simulator::Simulator as BoundSimulator;
+use crate::simulation::simulator::StaticSimulator as Simulator;
 use crate::simulation::source::Source as BoundSource;
 use crate::wiring::binding::{InputBinding, PipelineBinding};
 use arc_swap::ArcSwap;
@@ -53,8 +53,11 @@ use crate::wiring::runner::SimulationRunner;
 /// # Example
 ///
 /// ```
-/// # use audionimbus::wiring::*;
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # use audionimbus::r#static::*;
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::{SimulationSettings, Simulator};
 /// # let context = Context::default();
 /// # let audio_settings = AudioSettings::default();
 /// let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -84,6 +87,9 @@ use crate::wiring::runner::SimulationRunner;
 /// direct_simulation.join().expect("direct thread panicked");
 /// reflections_simulation.join().expect("reflections thread panicked");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 pub type StaticSimulation<SourceId, T, D, R, P, RE> =
     Simulation<SourceId, Static<(T, D, R, P, RE)>>;
@@ -246,8 +252,11 @@ impl<SourceId, T: RayTracer, D, R, P, RE> StaticSimulation<SourceId, T, D, R, P,
     /// # Example
     ///
     /// ```no_run
-    /// # use audionimbus::wiring::*;
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use audionimbus::r#static::*;
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -270,6 +279,9 @@ impl<SourceId, T: RayTracer, D, R, P, RE> StaticSimulation<SourceId, T, D, R, P,
     ///     ));
     /// });
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn update_sources<F>(&self, f: F)
     where
@@ -416,11 +428,11 @@ impl<T: 'static + Send + Sync> Clone for SharedSimulationOutput<T> {
     }
 }
 
-#[cfg(all(doctest, feature = "dynamic"))]
+#[cfg(all(doctest, feature = "dynamic", feature = "static"))]
 /// Worker binding checks.
 ///
 /// ```compile_fail
-/// use audionimbus::wiring::Simulation;
+/// use audionimbus::r#static::Simulation;
 /// fn pipeline(simulator: audionimbus::dynamic::Simulator) {
 ///     Simulation::new::<u32>(simulator);
 /// }
@@ -428,14 +440,22 @@ impl<T: 'static + Send + Sync> Clone for SharedSimulationOutput<T> {
 ///
 /// ```compile_fail
 /// fn inputs(worker: &audionimbus::dynamic::DirectSimulation<u32>) {
-///     worker.set_input(audionimbus::SimulationSharedInputs::default());
+///     worker.set_input(audionimbus::r#static::SimulationSharedInputs::default());
 /// }
 /// ```
 struct WiringBindings;
 
 #[cfg(test)]
 mod tests {
-    use crate::wiring::{Simulation, SourceWithInputs};
+    use crate::simulation::inputs::{
+        SimulationParameters, StaticSimulationInputs as SimulationInputs,
+    };
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::simulator::StaticSimulator as Simulator;
+    use crate::simulation::source::StaticSource as Source;
+    use crate::wiring::simulation::pipeline::{
+        StaticSimulation as Simulation, StaticSourceWithInputs as SourceWithInputs,
+    };
     use crate::*;
 
     #[test]

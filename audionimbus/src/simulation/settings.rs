@@ -74,12 +74,15 @@ impl<B: SimulatorBinding> SimulationSettings<B> {
     }
 }
 
-/// Settings used to create a [`crate::Simulator`].
+/// Settings used to create a [`crate::simulation::Simulator`].
 ///
 /// # Examples
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), audionimbus::SteamAudioError> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::SimulationSettings;
 /// let audio_settings = AudioSettings::default();
 /// let settings = SimulationSettings::new(&audio_settings)
 ///     .with_direct(DirectSimulationSettings {
@@ -97,6 +100,9 @@ impl<B: SimulatorBinding> SimulationSettings<B> {
 ///         num_visibility_samples: 4,
 ///     });
 /// # Ok::<(), audionimbus::SteamAudioError>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 pub type StaticSimulationSettings<T, D = (), R = (), P = (), RE = ()> =
     SimulationSettings<Static<(T, D, R, P, RE)>>;

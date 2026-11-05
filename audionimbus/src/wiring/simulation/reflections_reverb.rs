@@ -1,5 +1,5 @@
 use super::pipeline::Simulation as BoundSimulation;
-use super::{SharedSimulationOutput, Simulation, SimulationControls, SourceWithInputs};
+use super::{SharedSimulationOutput, SimulationControls};
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
@@ -13,6 +13,9 @@ use crate::simulation::simulator::Simulator as BoundSimulator;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
     SimulationFlagsProvider,
+};
+use crate::wiring::simulation::pipeline::{
+    StaticSimulation as Simulation, StaticSourceWithInputs as SourceWithInputs,
 };
 use crate::wiring::{
     Allocate, ReflectionsReverbFrame, SimulationStep, SimulationStepError,
@@ -260,6 +263,10 @@ impl<SourceId: 'static + Send + Sync + Hash + Eq>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::simulator::StaticSimulator as Simulator;
+    use crate::simulation::source::StaticSource as Source;
     use crate::*;
 
     #[test]

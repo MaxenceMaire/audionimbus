@@ -122,12 +122,18 @@ impl SerializedObject {
     /// # Examples
     ///
     /// ```
-    /// # use audionimbus::{Context, Scene};
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), audionimbus::SteamAudioError> {
+    /// # use audionimbus::Context;
+    /// # use audionimbus::r#static::Scene;
     /// # let context = Context::default();
     /// # let scene = Scene::try_new(&context)?;
     /// let serialized_object = scene.try_save(&context)?;
     /// let bytes = serialized_object.to_vec();
     /// # Ok::<(), audionimbus::SteamAudioError>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn to_vec(&self) -> Vec<u8> {
         let raw_ptr = self.raw_ptr();

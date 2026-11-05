@@ -7,14 +7,13 @@ use crate::effect::ReflectionEffectType;
 use crate::effect::reflections::binding::ReflectionBinding;
 use crate::simulation::simulator::SimulationSharedInputs as BoundSharedInputs;
 use crate::simulation::{ReflectionEffectCompatible, Reflections};
+use crate::wiring::binding::{FrameBinding, InputBinding};
 #[cfg(feature = "dynamic")]
 use crate::wiring::input::{InputView, StepInput};
-use crate::wiring::{
-    binding::{FrameBinding, InputBinding},
-    simulation::pipeline::SharedSources,
-    step::reflections::ReflectionsOutput as BoundReflectionsOutput,
-    step::{AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned, ReflectionsOutput},
-};
+use crate::wiring::simulation::pipeline::SharedSources;
+use crate::wiring::step::reflections::ReflectionsOutput as BoundReflectionsOutput;
+use crate::wiring::step::reflections::StaticReflectionsOutput as ReflectionsOutput;
+use crate::wiring::step::{AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned};
 use std::collections::HashMap;
 use std::hash::Hash;
 

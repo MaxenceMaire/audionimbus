@@ -3,9 +3,10 @@
 //! Each step type ([`DirectStep`], [`ReflectionsStep`], [`ReflectionsReverbStep`],
 //! [`PathingStep`]) implements [`SimulationStep`].
 
-use super::SourceWithInputs;
 use crate::error::SteamAudioError;
-use crate::simulation::{ParameterValidationError, SimulationError};
+use crate::simulation::ParameterValidationError;
+use crate::simulation::error::SimulationError;
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
 
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod direct;
@@ -17,15 +18,22 @@ pub use pathing::{
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use reflections::DynamicReflectionsOutput as ReflectionsOutput;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use reflections::StaticReflectionsOutput as ReflectionsOutput;
 pub use reflections::{
     AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned,
-    StaticReflectionsOutput as ReflectionsOutput, StaticReflectionsStep as ReflectionsStep,
+    StaticReflectionsStep as ReflectionsStep,
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections_reverb;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use reflections_reverb::DynamicReflectionsReverbOutput as ReflectionsReverbOutput;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use reflections_reverb::StaticReflectionsReverbOutput as ReflectionsReverbOutput;
 pub use reflections_reverb::{
     AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbInputOwned,
-    StaticReflectionsReverbOutput as ReflectionsReverbOutput,
     StaticReflectionsReverbStep as ReflectionsReverbStep,
 };
 

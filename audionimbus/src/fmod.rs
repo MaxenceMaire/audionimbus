@@ -1,7 +1,8 @@
 use crate::context::Context;
 use crate::hrtf::Hrtf;
 use crate::ray_tracing::RayTracer;
-use crate::simulation::{SimulationSettings, Source};
+use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+use crate::simulation::source::StaticSource as Source;
 
 /// Initializes the FMOD Studio integration.
 ///

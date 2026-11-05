@@ -1,5 +1,5 @@
 use super::pipeline::Simulation as BoundSimulation;
-use super::{SharedSimulationOutput, Simulation, SimulationControls};
+use super::{SharedSimulationOutput, SimulationControls};
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
@@ -11,6 +11,7 @@ use crate::simulation::{
     DirectCompatible, Pathing, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider,
 };
+use crate::wiring::simulation::pipeline::StaticSimulation as Simulation;
 use crate::wiring::{
     Allocate, PathingFrame, SimulationStep, SimulationStepError,
     binding::FrameBinding,
@@ -214,6 +215,10 @@ impl<SourceId: 'static + Send + Sync> DynamicPathingSimulation<SourceId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::geometry::static_mesh::StaticStaticMesh as StaticMesh;
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::simulator::StaticSimulator as Simulator;
     use crate::*;
 
     fn simulation() -> Simulation<(), DefaultRayTracer, (), (), Pathing, ()> {

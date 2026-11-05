@@ -16,9 +16,8 @@ use crate::binding::Static;
 use crate::device::TrueAudioNextDevice;
 #[cfg(feature = "dynamic")]
 use crate::dynamic::{self, ReflectionAlgorithm};
-use crate::effect::{
-    DirectEffectParams, PathEffectParams, ReflectionEffectParams, ReflectionEffectType,
-};
+use crate::effect::reflections::effect::StaticReflectionEffectParams as ReflectionEffectParams;
+use crate::effect::{DirectEffectParams, PathEffectParams, ReflectionEffectType};
 use crate::error::{SteamAudioError, to_option_error};
 use crate::model::deviation::DeviationModel;
 use crate::probe::ProbeBatch;
@@ -136,7 +135,7 @@ pub struct Source<B: SourceBinding> {
     binding: B,
 }
 
-/// Shared ownership of [`crate::Source`] data across clones.
+/// Shared ownership of [`crate::simulation::Source`] data across clones.
 #[derive(Default, Debug)]
 struct SourceShared<O> {
     /// The creator identity and resources selected by the source binding.
@@ -167,7 +166,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -176,6 +178,9 @@ where
     /// // The source's type parameters determine which simulations may be run.
     /// let source = Source::<Direct, (), ()>::try_new(&simulator)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Errors
@@ -199,7 +204,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -218,6 +226,9 @@ where
     /// // only participates in direct simulation.
     /// let source = Source::<Direct, (), ()>::try_new_subset(&simulator)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Errors
@@ -269,7 +280,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -284,6 +298,9 @@ where
     /// };
     /// source.set_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -324,7 +341,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -354,6 +374,9 @@ where
     /// // Reflections simulation thread... Does not block the direct thread.
     /// source.set_inputs_subset::<(), Reflections, (), _, _, _>(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -393,7 +416,7 @@ where
     /// # Errors
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
-    /// [`crate::SimulationOutputs`].
+    /// [`crate::simulation::SimulationOutputs`].
     pub fn get_outputs(&self) -> Result<StaticSimulationOutputs<D, R, P, RE>, SteamAudioError>
     where
         D: DirectCompatible<D> + SimulationFlagsProvider,
@@ -419,7 +442,7 @@ where
     /// # Errors
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
-    /// [`crate::SimulationOutputs`].
+    /// [`crate::simulation::SimulationOutputs`].
     pub fn get_outputs_subset<OutD, OutR, OutP>(
         &self,
     ) -> Result<StaticSimulationOutputs<OutD, OutR, OutP, RE>, SteamAudioError>
@@ -458,7 +481,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -473,6 +499,9 @@ where
     /// };
     /// source.set_direct_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -504,7 +533,7 @@ where
     /// # Errors
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
-    /// [`crate::SimulationOutputs`].
+    /// [`crate::simulation::SimulationOutputs`].
     pub fn get_direct_outputs(&self) -> Result<DirectEffectParams, SteamAudioError> {
         self.get_outputs_subset::<Direct, (), ()>()
             .map(|outputs| outputs.direct())
@@ -527,7 +556,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -550,6 +582,9 @@ where
     /// };
     /// source.set_reflections_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -581,7 +616,7 @@ where
     /// # Errors
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
-    /// [`crate::SimulationOutputs`].
+    /// [`crate::simulation::SimulationOutputs`].
     pub fn get_reflections_outputs(&self) -> Result<ReflectionEffectParams<RE>, SteamAudioError> {
         self.get_outputs_subset::<(), Reflections, ()>()
             .map(|outputs| outputs.reflections())
@@ -604,7 +639,10 @@ where
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
     /// # let context = Context::default();
     /// # let audio_settings = AudioSettings::default();
     /// # let simulation_settings = SimulationSettings::new(&audio_settings)
@@ -630,6 +668,9 @@ where
     /// };
     /// source.set_pathing_inputs(&inputs)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     ///
     /// # Arguments
@@ -661,7 +702,7 @@ where
     /// # Errors
     ///
     /// Returns a [`SteamAudioError`] on failure to allocate sufficient memory for the
-    /// [`crate::SimulationOutputs`].
+    /// [`crate::simulation::SimulationOutputs`].
     pub fn get_pathing_outputs(&self) -> Result<PathEffectParams, SteamAudioError> {
         self.get_outputs_subset::<(), (), Pathing>()
             .map(|outputs| outputs.pathing())
@@ -687,7 +728,7 @@ unsafe impl Sync for dynamic::Source {}
 impl<B: SourceBinding> Clone for Source<B> {
     /// Retains an additional reference to the source.
     ///
-    /// The returned [`crate::Source`] shares the same underlying Steam Audio object.
+    /// The returned [`crate::simulation::Source`] shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The source will not be destroyed until all references are released.
         Self {
@@ -1162,7 +1203,7 @@ pub struct SimulationOutputs<B> {
     /// The native handle or output storage.
     inner: *mut audionimbus_sys::IPLSimulationOutputs,
 
-    /// Retained pointer of the [`crate::Source`] it originated from, to ensure the IR pointer remains
+    /// Retained pointer of the [`crate::simulation::Source`] it originated from, to ensure the IR pointer remains
     /// valid.
     _source: audionimbus_sys::IPLSource,
 

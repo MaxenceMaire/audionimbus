@@ -263,7 +263,7 @@ unsafe impl<B: ReflectionBinding> Sync for ReflectionMixer<B> {}
 impl<B: ReflectionBinding> Clone for ReflectionMixer<B> {
     /// Retains an additional reference to the reflection mixer.
     ///
-    /// The returned [`ReflectionMixer`](crate::ReflectionMixer) shares the same underlying Steam Audio object.
+    /// The returned [`ReflectionMixer`](crate::effect::reflections::ReflectionMixer) shares the same underlying Steam Audio object.
     fn clone(&self) -> Self {
         // SAFETY: The reflection mixer will not be destroyed until all references are released.
         Self {
@@ -290,6 +290,13 @@ impl<B: ReflectionBinding> Hash for ReflectionMixer<B> {
 
 #[cfg(test)]
 mod tests {
+    use crate::effect::reflections::mixer::StaticReflectionMixer as ReflectionMixer;
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::simulator::{
+        StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
+    };
+    use crate::simulation::source::StaticSource as Source;
     use crate::*;
 
     mod reflection_mixer {

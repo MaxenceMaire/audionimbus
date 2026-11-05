@@ -5,19 +5,22 @@ use crate::binding::Static;
 use crate::effect::DirectEffectParams;
 use crate::ray_tracing::RayTracer;
 use crate::simulation::inputs::SimulationInputs as BoundInputs;
+use crate::simulation::inputs::StaticSimulationInputs as SimulationInputs;
 use crate::simulation::simulator::{
     SimulationSharedInputs as BoundSharedInputs, Simulator as BoundSimulator,
 };
+use crate::simulation::simulator::{
+    StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
+};
 use crate::simulation::source::Source as BoundSource;
+use crate::simulation::source::StaticSource as Source;
 use crate::simulation::{
     Direct, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
-    SimulationFlagsProvider, SimulationSharedInputs, Simulator,
+    SimulationFlagsProvider,
 };
-use crate::wiring::{
-    SourceWithInputs,
-    binding::{InputBinding, PipelineBinding},
-    input::{InputView, StepInput},
-};
+use crate::wiring::binding::{InputBinding, PipelineBinding};
+use crate::wiring::input::{InputView, StepInput};
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -188,8 +191,8 @@ where
 
     #[inline(always)]
     fn set_source(
-        source: &crate::Source<Direct, R, P, RE>,
-        simulation_inputs: &crate::SimulationInputs<Direct, R, P>,
+        source: &Source<Direct, R, P, RE>,
+        simulation_inputs: &SimulationInputs<Direct, R, P>,
     ) -> Result<(), Self::Error> {
         Ok(source.set_direct_inputs(simulation_inputs)?)
     }
@@ -202,7 +205,7 @@ where
     }
 
     #[inline(always)]
-    fn output(source: &crate::Source<Direct, R, P, RE>) -> Result<DirectEffectParams, Self::Error> {
+    fn output(source: &Source<Direct, R, P, RE>) -> Result<DirectEffectParams, Self::Error> {
         Ok(source.get_direct_outputs()?)
     }
 }

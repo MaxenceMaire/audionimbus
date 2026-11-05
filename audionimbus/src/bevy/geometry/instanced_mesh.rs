@@ -1,6 +1,7 @@
 use super::super::configuration::SimulationConfiguration;
 use super::scene::{Scene, SceneStatus, find_scene_ancestor};
-use crate::geometry::{InstancedMeshHandle, InstancedMeshSettings, Matrix4};
+use crate::geometry::instanced_mesh::StaticInstancedMeshSettings as InstancedMeshSettings;
+use crate::geometry::{InstancedMeshHandle, Matrix4};
 use bevy::prelude::{
     ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, On, Query, Ref, Reflect,
     ReflectComponent, Remove,
@@ -122,7 +123,7 @@ fn try_register_instanced_mesh<C: SimulationConfiguration>(
 
     let (mut parent_scene, mut parent_scene_status) = scenes.get_mut(scene_entity).ok()?;
 
-    let inner_mesh = crate::geometry::InstancedMesh::try_new(
+    let inner_mesh = crate::geometry::instanced_mesh::StaticInstancedMesh::try_new(
         &parent_scene.0,
         &InstancedMeshSettings {
             sub_scene,

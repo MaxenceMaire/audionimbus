@@ -78,7 +78,10 @@ where
     pub fn new(handle: Handle<SceneAsset>) -> Self {
         Self::with_loader(handle, |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<DefaultRayTracer>::load(context, serialized_object)
+                crate::geometry::scene::StaticScene::<DefaultRayTracer>::load(
+                    context,
+                    serialized_object,
+                )
             })
         })
     }
@@ -92,7 +95,7 @@ where
     pub fn with_embree(handle: Handle<SceneAsset>, device: EmbreeDevice) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<Embree>::load_embree(
+                crate::geometry::scene::StaticScene::<Embree>::load_embree(
                     context,
                     device.clone(),
                     serialized_object,
@@ -110,7 +113,7 @@ where
     pub fn with_radeon_rays(handle: Handle<SceneAsset>, device: RadeonRaysDevice) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<RadeonRays>::load_radeon_rays(
+                crate::geometry::scene::StaticScene::<RadeonRays>::load_radeon_rays(
                     context,
                     device.clone(),
                     serialized_object,
@@ -128,7 +131,7 @@ where
     pub fn with_custom(handle: Handle<SceneAsset>, callbacks: CustomRayTracingCallbacks) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<CustomRayTracer>::load_custom(
+                crate::geometry::scene::StaticScene::<CustomRayTracer>::load_custom(
                     context,
                     callbacks.clone(),
                     serialized_object,
@@ -145,7 +148,8 @@ impl<C: SimulationConfiguration> SceneAssetSource<C> {
         loader: impl Fn(
             &Context,
             &SceneAsset,
-        ) -> Result<crate::geometry::Scene<C::RayTracer>, SteamAudioError>
+        )
+            -> Result<crate::geometry::scene::StaticScene<C::RayTracer>, SteamAudioError>
         + Send
         + Sync
         + 'static,
@@ -163,7 +167,7 @@ type SceneLoader<C> = Arc<
             &Context,
             &SceneAsset,
         ) -> Result<
-            crate::geometry::Scene<<C as SimulationConfiguration>::RayTracer>,
+            crate::geometry::scene::StaticScene<<C as SimulationConfiguration>::RayTracer>,
             SteamAudioError,
         > + Send
         + Sync,
@@ -231,7 +235,8 @@ mod tests {
     #[test]
     fn test_scene_asset_round_trip() {
         let context = Context::default();
-        let scene = crate::geometry::Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+        let scene =
+            crate::geometry::scene::StaticScene::<DefaultRayTracer>::try_new(&context).unwrap();
         let serialized_object = scene.try_save(&context).unwrap();
         let asset = SceneAsset::new(serialized_object.to_vec());
 

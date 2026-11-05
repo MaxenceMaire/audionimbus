@@ -29,8 +29,11 @@ mod bake_lock;
 mod baked_data;
 pub use baked_data::*;
 
-mod error;
-pub use error::*;
+pub mod error;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use error::BakeError;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use reflections::baker::DynamicBakeError as BakeError;
 
 pub mod pathing;
 pub use pathing::{PathBakeParams, PathBaker};

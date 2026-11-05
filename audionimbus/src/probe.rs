@@ -5,7 +5,7 @@ use crate::context::Context;
 use crate::energy_field::EnergyField;
 use crate::error::{SteamAudioError, to_option_error};
 #[cfg(test)]
-use crate::geometry::Scene;
+use crate::geometry::scene::StaticScene as Scene;
 use crate::geometry::scene::{GeometryBinding, Scene as BoundScene};
 use crate::geometry::{Matrix, Sphere};
 use crate::serialized_object::SerializedObject;
@@ -541,7 +541,8 @@ impl std::fmt::Display for ProbeBatchError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Material, Point, StaticMesh, StaticMeshSettings, Triangle};
+    use crate::geometry::static_mesh::StaticStaticMesh as StaticMesh;
+    use crate::geometry::{Material, Point, StaticMeshSettings, Triangle};
 
     mod probe_array {
         use super::*;

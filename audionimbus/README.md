@@ -181,6 +181,31 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 audionimbus = { version = "0.16.2", features = ["wwise"] }
 ```
 
+## Static and runtime types
+
+The default features are `static` and `wiring`.
+Runtime types require the `dynamic` feature.
+Enable it to use `audionimbus::dynamic`.
+
+`audionimbus::Scene`, `prelude::Scene`, and `geometry::Scene` follow the same feature rule.
+
+| Mode features | Ordinary imports | Fixed imports |
+| --- | --- | --- |
+| Neither | Static | None |
+| `static` | Static | `r#static` |
+| `dynamic` | Runtime | `dynamic` |
+| Both | Static | `r#static` and `dynamic` |
+
+To use runtime types through ordinary imports, disable default features.
+
+```toml
+[dependencies]
+audionimbus = { version = "0.16.2", default-features = false, features = ["dynamic"] }
+```
+
+Cargo combines the features that dependencies request for the same version of `audionimbus`.
+If another dependency enables `static`, ordinary imports use static types.
+
 ## Bevy Integration
 
 The [`bevy`](https://docs.rs/audionimbus/latest/audionimbus/bevy/index.html) module provides ECS wrappers around AudioNimbus types.

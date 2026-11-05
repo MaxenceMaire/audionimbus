@@ -166,7 +166,7 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
 
     let (mut scene, mut scene_status) = scenes.get_mut(scene_entity).ok()?;
 
-    let inner_mesh = crate::geometry::StaticMesh::try_new(
+    let inner_mesh = crate::geometry::static_mesh::StaticStaticMesh::try_new(
         &scene.0,
         &StaticMeshSettings {
             vertices: &vertices,

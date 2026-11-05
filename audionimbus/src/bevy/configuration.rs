@@ -3,10 +3,11 @@
 use crate::effect::reflections::{Convolution, ReflectionEffectType};
 use crate::model::{AirAbsorptionModel, DistanceAttenuationModel};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
+use crate::simulation::inputs::SimulationParameters;
 use crate::simulation::{
     ConvolutionParameters, Direct, DirectCompatible, DirectSimulationParameters, Occlusion,
     OcclusionAlgorithm, PathingCompatible, ReflectionEffectCompatible, Reflections,
-    ReflectionsCompatible, SimulationFlagsProvider, SimulationParameters,
+    ReflectionsCompatible, SimulationFlagsProvider,
 };
 use bevy::reflect::TypePath;
 

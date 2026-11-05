@@ -2,9 +2,11 @@
 
 /// Baker implementations whose binding selectors must stay inaccessible to downstream callers.
 pub(crate) mod baker;
-pub use baker::{
-    ReflectionsBakeFlags, ReflectionsBakeParams, StaticReflectionsBaker as ReflectionsBaker,
-};
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use baker::DynamicReflectionsBaker as ReflectionsBaker;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use baker::StaticReflectionsBaker as ReflectionsBaker;
+pub use baker::{ReflectionsBakeFlags, ReflectionsBakeParams};
 
 #[cfg(test)]
 pub use baker::tests;

@@ -14,13 +14,15 @@ use crate::num_ambisonics_channels;
 use std::hash::{Hash, Hasher};
 
 #[cfg(doc)]
-use crate::baking::PathBaker;
+use crate::baking::pathing::PathBaker;
 #[cfg(doc)]
 use crate::geometry::Scene;
 #[cfg(doc)]
 use crate::probe::ProbeBatch;
 #[cfg(doc)]
-use crate::simulation::{SimulationOutputs, Simulator, Source};
+use crate::simulation::Simulator;
+#[cfg(doc)]
+use crate::simulation::{SimulationOutputs, Source};
 
 /// Applies the result of simulating sound paths from the source to the listener.
 ///
@@ -41,7 +43,12 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// 5. Applying the path effect using the simulation output (`SimulationOutputs::pathing`) as params
 ///
 /// ```
+/// # #[cfg(feature = "static")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # use audionimbus::*;
+/// # use audionimbus::r#static::PathBaker;
+/// # use audionimbus::r#static::{Scene, StaticMesh};
+/// # use audionimbus::r#static::{SimulationInputs, SimulationParameters, SimulationSettings, Simulator, Source};
 /// const MAX_ORDER: u32 = 1;
 ///
 /// let context = Context::default();
@@ -181,6 +188,9 @@ use crate::simulation::{SimulationOutputs, Simulator, Source};
 /// let path_effect_params = source.get_pathing_outputs()?;
 /// let _ = path_effect.apply(&path_effect_params, &input_buffer, &mut output_buffer);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// # #[cfg(not(feature = "static"))]
+/// # fn main() {}
 /// ```
 #[derive(Debug)]
 pub struct PathEffect {

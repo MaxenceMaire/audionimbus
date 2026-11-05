@@ -8,7 +8,10 @@
 //! # Building a Scene
 //!
 //! ```
+//! # #[cfg(feature = "static")]
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use audionimbus::*;
+//! use audionimbus::r#static::{Scene, StaticMesh};
 //!
 //! let context = Context::default();
 //! let mut scene = Scene::try_new(&context)?;
@@ -37,6 +40,9 @@
 //! scene.add_static_mesh(mesh);
 //! scene.commit();
 //! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # }
+//! # #[cfg(not(feature = "static"))]
+//! # fn main() {}
 //! ```
 //!
 //! # Dynamic Geometry
@@ -44,7 +50,10 @@
 //! Use [`InstancedMesh`] for moving objects:
 //!
 //! ```
+//! # #[cfg(feature = "static")]
+//! # fn main() -> Result<(), audionimbus::SteamAudioError> {
 //! # use audionimbus::*;
+//! # use audionimbus::r#static::{InstancedMesh, InstancedMeshSettings, Scene};
 //! # let context = Context::default();
 //! # let mut scene = Scene::try_new(&context)?;
 //! # let sub_scene = Scene::try_new(&context)?;
@@ -64,6 +73,9 @@
 //! )?;
 //! scene.add_instanced_mesh(instanced);
 //! # Ok::<(), SteamAudioError>(())
+//! # }
+//! # #[cfg(not(feature = "static"))]
+//! # fn main() {}
 //! ```
 
 mod vector3;
@@ -95,20 +107,35 @@ pub use ray::Ray;
 
 /// Geometry implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod scene;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use scene::DynamicScene as Scene;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use scene::StaticScene as Scene;
 pub use scene::{
-    InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, StaticMeshHandle,
-    StaticScene as Scene, relative_direction,
+    InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, StaticMeshHandle, relative_direction,
 };
 
 /// Mesh implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod static_mesh;
-pub use static_mesh::{StaticMeshError, StaticMeshSettings, StaticStaticMesh as StaticMesh};
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use static_mesh::DynamicStaticMesh as StaticMesh;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use static_mesh::StaticStaticMesh as StaticMesh;
+pub use static_mesh::{StaticMeshError, StaticMeshSettings};
 
 /// Instance implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod instanced_mesh;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use instanced_mesh::{
+    DynamicInstancedMesh as InstancedMesh, DynamicInstancedMeshSettings as InstancedMeshSettings,
+};
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
 pub use instanced_mesh::{
     StaticInstancedMesh as InstancedMesh, StaticInstancedMeshSettings as InstancedMeshSettings,
 };
 
 mod sphere;
 pub use sphere::Sphere;
+
+#[cfg(feature = "dynamic")]
+pub use scene::{RayTracerKind, RayTracerSettings, SceneError};

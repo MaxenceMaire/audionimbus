@@ -4,11 +4,12 @@ use super::configuration::{DefaultSimulationConfiguration, SimulationConfigurati
 use super::simulation::{Simulation, SimulationSharedInputs};
 use crate::error::SteamAudioError;
 use crate::geometry::CoordinateSystem;
+use crate::simulation::inputs::{SimulationParameters, StaticSimulationInputs as SimulationInputs};
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, ReflectionsCompatible,
-    SimulationFlagsProvider, SimulationInputs, SimulationParameters,
+    SimulationFlagsProvider,
 };
-use crate::wiring::SourceWithInputs;
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
 use bevy::prelude::{
     Add, Commands, Component, Entity, GlobalTransform, On, Query, Reflect, ReflectComponent,
     Remove, Res, ResMut, With, Without,
@@ -22,7 +23,12 @@ use std::ops::{Deref, DerefMut};
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component, opaque)]
 pub struct Source<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>,
+    pub  crate::simulation::source::StaticSource<
+        C::Direct,
+        C::Reflections,
+        C::Pathing,
+        C::ReflectionEffect,
+    >,
 );
 
 impl<C: SimulationConfiguration> Clone for Source<C> {
@@ -36,7 +42,7 @@ impl<C: SimulationConfiguration> Source<C> {
     ///
     /// Mirrors [`crate::simulation::Source::try_new`](crate::simulation::Source#method.try_new).
     pub fn try_new(simulation: &Simulation<C>) -> Result<Self, SteamAudioError> {
-        crate::simulation::Source::<
+        crate::simulation::source::StaticSource::<
             C::Direct,
             C::Reflections,
             C::Pathing,
@@ -47,8 +53,12 @@ impl<C: SimulationConfiguration> Source<C> {
 }
 
 impl<C: SimulationConfiguration> Deref for Source<C> {
-    type Target =
-        crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>;
+    type Target = crate::simulation::source::StaticSource<
+        C::Direct,
+        C::Reflections,
+        C::Pathing,
+        C::ReflectionEffect,
+    >;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -62,11 +72,17 @@ impl<C: SimulationConfiguration> DerefMut for Source<C> {
 }
 
 impl<C: SimulationConfiguration>
-    From<crate::simulation::Source<C::Direct, C::Reflections, C::Pathing, C::ReflectionEffect>>
-    for Source<C>
+    From<
+        crate::simulation::source::StaticSource<
+            C::Direct,
+            C::Reflections,
+            C::Pathing,
+            C::ReflectionEffect,
+        >,
+    > for Source<C>
 {
     fn from(
-        source: crate::simulation::Source<
+        source: crate::simulation::source::StaticSource<
             C::Direct,
             C::Reflections,
             C::Pathing,
@@ -79,7 +95,7 @@ impl<C: SimulationConfiguration>
 
 /// Per-source simulation parameters.
 ///
-/// Optional companion to [`Source`]. When absent, [`SimulationParameters::default`] is used for
+/// Optional companion to [`Source`]. When absent, `SimulationParameters::default` is used for
 /// that source.
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component, opaque)]

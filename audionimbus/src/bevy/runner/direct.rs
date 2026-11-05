@@ -75,15 +75,24 @@ fn sync_direct_frame<C>(
     });
 }
 
-/// Resource wrapping a [`wiring::DirectSimulation`](crate::wiring::DirectSimulation).
+/// Resource wrapping a [`wiring::DirectSimulation`](crate::wiring::simulation::DirectSimulation).
 #[derive(Resource)]
 pub struct DirectSimulation<C: SimulationConfiguration>(
-    pub crate::wiring::DirectSimulation<Entity, C::Reflections, C::Pathing, C::ReflectionEffect>,
+    pub  crate::wiring::simulation::direct::StaticDirectSimulation<
+        Entity,
+        C::Reflections,
+        C::Pathing,
+        C::ReflectionEffect,
+    >,
 );
 
 impl<C: SimulationConfiguration> Deref for DirectSimulation<C> {
-    type Target =
-        crate::wiring::DirectSimulation<Entity, C::Reflections, C::Pathing, C::ReflectionEffect>;
+    type Target = crate::wiring::simulation::direct::StaticDirectSimulation<
+        Entity,
+        C::Reflections,
+        C::Pathing,
+        C::ReflectionEffect,
+    >;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

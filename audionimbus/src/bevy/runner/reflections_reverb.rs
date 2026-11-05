@@ -7,10 +7,10 @@ use super::super::source::{Listener, Source, SourceParameters};
 use super::super::system_set::SpatialAudioSet;
 use super::{Runner, Spawn, SyncFrame, ToRunner};
 use crate::sealed::Sealed;
-use crate::simulation::{
-    DirectCompatible, PathingCompatible, Reflections, SimulationInputs, SimulationParameters,
-};
-use crate::wiring::{ReflectionsReverbFrame, SimulationStepError, SourceWithInputs};
+use crate::simulation::inputs::{SimulationParameters, StaticSimulationInputs as SimulationInputs};
+use crate::simulation::{DirectCompatible, PathingCompatible, Reflections};
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
+use crate::wiring::{ReflectionsReverbFrame, SimulationStepError};
 use bevy::prelude::{
     App, Entity, GlobalTransform, IntoScheduleConfigs, PostUpdate, Query, Res, Resource, With,
     World, resource_exists,
@@ -99,10 +99,10 @@ fn sync_reflections_reverb_frame<C>(
     });
 }
 
-/// Resource wrapping a [`wiring::ReflectionsReverbSimulation`](crate::wiring::ReflectionsReverbSimulation).
+/// Resource wrapping a [`wiring::ReflectionsReverbSimulation`](crate::wiring::simulation::ReflectionsReverbSimulation).
 #[derive(Resource)]
 pub struct ReflectionsReverbSimulation<C: SimulationConfiguration>(
-    pub  crate::wiring::ReflectionsReverbSimulation<
+    pub  crate::wiring::simulation::reflections_reverb::StaticReflectionsReverbSimulation<
         Entity,
         C::Direct,
         C::Pathing,
@@ -111,7 +111,7 @@ pub struct ReflectionsReverbSimulation<C: SimulationConfiguration>(
 );
 
 impl<C: SimulationConfiguration> Deref for ReflectionsReverbSimulation<C> {
-    type Target = crate::wiring::ReflectionsReverbSimulation<
+    type Target = crate::wiring::simulation::reflections_reverb::StaticReflectionsReverbSimulation<
         Entity,
         C::Direct,
         C::Pathing,

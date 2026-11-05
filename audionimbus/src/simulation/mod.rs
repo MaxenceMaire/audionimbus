@@ -36,21 +36,32 @@
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod simulator;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
 pub use simulator::{
-    PathingVisualizationCallback, ReflectionsSharedInputs,
+    DynamicSimulationSharedInputs as SimulationSharedInputs, DynamicSimulator as Simulator,
+};
+pub use simulator::{PathingVisualizationCallback, ReflectionsSharedInputs};
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use simulator::{
     StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
 };
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod source;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use source::{DynamicSimulationOutputs as SimulationOutputs, DynamicSource as Source};
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
 pub use source::{StaticSimulationOutputs as SimulationOutputs, StaticSource as Source};
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod settings;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use settings::DynamicSimulationSettings as SimulationSettings;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use settings::StaticSimulationSettings as SimulationSettings;
 pub use settings::{
     ConvolutionSettings, DirectSimulationSettings, HybridSettings, ParametricSettings,
-    PathingSimulationSettings, ReflectionsAlgorithm,
-    StaticSimulationSettings as SimulationSettings, TrueAudioNextSettings,
+    PathingSimulationSettings, ReflectionsAlgorithm, TrueAudioNextSettings,
 };
 
 /// Implementations whose bindings must stay inaccessible to downstream callers.
@@ -58,9 +69,15 @@ pub(crate) mod inputs;
 pub use inputs::{
     ConvolutionParameters, DirectSimulationParameters, HybridParameters, Occlusion,
     OcclusionAlgorithm, ParametricParameters, PathingSimulationParameters,
-    ReflectionsSimulationParameters, SimulationParameters,
-    StaticSimulationInputs as SimulationInputs, TransmissionParameters, TrueAudioNextParameters,
+    ReflectionsSimulationParameters, TransmissionParameters, TrueAudioNextParameters,
 };
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use inputs::{
+    DynamicSimulationInputs as SimulationInputs,
+    DynamicSimulationParameters as SimulationParameters,
+};
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use inputs::{SimulationParameters, StaticSimulationInputs as SimulationInputs};
 
 mod modes;
 pub use modes::{
@@ -68,5 +85,14 @@ pub use modes::{
     ReflectionsCompatible, SimulationFlags, SimulationFlagsProvider, SimulationType,
 };
 
-mod error;
-pub use error::{ParameterValidationError, SimulationError};
+pub mod error;
+pub use error::ParameterValidationError;
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub use error::SimulationError;
+#[cfg(all(feature = "dynamic", not(feature = "static")))]
+pub use simulator::DynamicSimulationError as SimulationError;
+
+#[cfg(feature = "dynamic")]
+pub use inputs::ReflectionsParameters;
+#[cfg(feature = "dynamic")]
+pub use settings::ReflectionsSettings;

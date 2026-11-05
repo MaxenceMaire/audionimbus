@@ -20,7 +20,7 @@ use std::ops::{Deref, DerefMut};
 #[reflect(Component, opaque)]
 #[require(SceneStatus)]
 pub struct Scene<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub crate::geometry::Scene<C::RayTracer>,
+    pub crate::geometry::scene::StaticScene<C::RayTracer>,
 );
 
 impl<C: SimulationConfiguration> Clone for Scene<C> {
@@ -37,7 +37,7 @@ where
     ///
     /// Mirrors [`Scene::<DefaultRayTracer>::try_new`](crate::geometry::Scene#method.try_new).
     pub fn try_new(context: &Context) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<DefaultRayTracer>::try_new(context).map(Self)
+        crate::geometry::scene::StaticScene::<DefaultRayTracer>::try_new(context).map(Self)
     }
 
     /// Loads a scene from a serialized object.
@@ -47,7 +47,8 @@ where
         context: &Context,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<DefaultRayTracer>::load(context, serialized_object).map(Self)
+        crate::geometry::scene::StaticScene::<DefaultRayTracer>::load(context, serialized_object)
+            .map(Self)
     }
 
     /// Loads a scene from a [`SceneAsset`].
@@ -65,7 +66,7 @@ where
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<DefaultRayTracer>::load_with_progress(
+        crate::geometry::scene::StaticScene::<DefaultRayTracer>::load_with_progress(
             context,
             serialized_object,
             progress_callback,
@@ -96,7 +97,7 @@ where
         context: &Context,
         device: EmbreeDevice,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<Embree>::try_with_embree(context, device).map(Self)
+        crate::geometry::scene::StaticScene::<Embree>::try_with_embree(context, device).map(Self)
     }
 
     /// Loads a scene from a serialized object using Embree.
@@ -107,7 +108,12 @@ where
         device: EmbreeDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<Embree>::load_embree(context, device, serialized_object).map(Self)
+        crate::geometry::scene::StaticScene::<Embree>::load_embree(
+            context,
+            device,
+            serialized_object,
+        )
+        .map(Self)
     }
 
     /// Loads a scene from a [`SceneAsset`] using Embree.
@@ -130,7 +136,7 @@ where
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<Embree>::load_embree_with_progress(
+        crate::geometry::scene::StaticScene::<Embree>::load_embree_with_progress(
             context,
             device,
             serialized_object,
@@ -163,7 +169,8 @@ where
         context: &Context,
         device: RadeonRaysDevice,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<RadeonRays>::try_with_radeon_rays(context, device).map(Self)
+        crate::geometry::scene::StaticScene::<RadeonRays>::try_with_radeon_rays(context, device)
+            .map(Self)
     }
 
     /// Loads a scene from a serialized object using Radeon Rays.
@@ -174,8 +181,12 @@ where
         device: RadeonRaysDevice,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<RadeonRays>::load_radeon_rays(context, device, serialized_object)
-            .map(Self)
+        crate::geometry::scene::StaticScene::<RadeonRays>::load_radeon_rays(
+            context,
+            device,
+            serialized_object,
+        )
+        .map(Self)
     }
 
     /// Loads a scene from a [`SceneAsset`] using Radeon Rays.
@@ -198,7 +209,7 @@ where
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<RadeonRays>::load_radeon_rays_with_progress(
+        crate::geometry::scene::StaticScene::<RadeonRays>::load_radeon_rays_with_progress(
             context,
             device,
             serialized_object,
@@ -236,7 +247,8 @@ where
         context: &Context,
         callbacks: CustomRayTracingCallbacks,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<CustomRayTracer>::try_with_custom(context, callbacks).map(Self)
+        crate::geometry::scene::StaticScene::<CustomRayTracer>::try_with_custom(context, callbacks)
+            .map(Self)
     }
 
     /// Loads a scene from a serialized object using a custom ray tracer.
@@ -247,7 +259,7 @@ where
         callbacks: CustomRayTracingCallbacks,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<CustomRayTracer>::load_custom(
+        crate::geometry::scene::StaticScene::<CustomRayTracer>::load_custom(
             context,
             callbacks,
             serialized_object,
@@ -275,7 +287,7 @@ where
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
-        crate::geometry::Scene::<CustomRayTracer>::load_custom_with_progress(
+        crate::geometry::scene::StaticScene::<CustomRayTracer>::load_custom_with_progress(
             context,
             callbacks,
             serialized_object,
@@ -303,7 +315,7 @@ where
 }
 
 impl<C: SimulationConfiguration> Deref for Scene<C> {
-    type Target = crate::geometry::Scene<C::RayTracer>;
+    type Target = crate::geometry::scene::StaticScene<C::RayTracer>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -316,8 +328,10 @@ impl<C: SimulationConfiguration> DerefMut for Scene<C> {
     }
 }
 
-impl<C: SimulationConfiguration> From<crate::geometry::Scene<C::RayTracer>> for Scene<C> {
-    fn from(scene: crate::geometry::Scene<C::RayTracer>) -> Self {
+impl<C: SimulationConfiguration> From<crate::geometry::scene::StaticScene<C::RayTracer>>
+    for Scene<C>
+{
+    fn from(scene: crate::geometry::scene::StaticScene<C::RayTracer>) -> Self {
         Self(scene)
     }
 }

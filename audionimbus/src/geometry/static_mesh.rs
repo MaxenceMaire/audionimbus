@@ -174,7 +174,7 @@ impl<F: GeometryBinding> StaticMesh<F> {
 /// The unchanging portions of a scene should typically be collected into a single static mesh object.
 /// In addition to the geometry, a static mesh also contains acoustic material information for each triangle.
 ///
-/// [`crate::StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
+/// [`crate::geometry::StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
 /// belongs to.
 ///
 /// `StaticMesh` is a reference-counted handle to an underlying Steam Audio object.
@@ -198,7 +198,7 @@ impl<T: RayTracer> StaticStaticMesh<T> {
     ///
     /// Returns [`StaticMeshError`] if the settings are invalid or creation fails.
     pub fn try_new(
-        scene: &super::Scene<T>,
+        scene: &crate::geometry::scene::StaticScene<T>,
         settings: &StaticMeshSettings,
     ) -> Result<Self, StaticMeshError> {
         Self::try_new_shared(scene, settings)
@@ -212,7 +212,7 @@ impl<T: RayTracer> StaticStaticMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load(
-        scene: &super::Scene<T>,
+        scene: &crate::geometry::scene::StaticScene<T>,
         serialized_object: &SerializedObject,
     ) -> Result<Self, SteamAudioError> {
         Self::load_with_optional_progress_callback(scene, serialized_object, None)
@@ -226,7 +226,7 @@ impl<T: RayTracer> StaticStaticMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if loading fails.
     pub fn load_with_progress_callback(
-        scene: &super::Scene<T>,
+        scene: &crate::geometry::scene::StaticScene<T>,
         serialized_object: &SerializedObject,
         progress_callback: ProgressCallback,
     ) -> Result<Self, SteamAudioError> {
@@ -416,7 +416,7 @@ fn validate_static_mesh_settings(settings: &StaticMeshSettings) -> Result<(), St
     Ok(())
 }
 
-/// Errors produced while creating a [`crate::StaticMesh`].
+/// Errors produced while creating a [`crate::geometry::StaticMesh`].
 #[derive(Debug, PartialEq, Eq)]
 pub enum StaticMeshError {
     /// The number of material indices differs from the number of triangles.
@@ -491,6 +491,8 @@ impl From<SteamAudioError> for StaticMeshError {
 
 #[cfg(test)]
 mod tests {
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::geometry::static_mesh::StaticStaticMesh as StaticMesh;
     use crate::*;
 
     mod validate_static_mesh_settings {

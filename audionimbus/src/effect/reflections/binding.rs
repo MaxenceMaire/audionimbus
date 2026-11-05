@@ -1,13 +1,13 @@
 //! Native settings selected by reflection bindings.
 
 use super::ReflectionEffectSettings;
-#[cfg(doc)]
-use super::ReflectionMixer;
 use crate::ChannelRequirement;
 use crate::Sealed;
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
 use crate::binding::Static;
+#[cfg(doc)]
+use crate::effect::reflections::ReflectionMixer;
 use crate::simulation::{
     ConvolutionParameters, HybridParameters, ParametricParameters, ReflectionsSimulationParameters,
     TrueAudioNextParameters,

@@ -71,15 +71,24 @@ fn sync_reflections_frame<C>(
     });
 }
 
-/// Resource wrapping a [`wiring::ReflectionsSimulation`](crate::wiring::ReflectionsSimulation).
+/// Resource wrapping a [`wiring::ReflectionsSimulation`](crate::wiring::simulation::ReflectionsSimulation).
 #[derive(Resource)]
 pub struct ReflectionsSimulation<C: SimulationConfiguration>(
-    pub crate::wiring::ReflectionsSimulation<Entity, C::Direct, C::Pathing, C::ReflectionEffect>,
+    pub  crate::wiring::simulation::reflections::StaticReflectionsSimulation<
+        Entity,
+        C::Direct,
+        C::Pathing,
+        C::ReflectionEffect,
+    >,
 );
 
 impl<C: SimulationConfiguration> Deref for ReflectionsSimulation<C> {
-    type Target =
-        crate::wiring::ReflectionsSimulation<Entity, C::Direct, C::Pathing, C::ReflectionEffect>;
+    type Target = crate::wiring::simulation::reflections::StaticReflectionsSimulation<
+        Entity,
+        C::Direct,
+        C::Pathing,
+        C::ReflectionEffect,
+    >;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
