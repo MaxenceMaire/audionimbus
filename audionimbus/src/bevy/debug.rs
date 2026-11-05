@@ -78,7 +78,7 @@ impl<C: SimulationConfiguration + 'static> Plugin for SpatialAudioDebugPlugin<C>
         app.add_systems(
             PostUpdate,
             (
-                draw_top_level_static_mesh,
+                draw_top_level_static_mesh::<C>,
                 draw_instanced_sub_scene::<C>,
                 draw_sources::<C>,
             )
@@ -149,8 +149,8 @@ pub struct WireframeColor(pub Color);
 ///
 /// Static meshes whose containing scene is referenced as a sub-scene are skipped.
 /// Those meshes are instead drawn by [`draw_instanced_sub_scene`] once per spawned instance.
-fn draw_top_level_static_mesh(
-    static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh)>,
+fn draw_top_level_static_mesh<C: SimulationConfiguration>(
+    static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh<C>)>,
     sub_scenes: Query<(), With<SubSceneOf>>,
     mesh_assets: Res<Assets<Mesh>>,
     palette: Res<WireframePalette>,
@@ -176,9 +176,9 @@ fn draw_top_level_static_mesh(
 
 /// Draws wireframes for sub-scene geometry once per spawned instanced mesh.
 fn draw_instanced_sub_scene<C: SimulationConfiguration>(
-    instanced_meshes: Query<(&GlobalTransform, &SpawnedInstancedMesh)>,
+    instanced_meshes: Query<(&GlobalTransform, &SpawnedInstancedMesh<C>)>,
     scene_transforms: Query<&GlobalTransform, With<Scene<C>>>,
-    static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh)>,
+    static_meshes: Query<(Entity, &Mesh3d, &GlobalTransform, &SpawnedStaticMesh<C>)>,
     mesh_assets: Res<Assets<Mesh>>,
     palette: Res<WireframePalette>,
     overrides: Query<&WireframeColor>,
@@ -214,6 +214,7 @@ fn draw_instanced_sub_scene<C: SimulationConfiguration>(
 }
 
 /// Draws debug glyphs for spatial audio sources.
+#[allow(clippy::type_complexity)]
 fn draw_sources<C: SimulationConfiguration>(
     sources: Query<
         (

@@ -14,7 +14,9 @@
 //! by the the selected configuration, and keeps them synchronized with ECS state.
 //!
 //! ```rust,no_run
-//! use audionimbus::bevy::{Scene as AudioScene, *};
+//! # #[cfg(feature = "static")]
+//! # fn main() {
+//! use audionimbus::r#static::bevy::{Scene as AudioScene, *};
 //! use bevy::prelude::*;
 //!
 //! fn main() {
@@ -46,11 +48,16 @@
 //!         Transform::from_xyz(2.0, 0.0, 0.0),
 //!     ));
 //! }
+//! # }
+//! # #[cfg(not(feature = "static"))]
+//! # fn main() {}
 //! ```
 //!
 //! From there, read the latest outputs from resources such as [`DirectSimulation`],
 //! [`ReflectionsSimulation`], [`ReflectionsReverbSimulation`], or [`PathingSimulation`] and feed
 //! them into your own audio pipeline.
+
+mod binding;
 
 pub mod prelude;
 pub use prelude::*;

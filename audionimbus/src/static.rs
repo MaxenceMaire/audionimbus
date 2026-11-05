@@ -46,3 +46,9 @@ pub use crate::wiring::step::reflections::StaticReflectionsOutput as Reflections
 pub use crate::wiring::step::reflections_reverb::StaticReflectionsReverbOutput as ReflectionsReverbOutput;
 #[cfg(feature = "wiring")]
 pub use crate::wiring::*;
+
+/// Bevy integration with compile-time configurations.
+#[cfg(feature = "bevy")]
+pub mod bevy {
+    pub use crate::bevy::*;
+}

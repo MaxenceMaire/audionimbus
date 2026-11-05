@@ -1,6 +1,6 @@
-use super::super::configuration::SimulationConfiguration;
+use super::super::binding::ConfigurationBinding;
 use super::scene::{Scene, SceneStatus, find_scene_ancestor};
-use crate::geometry::instanced_mesh::StaticInstancedMeshSettings as InstancedMeshSettings;
+use crate::geometry::instanced_mesh::InstancedMeshSettings;
 use crate::geometry::{InstancedMeshHandle, Matrix4};
 use bevy::prelude::{
     ChildOf, Commands, Component, DetectChanges, Entity, GlobalTransform, On, Query, Ref, Reflect,
@@ -35,13 +35,15 @@ pub struct SubSceneOf(Vec<Entity>);
 /// Stores the information needed to remove the instanced mesh from its parent scene when
 /// [`InstancedMesh`] is removed or the entity is despawned.
 #[derive(Component, Debug)]
-pub(crate) struct SpawnedInstancedMesh {
+pub(crate) struct SpawnedInstancedMesh<C: ConfigurationBinding> {
     /// The parent scene entity this instanced mesh was registered with.
     pub(crate) scene_entity: Entity,
     /// The sub-scene entity this instanced mesh references.
     pub(crate) sub_scene_entity: Entity,
     /// Handle used to reference, transform, and remove the instanced mesh from the scene.
     pub(crate) handle: InstancedMeshHandle,
+    /// The configuration marker for this mesh registration.
+    _configuration: std::marker::PhantomData<fn() -> C>,
 }
 
 /// Synchronizes instanced mesh registrations with the current ECS state.
@@ -52,15 +54,16 @@ pub(crate) struct SpawnedInstancedMesh {
 /// the referenced sub-scene changes.
 ///
 /// Pending entities are retried every frame until both scenes exist.
-pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
+#[allow(clippy::type_complexity)]
+pub(crate) fn sync_instanced_meshes<C: ConfigurationBinding>(
     instanced_meshes: Query<(
         Entity,
         &InstancedMesh,
         Ref<GlobalTransform>,
-        Option<&SpawnedInstancedMesh>,
+        Option<&SpawnedInstancedMesh<C>>,
     )>,
     parents: Query<&ChildOf>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
     mut commands: Commands,
 ) {
     for (entity, instanced_mesh, global_transform, spawned_instanced_mesh_option) in
@@ -104,7 +107,7 @@ pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
 
         match registration {
             Some(registration) => commands.entity(entity).insert(registration),
-            None => commands.entity(entity).remove::<SpawnedInstancedMesh>(),
+            None => commands.entity(entity).remove::<SpawnedInstancedMesh<C>>(),
         };
     }
 }
@@ -112,18 +115,18 @@ pub(crate) fn sync_instanced_meshes<C: SimulationConfiguration>(
 /// Attempts to create and register an [`InstancedMesh`] under its parent scene.
 ///
 /// Returns `None` when either the parent scene or the sub-scene entity does not yet exist.
-fn try_register_instanced_mesh<C: SimulationConfiguration>(
+fn try_register_instanced_mesh<C: ConfigurationBinding>(
     entity: Entity,
     scene_entity: Entity,
     sub_scene_entity: Entity,
     global_transform: &GlobalTransform,
-    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
-) -> Option<SpawnedInstancedMesh> {
+    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
+) -> Option<SpawnedInstancedMesh<C>> {
     let sub_scene = scenes.get(sub_scene_entity).ok()?.0.0.clone();
 
     let (mut parent_scene, mut parent_scene_status) = scenes.get_mut(scene_entity).ok()?;
 
-    let inner_mesh = crate::geometry::instanced_mesh::StaticInstancedMesh::try_new(
+    let inner_mesh = C::instanced_mesh(
         &parent_scene.0,
         &InstancedMeshSettings {
             sub_scene,
@@ -135,10 +138,11 @@ fn try_register_instanced_mesh<C: SimulationConfiguration>(
     })
     .ok()?;
 
-    let handle = parent_scene.0.add_instanced_mesh(inner_mesh);
+    let handle = C::add_instanced_mesh(&mut parent_scene.0, inner_mesh);
     parent_scene_status.commit_needed = true;
 
     Some(SpawnedInstancedMesh {
+        _configuration: Default::default(),
         scene_entity,
         sub_scene_entity,
         handle,
@@ -146,10 +150,11 @@ fn try_register_instanced_mesh<C: SimulationConfiguration>(
 }
 
 /// Deregisters the instanced mesh when [`InstancedMesh`] is removed or the entity is despawned.
-pub(crate) fn on_instanced_mesh_removed<C: SimulationConfiguration>(
+pub(crate) fn on_instanced_mesh_removed<C: ConfigurationBinding>(
     event: On<Remove, InstancedMesh>,
-    handles: Query<&SpawnedInstancedMesh>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    mut commands: Commands,
+    handles: Query<&SpawnedInstancedMesh<C>>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) {
     let entity = event.entity;
 
@@ -158,13 +163,14 @@ pub(crate) fn on_instanced_mesh_removed<C: SimulationConfiguration>(
     };
 
     deregister_instanced_mesh(instanced_mesh, &mut scenes);
+    commands.entity(entity).remove::<SpawnedInstancedMesh<C>>();
 }
 
 /// Pushes an updated transform for a registered instanced mesh.
-fn update_instanced_mesh_transform<C: SimulationConfiguration>(
-    instanced_mesh: &SpawnedInstancedMesh,
+fn update_instanced_mesh_transform<C: ConfigurationBinding>(
+    instanced_mesh: &SpawnedInstancedMesh<C>,
     global_transform: &GlobalTransform,
-    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
+    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) {
     let Ok((mut scene, mut scene_status)) = scenes.get_mut(instanced_mesh.scene_entity) else {
         return;
@@ -178,9 +184,9 @@ fn update_instanced_mesh_transform<C: SimulationConfiguration>(
 }
 
 /// Removes a registered instanced mesh from its parent scene.
-fn deregister_instanced_mesh<C: SimulationConfiguration>(
-    instanced_mesh: &SpawnedInstancedMesh,
-    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
+fn deregister_instanced_mesh<C: ConfigurationBinding>(
+    instanced_mesh: &SpawnedInstancedMesh<C>,
+    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) {
     let Ok((mut scene, mut scene_status)) = scenes.get_mut(instanced_mesh.scene_entity) else {
         return;

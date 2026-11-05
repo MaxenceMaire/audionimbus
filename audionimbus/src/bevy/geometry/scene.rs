@@ -1,5 +1,7 @@
 use super::super::asset::{SceneAsset, with_serialized_object};
-use super::super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
+use super::super::binding::{ConfigurationBinding, DefaultConfiguration};
+use super::super::configuration::SimulationConfiguration;
+use super::super::error::{IntegrationErrorEvent, IntegrationOperation};
 use super::super::simulation::Simulation;
 use super::instanced_mesh::{InstancedMesh, SpawnedInstancedMesh, SubSceneOf};
 use super::static_mesh::SpawnedStaticMesh;
@@ -18,12 +20,12 @@ use std::ops::{Deref, DerefMut};
 /// Component wrapping an [AudioNimbus scene](`crate::geometry::Scene`).
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component, opaque)]
-#[require(SceneStatus)]
-pub struct Scene<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub crate::geometry::scene::StaticScene<C::RayTracer>,
+#[require(SceneStatus<C>)]
+pub struct Scene<C: ConfigurationBinding = DefaultConfiguration>(
+    pub crate::geometry::scene::Scene<C::Geometry>,
 );
 
-impl<C: SimulationConfiguration> Clone for Scene<C> {
+impl<C: ConfigurationBinding> Clone for Scene<C> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -314,15 +316,15 @@ where
     }
 }
 
-impl<C: SimulationConfiguration> Deref for Scene<C> {
-    type Target = crate::geometry::scene::StaticScene<C::RayTracer>;
+impl<C: ConfigurationBinding> Deref for Scene<C> {
+    type Target = crate::geometry::scene::Scene<C::Geometry>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<C: SimulationConfiguration> DerefMut for Scene<C> {
+impl<C: ConfigurationBinding> DerefMut for Scene<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -337,27 +339,36 @@ impl<C: SimulationConfiguration> From<crate::geometry::scene::StaticScene<C::Ray
 }
 
 /// Tracks whether a [`Scene`] has uncommitted geometry changes.
-#[derive(Component, Default, Copy, Clone, Debug)]
-pub(crate) struct SceneStatus {
+#[derive(Component, Copy, Clone, Debug)]
+pub(crate) struct SceneStatus<C: ConfigurationBinding> {
     /// Whether [`commit`](`crate::geometry::Scene::commit`) needs to be called.
     pub commit_needed: bool,
+    _configuration: std::marker::PhantomData<fn() -> C>,
+}
+
+impl<C: ConfigurationBinding> Default for SceneStatus<C> {
+    fn default() -> Self {
+        Self {
+            commit_needed: false,
+            _configuration: Default::default(),
+        }
+    }
 }
 
 /// Marks the [`Scene`] that the simulator should use for ray tracing.
 ///
-/// At most one entity should carry this component at a time.
-/// Adding it to a new entity will automatically remove it from whichever entity previously held
-/// it.
-/// The last entity to receive `MainScene` becomes the active scene.
+/// At most one scene per configuration should carry this component.
+/// Adding it to a new scene removes it from previous scenes with the same configuration.
+/// The last scene to receive `MainScene` becomes active for its configuration.
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component)]
 #[component(storage = "SparseSet")]
 pub struct MainScene;
 
 /// Commits modified scenes.
-pub(crate) fn commit_scenes<C: SimulationConfiguration>(
+pub(crate) fn commit_scenes<C: ConfigurationBinding>(
     simulation: ResMut<Simulation<C>>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) {
     let scenes_iter = scenes.iter_mut();
     let mut scenes_pending_commit = Vec::with_capacity(scenes_iter.len());
@@ -368,16 +379,14 @@ pub(crate) fn commit_scenes<C: SimulationConfiguration>(
         }
     }
 
-    simulation
-        .0
-        .request_scene_commits(scenes_pending_commit.as_slice());
+    simulation.request_scene_commits(scenes_pending_commit.as_slice());
 }
 
 /// Warns once in debug builds when scene entities exist but none is marked [`MainScene`].
 #[cfg(debug_assertions)]
-pub(crate) fn warn_missing_main_scene<C: SimulationConfiguration>(
+pub(crate) fn warn_missing_main_scene<C: ConfigurationBinding>(
     scenes: Query<Entity, (With<Scene<C>>, Without<SubSceneOf>)>,
-    main_scenes: Query<Entity, With<MainScene>>,
+    main_scenes: Query<Entity, (With<MainScene>, With<Scene<C>>)>,
     mut warned: Local<bool>,
 ) {
     if *warned || scenes.is_empty() || !main_scenes.is_empty() {
@@ -395,31 +404,45 @@ pub(crate) fn warn_missing_main_scene<C: SimulationConfiguration>(
 /// When `MainScene` is added to an entity, this observer removes it from any other entity
 /// currently holding it, ensuring the simulator always has exactly one active scene.
 /// The newly marked scene is then set on the simulator and a commit is requested.
-pub(crate) fn on_main_scene_added<C: SimulationConfiguration>(
+/// A rejected runtime scene leaves the previous main scene active.
+pub(crate) fn on_main_scene_added<C: ConfigurationBinding>(
     event: On<Add, MainScene>,
-    main_scenes: Query<Entity, With<MainScene>>,
+    main_scenes: Query<Entity, (With<MainScene>, With<Scene<C>>)>,
     mut commands: Commands,
     mut simulation: ResMut<Simulation<C>>,
     scenes: Query<&Scene<C>>,
-) {
+) -> Result<(), IntegrationErrorEvent<C::IntegrationError>> {
+    let Ok(scene) = scenes.get(event.entity) else {
+        return Ok(());
+    };
+
+    if let Err(error) = C::set_scene(&mut simulation.0, &scene.0) {
+        commands.entity(event.entity).remove::<MainScene>();
+
+        return Err(IntegrationErrorEvent {
+            entity: Some(event.entity),
+            operation: IntegrationOperation::SetScene,
+            error,
+        });
+    }
+
     for entity in &main_scenes {
         if entity != event.entity {
             commands.entity(entity).remove::<MainScene>();
         }
     }
 
-    if let Ok(scene) = scenes.get(event.entity) {
-        simulation.0.simulator.set_scene(&scene.0);
-        simulation.0.request_simulator_commit();
-    }
+    simulation.request_simulator_commit();
+
+    Ok(())
 }
 
 /// Clears any object referencing a removed [`Scene`].
-pub(crate) fn on_scene_removed<C: SimulationConfiguration>(
+pub(crate) fn on_scene_removed<C: ConfigurationBinding>(
     event: On<Remove, Scene<C>>,
-    static_meshes: Query<(Entity, &SpawnedStaticMesh)>,
-    instanced_meshes: Query<(Entity, &InstancedMesh, Option<&SpawnedInstancedMesh>)>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    static_meshes: Query<(Entity, &SpawnedStaticMesh<C>)>,
+    instanced_meshes: Query<(Entity, &InstancedMesh, Option<&SpawnedInstancedMesh<C>>)>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
     main_scenes: Query<(), With<MainScene>>,
     mut commands: Commands,
 ) {
@@ -433,7 +456,7 @@ pub(crate) fn on_scene_removed<C: SimulationConfiguration>(
 
     for (entity, spawned_static_mesh) in &static_meshes {
         if spawned_static_mesh.scene_entity == removed_scene_entity {
-            commands.entity(entity).remove::<SpawnedStaticMesh>();
+            commands.entity(entity).remove::<SpawnedStaticMesh<C>>();
         }
     }
 
@@ -457,16 +480,16 @@ pub(crate) fn on_scene_removed<C: SimulationConfiguration>(
             scene_status.commit_needed = true;
         }
 
-        commands.entity(entity).remove::<SpawnedInstancedMesh>();
+        commands.entity(entity).remove::<SpawnedInstancedMesh<C>>();
     }
 }
 
 /// Walks the parent chain from `start` (inclusive) and returns the first entity that carries a
 /// scene, or `None` if none exists.
-pub(super) fn find_scene_ancestor<C: SimulationConfiguration>(
+pub(super) fn find_scene_ancestor<C: ConfigurationBinding>(
     entity: Entity,
     parents: &Query<&ChildOf>,
-    scenes: &Query<(&mut Scene<C>, &mut SceneStatus)>,
+    scenes: &Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) -> Option<Entity> {
     if scenes.contains(entity) {
         return Some(entity);
@@ -475,4 +498,68 @@ pub(super) fn find_scene_ancestor<C: SimulationConfiguration>(
     parents
         .iter_ancestors(entity)
         .find(|&ancestor| scenes.contains(ancestor))
+}
+
+#[cfg(feature = "dynamic")]
+pub type DynamicScene = Scene<super::super::binding::RuntimeConfiguration>;
+
+#[cfg(feature = "dynamic")]
+impl DynamicScene {
+    /// Creates a scene with the selected ray tracer.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] if native scene creation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
+    pub fn try_with_ray_tracer(
+        context: &Context,
+        settings: crate::dynamic::RayTracerSettings,
+    ) -> Result<Self, SteamAudioError> {
+        crate::dynamic::Scene::try_new(context, settings).map(Self)
+    }
+
+    /// Loads a scene with the selected ray tracer.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] if native scene loading fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
+    pub fn load_with_ray_tracer(
+        context: &Context,
+        settings: crate::dynamic::RayTracerSettings,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        crate::dynamic::Scene::load(context, settings, serialized_object).map(Self)
+    }
+
+    /// Loads a scene with a progress callback.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] if native scene loading fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
+    pub fn load_with_ray_tracer_and_progress(
+        context: &Context,
+        settings: crate::dynamic::RayTracerSettings,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        crate::dynamic::Scene::load_with_progress(
+            context,
+            settings,
+            serialized_object,
+            progress_callback,
+        )
+        .map(Self)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl From<crate::dynamic::Scene> for DynamicScene {
+    fn from(scene: crate::dynamic::Scene) -> Self {
+        Self(scene)
+    }
 }

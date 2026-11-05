@@ -1,52 +1,40 @@
 //! Bevy resource wrapper for the core simulation pipeline.
 
-use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
+use super::binding::{ConfigurationBinding, DefaultConfiguration};
 use bevy::prelude::{Entity, Resource};
+use std::borrow::{Borrow, BorrowMut};
 use std::ops::{Deref, DerefMut};
 
 /// Resource wrapping a [`wiring::Simulation`](crate::wiring::simulation::Simulation).
 #[derive(Resource)]
-pub struct Simulation<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub WiringSimulation<C>,
-);
+pub struct Simulation<C: ConfigurationBinding = DefaultConfiguration>(pub WiringSimulation<C>);
 
-impl<C: SimulationConfiguration> Deref for Simulation<C> {
-    type Target = WiringSimulation<C>;
+impl<C: ConfigurationBinding> Deref for Simulation<C> {
+    type Target = crate::wiring::simulation::pipeline::Simulation<Entity, C::Pipeline>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.borrow()
     }
 }
 
-impl<C: SimulationConfiguration> DerefMut for Simulation<C> {
+impl<C: ConfigurationBinding> DerefMut for Simulation<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.0.borrow_mut()
     }
 }
 
 /// Wiring simulation.
-type WiringSimulation<C> = crate::wiring::simulation::pipeline::StaticSimulation<
-    Entity,
-    <C as SimulationConfiguration>::RayTracer,
-    <C as SimulationConfiguration>::Direct,
-    <C as SimulationConfiguration>::Reflections,
-    <C as SimulationConfiguration>::Pathing,
-    <C as SimulationConfiguration>::ReflectionEffect,
->;
+type WiringSimulation<C> = <C as ConfigurationBinding>::Simulation;
 
 /// Shared simulation inputs, updated each frame by the game thread.
 #[derive(Resource, Debug)]
-pub struct SimulationSharedInputs<C: SimulationConfiguration = DefaultSimulationConfiguration>(
-    pub  crate::simulation::simulator::StaticSimulationSharedInputs<
-        C::Direct,
-        C::Reflections,
-        C::Pathing,
-    >,
+pub struct SimulationSharedInputs<C: ConfigurationBinding = DefaultConfiguration>(
+    pub C::SharedInputs,
 );
 
-impl<C: SimulationConfiguration> Default for SimulationSharedInputs<C> {
+impl<C: ConfigurationBinding> Default for SimulationSharedInputs<C> {
     fn default() -> Self {
-        Self(crate::simulation::simulator::StaticSimulationSharedInputs::default())
+        Self(C::SharedInputs::default())
     }
 }
 
@@ -62,3 +50,10 @@ pub enum SimulationThread {
     /// Pathing simulation thread.
     Pathing,
 }
+
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulation = Simulation<super::binding::RuntimeConfiguration>;
+
+#[cfg(feature = "dynamic")]
+pub type DynamicSimulationSharedInputs =
+    SimulationSharedInputs<super::binding::RuntimeConfiguration>;

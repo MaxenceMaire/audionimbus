@@ -173,7 +173,7 @@ use crate::simulation::Simulator;
 #[cfg(doc)]
 use crate::simulation::Source;
 
-mod binding;
+pub(crate) mod binding;
 mod input;
 
 pub mod runner;

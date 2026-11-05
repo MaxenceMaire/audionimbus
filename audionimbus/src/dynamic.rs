@@ -46,3 +46,34 @@ pub use crate::wiring::{
         reflections_reverb::DynamicReflectionsReverbOutput as ReflectionsReverbOutput,
     },
 };
+
+/// Bevy components and resources with runtime choices.
+#[cfg(feature = "bevy")]
+pub mod bevy {
+    pub use crate::bevy::asset::{ProbeBatchAsset, ProbeBatchAssetLoader, ProbeBatchAssetSource};
+    pub use crate::bevy::error::{
+        DynamicIntegrationErrorEvent as IntegrationErrorEvent,
+        DynamicSimulationErrorEvent as SimulationErrorEvent, IntegrationOperation,
+    };
+    pub use crate::bevy::geometry::{
+        DynamicScene as Scene, InstancedMesh, MainScene, StaticMesh, SubSceneOf,
+    };
+    pub use crate::bevy::hrtf::*;
+    pub use crate::bevy::plugin::{
+        DynamicSpatialAudioPlugin as SpatialAudioPlugin, ReflectionsRunner, RunnerSettings,
+    };
+    pub use crate::bevy::probe::{ProbeArray, ProbeBatch};
+    pub use crate::bevy::runner::{
+        DynamicDirectSimulation as DirectSimulation, DynamicPathingSimulation as PathingSimulation,
+        DynamicReflectionsReverbSimulation as ReflectionsReverbSimulation,
+        DynamicReflectionsSimulation as ReflectionsSimulation,
+    };
+    pub use crate::bevy::simulation::{
+        DynamicSimulation as Simulation, DynamicSimulationSharedInputs as SimulationSharedInputs,
+        SimulationThread,
+    };
+    pub use crate::bevy::source::{
+        DynamicSource as Source, DynamicSourceParameters as SourceParameters, Listener,
+    };
+    pub use crate::bevy::system_set::SpatialAudioSet;
+}
