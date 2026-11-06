@@ -1,4 +1,3 @@
-#[cfg(all(feature = "static", feature = "dynamic"))]
 /// The lock for independent native bake tests.
 static BAKE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -12,7 +11,6 @@ mod r#static {
 
     #[test]
     pub fn test_baking() {
-        #[cfg(all(feature = "static", feature = "dynamic"))]
         let _bake_lock = super::BAKE_LOCK.lock().unwrap();
 
         let context = Context::default();
@@ -134,6 +132,409 @@ mod r#static {
         let _: ReflectionsBaker<'_, audionimbus::ray_tracing::CustomRayTracer> =
             ReflectionsBaker::<audionimbus::ray_tracing::CustomRayTracer>::new(16);
     }
+
+    mod pathing {
+        use super::*;
+
+        /// Creates the scene used by the bake cases.
+        fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
+            let mut scene = Scene::try_new(context).unwrap();
+
+            // Create a simple room mesh.
+            let vertices = vec![
+                // Floor
+                Vector3::new(-5.0, 0.0, -5.0),
+                Vector3::new(5.0, 0.0, -5.0),
+                Vector3::new(5.0, 0.0, 5.0),
+                Vector3::new(-5.0, 0.0, 5.0),
+                // Ceiling
+                Vector3::new(-5.0, 3.0, -5.0),
+                Vector3::new(5.0, 3.0, -5.0),
+                Vector3::new(5.0, 3.0, 5.0),
+                Vector3::new(-5.0, 3.0, 5.0),
+            ];
+
+            let triangles = [
+                // Floor
+                [0, 1, 2],
+                [0, 2, 3],
+                // Ceiling
+                [4, 6, 5],
+                [4, 7, 6],
+                // Walls
+                [0, 4, 5],
+                [0, 5, 1],
+                [1, 5, 6],
+                [1, 6, 2],
+                [2, 6, 7],
+                [2, 7, 3],
+                [3, 7, 4],
+                [3, 4, 0],
+            ]
+            .iter()
+            .map(|indices| Triangle::new(indices[0], indices[1], indices[2]))
+            .collect::<Vec<_>>();
+
+            let material_indices = vec![0; triangles.len()];
+            let materials = vec![Material::default()];
+
+            let settings = StaticMeshSettings {
+                vertices: &vertices,
+                triangles: &triangles,
+                material_indices: &material_indices,
+                materials: &materials,
+            };
+            let static_mesh = StaticMesh::try_new(&scene, &settings).unwrap();
+            scene.add_static_mesh(static_mesh);
+            scene.commit();
+
+            scene
+        }
+
+        /// Creates the probe batch used by the bake cases.
+        fn test_probe_batch(context: &Context, scene: &Scene) -> ProbeBatch {
+            let mut probe_batch = ProbeBatch::try_new(context).unwrap();
+
+            let params = ProbeGenerationParams::Centroid {
+                transform: Matrix4::new([
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]),
+            };
+            let mut probe_array = ProbeArray::try_new(context).unwrap();
+            probe_array.generate_probes(scene, &params);
+
+            probe_batch.add_probe_array(&probe_array);
+            probe_batch.commit();
+
+            probe_batch
+        }
+
+        /// Exercises native baking with and without progress callbacks.
+        #[test]
+        fn test_bake() {
+            let _bake_lock = super::super::BAKE_LOCK.lock().unwrap();
+
+            // Simple bake
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = PathBaker::<DefaultRayTracer>::new();
+
+                let params = PathBakeParams {
+                    identifier: BakedDataIdentifier::Pathing {
+                        variation: BakedDataVariation::Dynamic,
+                    },
+                    num_samples: 4,
+                    radius: 0.5,
+                    threshold: 0.3,
+                    visibility_range: 5.0,
+                    path_range: 10.0,
+                    num_threads: 1,
+                };
+
+                assert!(
+                    baker
+                        .bake(&context, &mut probe_batch, &scene, params)
+                        .is_ok()
+                );
+            }
+
+            // With progress callback
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = PathBaker::<DefaultRayTracer>::new();
+
+                let params = PathBakeParams {
+                    identifier: BakedDataIdentifier::Pathing {
+                        variation: BakedDataVariation::Dynamic,
+                    },
+                    num_samples: 4,
+                    radius: 0.5,
+                    threshold: 0.3,
+                    visibility_range: 5.0,
+                    path_range: 10.0,
+                    num_threads: 1,
+                };
+
+                assert!(
+                    baker
+                        .bake_with_progress_callback(
+                            &context,
+                            &mut probe_batch,
+                            &scene,
+                            params,
+                            ProgressCallback::new(|progress| {
+                                println!("pathing bake progress: {:.1}%", progress * 100.0);
+                            }),
+                        )
+                        .is_ok()
+                );
+            }
+        }
+    }
+
+    mod reflections {
+        use super::*;
+
+        /// Creates the scene used by the bake cases.
+        fn test_scene(context: &Context) -> Scene<DefaultRayTracer> {
+            let mut scene = Scene::try_new(context).unwrap();
+
+            // Create a simple room mesh.
+            let vertices = vec![
+                // Floor
+                Vector3::new(-5.0, 0.0, -5.0),
+                Vector3::new(5.0, 0.0, -5.0),
+                Vector3::new(5.0, 0.0, 5.0),
+                Vector3::new(-5.0, 0.0, 5.0),
+                // Ceiling
+                Vector3::new(-5.0, 3.0, -5.0),
+                Vector3::new(5.0, 3.0, -5.0),
+                Vector3::new(5.0, 3.0, 5.0),
+                Vector3::new(-5.0, 3.0, 5.0),
+            ];
+
+            let triangles = [
+                // Floor
+                [0, 1, 2],
+                [0, 2, 3],
+                // Ceiling
+                [4, 6, 5],
+                [4, 7, 6],
+                // Walls
+                [0, 4, 5],
+                [0, 5, 1],
+                [1, 5, 6],
+                [1, 6, 2],
+                [2, 6, 7],
+                [2, 7, 3],
+                [3, 7, 4],
+                [3, 4, 0],
+            ]
+            .iter()
+            .map(|indices| Triangle::new(indices[0], indices[1], indices[2]))
+            .collect::<Vec<_>>();
+
+            let material_indices = vec![0; triangles.len()];
+            let materials = vec![Material::default()];
+
+            let settings = StaticMeshSettings {
+                vertices: &vertices,
+                triangles: &triangles,
+                material_indices: &material_indices,
+                materials: &materials,
+            };
+            let static_mesh = StaticMesh::try_new(&scene, &settings).unwrap();
+            scene.add_static_mesh(static_mesh);
+            scene.commit();
+
+            scene
+        }
+
+        /// Creates the probe batch used by the bake cases.
+        fn test_probe_batch(context: &Context, scene: &Scene) -> ProbeBatch {
+            let mut probe_batch = ProbeBatch::try_new(context).unwrap();
+
+            let params = ProbeGenerationParams::Centroid {
+                transform: Matrix4::new([
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]),
+            };
+            let mut probe_array = ProbeArray::try_new(context).unwrap();
+            probe_array.generate_probes(scene, &params);
+
+            probe_batch.add_probe_array(&probe_array);
+            probe_batch.commit();
+
+            probe_batch
+        }
+
+        /// Exercises native baking with and without progress callbacks.
+        #[test]
+        fn test_bake() {
+            let _bake_lock = super::super::BAKE_LOCK.lock().unwrap();
+
+            // Convolution
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+                let params = ReflectionsBakeParams {
+                    identifier: BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::Reverb,
+                    },
+                    bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
+                    num_rays: 1024,
+                    num_diffuse_samples: 32,
+                    num_bounces: 8,
+                    simulated_duration: 2.0,
+                    saved_duration: 2.0,
+                    order: 1,
+                    num_threads: 2,
+                    irradiance_min_distance: 1.0,
+                    bake_batch_size: 8,
+                };
+
+                assert!(
+                    baker
+                        .bake(&context, &mut probe_batch, &scene, params)
+                        .is_ok()
+                );
+            }
+
+            // Parametric
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+                let params = ReflectionsBakeParams {
+                    identifier: BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::Reverb,
+                    },
+                    bake_flags: ReflectionsBakeFlags::BAKE_PARAMETRIC,
+                    num_rays: 512,
+                    num_diffuse_samples: 16,
+                    num_bounces: 4,
+                    simulated_duration: 1.0,
+                    saved_duration: 1.0,
+                    order: 1,
+                    num_threads: 1,
+                    irradiance_min_distance: 0.5,
+                    bake_batch_size: 4,
+                };
+
+                assert!(
+                    baker
+                        .bake(&context, &mut probe_batch, &scene, params)
+                        .is_ok()
+                );
+            }
+
+            // Both flags
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+                let params = ReflectionsBakeParams {
+                    identifier: BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::Reverb,
+                    },
+                    bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION
+                        | ReflectionsBakeFlags::BAKE_PARAMETRIC,
+                    num_rays: 512,
+                    num_diffuse_samples: 16,
+                    num_bounces: 4,
+                    simulated_duration: 1.0,
+                    saved_duration: 1.0,
+                    order: 1,
+                    num_threads: 1,
+                    irradiance_min_distance: 0.5,
+                    bake_batch_size: 4,
+                };
+
+                assert!(
+                    baker
+                        .bake(&context, &mut probe_batch, &scene, params)
+                        .is_ok()
+                );
+            }
+
+            // Static source
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+                let params = ReflectionsBakeParams {
+                    identifier: BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::StaticSource {
+                            endpoint_influence: Sphere {
+                                center: Vector3::new(0.0, 1.5, 0.0),
+                                radius: 1.0,
+                            },
+                        },
+                    },
+                    bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
+                    num_rays: 512,
+                    num_diffuse_samples: 16,
+                    num_bounces: 4,
+                    simulated_duration: 1.0,
+                    saved_duration: 1.0,
+                    order: 1,
+                    num_threads: 1,
+                    irradiance_min_distance: 0.5,
+                    bake_batch_size: 4,
+                };
+
+                assert!(
+                    baker
+                        .bake(&context, &mut probe_batch, &scene, params)
+                        .is_ok()
+                );
+            }
+
+            // With progress callback
+            {
+                let context = Context::default();
+                let scene = test_scene(&context);
+                let mut probe_batch = test_probe_batch(&context, &scene);
+
+                let baker = ReflectionsBaker::<DefaultRayTracer>::new();
+
+                let params = ReflectionsBakeParams {
+                    identifier: BakedDataIdentifier::Reflections {
+                        variation: BakedDataVariation::Reverb,
+                    },
+                    bake_flags: ReflectionsBakeFlags::BAKE_CONVOLUTION,
+                    num_rays: 512,
+                    num_diffuse_samples: 16,
+                    num_bounces: 4,
+                    simulated_duration: 1.0,
+                    saved_duration: 1.0,
+                    order: 1,
+                    num_threads: 1,
+                    irradiance_min_distance: 0.5,
+                    bake_batch_size: 4,
+                };
+
+                assert!(
+                    baker
+                        .bake_with_progress_callback(
+                            &context,
+                            &mut probe_batch,
+                            &scene,
+                            params,
+                            ProgressCallback::new(|progress| {
+                                println!("baking progress: {:.1}%", progress * 100.0);
+                            }),
+                        )
+                        .is_ok()
+                );
+            }
+        }
+    }
 }
 
 #[cfg(feature = "dynamic")]
@@ -191,7 +592,6 @@ mod dynamic {
 
     #[test]
     fn processes_runtime_baked_outputs() {
-        #[cfg(all(feature = "static", feature = "dynamic"))]
         let _bake_lock = super::BAKE_LOCK.lock().unwrap();
 
         use audionimbus::callback::ProgressCallback;

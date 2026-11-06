@@ -969,3 +969,412 @@ mod dynamic {
         assert!(samples.iter().any(|sample| sample.abs() > 0.0));
     }
 }
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod direct {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let mut simulation = Simulation::new::<()>(simulator);
+        let mut direct_simulation = simulation.spawn_direct(|error| {
+            eprintln!("{error}");
+        });
+        simulation.shutdown();
+        direct_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+
+    #[test]
+    fn test_initial_output_is_empty() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let mut simulation = Simulation::new::<()>(simulator);
+        let mut direct_simulation = simulation.spawn_direct(|error| {
+            eprintln!("{error}");
+        });
+
+        assert!(direct_simulation.output().load().is_empty());
+
+        simulation.shutdown();
+        direct_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+}
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod pathing {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+    /// Creates a pathing pipeline with committed probe geometry.
+    fn simulation() -> Simulation<(), DefaultRayTracer, (), (), Pathing, ()> {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_pathing(PathingSimulationSettings {
+                num_visibility_samples: 4,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+        let mut scene = Scene::try_new(&context).unwrap();
+        let vertices = vec![
+            Point::new(-10.0, 0.0, -10.0),
+            Point::new(10.0, 0.0, -10.0),
+            Point::new(10.0, 0.0, 10.0),
+            Point::new(-10.0, 0.0, 10.0),
+        ];
+        let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
+        let materials = vec![Material::default()];
+        let material_indices = vec![0usize, 0];
+        let static_mesh = StaticMesh::try_new(
+            &scene,
+            &StaticMeshSettings {
+                vertices: &vertices,
+                triangles: &triangles,
+                material_indices: &material_indices,
+                materials: &materials,
+            },
+        )
+        .unwrap();
+        scene.add_static_mesh(static_mesh);
+        scene.commit();
+        simulator.set_scene(&scene);
+
+        let mut probe_array = ProbeArray::try_new(&context).unwrap();
+        probe_array.generate_probes(
+            &scene,
+            &ProbeGenerationParams::UniformFloor {
+                spacing: 5.0,
+                height: 1.5,
+                transform: Matrix4::new([
+                    [20.0, 0.0, 0.0, 0.0],
+                    [0.0, 20.0, 0.0, 0.0],
+                    [0.0, 0.0, 20.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]),
+            },
+        );
+        let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+        probe_batch.add_probe_array(&probe_array);
+        probe_batch.commit();
+        simulator.add_probe_batch(&probe_batch);
+        simulator.commit();
+
+        Simulation::new::<()>(simulator)
+    }
+
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let mut simulation = simulation();
+        let mut pathing_simulation = simulation.spawn_pathing(|error| {
+            eprintln!("{error}");
+        });
+        simulation.shutdown();
+        pathing_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+
+    #[test]
+    fn test_initial_output_is_empty() {
+        let mut simulation = simulation();
+        let mut pathing_simulation = simulation.spawn_pathing(|error| {
+            eprintln!("{error}");
+        });
+
+        assert!(pathing_simulation.output().load().is_empty());
+
+        simulation.shutdown();
+        pathing_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+}
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod pipeline {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+    #[test]
+    fn test_new() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let _simulation = Simulation::new::<()>(simulator);
+    }
+
+    #[test]
+    fn test_update_clears_buffer_between_calls() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let simulator_clone = simulator.clone();
+        let simulation = Simulation::new::<()>(simulator);
+
+        let source =
+            Source::<Direct, Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
+
+        simulation.update_sources(|sources| {
+            sources.push((
+                (),
+                SourceWithInputs {
+                    source: source.clone(),
+                    simulation_inputs: SimulationInputs {
+                        source: CoordinateSystem::default(),
+                        parameters: SimulationParameters::new()
+                            .with_direct(DirectSimulationParameters::new())
+                            .with_reflections(ConvolutionParameters {
+                                baked_data_identifier: None,
+                            }),
+                    },
+                },
+            ));
+            assert_eq!(sources.len(), 1);
+        });
+
+        simulation.update_sources(|sources| {
+            assert!(
+                sources.is_empty(),
+                "update should receive an empty buffer each call"
+            );
+        });
+    }
+
+    #[test]
+    fn test_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings = SimulationSettings::new(&audio_settings)
+            .with_direct(DirectSimulationSettings {
+                max_num_occlusion_samples: 4,
+            })
+            .with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let mut simulation = Simulation::new::<()>(simulator);
+        let mut direct_simulation = simulation.spawn_direct(|error| {
+            eprintln!("{error}");
+        });
+        simulation.shutdown();
+        direct_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+}
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod reflections {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let mut simulation = Simulation::new::<()>(simulator);
+        let mut reflections_simulation = simulation.spawn_reflections(|error| {
+            eprintln!("{error}");
+        });
+        simulation.shutdown();
+        reflections_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+
+    #[test]
+    fn test_initial_output_is_empty() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let mut simulation = Simulation::new::<()>(simulator);
+        let mut reflections_simulation = simulation.spawn_reflections(|error| {
+            eprintln!("{error}");
+        });
+
+        assert!(reflections_simulation.output().load().sources.is_empty());
+
+        simulation.shutdown();
+        reflections_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+}
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod reflections_reverb {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+    #[test]
+    fn test_spawn_and_shutdown() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let simulator_clone = simulator.clone();
+        let mut simulation = Simulation::new::<()>(simulator);
+
+        let listener_source =
+            Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
+        simulator_clone.add_source(&listener_source);
+        simulation.request_simulator_commit();
+
+        let mut reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
+            eprintln!("{error}");
+        });
+        simulation.shutdown();
+        reverb_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+
+    #[test]
+    fn test_initial_listener_output_is_none() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        let simulation_settings =
+            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                max_num_rays: 128,
+                num_diffuse_samples: 8,
+                max_duration: 0.5,
+                max_num_sources: 4,
+                num_threads: 1,
+                max_order: 1,
+            });
+        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+        let scene = Scene::try_new(&context).unwrap();
+        simulator.set_scene(&scene);
+        simulator.commit();
+
+        let simulator_clone = simulator.clone();
+        let mut simulation = Simulation::new::<()>(simulator);
+
+        let listener_source =
+            Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
+        simulator_clone.add_source(&listener_source);
+        simulation.request_simulator_commit();
+
+        let mut reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
+            eprintln!("{error}");
+        });
+
+        assert!(reverb_simulation.output().load().listener.is_none());
+
+        simulation.shutdown();
+        reverb_simulation
+            .join()
+            .expect("simulation thread panicked");
+    }
+}

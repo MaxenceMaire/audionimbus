@@ -622,3 +622,755 @@ mod reflections {
         }
     }
 }
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod reflection_effect {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+
+    mod apply {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let input_container = vec![0.5; audio_settings.frame_size as usize];
+            let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
+
+            let mut output_container =
+                vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
+
+            assert!(
+                reflection_effect
+                    .apply(&reflection_effect_params, &input_buffer, &mut output_buffer)
+                    .is_ok()
+            );
+        }
+
+        #[test]
+        fn test_invalid_input_num_channels() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
+            let input_buffer =
+                AudioBufferRef::try_new(input_container.as_slice(), 2 as usize).unwrap();
+
+            let mut output_container =
+                vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
+
+            assert_eq!(
+                reflection_effect.apply(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &mut output_buffer
+                ),
+                Err(EffectError::InvalidInputChannels {
+                    expected: ChannelRequirement::Exactly(1),
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let input_container = vec![0.5; audio_settings.frame_size as usize];
+            let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
+
+            let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
+
+            assert_eq!(
+                reflection_effect.apply(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &mut output_buffer
+                ),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2
+                })
+            );
+        }
+    }
+
+    mod apply_into_mixer {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let input_container = vec![0.5; audio_settings.frame_size as usize];
+            let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
+
+            let mut output_container =
+                vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            assert!(
+                reflection_effect
+                    .apply_into_mixer(
+                        &reflection_effect_params,
+                        &input_buffer,
+                        &mut output_buffer,
+                        &mixer
+                    )
+                    .is_ok()
+            );
+        }
+
+        #[test]
+        fn test_invalid_input_num_channels() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let input_container = vec![0.5; 2 * audio_settings.frame_size as usize];
+            let input_buffer =
+                AudioBufferRef::try_new(input_container.as_slice(), 2 as usize).unwrap();
+
+            let mut output_container =
+                vec![0.0; num_output_channels as usize * input_buffer.num_samples()];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 4 as usize).unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            assert_eq!(
+                reflection_effect.apply_into_mixer(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &mut output_buffer,
+                    &mixer
+                ),
+                Err(EffectError::InvalidInputChannels {
+                    expected: ChannelRequirement::Exactly(1),
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+            let mut reflection_effect = ReflectionEffect::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let input_container = vec![0.5; audio_settings.frame_size as usize];
+            let input_buffer = AudioBufferRef::try_from(input_container.as_slice()).unwrap();
+
+            let mut output_container = vec![0.0; (2 * input_buffer.num_samples()) as usize];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
+
+            let mixer =
+                ReflectionMixer::try_new(&context, &audio_settings, &reflection_effect_settings)
+                    .unwrap();
+
+            assert_eq!(
+                reflection_effect.apply_into_mixer(
+                    &reflection_effect_params,
+                    &input_buffer,
+                    &mut output_buffer,
+                    &mixer
+                ),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2
+                })
+            );
+        }
+    }
+}
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod reflection_mixer {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+
+    mod apply {
+        use super::*;
+
+        #[test]
+        fn test_valid() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+
+            let mut mixer = ReflectionMixer::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let mut output_container =
+                vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
+            let mut output_buffer = AudioBufferMut::try_new(
+                output_container.as_mut_slice(),
+                num_output_channels as usize,
+            )
+            .unwrap();
+
+            assert!(
+                mixer
+                    .apply(&mut reflection_effect_params, &mut output_buffer)
+                    .is_ok()
+            );
+        }
+
+        #[test]
+        fn test_invalid_output_num_channels() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+
+            let mut mixer = ReflectionMixer::<Convolution>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let mut output_container = vec![0.0; (2 * audio_settings.frame_size) as usize];
+            let mut output_buffer =
+                AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
+
+            assert_eq!(
+                mixer.apply(&mut reflection_effect_params, &mut output_buffer),
+                Err(EffectError::InvalidOutputChannels {
+                    expected: ChannelRequirement::Exactly(4),
+                    actual: 2
+                })
+            );
+        }
+
+        #[test]
+        fn test_parametric_valid() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ParametricSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+
+            let mut mixer = ReflectionMixer::<Parametric>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            let mut output_container =
+                vec![0.0; (num_output_channels * audio_settings.frame_size) as usize];
+            let mut output_buffer = AudioBufferMut::try_new(
+                output_container.as_mut_slice(),
+                num_output_channels as usize,
+            )
+            .unwrap();
+
+            assert!(
+                mixer
+                    .apply(&mut reflection_effect_params, &mut output_buffer)
+                    .is_ok()
+            );
+        }
+
+        #[test]
+        fn test_parametric_at_least_one_channel() {
+            let context = Context::default();
+
+            let audio_settings = AudioSettings::default();
+            let impulse_response_size = 2 * audio_settings.sampling_rate;
+
+            let simulation_settings =
+                SimulationSettings::new(&audio_settings).with_reflections(ParametricSettings {
+                    max_num_rays: 4096,
+                    num_diffuse_samples: 32,
+                    max_duration: 2.0,
+                    max_num_sources: 8,
+                    num_threads: 1,
+                    max_order: 1,
+                });
+            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
+
+            let scene = Scene::try_new(&context).unwrap();
+            simulator.set_scene(&scene);
+
+            let source = Source::try_new(&simulator).unwrap();
+            simulator.add_source(&source);
+
+            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+                .with_reflections(ReflectionsSharedInputs {
+                    num_rays: 4096,
+                    num_bounces: 16,
+                    duration: 2.0,
+                    order: 1,
+                    irradiance_min_distance: 1.0,
+                });
+            simulator
+                .set_shared_reflections_inputs(&simulation_shared_inputs)
+                .unwrap();
+
+            simulator.commit();
+
+            assert!(simulator.run_reflections().is_ok());
+            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+
+            let num_output_channels = num_ambisonics_channels(1);
+            let reflection_effect_settings = ReflectionEffectSettings {
+                impulse_response_size,
+                num_channels: num_output_channels,
+            };
+
+            let mut mixer = ReflectionMixer::<Parametric>::try_new(
+                &context,
+                &audio_settings,
+                &reflection_effect_settings,
+            )
+            .unwrap();
+
+            // Test with 1 channel (minimum for parametric)
+            let mut output_container = vec![0.0; audio_settings.frame_size as usize];
+            let mut output_buffer =
+                AudioBufferMut::try_from(output_container.as_mut_slice()).unwrap();
+
+            assert!(
+                mixer
+                    .apply(&mut reflection_effect_params, &mut output_buffer)
+                    .is_ok()
+            );
+        }
+    }
+}

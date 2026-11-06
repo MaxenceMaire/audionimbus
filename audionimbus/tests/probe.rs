@@ -115,3 +115,78 @@ mod dynamic {
         );
     }
 }
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod generation {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use static_api::*;
+
+    #[test]
+    fn test_generation_uniform_floor() {
+        let context = Context::default();
+        let mut scene = Scene::try_new(&context).expect("failed to create scene");
+
+        // Add a floor mesh.
+        let vertices = vec![
+            Point::new(-50.0, 0.0, -50.0),
+            Point::new(50.0, 0.0, -50.0),
+            Point::new(50.0, 0.0, 50.0),
+            Point::new(-50.0, 0.0, 50.0),
+        ];
+        let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
+        let material_indices = vec![0, 0];
+        let materials = vec![Material::default()];
+
+        let static_mesh_settings = StaticMeshSettings {
+            vertices: &vertices,
+            triangles: &triangles,
+            material_indices: &material_indices,
+            materials: &materials,
+        };
+        let static_mesh = StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();
+        scene.add_static_mesh(static_mesh);
+        scene.commit();
+
+        let mut probe_array = ProbeArray::try_new(&context).unwrap();
+        let transform = Matrix::new([
+            [100.0, 0.0, 0.0, 0.0],
+            [0.0, 100.0, 0.0, 0.0],
+            [0.0, 0.0, 100.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let params = ProbeGenerationParams::UniformFloor {
+            spacing: 10.0,
+            height: 1.5,
+            transform,
+        };
+
+        probe_array.generate_probes(&scene, &params);
+        assert_eq!(probe_array.num_probes(), 121);
+    }
+
+    #[test]
+    fn test_add_array() {
+        let context = Context::default();
+        let scene = Scene::try_new(&context).expect("failed to create scene");
+
+        let mut probe_array = ProbeArray::try_new(&context).unwrap();
+        let transform = Matrix::new([
+            [10.0, 0.0, 0.0, 0.0],
+            [0.0, 10.0, 0.0, 0.0],
+            [0.0, 0.0, 10.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+        let params = ProbeGenerationParams::Centroid { transform };
+        probe_array.generate_probes(&scene, &params);
+
+        let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
+        probe_batch.add_probe_array(&probe_array);
+        probe_batch.commit();
+
+        assert_eq!(probe_batch.num_probes(), probe_array.num_probes());
+    }
+}

@@ -108,22 +108,3 @@ pub(crate) fn sync_probe_batches_from_assets(
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::bevy::ProbeBatch;
-    use crate::context::Context;
-
-    #[test]
-    fn test_probe_batch_asset_round_trip() {
-        let context = Context::default();
-        let probe_batch = crate::probe::ProbeBatch::try_new(&context).unwrap();
-        let serialized_object = probe_batch.try_save(&context).unwrap();
-        let asset = ProbeBatchAsset::new(serialized_object.to_vec());
-
-        let loaded_probe_batch = ProbeBatch::from_asset(&context, &asset).unwrap();
-
-        assert!(!loaded_probe_batch.raw_ptr().is_null());
-    }
-}

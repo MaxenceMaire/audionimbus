@@ -1455,3 +1455,43 @@ fn exports_selected_bevy_paths() {
     }
     drop(scene);
 }
+
+mod probe_asset {
+    use audionimbus::Context;
+    use audionimbus::bevy::{ProbeBatch, asset::ProbeBatchAsset};
+    #[test]
+    fn test_probe_batch_asset_round_trip() {
+        let context = Context::default();
+        let probe_batch = audionimbus::probe::ProbeBatch::try_new(&context).unwrap();
+        let serialized_object = probe_batch.try_save(&context).unwrap();
+        let asset = ProbeBatchAsset::new(serialized_object.to_vec());
+
+        let loaded_probe_batch = ProbeBatch::from_asset(&context, &asset).unwrap();
+
+        assert!(!loaded_probe_batch.raw_ptr().is_null());
+    }
+}
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+mod scene_asset {
+    #[cfg(not(feature = "static"))]
+    use audionimbus as static_api;
+    use audionimbus::bevy::{
+        asset::SceneAsset, configuration::DefaultSimulationConfiguration, geometry::Scene,
+    };
+    #[cfg(feature = "static")]
+    use audionimbus::r#static as static_api;
+    use audionimbus::{Context, DefaultRayTracer};
+    #[test]
+    fn test_scene_asset_round_trip() {
+        let context = Context::default();
+        let scene = static_api::Scene::<DefaultRayTracer>::try_new(&context).unwrap();
+        let serialized_object = scene.try_save(&context).unwrap();
+        let asset = SceneAsset::new(serialized_object.to_vec());
+
+        let loaded_scene =
+            Scene::<DefaultSimulationConfiguration>::from_asset(&context, &asset).unwrap();
+
+        assert!(!loaded_scene.raw_ptr().is_null());
+    }
+}

@@ -541,8 +541,7 @@ impl std::fmt::Display for ProbeBatchError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::static_mesh::StaticStaticMesh as StaticMesh;
-    use crate::geometry::{Material, Point, StaticMeshSettings, Triangle};
+    use crate::geometry::Point;
 
     mod probe_array {
         use super::*;
@@ -571,50 +570,6 @@ mod tests {
             probe_array.generate_probes(&scene, &params);
 
             assert_eq!(probe_array.num_probes(), 1);
-        }
-
-        #[test]
-        fn test_generation_uniform_floor() {
-            let context = Context::default();
-            let mut scene = Scene::try_new(&context).expect("failed to create scene");
-
-            // Add a floor mesh.
-            let vertices = vec![
-                Point::new(-50.0, 0.0, -50.0),
-                Point::new(50.0, 0.0, -50.0),
-                Point::new(50.0, 0.0, 50.0),
-                Point::new(-50.0, 0.0, 50.0),
-            ];
-            let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
-            let material_indices = vec![0, 0];
-            let materials = vec![Material::default()];
-
-            let static_mesh_settings = StaticMeshSettings {
-                vertices: &vertices,
-                triangles: &triangles,
-                material_indices: &material_indices,
-                materials: &materials,
-            };
-            let static_mesh = StaticMesh::try_new(&scene, &static_mesh_settings).unwrap();
-            scene.add_static_mesh(static_mesh);
-            scene.commit();
-
-            let mut probe_array = ProbeArray::try_new(&context).unwrap();
-            let transform = Matrix::new([
-                [100.0, 0.0, 0.0, 0.0],
-                [0.0, 100.0, 0.0, 0.0],
-                [0.0, 0.0, 100.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]);
-
-            let params = ProbeGenerationParams::UniformFloor {
-                spacing: 10.0,
-                height: 1.5,
-                transform,
-            };
-
-            probe_array.generate_probes(&scene, &params);
-            assert_eq!(probe_array.num_probes(), 121);
         }
 
         #[test]
@@ -655,28 +610,6 @@ mod tests {
             probe_batch.remove_probe(0).unwrap();
             probe_batch.commit();
             assert_eq!(probe_batch.num_probes(), 0);
-        }
-
-        #[test]
-        fn test_add_array() {
-            let context = Context::default();
-            let scene = Scene::try_new(&context).expect("failed to create scene");
-
-            let mut probe_array = ProbeArray::try_new(&context).unwrap();
-            let transform = Matrix::new([
-                [10.0, 0.0, 0.0, 0.0],
-                [0.0, 10.0, 0.0, 0.0],
-                [0.0, 0.0, 10.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]);
-            let params = ProbeGenerationParams::Centroid { transform };
-            probe_array.generate_probes(&scene, &params);
-
-            let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
-            probe_batch.add_probe_array(&probe_array);
-            probe_batch.commit();
-
-            assert_eq!(probe_batch.num_probes(), probe_array.num_probes());
         }
 
         #[test]

@@ -7,6 +7,3 @@ pub use baker::DynamicPathBaker as PathBaker;
 pub use baker::PathBakeParams;
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 pub use baker::StaticPathBaker as PathBaker;
-
-#[cfg(test)]
-pub use baker::tests;

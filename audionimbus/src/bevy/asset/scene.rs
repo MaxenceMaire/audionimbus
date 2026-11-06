@@ -247,26 +247,3 @@ pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::bevy::configuration::DefaultSimulationConfiguration;
-    use crate::bevy::geometry::Scene;
-    use crate::context::Context;
-    use crate::ray_tracing::DefaultRayTracer;
-
-    #[test]
-    fn test_scene_asset_round_trip() {
-        let context = Context::default();
-        let scene =
-            crate::geometry::scene::StaticScene::<DefaultRayTracer>::try_new(&context).unwrap();
-        let serialized_object = scene.try_save(&context).unwrap();
-        let asset = SceneAsset::new(serialized_object.to_vec());
-
-        let loaded_scene =
-            Scene::<DefaultSimulationConfiguration>::from_asset(&context, &asset).unwrap();
-
-        assert!(!loaded_scene.raw_ptr().is_null());
-    }
-}
