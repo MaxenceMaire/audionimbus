@@ -52,3 +52,8 @@ pub use crate::wiring::*;
 pub mod bevy {
     pub use crate::bevy::*;
 }
+
+#[cfg(feature = "fmod")]
+pub use crate::fmod_integration::static_api as fmod;
+#[cfg(feature = "wwise")]
+pub use crate::wwise_integration::static_api as wwise;

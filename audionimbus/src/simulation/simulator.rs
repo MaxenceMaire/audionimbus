@@ -67,6 +67,9 @@ pub struct SimulationChoices {
     pub reflection_algorithm: Option<ReflectionAlgorithm>,
     /// The OpenCL device selected for Radeon Rays.
     pub ray_open_cl_device: Option<OpenClDevice>,
+    /// The native creation settings retained by the runtime simulator.
+    #[cfg(any(feature = "fmod", feature = "wwise"))]
+    pub creation_settings: audionimbus_sys::IPLSimulationSettings,
 }
 
 #[cfg(feature = "dynamic")]
@@ -1290,8 +1293,25 @@ impl DynamicSimulator {
             return Err(dynamic::SimulationError::DeviceMismatch);
         }
 
-        Self::try_new_shared(context, settings, settings.flags())
-            .map_err(dynamic::SimulationError::SteamAudio)
+        let simulator = Self::try_new_shared(context, settings, settings.flags())
+            .map_err(dynamic::SimulationError::SteamAudio)?;
+        #[cfg(any(feature = "fmod", feature = "wwise"))]
+        let simulator = {
+            let mut simulator = simulator;
+            simulator.binding.0.creation_settings = settings.to_ffi();
+
+            simulator
+        };
+
+        Ok(simulator)
+    }
+
+    /// Returns the validated native creation settings.
+    ///
+    /// Raw device pointers must stay internal to prevent use after device release.
+    #[cfg(any(feature = "fmod", feature = "wwise"))]
+    pub(crate) const fn creation_settings(&self) -> audionimbus_sys::IPLSimulationSettings {
+        self.binding.0.creation_settings
     }
 
     /// Returns the available simulation modes.

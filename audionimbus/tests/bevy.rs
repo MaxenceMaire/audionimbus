@@ -28,17 +28,16 @@ mod r#static {
     #[test]
     fn preserves_custom_configuration() {
         fn register_direct_frames<C: SimulationConfiguration<Direct = core::Direct>>() {
-            let _: fn(&mut App) = <runner::RunnerDirect as runner::SyncFrame<C>>::add_systems;
+            <runner::RunnerDirect as runner::SyncFrame<C>>::add_systems(&mut App::new());
         }
         fn register_reflection_frames<
             C: SimulationConfiguration<Reflections = core::Reflections>,
         >() {
-            let _: fn(&mut App) = <runner::RunnerReflections as runner::SyncFrame<C>>::add_systems;
-            let _: fn(&mut App) =
-                <runner::RunnerReflectionsReverb as runner::SyncFrame<C>>::add_systems;
+            <runner::RunnerReflections as runner::SyncFrame<C>>::add_systems(&mut App::new());
+            <runner::RunnerReflectionsReverb as runner::SyncFrame<C>>::add_systems(&mut App::new());
         }
         fn register_pathing_frames<C: SimulationConfiguration<Pathing = core::Pathing>>() {
-            let _: fn(&mut App) = <runner::RunnerPathing as runner::SyncFrame<C>>::add_systems;
+            <runner::RunnerPathing as runner::SyncFrame<C>>::add_systems(&mut App::new());
         }
         register_direct_frames::<CustomConfiguration>();
         register_reflection_frames::<CustomConfiguration>();
@@ -1389,37 +1388,31 @@ mod runtime {
 
 #[test]
 fn exports_selected_bevy_paths() {
-    let _: fn(&audionimbus::bevy::runner::DirectSimulation) =
-        |_: &audionimbus::bevy::DirectSimulation| {};
-    let _: fn(&audionimbus::bevy::runner::ReflectionsSimulation) =
-        |_: &audionimbus::bevy::ReflectionsSimulation| {};
-    let _: fn(&audionimbus::bevy::runner::ReflectionsReverbSimulation) =
-        |_: &audionimbus::bevy::ReflectionsReverbSimulation| {};
-    let _: fn(&audionimbus::bevy::runner::PathingSimulation) =
-        |_: &audionimbus::bevy::PathingSimulation| {};
-    #[cfg(feature = "dynamic")]
-    let _: Option<audionimbus::bevy::RunnerSettings> = None;
+    use audionimbus::bevy as audio;
 
-    let _: fn(&audionimbus::bevy::asset::SceneAssetSource) =
-        |_: &audionimbus::bevy::SceneAssetSource| {};
-    let _: fn(&audionimbus::bevy::debug::SpatialAudioDebugPlugin) =
-        |_: &audionimbus::bevy::SpatialAudioDebugPlugin| {};
-    let handle = bevy::prelude::Handle::<audionimbus::bevy::SceneAsset>::default();
+    let _: Option<audio::runner::DirectSimulation> = None::<audio::DirectSimulation>;
+    let _: Option<audio::runner::ReflectionsSimulation> = None::<audio::ReflectionsSimulation>;
+    let _: Option<audio::runner::ReflectionsReverbSimulation> =
+        None::<audio::ReflectionsReverbSimulation>;
+    let _: Option<audio::runner::PathingSimulation> = None::<audio::PathingSimulation>;
+    #[cfg(feature = "dynamic")]
+    let _: Option<audio::RunnerSettings> = None;
+
+    let handle = bevy::prelude::Handle::<audio::SceneAsset>::default();
     #[cfg(any(feature = "static", not(feature = "dynamic")))]
-    let asset: audionimbus::bevy::prelude::SceneAssetSource =
-        audionimbus::bevy::SceneAssetSource::new(handle);
+    let asset: audio::prelude::SceneAssetSource = audio::SceneAssetSource::new(handle);
     #[cfg(any(feature = "static", not(feature = "dynamic")))]
-    let debug: audionimbus::bevy::prelude::SpatialAudioDebugPlugin =
-        audionimbus::bevy::SpatialAudioDebugPlugin::new();
+    let debug: audio::prelude::SpatialAudioDebugPlugin = audio::SpatialAudioDebugPlugin::new();
     #[cfg(all(feature = "dynamic", not(feature = "static")))]
-    let asset: audionimbus::bevy::prelude::SceneAssetSource =
-        audionimbus::bevy::SceneAssetSource::with_ray_tracer(
-            handle,
-            audionimbus::dynamic::RayTracerSettings::Default,
-        );
+    let asset: audio::prelude::SceneAssetSource = audio::SceneAssetSource::with_ray_tracer(
+        handle,
+        audionimbus::dynamic::RayTracerSettings::Default,
+    );
     #[cfg(all(feature = "dynamic", not(feature = "static")))]
-    let debug: audionimbus::bevy::prelude::SpatialAudioDebugPlugin =
-        audionimbus::bevy::SpatialAudioDebugPlugin::with_runtime();
+    let debug: audio::prelude::SpatialAudioDebugPlugin =
+        audio::SpatialAudioDebugPlugin::with_runtime();
+    let asset: audio::asset::SceneAssetSource = asset;
+    let debug: audio::debug::SpatialAudioDebugPlugin = debug;
     #[cfg(feature = "static")]
     let _: (
         audionimbus::r#static::bevy::SceneAssetSource,
@@ -1434,16 +1427,15 @@ fn exports_selected_bevy_paths() {
     drop((asset, debug));
     let context = audionimbus::Context::default();
     #[cfg(any(feature = "static", not(feature = "dynamic")))]
-    let scene: audionimbus::bevy::geometry::Scene =
-        audionimbus::bevy::geometry::Scene::try_new(&context).unwrap();
+    let scene: audio::geometry::Scene = audio::geometry::Scene::try_new(&context).unwrap();
     #[cfg(all(feature = "dynamic", not(feature = "static")))]
-    let scene = audionimbus::bevy::geometry::Scene::try_with_ray_tracer(
+    let scene = audio::geometry::Scene::try_with_ray_tracer(
         &context,
         audionimbus::dynamic::RayTracerSettings::Default,
     )
     .unwrap();
-    let scene: audionimbus::bevy::prelude::Scene = scene;
-    let scene: audionimbus::bevy::Scene = scene;
+    let scene: audio::prelude::Scene = scene;
+    let scene: audio::Scene = scene;
     #[cfg(feature = "static")]
     let _: audionimbus::r#static::bevy::Scene = scene.clone();
     #[cfg(all(feature = "dynamic", not(feature = "static")))]
@@ -1455,7 +1447,7 @@ fn exports_selected_bevy_paths() {
             audionimbus::dynamic::RayTracerSettings::Default,
         )
         .unwrap();
-        let _: audionimbus::bevy::geometry::Scene<_> = runtime;
+        let _: audio::geometry::Scene<_> = runtime;
     }
     drop(scene);
 }

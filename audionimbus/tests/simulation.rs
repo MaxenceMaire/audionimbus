@@ -414,16 +414,11 @@ mod r#static {
             ))
             .unwrap();
         simulator.commit();
-        simulator.run_direct();
+        let _: () = simulator.run_direct();
         let outputs = source.get_outputs_subset::<Direct, (), ()>().unwrap();
         let _: audionimbus::DirectEffectParams = outputs.direct();
-        let _: fn(&Simulator<DefaultRayTracer, Direct>) = Simulator::run_direct;
-        let _: fn(
-            &Source<Direct>,
-        ) -> Result<
-            static_api::SimulationOutputs<Direct, (), ()>,
-            audionimbus::SteamAudioError,
-        > = Source::get_outputs;
+        let outputs: Result<_, audionimbus::SteamAudioError> = source.get_outputs();
+        let _: static_api::SimulationOutputs<Direct, (), ()> = outputs.unwrap();
     }
 }
 

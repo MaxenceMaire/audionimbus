@@ -1,7 +1,8 @@
+//! Wwise integration entry points.
+
 use crate::context::Context;
 use crate::hrtf::Hrtf;
-use crate::ray_tracing::RayTracer;
-use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+#[cfg(doc)]
 use crate::simulation::source::StaticSource as Source;
 
 #[derive(Debug, Copy, Clone)]
@@ -39,15 +40,6 @@ pub fn terminate() {
     unsafe { audionimbus_sys::wwise::iplWwiseTerminate() }
 }
 
-/// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
-///
-/// This function must be called once during initialization, after [`initialize`].
-pub fn set_simulation_settings<T: RayTracer, D, R, P, RE>(
-    simulation_settings: &SimulationSettings<T, D, R, P, RE>,
-) {
-    unsafe { audionimbus_sys::wwise::iplWwiseSetSimulationSettings(simulation_settings.to_ffi()) }
-}
-
 /// Specifies the HRTF to use for spatialization in subsequent audio frames.
 ///
 /// This function must be called once during initialization, after [`initialize`].
@@ -59,24 +51,11 @@ pub fn set_hrtf(hrtf: &Hrtf) {
 /// Wwise game object ID.
 pub type WwiseGameObjectId = u64;
 
-/// Specifies the [`Source`] used by the game engine for simulating occlusion, reflections, etc. for the given Wwise game object (identified by its AkGameObjectID).
-pub fn add_source<D, R, P, RE>(game_object_id: WwiseGameObjectId, source: &Source<D, R, P, RE>) {
-    unsafe { audionimbus_sys::wwise::iplWwiseAddSource(game_object_id, source.raw_ptr()) }
-}
-
 /// Remove any [`Source`] associated the given Wwise game object ID.
 ///
 /// This should be called when the game engine no longer needs to render occlusion, reflections, etc. for the given game object.
 pub fn remove_source(game_object_id: WwiseGameObjectId) {
     unsafe { audionimbus_sys::wwise::iplWwiseRemoveSource(game_object_id) }
-}
-
-/// Specifies the [`Source`] used by the game engine for simulating reverb.
-///
-/// Typically, listener-centric reverb is simulated by creating a [`Source`] with the same position as the listener, and simulating reflections.
-/// To render this simulated reverb, call this function and pass it the [`Source`] used.
-pub fn set_reverb_source<D, R, P, RE>(source: &Source<D, R, P, RE>) {
-    unsafe { audionimbus_sys::wwise::iplWwiseSetReverbSource(source.raw_ptr()) }
 }
 
 /// Returns the version of the Wwise integration being used.
@@ -105,3 +84,110 @@ pub struct WwiseIntegrationVersion {
     pub minor: usize,
     pub patch: usize,
 }
+
+/// Wwise integration with compile-time configuration.
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub mod static_api {
+    pub use super::{
+        WwiseGameObjectId, WwiseIntegrationVersion, WwiseSettings, initialize,
+        initialize_with_settings, remove_source, set_hrtf, terminate, version,
+    };
+    use crate::ray_tracing::RayTracer;
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::source::StaticSource as Source;
+
+    /// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
+    ///
+    /// This function must be called once during initialization, after [`initialize`].
+    pub fn set_simulation_settings<T: RayTracer, D, R, P, RE>(
+        simulation_settings: &SimulationSettings<T, D, R, P, RE>,
+    ) {
+        unsafe {
+            audionimbus_sys::wwise::iplWwiseSetSimulationSettings(simulation_settings.to_ffi())
+        }
+    }
+
+    /// Specifies the [`Source`] used by the game engine for simulating occlusion, reflections, etc. for the given Wwise game object (identified by its AkGameObjectID).
+    pub fn add_source<D, R, P, RE>(
+        game_object_id: WwiseGameObjectId,
+        source: &Source<D, R, P, RE>,
+    ) {
+        unsafe { audionimbus_sys::wwise::iplWwiseAddSource(game_object_id, source.raw_ptr()) }
+    }
+
+    /// Specifies the [`Source`] used by the game engine for simulating reverb.
+    ///
+    /// Typically, listener-centric reverb is simulated by creating a [`Source`] with the same position as the listener, and simulating reflections.
+    /// To render this simulated reverb, call this function and pass it the [`Source`] used.
+    pub fn set_reverb_source<D, R, P, RE>(source: &Source<D, R, P, RE>) {
+        unsafe { audionimbus_sys::wwise::iplWwiseSetReverbSource(source.raw_ptr()) }
+    }
+}
+
+/// Wwise integration with runtime configuration.
+#[cfg(feature = "dynamic")]
+pub mod dynamic_api {
+    pub use super::{
+        WwiseGameObjectId, WwiseIntegrationVersion, WwiseSettings, initialize,
+        initialize_with_settings, remove_source, set_hrtf, terminate, version,
+    };
+    use crate::SimulationFlags;
+    use crate::dynamic::{SimulationError, Simulator, Source};
+
+    /// Exports the simulator's validated creation settings.
+    ///
+    /// This function must be called once during initialization, after [`initialize`].
+    pub fn set_simulation_settings(simulator: &Simulator) {
+        unsafe {
+            audionimbus_sys::wwise::iplWwiseSetSimulationSettings(simulator.creation_settings());
+        }
+    }
+
+    /// Registers a runtime source for Steam Audio DSP effects.
+    pub fn add_source(game_object_id: WwiseGameObjectId, source: &Source) {
+        unsafe { audionimbus_sys::wwise::iplWwiseAddSource(game_object_id, source.raw_ptr()) }
+    }
+
+    /// Selects a runtime source for listener reverb.
+    ///
+    /// # Errors
+    ///
+    /// - [`SimulationError::DisabledModes`] if the source has no reflections.
+    pub fn set_reverb_source(source: &Source) -> Result<(), SimulationError> {
+        if !source.flags().contains(SimulationFlags::REFLECTIONS) {
+            return Err(SimulationError::DisabledModes(SimulationFlags::REFLECTIONS));
+        }
+
+        unsafe { audionimbus_sys::wwise::iplWwiseSetReverbSource(source.raw_ptr()) }
+
+        Ok(())
+    }
+}
+
+#[cfg(all(doctest, feature = "static", feature = "dynamic"))]
+/// Middleware binding checks.
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::r#static::Source) {
+///     audionimbus::dynamic::wwise::add_source(0, source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::r#static::Source) {
+///     audionimbus::dynamic::wwise::set_reverb_source(source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::dynamic::Source) {
+///     audionimbus::r#static::wwise::add_source(0, source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::dynamic::Source) {
+///     audionimbus::r#static::wwise::set_reverb_source(source);
+/// }
+/// ```
+struct MiddlewareBindings;

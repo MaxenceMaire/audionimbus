@@ -1,7 +1,8 @@
+//! FMOD integration entry points.
+
 use crate::context::Context;
 use crate::hrtf::Hrtf;
-use crate::ray_tracing::RayTracer;
-use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+#[cfg(doc)]
 use crate::simulation::source::StaticSource as Source;
 
 /// Initializes the FMOD Studio integration.
@@ -16,15 +17,6 @@ pub fn initialize(context: &Context) {
 /// This function must be called after all Steam Audio DSP effects have been destroyed.
 pub fn terminate() {
     unsafe { audionimbus_sys::fmod::iplFMODTerminate() }
-}
-
-/// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
-///
-/// This function must be called once during initialization, after [`initialize`].
-pub fn set_simulation_settings<T: RayTracer, D, R, P, RE>(
-    simulation_settings: &SimulationSettings<T, D, R, P, RE>,
-) {
-    unsafe { audionimbus_sys::fmod::iplFMODSetSimulationSettings(simulation_settings.to_ffi()) }
 }
 
 /// Specifies the HRTF to use for spatialization in subsequent audio frames.
@@ -43,22 +35,9 @@ pub fn set_hrtf_disabled(disabled: bool) {
 /// A handle to a [`Source`] that can be used in C# scripts.
 pub type SourceHandle = i32;
 
-/// Registers a source for use by Steam Audio DSP effects in the audio thread, and returns the corresponding handle.
-pub fn add_source<D, R, P, RE>(source: &Source<D, R, P, RE>) -> SourceHandle {
-    unsafe { audionimbus_sys::fmod::iplFMODAddSource(source.raw_ptr()) }
-}
-
 /// Unregisters a [`Source`] associated with the given handle, so the Steam Audio DSP effects can no longer use it.
 pub fn remove_source(handle: SourceHandle) {
     unsafe { audionimbus_sys::fmod::iplFMODRemoveSource(handle as audionimbus_sys::IPLint32) }
-}
-
-/// Specifies the [`Source`] used by the game engine for simulating reverb.
-///
-/// Typically, listener-centric reverb is simulated by creating a [`Source`] with the same position as the listener, and simulating reflections.
-/// To render this simulated reverb, call this function and pass it the [`Source`] used.
-pub fn set_reverb_source<D, R, P, RE>(source: &Source<D, R, P, RE>) {
-    unsafe { audionimbus_sys::fmod::iplFMODSetReverbSource(source.raw_ptr()) }
 }
 
 /// Returns the version of the FMOD Studio integration being used.
@@ -87,3 +66,105 @@ pub struct FmodStudioIntegrationVersion {
     pub minor: usize,
     pub patch: usize,
 }
+
+/// FMOD integration with compile-time configuration.
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+pub mod static_api {
+    pub use super::{
+        FmodStudioIntegrationVersion, SourceHandle, initialize, remove_source, set_hrtf,
+        set_hrtf_disabled, terminate, version,
+    };
+    use crate::ray_tracing::RayTracer;
+    use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
+    use crate::simulation::source::StaticSource as Source;
+
+    /// Specifies the simulation settings used by the game engine for simulating direct and/or indirect sound propagation.
+    ///
+    /// This function must be called once during initialization, after [`initialize`].
+    pub fn set_simulation_settings<T: RayTracer, D, R, P, RE>(
+        simulation_settings: &SimulationSettings<T, D, R, P, RE>,
+    ) {
+        unsafe { audionimbus_sys::fmod::iplFMODSetSimulationSettings(simulation_settings.to_ffi()) }
+    }
+
+    /// Registers a source for use by Steam Audio DSP effects in the audio thread, and returns the corresponding handle.
+    pub fn add_source<D, R, P, RE>(source: &Source<D, R, P, RE>) -> SourceHandle {
+        unsafe { audionimbus_sys::fmod::iplFMODAddSource(source.raw_ptr()) }
+    }
+
+    /// Specifies the [`Source`] used by the game engine for simulating reverb.
+    ///
+    /// Typically, listener-centric reverb is simulated by creating a [`Source`] with the same position as the listener, and simulating reflections.
+    /// To render this simulated reverb, call this function and pass it the [`Source`] used.
+    pub fn set_reverb_source<D, R, P, RE>(source: &Source<D, R, P, RE>) {
+        unsafe { audionimbus_sys::fmod::iplFMODSetReverbSource(source.raw_ptr()) }
+    }
+}
+
+/// FMOD integration with runtime configuration.
+#[cfg(feature = "dynamic")]
+pub mod dynamic_api {
+    pub use super::{
+        FmodStudioIntegrationVersion, SourceHandle, initialize, remove_source, set_hrtf,
+        set_hrtf_disabled, terminate, version,
+    };
+    use crate::SimulationFlags;
+    use crate::dynamic::{SimulationError, Simulator, Source};
+
+    /// Exports the simulator's validated creation settings.
+    ///
+    /// This function must be called once during initialization, after [`initialize`].
+    pub fn set_simulation_settings(simulator: &Simulator) {
+        unsafe {
+            audionimbus_sys::fmod::iplFMODSetSimulationSettings(simulator.creation_settings());
+        }
+    }
+
+    /// Registers a runtime source for Steam Audio DSP effects.
+    pub fn add_source(source: &Source) -> SourceHandle {
+        unsafe { audionimbus_sys::fmod::iplFMODAddSource(source.raw_ptr()) }
+    }
+
+    /// Selects a runtime source for listener reverb.
+    ///
+    /// # Errors
+    ///
+    /// - [`SimulationError::DisabledModes`] if the source has no reflections.
+    pub fn set_reverb_source(source: &Source) -> Result<(), SimulationError> {
+        if !source.flags().contains(SimulationFlags::REFLECTIONS) {
+            return Err(SimulationError::DisabledModes(SimulationFlags::REFLECTIONS));
+        }
+
+        unsafe { audionimbus_sys::fmod::iplFMODSetReverbSource(source.raw_ptr()) }
+
+        Ok(())
+    }
+}
+
+#[cfg(all(doctest, feature = "static", feature = "dynamic"))]
+/// Middleware binding checks.
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::r#static::Source) {
+///     audionimbus::dynamic::fmod::add_source(source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::r#static::Source) {
+///     audionimbus::dynamic::fmod::set_reverb_source(source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::dynamic::Source) {
+///     audionimbus::r#static::fmod::add_source(source);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn register(source: &audionimbus::dynamic::Source) {
+///     audionimbus::r#static::fmod::set_reverb_source(source);
+/// }
+/// ```
+struct MiddlewareBindings;

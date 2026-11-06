@@ -300,6 +300,8 @@ impl DynamicSimulationSettings {
                 ray_tracer: RayTracerKind::Default,
                 reflection_algorithm: None,
                 ray_open_cl_device: None,
+                #[cfg(any(feature = "fmod", feature = "wwise"))]
+                creation_settings: simulation_settings.settings,
             }),
         }
     }

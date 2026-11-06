@@ -356,12 +356,24 @@ use sealed::Sealed;
 pub mod wiring;
 
 #[cfg(feature = "fmod")]
+#[path = "fmod.rs"]
+mod fmod_integration;
+#[cfg(all(feature = "fmod", feature = "dynamic", not(feature = "static")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
-pub mod fmod;
+pub use fmod_integration::dynamic_api as fmod;
+#[cfg(all(feature = "fmod", any(feature = "static", not(feature = "dynamic"))))]
+#[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
+pub use fmod_integration::static_api as fmod;
 
 #[cfg(feature = "wwise")]
+#[path = "wwise.rs"]
+mod wwise_integration;
+#[cfg(all(feature = "wwise", feature = "dynamic", not(feature = "static")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
-pub mod wwise;
+pub use wwise_integration::dynamic_api as wwise;
+#[cfg(all(feature = "wwise", any(feature = "static", not(feature = "dynamic"))))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
+pub use wwise_integration::static_api as wwise;
 
 #[cfg(feature = "bevy")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bevy")))]

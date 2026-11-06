@@ -83,3 +83,8 @@ pub mod bevy {
     };
     pub use crate::bevy::system_set::SpatialAudioSet;
 }
+
+#[cfg(feature = "fmod")]
+pub use crate::fmod_integration::dynamic_api as fmod;
+#[cfg(feature = "wwise")]
+pub use crate::wwise_integration::dynamic_api as wwise;

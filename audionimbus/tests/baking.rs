@@ -115,23 +115,19 @@ mod r#static {
                 transform: Matrix4::IDENTITY,
             },
         );
-        let _: static_api::ReflectionsBaker<'_, DefaultRayTracer> =
-            ReflectionsBaker::<DefaultRayTracer>::new();
-        let _: static_api::PathBaker<DefaultRayTracer> = PathBaker::new();
-        let _: fn(
-            &ReflectionsBaker<'static, DefaultRayTracer>,
-            &Context,
-            &mut audionimbus::ProbeBatch,
-            &Scene,
-            ReflectionsBakeParams,
-        ) -> Result<(), BakeError> = ReflectionsBaker::<'static, DefaultRayTracer>::bake;
-        let _: fn(
-            &PathBaker<DefaultRayTracer>,
-            &Context,
-            &mut audionimbus::ProbeBatch,
-            &Scene,
-            PathBakeParams,
-        ) -> Result<(), BakeError> = PathBaker::<DefaultRayTracer>::bake;
+        fn bake(
+            context: &Context,
+            probe_batch: &mut ProbeBatch,
+            scene: &Scene,
+            reflections_params: ReflectionsBakeParams,
+            path_params: PathBakeParams,
+        ) -> Result<(), BakeError> {
+            let reflections_baker = ReflectionsBaker::<'static, DefaultRayTracer>::new();
+            reflections_baker.bake(context, probe_batch, scene, reflections_params)?;
+
+            PathBaker::<DefaultRayTracer>::new().bake(context, probe_batch, scene, path_params)
+        }
+        let _ = bake;
 
         let _: ReflectionsBaker<'_, audionimbus::ray_tracing::Embree> =
             ReflectionsBaker::<audionimbus::ray_tracing::Embree>::new();
