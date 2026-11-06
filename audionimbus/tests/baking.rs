@@ -388,7 +388,7 @@ mod dynamic {
                 max_num_sources: 1,
                 num_threads: 1,
             })
-            .with_pathing(PathingSimulationSettings::default());
+            .with_pathing(PathingSimulationSettings::default(), 1);
         let mut simulator = runtime::Simulator::try_new(&context, &simulation_settings).unwrap();
         simulator.try_set_scene(&scene).unwrap();
         simulator.add_probe_batch(&probe_batch);

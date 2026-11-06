@@ -645,9 +645,12 @@ mod runtime {
             .unwrap();
         let settings = core::SimulationSettings::new(&AudioSettings::default())
             .with_direct(DirectSimulationSettings::default())
-            .with_pathing(audionimbus::PathingSimulationSettings {
-                num_visibility_samples: 1,
-            });
+            .with_pathing(
+                audionimbus::PathingSimulationSettings {
+                    num_visibility_samples: 1,
+                },
+                1,
+            );
         let mut app = App::new();
         app.insert_resource(context)
             .add_plugins(TransformPlugin)

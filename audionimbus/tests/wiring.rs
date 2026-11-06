@@ -826,7 +826,7 @@ mod dynamic {
         let audio_settings = AudioSettings::default();
         let simulation_settings = runtime::SimulationSettings::new(&audio_settings)
             .with_direct(DirectSimulationSettings::default())
-            .with_pathing(PathingSimulationSettings::default());
+            .with_pathing(PathingSimulationSettings::default(), 1);
         let mut simulator = runtime::Simulator::try_new(&context, &simulation_settings).unwrap();
         let mut probe_scene =
             runtime::Scene::try_new(&context, runtime::RayTracerSettings::Default).unwrap();

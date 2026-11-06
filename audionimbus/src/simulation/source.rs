@@ -57,6 +57,8 @@ pub struct DynamicSourceResources {
     pub reflections_parameters: Option<DirectSimulationParameters>,
     /// The direct models referenced by pathing simulation.
     pub pathing_parameters: Option<DirectSimulationParameters>,
+    /// The maximum pathing order supported by the native allocation.
+    pub max_pathing_order: u32,
     /// The order requested by the most recent pathing input update.
     pub pathing_order: u32,
     /// The device retained for runtime TrueAudio Next outputs.
@@ -1002,6 +1004,8 @@ impl DynamicSource {
     /// - [`dynamic::SimulationError::UnknownFlags`] for unknown mode bits.
     /// - [`dynamic::SimulationError::DisabledModes`] for unavailable modes.
     /// - [`dynamic::SimulationError::AlgorithmMismatch`] for incompatible reflection parameters.
+    /// - [`dynamic::SimulationError::PathingOrderExceedsMax`] if pathing inputs exceed
+    ///   the native capacity.
     /// - [`dynamic::SimulationError::ParameterValidation`] if inputs exceed creation limits.
     pub fn set_inputs(
         &self,
@@ -1024,6 +1028,8 @@ impl DynamicSource {
     /// - [`dynamic::SimulationError::UnknownFlags`] for unknown mode bits.
     /// - [`dynamic::SimulationError::DisabledModes`] for unavailable modes.
     /// - [`dynamic::SimulationError::AlgorithmMismatch`] for incompatible reflection parameters.
+    /// - [`dynamic::SimulationError::PathingOrderExceedsMax`] if pathing inputs exceed
+    ///   the native capacity.
     /// - [`dynamic::SimulationError::ParameterValidation`] if inputs exceed creation limits.
     pub fn set_inputs_subset(
         &self,
@@ -1046,6 +1052,18 @@ impl DynamicSource {
             let actual = parameters.algorithm();
             if expected != actual {
                 return Err(dynamic::SimulationError::AlgorithmMismatch { expected, actual });
+            }
+        }
+
+        if requested.contains(SimulationFlags::PATHING)
+            && let Some(parameters) = &inputs.parameters.pathing
+        {
+            let max = self.shared.lock().unwrap().resources.max_pathing_order;
+            if parameters.pathing_order > max {
+                return Err(dynamic::SimulationError::PathingOrderExceedsMax {
+                    requested: parameters.pathing_order,
+                    max,
+                });
             }
         }
 
@@ -1086,7 +1104,10 @@ impl DynamicSource {
         let shared = self.shared.lock().unwrap();
         let binding = Dynamic(OutputSelection {
             flags,
-            pathing_order: shared.resources.pathing_order,
+            pathing_order: shared
+                .resources
+                .pathing_order
+                .min(shared.resources.max_pathing_order),
             reflection_algorithm: self.reflection_algorithm(),
             true_audio_next_device: shared.resources.true_audio_next_device.clone(),
         });
@@ -1156,7 +1177,10 @@ impl DynamicSource {
 
         let shared = self.shared.lock().unwrap();
         let mut pathing = self.outputs_shared(SimulationFlags::PATHING).pathing;
-        pathing.order = shared.resources.pathing_order as i32;
+        pathing.order = shared
+            .resources
+            .pathing_order
+            .min(shared.resources.max_pathing_order) as i32;
 
         Ok(pathing.into())
     }
@@ -1182,7 +1206,7 @@ impl<B: SourceBinding> Source<B> {
 pub struct OutputSelection {
     /// The modes requested from the source.
     flags: SimulationFlags,
-    /// The order requested by the source's pathing inputs.
+    /// The requested pathing order bounded by the native allocation.
     pathing_order: u32,
     /// The reflection algorithm selected at source creation.
     reflection_algorithm: Option<ReflectionAlgorithm>,

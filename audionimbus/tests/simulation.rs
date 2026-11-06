@@ -839,7 +839,7 @@ mod dynamic {
         let audio_settings = AudioSettings::default();
         let simulation_settings = runtime::SimulationSettings::new(&audio_settings)
             .with_direct(DirectSimulationSettings::default())
-            .with_pathing(PathingSimulationSettings::default());
+            .with_pathing(PathingSimulationSettings::default(), 1);
         let mut simulator = runtime::Simulator::try_new(&context, &simulation_settings).unwrap();
         assert!(matches!(
             simulator.run_pathing(),
@@ -1131,5 +1131,166 @@ mod dynamic {
         simulator.commit();
         assert!(retained_callback.upgrade().is_none());
         replacement.commit();
+    }
+
+    #[test]
+    fn rejects_oversized_pathing_orders() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        for max_order in [0, 1, 2] {
+            let simulation_settings = runtime::SimulationSettings::new(&audio_settings)
+                .with_direct(DirectSimulationSettings::default())
+                .with_pathing(PathingSimulationSettings::default(), max_order);
+            let simulator = runtime::Simulator::try_new(&context, &simulation_settings).unwrap();
+            let simulator_clone = simulator.clone();
+            let source = runtime::Source::try_new(
+                &simulator_clone,
+                SimulationFlags::DIRECT | SimulationFlags::PATHING,
+            )
+            .unwrap();
+            let source_clone = source.clone();
+            drop(simulator);
+            drop(simulator_clone);
+            drop(source);
+            let mut simulation_inputs = runtime::SimulationInputs {
+                source: CoordinateSystem::default(),
+                parameters: runtime::SimulationParameters {
+                    pathing: Some(PathingSimulationParameters {
+                        pathing_probes: ProbeBatch::try_new(&context).unwrap(),
+                        visibility_radius: 0.1,
+                        visibility_threshold: 0.5,
+                        visibility_range: 10.0,
+                        pathing_order: 0,
+                        enable_validation: false,
+                        find_alternate_paths: false,
+                        deviation: DeviationModel::default(),
+                    }),
+                    ..Default::default()
+                },
+            };
+            for order in [0, max_order] {
+                simulation_inputs
+                    .parameters
+                    .pathing
+                    .as_mut()
+                    .unwrap()
+                    .pathing_order = order;
+                source_clone.set_inputs(&simulation_inputs).unwrap();
+                let path_effect_params = source_clone.get_pathing_outputs().unwrap();
+                assert_eq!(path_effect_params.order, order);
+                assert_eq!(
+                    path_effect_params.sh_coeffs.len(),
+                    (order + 1).pow(2) as usize
+                );
+                let simulation_outputs = source_clone.get_outputs().unwrap();
+                let path_effect_params = simulation_outputs.pathing().unwrap();
+                assert_eq!(path_effect_params.order, order);
+                assert_eq!(
+                    path_effect_params.sh_coeffs.len(),
+                    (order + 1).pow(2) as usize
+                );
+            }
+            for order in [max_order + 1, 64, u32::MAX] {
+                simulation_inputs
+                    .parameters
+                    .pathing
+                    .as_mut()
+                    .unwrap()
+                    .pathing_order = order;
+                assert!(matches!(
+                    source_clone.set_inputs(&simulation_inputs),
+                    Err(runtime::SimulationError::PathingOrderExceedsMax { requested, max })
+                        if requested == order && max == max_order
+                ));
+                assert!(matches!(
+                    source_clone.set_inputs_subset(SimulationFlags::PATHING, &simulation_inputs),
+                    Err(runtime::SimulationError::PathingOrderExceedsMax { requested, max })
+                        if requested == order && max == max_order
+                ));
+                source_clone
+                    .set_inputs_subset(SimulationFlags::DIRECT, &simulation_inputs)
+                    .unwrap();
+                let path_effect_params = source_clone.get_pathing_outputs().unwrap();
+                assert_eq!(path_effect_params.order, max_order);
+                assert_eq!(
+                    path_effect_params.sh_coeffs.len(),
+                    (max_order + 1).pow(2) as usize
+                );
+                let simulation_outputs = source_clone.get_outputs().unwrap();
+                let path_effect_params = simulation_outputs.pathing().unwrap();
+                assert_eq!(path_effect_params.order, max_order);
+                assert_eq!(
+                    path_effect_params.sh_coeffs.len(),
+                    (max_order + 1).pow(2) as usize
+                );
+            }
+        }
+
+        let simulation_settings = runtime::SimulationSettings::new(&audio_settings)
+            .with_pathing(PathingSimulationSettings::default(), 1)
+            .with_reflections(ConvolutionSettings {
+                max_order: 46_340,
+                ..Default::default()
+            });
+        assert!(matches!(
+            runtime::Simulator::try_new(&context, &simulation_settings),
+            Err(runtime::SimulationError::PathingOrderExceedsMax {
+                requested: 46_340,
+                max: 46_339,
+            })
+        ));
+    }
+
+    #[test]
+    fn preserves_pathing_capacity_with_reflections() {
+        let context = Context::default();
+        let audio_settings = AudioSettings::default();
+        for (pathing_order, reflection_order) in [(0, 2), (2, 0), (1, 2), (2, 1)] {
+            let reflection_settings = ConvolutionSettings {
+                max_order: reflection_order,
+                ..Default::default()
+            };
+            let pathing_first = runtime::SimulationSettings::new(&audio_settings)
+                .with_pathing(PathingSimulationSettings::default(), pathing_order)
+                .with_reflections(reflection_settings);
+            let reflections_first = runtime::SimulationSettings::new(&audio_settings)
+                .with_reflections(reflection_settings)
+                .with_pathing(PathingSimulationSettings::default(), pathing_order);
+            for simulation_settings in [pathing_first, reflections_first] {
+                let max_order = pathing_order.max(reflection_order);
+                let simulator =
+                    runtime::Simulator::try_new(&context, &simulation_settings).unwrap();
+                let source =
+                    runtime::Source::try_new(&simulator, SimulationFlags::PATHING).unwrap();
+                let simulation_inputs = runtime::SimulationInputs {
+                    source: CoordinateSystem::default(),
+                    parameters: runtime::SimulationParameters {
+                        pathing: Some(PathingSimulationParameters {
+                            pathing_probes: ProbeBatch::try_new(&context).unwrap(),
+                            visibility_radius: 0.1,
+                            visibility_threshold: 0.5,
+                            visibility_range: 10.0,
+                            pathing_order: max_order,
+                            enable_validation: false,
+                            find_alternate_paths: false,
+                            deviation: DeviationModel::default(),
+                        }),
+                        ..Default::default()
+                    },
+                };
+                source.set_inputs(&simulation_inputs).unwrap();
+                let path_effect_params = source.get_pathing_outputs().unwrap();
+                assert_eq!(path_effect_params.order, max_order);
+                assert_eq!(
+                    path_effect_params.sh_coeffs.len(),
+                    (max_order + 1).pow(2) as usize
+                );
+                let simulation_outputs = source.get_outputs().unwrap();
+                assert_eq!(
+                    simulation_outputs.pathing().unwrap().sh_coeffs.len(),
+                    (max_order + 1).pow(2) as usize
+                );
+            }
+        }
     }
 }

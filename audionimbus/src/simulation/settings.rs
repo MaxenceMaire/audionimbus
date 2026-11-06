@@ -19,6 +19,10 @@ use crate::{
     AudioSettings, Convolution, Hybrid, Parametric, ReflectionEffectType, Sealed, TrueAudioNext,
 };
 
+/// The largest pathing order whose native coefficient count fits in a signed 32-bit integer.
+#[cfg(feature = "dynamic")]
+pub const MAX_PATHING_ORDER: u32 = i32::MAX.isqrt() as u32 - 1;
+
 /// Storage shared by static and runtime simulator settings.
 #[derive(Debug)]
 pub struct SimulationSettings<B: SimulatorBinding> {
@@ -300,6 +304,7 @@ impl DynamicSimulationSettings {
                 ray_tracer: RayTracerKind::Default,
                 reflection_algorithm: None,
                 ray_open_cl_device: None,
+                max_pathing_order: 0,
                 #[cfg(any(feature = "fmod", feature = "wwise"))]
                 creation_settings: simulation_settings.settings,
             }),
@@ -405,7 +410,11 @@ impl DynamicSimulationSettings {
         self.settings.maxDuration = reflection_settings.maxDuration;
         self.settings.maxNumSources = reflection_settings.maxNumSources;
         self.settings.numThreads = reflection_settings.numThreads;
-        self.settings.maxOrder = reflection_settings.maxOrder;
+        self.settings.maxOrder = if self.binding.0.flags.contains(SimulationFlags::PATHING) {
+            self.settings.maxOrder.max(reflection_settings.maxOrder)
+        } else {
+            reflection_settings.maxOrder
+        };
         self.settings.tanDevice = reflection_settings.tanDevice;
         self.true_audio_next_device = true_audio_next_device;
         self.open_cl_device = open_cl_device.or_else(|| self.binding.0.ray_open_cl_device.clone());
@@ -417,11 +426,31 @@ impl DynamicSimulationSettings {
         self
     }
 
-    /// Enables pathing simulation.
-    pub fn with_pathing(mut self, pathing_settings: PathingSimulationSettings) -> Self {
+    /// Enables pathing simulation with the specified maximum Ambisonic order.
+    ///
+    /// Reflection and pathing simulation share the larger creation order.
+    ///
+    /// # Arguments
+    ///
+    /// - `pathing_settings`: Visibility settings for pathing simulation.
+    /// - `max_order`: The maximum Ambisonic order requested by pathing inputs.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the coefficient count, `(max_order + 1)^2`, exceeds `i32::MAX`.
+    pub fn with_pathing(
+        mut self,
+        pathing_settings: PathingSimulationSettings,
+        max_order: u32,
+    ) -> Self {
+        assert!(
+            max_order <= MAX_PATHING_ORDER,
+            "pathing coefficient count exceeds i32::MAX"
+        );
         self.binding.0.flags |= SimulationFlags::PATHING;
         self.settings.flags |= audionimbus_sys::IPLSimulationFlags::IPL_SIMULATIONFLAGS_PATHING;
         self.settings.numVisSamples = pathing_settings.num_visibility_samples as i32;
+        self.settings.maxOrder = self.settings.maxOrder.max(max_order as i32);
 
         self
     }

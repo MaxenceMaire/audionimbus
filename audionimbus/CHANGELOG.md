@@ -4,17 +4,27 @@
 
 ### Added
 
-- Runtime geometry, simulation, reflections, baking, and integration types behind the `dynamic` feature.
+- Runtime geometry, simulation, reflection effects, and baking behind the `dynamic` feature.
+- Runtime configuration support for existing simulation workers and Bevy, FMOD, and Wwise integrations.
+- Runtime configuration support for the existing Bevy scene loaders and debug plugin.
+- Bevy `IntegrationErrorEvent` for rejected runtime source, listener, and scene updates.
+- The `static` feature, enabled by default, and explicit compile-time imports through `audionimbus::r#static`.
+- Runtime pathing creation limits through `SimulationSettings::with_pathing(pathing_settings, max_order)`.
+- Probe generation for static and runtime scenes with any supported ray tracer.
 - Parallel static and dynamic entry points in the `core` example.
 
 ### Changed
 
-- **Breaking:** Root, prelude, and subsystem imports use runtime types with only `dynamic` and static types otherwise.
-- **Breaking:** Runtime scene creation and loading return `SteamAudioError` directly.
-- **Breaking:** Runtime static mesh loading returns `SteamAudioError` directly.
-- **Breaking:** Runtime reflection effect creation returns `SteamAudioError` directly.
-- **Breaking:** Runtime static mesh creation returns `StaticMeshError` directly.
-- **Breaking:** Remove `SceneError::StaticMesh` and its `From<StaticMeshError>` conversion.
+- Root, prelude, subsystem, and integration imports select runtime types only with `dynamic` enabled and `static` disabled.
+- Bevy configurations can keep independent main scenes and geometry registrations.
+
+### Fixed
+
+- Reject runtime pathing orders above native capacity with `SimulationError::PathingOrderExceedsMax`, and bound both output reads.
+- Preserve pathing probes and deviation callbacks during unrelated source subset updates.
+- Keep deviation model storage alive through native input conversion.
+- Register Bevy static and instanced meshes again after their marker components are removed and reinserted.
+- Reload Bevy scene assets without stale geometry registrations.
 
 ## [0.16.2] - 2026-11-03
 

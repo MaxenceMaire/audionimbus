@@ -1,5 +1,7 @@
 //! Simulation handles, scene registration, and shared listener inputs.
 
+#[cfg(feature = "dynamic")]
+use super::settings::MAX_PATHING_ORDER;
 use super::settings::{SimulationSettings, StaticSimulationSettings};
 #[cfg(feature = "dynamic")]
 use super::source::DynamicSourceResources;
@@ -67,6 +69,8 @@ pub struct SimulationChoices {
     pub reflection_algorithm: Option<ReflectionAlgorithm>,
     /// The OpenCL device selected for Radeon Rays.
     pub ray_open_cl_device: Option<OpenClDevice>,
+    /// The native maximum order retained for new pathing sources.
+    pub max_pathing_order: u32,
     /// The native creation settings retained by the runtime simulator.
     #[cfg(any(feature = "fmod", feature = "wwise"))]
     pub creation_settings: audionimbus_sys::IPLSimulationSettings,
@@ -1280,6 +1284,8 @@ impl DynamicSimulator {
     /// # Errors
     ///
     /// - [`dynamic::SimulationError::DeviceMismatch`] for conflicting Radeon Rays and TAN devices.
+    /// - [`dynamic::SimulationError::PathingOrderExceedsMax`] if the native coefficient count
+    ///   exceeds `i32::MAX`.
     /// - [`dynamic::SimulationError::SteamAudio`] if native creation fails.
     pub fn try_new(
         context: &Context,
@@ -1293,15 +1299,21 @@ impl DynamicSimulator {
             return Err(dynamic::SimulationError::DeviceMismatch);
         }
 
-        let simulator = Self::try_new_shared(context, settings, settings.flags())
-            .map_err(dynamic::SimulationError::SteamAudio)?;
-        #[cfg(any(feature = "fmod", feature = "wwise"))]
-        let simulator = {
-            let mut simulator = simulator;
-            simulator.binding.0.creation_settings = settings.to_ffi();
+        let max_order = settings.to_ffi().maxOrder as u32;
+        if settings.flags().contains(SimulationFlags::PATHING) && max_order > MAX_PATHING_ORDER {
+            return Err(dynamic::SimulationError::PathingOrderExceedsMax {
+                requested: max_order,
+                max: MAX_PATHING_ORDER,
+            });
+        }
 
-            simulator
-        };
+        let mut simulator = Self::try_new_shared(context, settings, settings.flags())
+            .map_err(dynamic::SimulationError::SteamAudio)?;
+        simulator.binding.0.max_pathing_order = max_order;
+        #[cfg(any(feature = "fmod", feature = "wwise"))]
+        {
+            simulator.binding.0.creation_settings = settings.to_ffi();
+        }
 
         Ok(simulator)
     }
@@ -1786,6 +1798,7 @@ impl DynamicSimulator {
     pub(crate) fn source_resources(&self) -> DynamicSourceResources {
         DynamicSourceResources {
             simulator: Arc::downgrade(&self.shared),
+            max_pathing_order: self.binding.0.max_pathing_order,
             true_audio_next_device: self._true_audio_next_device.clone(),
             ..Default::default()
         }
@@ -1822,6 +1835,13 @@ pub enum DynamicSimulationError {
         /// The input parameters' reflection algorithm.
         actual: ReflectionAlgorithm,
     },
+    /// The requested pathing order exceeds the native coefficient capacity.
+    PathingOrderExceedsMax {
+        /// The requested Ambisonic order.
+        requested: u32,
+        /// The maximum Ambisonic order supported by the native allocation.
+        max: u32,
+    },
     /// Related handles use different native devices.
     DeviceMismatch,
     /// A different simulator created the supplied source.
@@ -1849,6 +1869,10 @@ impl fmt::Display for DynamicSimulationError {
             Self::AlgorithmMismatch { expected, actual } => write!(
                 formatter,
                 "reflection algorithm mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::PathingOrderExceedsMax { requested, max } => write!(
+                formatter,
+                "requested pathing order {requested}, but maximum is {max}"
             ),
             Self::DeviceMismatch => write!(formatter, "simulation devices do not match"),
             Self::ForeignSource => write!(formatter, "another simulator created this source"),
