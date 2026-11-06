@@ -1,7 +1,53 @@
 use audionimbus::*;
 
-mod common;
+pub mod common;
 use common::sine_wave;
+
+#[cfg(any(feature = "static", not(feature = "dynamic")))]
+/// Creates convolution parameters from a reflection simulation.
+///
+/// # Panics
+///
+/// Panics if native setup or simulation fails.
+fn convolution_parameters(
+    context: &Context,
+    audio_settings: &AudioSettings,
+) -> ReflectionEffectParams<Convolution> {
+    let simulation_settings =
+        SimulationSettings::new(audio_settings).with_reflections(ConvolutionSettings {
+            max_num_rays: 4096,
+            num_diffuse_samples: 32,
+            max_duration: 2.0,
+            max_num_sources: 8,
+            num_threads: 1,
+            max_order: 1,
+        });
+    let mut simulator = Simulator::try_new(context, &simulation_settings).unwrap();
+
+    let scene = Scene::try_new(context).unwrap();
+    simulator.set_scene(&scene);
+
+    let source = Source::try_new(&simulator).unwrap();
+    simulator.add_source(&source);
+
+    let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
+        .with_reflections(ReflectionsSharedInputs {
+            num_rays: 4096,
+            num_bounces: 16,
+            duration: 2.0,
+            order: 1,
+            irradiance_min_distance: 1.0,
+        });
+    simulator
+        .set_shared_reflections_inputs(&simulation_shared_inputs)
+        .unwrap();
+
+    simulator.commit();
+
+    assert!(simulator.run_reflections().is_ok());
+
+    source.get_reflections_outputs().unwrap()
+}
 
 #[test]
 fn test_binaural_effect() {
@@ -625,6 +671,7 @@ mod reflections {
 
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 mod reflection_effect {
+    use super::convolution_parameters;
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
     #[cfg(feature = "static")]
@@ -641,39 +688,7 @@ mod reflection_effect {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -709,39 +724,7 @@ mod reflection_effect {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -784,39 +767,7 @@ mod reflection_effect {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -861,39 +812,7 @@ mod reflection_effect {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -938,39 +857,7 @@ mod reflection_effect {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -1018,39 +905,7 @@ mod reflection_effect {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -1093,6 +948,7 @@ mod reflection_effect {
 
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 mod reflection_mixer {
+    use super::convolution_parameters;
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
     #[cfg(feature = "static")]
@@ -1109,39 +965,7 @@ mod reflection_mixer {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let mut reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -1178,39 +1002,7 @@ mod reflection_mixer {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let simulation_settings =
-                SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                    max_num_rays: 4096,
-                    num_diffuse_samples: 32,
-                    max_duration: 2.0,
-                    max_num_sources: 8,
-                    num_threads: 1,
-                    max_order: 1,
-                });
-            let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-            let scene = Scene::try_new(&context).unwrap();
-            simulator.set_scene(&scene);
-
-            let source = Source::try_new(&simulator).unwrap();
-            simulator.add_source(&source);
-
-            let simulation_shared_inputs = SimulationSharedInputs::new(CoordinateSystem::default())
-                .with_reflections(ReflectionsSharedInputs {
-                    num_rays: 4096,
-                    num_bounces: 16,
-                    duration: 2.0,
-                    order: 1,
-                    irradiance_min_distance: 1.0,
-                });
-            simulator
-                .set_shared_reflections_inputs(&simulation_shared_inputs)
-                .unwrap();
-
-            simulator.commit();
-
-            assert!(simulator.run_reflections().is_ok());
-            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let mut reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {

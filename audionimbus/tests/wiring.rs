@@ -1,5 +1,8 @@
 #![cfg(feature = "wiring")]
 
+#[cfg(feature = "dynamic")]
+pub mod common;
+
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 mod r#static {
     #[cfg(not(feature = "static"))]
@@ -828,76 +831,8 @@ mod dynamic {
             .with_direct(DirectSimulationSettings::default())
             .with_pathing(PathingSimulationSettings::default(), 1);
         let mut simulator = runtime::Simulator::try_new(&context, &simulation_settings).unwrap();
-        let mut probe_scene =
-            runtime::Scene::try_new(&context, runtime::RayTracerSettings::Default).unwrap();
-        let mut scene =
-            runtime::Scene::try_new(&context, runtime::RayTracerSettings::Default).unwrap();
-        let vertices = [
-            Point::new(-4.0, 0.0, -4.0),
-            Point::new(4.0, 0.0, -4.0),
-            Point::new(4.0, 0.0, 4.0),
-            Point::new(-4.0, 0.0, 4.0),
-        ];
-        let triangles = [Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
-        let materials = [Material::CONCRETE];
-        let material_indices = [0, 0];
-        let mesh_settings = StaticMeshSettings {
-            vertices: &vertices,
-            triangles: &triangles,
-            materials: &materials,
-            material_indices: &material_indices,
-        };
-        let mesh = runtime::StaticMesh::try_new(&probe_scene, &mesh_settings).unwrap();
-        probe_scene.try_add_static_mesh(mesh).unwrap();
-        probe_scene.commit();
-        let mesh = runtime::StaticMesh::try_new(&scene, &mesh_settings).unwrap();
-        scene.try_add_static_mesh(mesh).unwrap();
-        scene.commit();
-        simulator.try_set_scene(&scene).unwrap();
-        let mut probe_array = ProbeArray::try_new(&context).unwrap();
-        probe_array.generate_probes(
-            &probe_scene,
-            &ProbeGenerationParams::UniformFloor {
-                spacing: 2.0,
-                height: 1.0,
-                transform: Matrix::new([
-                    [4.0, 0.0, 0.0, 0.0],
-                    [0.0, 4.0, 0.0, 0.0],
-                    [0.0, 0.0, 4.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]),
-            },
-        );
-        assert!(probe_array.num_probes() > 0);
-        let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
-        probe_batch.add_probe_array(&probe_array);
-        probe_batch.commit();
-        runtime::PathBaker::new()
-            .bake(
-                &context,
-                &mut probe_batch,
-                &probe_scene,
-                PathBakeParams {
-                    identifier: BakedDataIdentifier::Pathing {
-                        variation: BakedDataVariation::Dynamic,
-                    },
-                    num_samples: 1,
-                    visibility_range: 10.0,
-                    path_range: 10.0,
-                    num_threads: 1,
-                    radius: 0.1,
-                    threshold: 0.5,
-                },
-            )
-            .unwrap();
-        simulator.add_probe_batch(&probe_batch);
-        let source = runtime::Source::try_new(
-            &simulator,
-            SimulationFlags::DIRECT | SimulationFlags::PATHING,
-        )
-        .unwrap();
-        simulator.try_add_source(&source).unwrap();
-        simulator.commit();
+        let (_probe_scene, _scene, _probe_array, probe_batch, source) =
+            super::common::baked_source(&context, &mut simulator);
 
         let mut simulation = runtime::Simulation::new::<u32>(simulator);
         simulation
