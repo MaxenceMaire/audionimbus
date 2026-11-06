@@ -512,10 +512,12 @@ impl<SourceId: Clone> DynamicSimulation<SourceId> {
                 ));
             }
         }
-        let current = self.sources.load();
+        let current_sources = self.sources.load();
         let mut sources = self.sources_pool.pull_owned(Default::default);
         sources.sources.clear();
-        sources.sources.extend(current.sources.iter().cloned());
+        sources
+            .sources
+            .extend(current_sources.sources.iter().cloned());
         sources.listener = listener;
         sources.partition();
         self.sources.store(Arc::new(sources));

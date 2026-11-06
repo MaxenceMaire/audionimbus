@@ -540,11 +540,6 @@ where
     /// simulator initialization.
     pub fn set_shared_inputs_subset<SubD, SubR, SubP, InD, InR, InP>(
         &self,
-        // `InD` and `InP` are intentionally loosely constrained here.
-        // `StaticSimulationSharedInputs` does not contain any Direct- or Pathing-specific data.
-        // Allowing arbitrary `InD` and `InP` avoids forcing callers to construct a value via
-        // `StaticSimulationSharedInputs::with_direct` and `StaticSimulationSharedInputs::with_pathing`, which
-        // would add unnecessary boilerplate with no semantic benefit.
         shared_inputs: &StaticSimulationSharedInputs<InD, InR, InP>,
     ) -> Result<(), ParameterValidationError>
     where

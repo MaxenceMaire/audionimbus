@@ -1058,11 +1058,11 @@ impl DynamicSource {
         if requested.contains(SimulationFlags::PATHING)
             && let Some(parameters) = &inputs.parameters.pathing
         {
-            let max = self.shared.lock().unwrap().resources.max_pathing_order;
-            if parameters.pathing_order > max {
+            let max_pathing_order = self.shared.lock().unwrap().resources.max_pathing_order;
+            if parameters.pathing_order > max_pathing_order {
                 return Err(dynamic::SimulationError::PathingOrderExceedsMax {
                     requested: parameters.pathing_order,
-                    max,
+                    max: max_pathing_order,
                 });
             }
         }
