@@ -1946,6 +1946,36 @@ impl std::error::Error for DynamicSimulationError {
 ///     source.raw_ptr_mut();
 /// }
 /// ```
+///
+/// Handles and settings have no implicit binding conversion:
+///
+/// ```compile_fail
+/// fn convert(handle: audionimbus::r#static::Source) -> audionimbus::dynamic::Source {
+///     handle.into()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn convert(handle: audionimbus::dynamic::Source) -> audionimbus::r#static::Source {
+///     handle.into()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn convert(
+///     handle: audionimbus::r#static::SimulationSettings<audionimbus::DefaultRayTracer>,
+/// ) -> audionimbus::dynamic::SimulationSettings {
+///     handle.into()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn convert(
+///     handle: audionimbus::dynamic::SimulationSettings,
+/// ) -> audionimbus::r#static::SimulationSettings<audionimbus::DefaultRayTracer> {
+///     handle.into()
+/// }
+/// ```
 struct SimulationBindings;
 
 #[cfg(test)]

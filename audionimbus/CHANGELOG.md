@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Runtime geometry, simulation, reflections, baking, and integration types behind the `dynamic` feature.
+- Parallel static and dynamic entry points in the `core` example.
+
 ### Changed
 
 - **Breaking:** Root, prelude, and subsystem imports use runtime types with only `dynamic` and static types otherwise.

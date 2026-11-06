@@ -1885,6 +1885,32 @@ impl From<SteamAudioError> for SceneError {
 /// fn equal<T: Eq>() {}
 /// equal::<audionimbus::r#static::StaticMesh<audionimbus::DefaultRayTracer>>();
 /// ```
+///
+/// Handles and settings have no implicit binding conversion:
+///
+/// ```compile_fail
+/// fn convert(handle: audionimbus::r#static::Scene) -> audionimbus::dynamic::Scene {
+///     handle.into()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn convert(handle: audionimbus::dynamic::Scene) -> audionimbus::r#static::Scene {
+///     handle.into()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn convert(handle: audionimbus::r#static::StaticMesh) -> audionimbus::dynamic::StaticMesh {
+///     handle.into()
+/// }
+/// ```
+///
+/// ```compile_fail
+/// fn convert(handle: audionimbus::dynamic::StaticMesh) -> audionimbus::r#static::StaticMesh {
+///     handle.into()
+/// }
+/// ```
 struct GeometryBindings;
 
 #[cfg(test)]

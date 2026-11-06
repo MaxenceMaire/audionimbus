@@ -1,11 +1,22 @@
 # Audionimbus Demo
 
 This crate demonstrates how to get started with the [`audionimbus`](../..) library.
+The parallel [`static.rs`](./static.rs) and [`dynamic.rs`](./dynamic.rs) entry points show the same complete audio flow.
+Both use the same room, orbiting source, tone bursts, gains, worker threads, and CPAL playback.
+Each entry point contains only the calls for its binding.
 
-## Running the demo
+## Running the example
+
+From this repository, run the static entry point with:
 
 ```bash
-cargo run --release -p core-demo
+cargo run --release -p core-demo --bin static
+```
+
+For the dynamic entry point, run:
+
+```bash
+cargo run --release -p core-demo --bin dynamic
 ```
 
 ## What you should hear

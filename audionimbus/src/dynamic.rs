@@ -1,4 +1,4 @@
-//! Runtime-selected configuration.
+//! Runtime-selected configuration with checked handle relationships.
 
 pub use crate::baking::pathing::baker::DynamicPathBaker as PathBaker;
 pub use crate::baking::reflections::baker::{
