@@ -1901,13 +1901,17 @@ impl From<SteamAudioError> for SceneError {
 /// ```
 ///
 /// ```compile_fail
-/// fn convert(handle: audionimbus::r#static::StaticMesh) -> audionimbus::dynamic::StaticMesh {
+/// use audionimbus::{DefaultRayTracer, dynamic, r#static};
+///
+/// fn convert(handle: r#static::StaticMesh<DefaultRayTracer>) -> dynamic::StaticMesh {
 ///     handle.into()
 /// }
 /// ```
 ///
 /// ```compile_fail
-/// fn convert(handle: audionimbus::dynamic::StaticMesh) -> audionimbus::r#static::StaticMesh {
+/// use audionimbus::{DefaultRayTracer, dynamic, r#static};
+///
+/// fn convert(handle: dynamic::StaticMesh) -> r#static::StaticMesh<DefaultRayTracer> {
 ///     handle.into()
 /// }
 /// ```
