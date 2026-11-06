@@ -9,6 +9,7 @@ use bevy::prelude::{App, World};
 /// The associated [`SimulationType`](Runner::SimulationType) links a runner to the simulation mode
 /// it drives.
 pub trait Runner: Sealed {
+    /// The simulation mode driven by this runner.
     type SimulationType;
 }
 
@@ -18,6 +19,7 @@ impl Runner for () {
 
 /// Maps a simulation mode type to its [`Runner`].
 pub trait ToRunner {
+    /// The runner for this simulation mode.
     type Runner: Runner;
 }
 

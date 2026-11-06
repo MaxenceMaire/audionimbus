@@ -166,6 +166,7 @@ where
     }
 }
 
+/// Runtime reflections and listener reverb resource.
 #[cfg(feature = "dynamic")]
 pub type DynamicReflectionsReverbSimulation =
     ReflectionsReverbSimulation<super::super::binding::RuntimeConfiguration>;

@@ -794,6 +794,7 @@ mod runtime {
         app.world().resource::<audio::Simulation>().shutdown();
     }
 
+    /// Simulation threads that reported a missing scene.
     #[derive(Resource, Default)]
     struct MissingScenes(Vec<audio::SimulationThread>);
 

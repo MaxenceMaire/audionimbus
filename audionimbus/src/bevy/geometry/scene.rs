@@ -343,6 +343,7 @@ impl<C: SimulationConfiguration> From<crate::geometry::scene::StaticScene<C::Ray
 pub(crate) struct SceneStatus<C: ConfigurationBinding> {
     /// Whether [`commit`](`crate::geometry::Scene::commit`) needs to be called.
     pub commit_needed: bool,
+    /// The configuration associated with these commit flags.
     _configuration: std::marker::PhantomData<fn() -> C>,
 }
 
@@ -500,6 +501,7 @@ pub(super) fn find_scene_ancestor<C: ConfigurationBinding>(
         .find(|&ancestor| scenes.contains(ancestor))
 }
 
+/// Runtime scene component.
 #[cfg(feature = "dynamic")]
 pub type DynamicScene = Scene<super::super::binding::RuntimeConfiguration>;
 

@@ -13,10 +13,15 @@ use std::borrow::{Borrow, BorrowMut, Cow};
 
 /// Handle selection that keeps source and simulator bindings inseparable.
 pub trait ConfigurationBinding: Send + Sync + 'static {
+    /// The error from instanced mesh creation.
     type InstancedMeshError: std::error::Error;
+    /// The scene and mesh binding.
     type Geometry: GeometryBinding + 'static;
+    /// The simulation pipeline binding.
     type Pipeline: crate::wiring::binding::PipelineBinding<Geometry = Self::Geometry>;
+    /// The simulation input binding.
     type Inputs: crate::simulation::inputs::InputBinding<Parameters = Self::Parameters>;
+    /// The simulation pipeline stored in the ECS resource.
     type Simulation: Borrow<crate::wiring::simulation::pipeline::Simulation<Entity, Self::Pipeline>>
         + BorrowMut<crate::wiring::simulation::pipeline::Simulation<Entity, Self::Pipeline>>
         + Send
@@ -24,11 +29,15 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
         + 'static;
     /// The ECS access used for source and listener publication.
     type SimulationAccess: SystemParam + 'static;
+    /// The source handle.
     type Source: Clone + Send + Sync + 'static;
+    /// The per-source simulation parameters.
     type Parameters: Clone + Send + Sync + 'static;
     /// The configuration-wide defaults used by debug drawing.
     type DebugParameters;
+    /// The source handle and its simulation inputs.
     type SourceWithInputs;
+    /// The simulation inputs shared by sources and listeners.
     type SharedInputs: Borrow<crate::simulation::simulator::SimulationSharedInputs<Self::Inputs>>
         + BorrowMut<crate::simulation::simulator::SimulationSharedInputs<Self::Inputs>>
         + Default
@@ -36,14 +45,21 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
         + Send
         + Sync
         + 'static;
+    /// The simulator creation settings.
     type Settings: Send + Sync;
+    /// The worker selection settings.
     type Runners: Send + Sync;
+    /// The error returned by a simulation worker.
     type Error: std::error::Error + Send + Sync + 'static;
     /// The validation error returned by ECS operations.
     type IntegrationError: std::error::Error + Send + Sync + 'static;
+    /// The direct simulation worker.
     type DirectSimulation: Send + Sync + 'static;
+    /// The source reflections worker.
     type ReflectionsSimulation: Send + Sync + 'static;
+    /// The worker for source reflections and listener reverb.
     type ReflectionsReverbSimulation: Send + Sync + 'static;
+    /// The pathing simulation worker.
     type PathingSimulation: Send + Sync + 'static;
 
     /// Creates the pipeline with the selected settings.
@@ -60,8 +76,11 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
         parameters: Option<&'a Self::Parameters>,
         default_parameters: &'a Self::DebugParameters,
     ) -> Cow<'a, Self::Parameters>;
+    /// Returns implicit source parameters for this configuration.
     fn implicit_parameters(source: &Self::Source) -> Self::Parameters;
+    /// Returns default parameters for a listener source.
     fn listener_parameters(source: &Self::Source) -> Self::Parameters;
+    /// Combines a source with its coordinates and simulation parameters.
     fn source_with_inputs(
         source: &Self::Source,
         coordinates: CoordinateSystem,
@@ -72,14 +91,36 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
         simulation: &mut SystemParamItem<'_, '_, Self::SimulationAccess>,
         fill: impl FnOnce(&mut Vec<(Entity, Self::SourceWithInputs)>),
     ) -> Result<(), Self::IntegrationError>;
+    /// Registers a source with the simulator.
+    #[cfg_attr(feature = "dynamic", doc = "\n# Errors\n")]
+    #[cfg_attr(
+        feature = "dynamic",
+        doc = "- [`crate::dynamic::SimulationError::ForeignSource`] for another simulator's source."
+    )]
     fn add_source(
         simulation: &mut Self::Simulation,
         source: &Self::Source,
     ) -> Result<(), Self::IntegrationError>;
+    /// Removes a source from the simulator.
+    #[cfg_attr(feature = "dynamic", doc = "\n# Errors\n")]
+    #[cfg_attr(
+        feature = "dynamic",
+        doc = "- [`crate::dynamic::SimulationError::ForeignSource`] for another simulator's source."
+    )]
     fn remove_source(
         simulation: &mut Self::Simulation,
         source: &Self::Source,
     ) -> Result<(), Self::IntegrationError>;
+    /// Selects the scene used by the simulator.
+    #[cfg_attr(feature = "dynamic", doc = "\n# Errors\n")]
+    #[cfg_attr(
+        feature = "dynamic",
+        doc = "- [`crate::dynamic::SimulationError::RayTracerMismatch`] for different ray tracers."
+    )]
+    #[cfg_attr(
+        feature = "dynamic",
+        doc = "- [`crate::dynamic::SimulationError::DeviceMismatch`] for incompatible devices."
+    )]
     fn set_scene(
         simulation: &mut Self::Simulation,
         scene: &Scene<Self::Geometry>,
@@ -313,6 +354,7 @@ impl<C: SimulationConfiguration> ConfigurationBinding for C {
     }
 }
 
+/// Runtime handle selection for the Bevy integration.
 #[cfg(feature = "dynamic")]
 #[derive(bevy::reflect::TypePath)]
 pub struct RuntimeConfiguration;
@@ -467,8 +509,10 @@ impl ConfigurationBinding for RuntimeConfiguration {
     }
 }
 
+/// The default static simulation configuration.
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 pub type DefaultConfiguration = super::configuration::DefaultSimulationConfiguration;
 
+/// The default runtime simulation configuration.
 #[cfg(all(feature = "dynamic", not(feature = "static")))]
 pub type DefaultConfiguration = RuntimeConfiguration;

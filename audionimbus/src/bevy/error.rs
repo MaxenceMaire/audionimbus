@@ -47,12 +47,15 @@ pub(crate) fn propagate_simulation_errors<E: Send + Sync + 'static>(
     }
 }
 
+/// The static simulation worker error.
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 type DefaultSimulationError = SimulationStepError;
 
+/// The runtime simulation worker error.
 #[cfg(all(feature = "dynamic", not(feature = "static")))]
 type DefaultSimulationError = crate::dynamic::SimulationError;
 
+/// Runtime simulation worker error event.
 #[cfg(feature = "dynamic")]
 pub type DynamicSimulationErrorEvent = SimulationErrorEvent<crate::dynamic::SimulationError>;
 
@@ -101,11 +104,14 @@ pub fn report_integration_error(
     }
 }
 
+/// The error type for infallible static ECS operations.
 #[cfg(any(feature = "static", not(feature = "dynamic")))]
 type DefaultIntegrationError = std::convert::Infallible;
 
+/// The runtime ECS operation error.
 #[cfg(all(feature = "dynamic", not(feature = "static")))]
 type DefaultIntegrationError = crate::dynamic::SimulationError;
 
+/// Runtime ECS operation error event.
 #[cfg(feature = "dynamic")]
 pub type DynamicIntegrationErrorEvent = IntegrationErrorEvent<crate::dynamic::SimulationError>;

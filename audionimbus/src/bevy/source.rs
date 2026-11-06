@@ -254,6 +254,7 @@ pub(crate) fn sync_sources<C: ConfigurationBinding>(
     })
 }
 
+/// Runtime source component.
 #[cfg(feature = "dynamic")]
 pub type DynamicSource = Source<super::binding::RuntimeConfiguration>;
 

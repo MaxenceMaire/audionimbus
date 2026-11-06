@@ -110,6 +110,7 @@ where
     }
 }
 
+/// Runtime direct simulation resource.
 #[cfg(feature = "dynamic")]
 pub type DynamicDirectSimulation = DirectSimulation<super::super::binding::RuntimeConfiguration>;
 

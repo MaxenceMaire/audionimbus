@@ -105,6 +105,7 @@ where
     }
 }
 
+/// Runtime reflections simulation resource.
 #[cfg(feature = "dynamic")]
 pub type DynamicReflectionsSimulation =
     ReflectionsSimulation<super::super::binding::RuntimeConfiguration>;

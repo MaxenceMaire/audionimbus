@@ -35,6 +35,7 @@ pub(crate) struct SpawnedStaticMesh<C: ConfigurationBinding> {
     pub(crate) material: Material,
     /// Handle used to reference and remove the mesh from the scene.
     pub(crate) handle: StaticMeshHandle,
+    /// The configuration associated with this mesh registration.
     _configuration: std::marker::PhantomData<fn() -> C>,
 }
 

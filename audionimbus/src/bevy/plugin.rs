@@ -49,6 +49,7 @@ pub struct SpatialAudioPlugin<
     RP: Runner = (),
 > {
     simulation_settings: C::Settings,
+    /// The worker selection settings.
     runners: C::Runners,
     _phantom: std::marker::PhantomData<(RD, RR, RP)>,
 }
@@ -349,6 +350,7 @@ pub type InferredSpatialAudioPlugin<C> = SpatialAudioPlugin<
 #[cfg(feature = "dynamic")]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ReflectionsRunner {
+    /// No reflection worker.
     Disabled,
     /// Source reflections without listener reverb.
     Sources,
@@ -363,11 +365,13 @@ pub enum ReflectionsRunner {
 pub struct RunnerSettings {
     /// Whether to start a direct worker.
     pub direct: bool,
+    /// The reflection worker selection.
     pub reflections: ReflectionsRunner,
     /// Whether to start a pathing worker.
     pub pathing: bool,
 }
 
+/// Spatial audio plugin with runtime simulation choices.
 #[cfg(feature = "dynamic")]
 pub type DynamicSpatialAudioPlugin = SpatialAudioPlugin<super::binding::RuntimeConfiguration>;
 

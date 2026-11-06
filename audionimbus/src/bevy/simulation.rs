@@ -51,9 +51,11 @@ pub enum SimulationThread {
     Pathing,
 }
 
+/// Runtime simulation pipeline resource.
 #[cfg(feature = "dynamic")]
 pub type DynamicSimulation = Simulation<super::binding::RuntimeConfiguration>;
 
+/// Shared inputs resource for runtime simulation.
 #[cfg(feature = "dynamic")]
 pub type DynamicSimulationSharedInputs =
     SimulationSharedInputs<super::binding::RuntimeConfiguration>;

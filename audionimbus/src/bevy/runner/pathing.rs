@@ -109,6 +109,7 @@ where
     }
 }
 
+/// Runtime pathing simulation resource.
 #[cfg(feature = "dynamic")]
 pub type DynamicPathingSimulation = PathingSimulation<super::super::binding::RuntimeConfiguration>;
 
