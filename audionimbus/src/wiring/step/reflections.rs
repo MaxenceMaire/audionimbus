@@ -104,6 +104,7 @@ where
 
     fn input(&self) -> StepInput<'_, SourceId, Static<(D, R, P, RE)>, Self::Listener> {
         let input = self.as_reflections_input();
+
         StepInput {
             sources: input.sources,
             listener: None,

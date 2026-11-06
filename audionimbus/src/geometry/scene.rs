@@ -546,6 +546,7 @@ impl StaticScene<Embree> {
             Static::new(),
             (device, ()),
         )?;
+
         Ok(scene)
     }
 
@@ -569,6 +570,7 @@ impl StaticScene<Embree> {
             serialized_object,
             None,
         )?;
+
         Ok(scene)
     }
 
@@ -594,6 +596,7 @@ impl StaticScene<Embree> {
             serialized_object,
             Some(progress_callback),
         )?;
+
         Ok(scene)
     }
 
@@ -628,6 +631,7 @@ impl StaticScene<RadeonRays> {
             Static::new(),
             (device, ()),
         )?;
+
         Ok(scene)
     }
 
@@ -651,6 +655,7 @@ impl StaticScene<RadeonRays> {
             serialized_object,
             None,
         )?;
+
         Ok(scene)
     }
 
@@ -676,6 +681,7 @@ impl StaticScene<RadeonRays> {
             serialized_object,
             Some(progress_callback),
         )?;
+
         Ok(scene)
     }
 
