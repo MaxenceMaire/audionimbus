@@ -1,33 +1,56 @@
-use super::super::simulation::SourceWithInputs;
 use super::{SimulationStep, SimulationStepError, SourceEntries};
-use crate::effect::{ReflectionEffectParams, ReflectionEffectType};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
+use crate::binding::Static;
+use crate::effect::ReflectionEffectType;
+#[cfg(feature = "dynamic")]
+use crate::effect::reflections::binding::ReflectionAlgorithm;
+use crate::effect::reflections::effect::StaticReflectionEffectParams as ReflectionEffectParams;
+use crate::effect::reflections::{
+    binding::ReflectionBinding, effect::ReflectionEffectParams as BoundReflectionEffectParams,
+};
 use crate::ray_tracing::RayTracer;
+use crate::simulation::inputs::SimulationInputs as BoundInputs;
+use crate::simulation::inputs::StaticSimulationInputs as SimulationInputs;
+use crate::simulation::simulator::{
+    SimulationSharedInputs as BoundSharedInputs, Simulator as BoundSimulator,
+};
+use crate::simulation::simulator::{
+    StaticSimulationSharedInputs as SimulationSharedInputs, StaticSimulator as Simulator,
+};
+use crate::simulation::source::Source as BoundSource;
+use crate::simulation::source::StaticSource as Source;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
-    SimulationFlagsProvider, SimulationSharedInputs, Simulator,
+    SimulationFlagsProvider,
 };
+use crate::wiring::binding::{InputBinding, PipelineBinding};
+use crate::wiring::input::{InputView, StepInput};
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
 /// Runs reflections simulation.
-pub struct ReflectionsStep<SourceId, T, D, P, RE>
-where
-    T: RayTracer,
-{
-    /// The [`Simulator`] used by the step.
-    simulator: Simulator<T, D, Reflections, P, RE>,
+pub type StaticReflectionsStep<SourceId, T, D, P, RE> =
+    ReflectionsStep<SourceId, Static<(T, D, Reflections, P, RE)>>;
+
+/// A simulation step with binding-specific handles and errors.
+pub struct ReflectionsStep<SourceId, B: PipelineBinding> {
+    /// The simulator used by this step.
+    simulator: BoundSimulator<B>,
+    /// The source identifier marker.
     _source_id: PhantomData<fn() -> SourceId>,
 }
 
-impl<T, D, P, RE> ReflectionsStep<(), T, D, P, RE>
+impl<T, D, P, RE> StaticReflectionsStep<(), T, D, P, RE>
 where
     T: RayTracer,
 {
     /// Creates a new reflections simulation step.
     pub fn new<SourceId>(
         simulator: Simulator<T, D, Reflections, P, RE>,
-    ) -> ReflectionsStep<SourceId, T, D, P, RE> {
+    ) -> StaticReflectionsStep<SourceId, T, D, P, RE> {
         ReflectionsStep {
             simulator,
             _source_id: PhantomData,
@@ -35,45 +58,58 @@ where
     }
 }
 
-impl<SourceId, T, D, P, RE, I> SimulationStep<I> for ReflectionsStep<SourceId, T, D, P, RE>
+impl<SourceId, B, I> SimulationStep<I> for ReflectionsStep<SourceId, B>
 where
-    T: 'static + RayTracer,
-    D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
-    P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
-    RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
-    (): DirectCompatible<D> + PathingCompatible<P>,
+    B: ReflectionsBinding + 'static,
+    BoundSimulator<B>: Send,
     SourceId: 'static + Clone + Send + Sync + Hash + Eq,
-    I: AsReflectionsInput<SourceId, D, Reflections, P, RE>,
+    I: InputView<SourceId, B::Sources, Reflections>,
+    B::Sources: ReflectionsSourceBinding<B::Reflection, B::Error>,
 {
-    type Output = ReflectionsOutput<SourceId, RE>;
-    type Error = SimulationStepError;
+    type Output = ReflectionsOutput<SourceId, B::Reflection>;
+    type Error = B::Error;
 
     fn run(&mut self, frame: &I, output: &mut Self::Output) -> Result<(), Self::Error> {
-        let input = frame.as_reflections_input();
+        let input = frame.input();
+        B::set_shared(&self.simulator, input.shared_inputs)?;
 
-        self.simulator
-            .set_shared_reflections_inputs(input.shared_inputs)?;
-
-        for (
-            _,
-            SourceWithInputs {
-                source,
-                simulation_inputs,
-            },
-        ) in input.sources
-        {
-            source.set_reflections_inputs(simulation_inputs)?;
+        for (_, source_with_inputs) in input.sources {
+            <B::Sources as ReflectionsSourceBinding<B::Reflection, B::Error>>::set_source(
+                &source_with_inputs.source,
+                &source_with_inputs.simulation_inputs,
+            )?;
         }
 
-        self.simulator.run_reflections()?;
+        B::run(&self.simulator)?;
 
-        for (id, SourceWithInputs { source, .. }) in input.sources.iter() {
-            output
-                .sources
-                .insert(id.clone(), source.get_reflections_outputs()?);
+        for (id, source_with_inputs) in input.sources {
+            output.sources.insert(
+                id.clone(),
+                <B::Sources as ReflectionsSourceBinding<B::Reflection, B::Error>>::output(
+                    &source_with_inputs.source,
+                )?,
+            );
         }
 
         Ok(())
+    }
+}
+
+impl<SourceId, D, R, P, RE, I> InputView<SourceId, Static<(D, R, P, RE)>, Reflections> for I
+where
+    RE: ReflectionEffectCompatible<R, RE>,
+    I: AsReflectionsInput<SourceId, D, R, P, RE>,
+{
+    type Listener = Static<(D, R, P, RE)>;
+
+    fn input(&self) -> StepInput<'_, SourceId, Static<(D, R, P, RE)>, Self::Listener> {
+        let input = self.as_reflections_input();
+
+        StepInput {
+            sources: input.sources,
+            listener: None,
+            shared_inputs: input.shared_inputs,
+        }
     }
 }
 
@@ -123,13 +159,22 @@ where
 }
 
 /// Combined per-source reflections output.
+pub type StaticReflectionsOutput<SourceId, RE> =
+    ReflectionsOutput<SourceId, crate::binding::Static<RE>>;
+
+/// Per-source reflection parameters retained by a runtime worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsOutput<SourceId> =
+    ReflectionsOutput<SourceId, Dynamic<ReflectionAlgorithm>>;
+
+/// Output parameters selected by a reflection binding.
 #[derive(Debug)]
-pub struct ReflectionsOutput<SourceId, RE: ReflectionEffectType> {
+pub struct ReflectionsOutput<SourceId, B: ReflectionBinding> {
     /// Per-source reflection effect params.
-    pub sources: HashMap<SourceId, ReflectionEffectParams<RE>>,
+    pub sources: HashMap<SourceId, BoundReflectionEffectParams<B>>,
 }
 
-impl<SourceId, RE: ReflectionEffectType> Default for ReflectionsOutput<SourceId, RE> {
+impl<SourceId, B: ReflectionBinding> Default for ReflectionsOutput<SourceId, B> {
     fn default() -> Self {
         Self {
             sources: HashMap::new(),
@@ -137,7 +182,7 @@ impl<SourceId, RE: ReflectionEffectType> Default for ReflectionsOutput<SourceId,
     }
 }
 
-unsafe impl<SourceId: Send, RE: ReflectionEffectType> Send for ReflectionsOutput<SourceId, RE> {}
+unsafe impl<SourceId: Send, B: ReflectionBinding> Send for ReflectionsOutput<SourceId, B> {}
 
 /// # Safety
 ///
@@ -150,4 +195,132 @@ unsafe impl<SourceId: Send, RE: ReflectionEffectType> Send for ReflectionsOutput
 ///
 /// An alternative would be to copy the IR data on each simulation run, which is expensive.
 /// The tradeoff is deliberate.
-unsafe impl<SourceId: Sync, RE: ReflectionEffectType> Sync for ReflectionsOutput<SourceId, RE> {}
+unsafe impl<SourceId: Sync, B: ReflectionBinding> Sync for ReflectionsOutput<SourceId, B> {}
+
+/// Source operations for per-source reflections and listener reverb.
+pub trait ReflectionsSourceBinding<Effect: ReflectionBinding, Error>: InputBinding {
+    /// Updates the source's reflection inputs.
+    fn set_source(
+        source: &BoundSource<Self::Source>,
+        simulation_inputs: &BoundInputs<Self::Inputs>,
+    ) -> Result<(), Error>;
+    /// Returns source-owned reflection parameters.
+    fn output(
+        source: &BoundSource<Self::Source>,
+    ) -> Result<BoundReflectionEffectParams<Effect>, Error>;
+}
+
+impl<D, P, RE> ReflectionsSourceBinding<Static<RE>, SimulationStepError>
+    for Static<(D, Reflections, P, RE)>
+where
+    D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
+    P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
+    RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
+    (): DirectCompatible<D> + PathingCompatible<P>,
+{
+    #[inline(always)]
+    fn set_source(
+        source: &Source<D, Reflections, P, RE>,
+        simulation_inputs: &SimulationInputs<D, Reflections, P>,
+    ) -> Result<(), SimulationStepError> {
+        Ok(source.set_reflections_inputs(simulation_inputs)?)
+    }
+
+    #[inline(always)]
+    fn output(
+        source: &Source<D, Reflections, P, RE>,
+    ) -> Result<ReflectionEffectParams<RE>, SimulationStepError> {
+        Ok(source.get_reflections_outputs()?)
+    }
+}
+
+/// Native simulation operations selected by a reflection binding.
+pub trait ReflectionsBinding: PipelineBinding {
+    /// The reflection parameter binding returned by this worker.
+    type Reflection: ReflectionBinding + 'static;
+    /// The errors returned by this worker binding.
+    type Error: std::error::Error;
+
+    /// Updates shared reflection inputs.
+    fn set_shared(
+        simulator: &BoundSimulator<Self>,
+        shared_inputs: &BoundSharedInputs<<Self::Sources as InputBinding>::Inputs>,
+    ) -> Result<(), Self::Error>
+    where
+        Self: Sized;
+    /// Runs reflection simulation.
+    fn run(simulator: &BoundSimulator<Self>) -> Result<(), Self::Error>
+    where
+        Self: Sized;
+}
+
+impl<T, D, P, RE> ReflectionsBinding for Static<(T, D, Reflections, P, RE)>
+where
+    T: 'static + RayTracer,
+    D: 'static + Send + Sync + DirectCompatible<D> + SimulationFlagsProvider,
+    P: 'static + Send + Sync + PathingCompatible<P> + SimulationFlagsProvider,
+    RE: 'static + Send + Sync + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
+    (): DirectCompatible<D> + PathingCompatible<P>,
+{
+    type Reflection = Static<RE>;
+    type Error = SimulationStepError;
+
+    fn set_shared(
+        simulator: &BoundSimulator<Self>,
+        shared_inputs: &SimulationSharedInputs<D, Reflections, P>,
+    ) -> Result<(), Self::Error> {
+        Ok(simulator.set_shared_reflections_inputs(shared_inputs)?)
+    }
+
+    #[inline(always)]
+    fn run(simulator: &BoundSimulator<Self>) -> Result<(), Self::Error> {
+        Ok(simulator.run_reflections()?)
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl
+    ReflectionsSourceBinding<
+        Dynamic<crate::dynamic::ReflectionAlgorithm>,
+        crate::dynamic::SimulationError,
+    > for Dynamic<()>
+{
+    fn set_source(
+        source: &crate::dynamic::Source,
+        simulation_inputs: &crate::dynamic::SimulationInputs,
+    ) -> Result<(), crate::dynamic::SimulationError> {
+        source.set_inputs_subset(crate::SimulationFlags::REFLECTIONS, simulation_inputs)
+    }
+
+    fn output(
+        source: &crate::dynamic::Source,
+    ) -> Result<crate::dynamic::ReflectionEffectParams, crate::dynamic::SimulationError> {
+        source.get_reflections_outputs()
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl ReflectionsBinding for Dynamic<crate::simulation::simulator::SimulationChoices> {
+    type Reflection = Dynamic<crate::dynamic::ReflectionAlgorithm>;
+    type Error = crate::dynamic::SimulationError;
+
+    fn set_shared(
+        simulator: &crate::dynamic::Simulator,
+        shared_inputs: &crate::dynamic::SimulationSharedInputs,
+    ) -> Result<(), Self::Error> {
+        simulator.set_shared_inputs(crate::SimulationFlags::REFLECTIONS, shared_inputs)
+    }
+
+    fn run(simulator: &crate::dynamic::Simulator) -> Result<(), Self::Error> {
+        simulator.run_reflections()
+    }
+}
+
+impl<SourceId, B: PipelineBinding> From<BoundSimulator<B>> for ReflectionsStep<SourceId, B> {
+    fn from(simulator: BoundSimulator<B>) -> Self {
+        Self {
+            simulator,
+            _source_id: PhantomData,
+        }
+    }
+}

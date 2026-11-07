@@ -37,11 +37,20 @@ pub use asset::{
     ProbeBatchAsset, ProbeBatchAssetLoader, ProbeBatchAssetSource, SceneAsset, SceneAssetLoader,
 };
 pub use configuration::*;
-pub use debug::{SpatialAudioDebugPlugin, WireframeColor, WireframePalette};
+#[cfg(dynamic_api)]
+pub use debug::DynamicSpatialAudioDebugPlugin as SpatialAudioDebugPlugin;
+#[cfg(static_api)]
+pub use debug::SpatialAudioDebugPlugin;
+pub use debug::{WireframeColor, WireframePalette};
 pub use error::*;
 pub use geometry::{InstancedMesh, MainScene, StaticMesh, SubSceneOf};
 pub use hrtf::*;
+#[cfg(dynamic_api)]
+pub use plugin::DynamicSpatialAudioPlugin as SpatialAudioPlugin;
+#[cfg(static_api)]
 pub use plugin::SpatialAudioPlugin;
+#[cfg(feature = "dynamic")]
+pub use plugin::{ReflectionsRunner, RunnerSettings};
 pub use probe::*;
 pub use runner::{
     Runner, RunnerDirect, RunnerPathing, RunnerReflections, RunnerReflectionsReverb, Spawn,
@@ -54,32 +63,38 @@ pub use system_set::*;
 /// Default-configuration alias for [`asset::SceneAssetSource`].
 ///
 /// Import [`asset::SceneAssetSource`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type SceneAssetSource = asset::SceneAssetSource<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`geometry::Scene`].
 ///
 /// Import [`geometry::Scene`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type Scene = geometry::Scene<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`source::Source`].
 ///
 /// Import [`source::Source`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type Source = source::Source<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`source::SourceParameters`].
 ///
 /// Import [`source::SourceParameters`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type SourceParameters = source::SourceParameters<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`runner::DirectSimulation`].
 ///
 /// Import [`runner::DirectSimulation`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type DirectSimulation = runner::DirectSimulation<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`runner::ReflectionsSimulation`].
 ///
 /// Import [`runner::ReflectionsSimulation`] directly when you need a custom
 /// [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type ReflectionsSimulation =
     runner::ReflectionsSimulation<configuration::DefaultSimulationConfiguration>;
 
@@ -87,11 +102,37 @@ pub type ReflectionsSimulation =
 ///
 /// Import [`runner::ReflectionsReverbSimulation`] directly when you need a custom
 /// [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type ReflectionsReverbSimulation =
     runner::ReflectionsReverbSimulation<configuration::DefaultSimulationConfiguration>;
 
 /// Default-configuration alias for [`runner::PathingSimulation`].
 ///
 /// Import [`runner::PathingSimulation`] directly when you need a custom [`SimulationConfiguration`].
+#[cfg(static_api)]
 pub type PathingSimulation =
     runner::PathingSimulation<configuration::DefaultSimulationConfiguration>;
+
+#[cfg(dynamic_api)]
+pub use geometry::DynamicScene as Scene;
+
+#[cfg(dynamic_api)]
+pub use source::DynamicSource as Source;
+
+#[cfg(dynamic_api)]
+pub use source::DynamicSourceParameters as SourceParameters;
+
+#[cfg(dynamic_api)]
+pub use runner::DynamicDirectSimulation as DirectSimulation;
+
+#[cfg(dynamic_api)]
+pub use runner::DynamicReflectionsSimulation as ReflectionsSimulation;
+
+#[cfg(dynamic_api)]
+pub use runner::DynamicReflectionsReverbSimulation as ReflectionsReverbSimulation;
+
+#[cfg(dynamic_api)]
+pub use runner::DynamicPathingSimulation as PathingSimulation;
+
+#[cfg(dynamic_api)]
+pub use asset::DynamicSceneAssetSource as SceneAssetSource;

@@ -1,38 +1,40 @@
-use super::{Material, Point, Scene, Triangle};
+use super::scene::{GeometryBinding, Scene};
+use super::{Material, Point, Triangle};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
+use crate::binding::Static;
 use crate::callback::ProgressCallback;
 use crate::context::Context;
 use crate::error::{SteamAudioError, to_option_error};
 use crate::ray_tracing::{DefaultRayTracer, RayTracer};
 use crate::serialized_object::SerializedObject;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
-/// A triangle mesh that doesn’t move or deform in any way.
-///
-/// The unchanging portions of a scene should typically be collected into a single static mesh object.
-/// In addition to the geometry, a static mesh also contains acoustic material information for each triangle.
-///
-/// [`StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
-/// belongs to.
-///
-/// `StaticMesh` is a reference-counted handle to an underlying Steam Audio object.
-/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
-/// incrementing a reference count.
-/// The underlying object is destroyed when all handles are dropped.
+#[cfg(feature = "dynamic")]
+use super::scene::RayTracerKind;
+#[cfg(feature = "dynamic")]
+use super::scene::SceneError;
+
+/// Geometry storage for a compile-time or runtime binding.
 #[derive(Debug, PartialEq, Eq)]
-pub struct StaticMesh<T> {
+pub struct StaticMesh<F> {
+    /// The native static mesh pointer.
     inner: audionimbus_sys::IPLStaticMesh,
-    _marker: PhantomData<T>,
+    /// The compile-time or runtime geometry binding.
+    binding: F,
 }
 
-impl<T: RayTracer> StaticMesh<T> {
-    /// Creates a new static mesh and returns a handle to it.
+impl<F: GeometryBinding> StaticMesh<F> {
+    /// Creates a static mesh for a geometry binding.
     ///
     /// # Errors
     ///
-    /// Returns [`StaticMeshError`] if the settings are invalid or creation fails.
-    pub fn try_new(
-        scene: &Scene<T>,
+    /// - [`StaticMeshError::MaterialIndexCountMismatch`] when triangle and material counts differ.
+    /// - [`StaticMeshError::VertexIndexOutOfBounds`] when a triangle refers to a missing vertex.
+    /// - [`StaticMeshError::MaterialIndexOutOfBounds`] when a triangle refers to a missing material.
+    /// - [`StaticMeshError::SteamAudio`] when native creation fails.
+    fn try_new_shared(
+        scene: &Scene<F>,
         settings: &StaticMeshSettings,
     ) -> Result<Self, StaticMeshError> {
         validate_static_mesh_settings(settings)?;
@@ -75,7 +77,7 @@ impl<T: RayTracer> StaticMesh<T> {
 
         let status = unsafe {
             audionimbus_sys::iplStaticMeshCreate(
-                scene.raw_ptr(),
+                scene.raw_ptr_shared(),
                 &raw mut static_mesh_settings_ffi,
                 &raw mut inner,
             )
@@ -87,43 +89,10 @@ impl<T: RayTracer> StaticMesh<T> {
 
         let static_mesh = Self {
             inner,
-            _marker: PhantomData,
+            binding: scene.binding(),
         };
 
         Ok(static_mesh)
-    }
-
-    /// Loads a static mesh from a serialized object.
-    ///
-    /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SteamAudioError`] if loading fails.
-    pub fn load(
-        scene: &Scene<T>,
-        serialized_object: &SerializedObject,
-    ) -> Result<Self, SteamAudioError> {
-        Self::load_with_optional_progress_callback(scene, serialized_object, None)
-    }
-
-    /// Loads a static mesh from a serialized object, with a progress callback.
-    ///
-    /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SteamAudioError`] if loading fails.
-    pub fn load_with_progress_callback(
-        scene: &Scene<T>,
-        serialized_object: &SerializedObject,
-        progress_callback: ProgressCallback,
-    ) -> Result<Self, SteamAudioError> {
-        Self::load_with_optional_progress_callback(
-            scene,
-            serialized_object,
-            Some(progress_callback),
-        )
     }
 
     /// Loads a static mesh from a serialized object, with an optional progress callback.
@@ -134,7 +103,7 @@ impl<T: RayTracer> StaticMesh<T> {
     ///
     /// Returns [`SteamAudioError`] if loading fails.
     fn load_with_optional_progress_callback(
-        scene: &Scene<T>,
+        scene: &Scene<F>,
         serialized_object: &SerializedObject,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Self, SteamAudioError> {
@@ -150,7 +119,7 @@ impl<T: RayTracer> StaticMesh<T> {
 
         let status = unsafe {
             audionimbus_sys::iplStaticMeshLoad(
-                scene.raw_ptr(),
+                scene.raw_ptr_shared(),
                 serialized_object.raw_ptr(),
                 callback_fn,
                 user_data,
@@ -164,10 +133,107 @@ impl<T: RayTracer> StaticMesh<T> {
 
         let static_mesh = Self {
             inner,
-            _marker: PhantomData,
+            binding: scene.binding(),
         };
 
         Ok(static_mesh)
+    }
+
+    /// Returns the raw static mesh pointer.
+    /// Library callers must preserve the checked runtime geometry boundary.
+    pub(crate) const fn raw_ptr_shared(&self) -> audionimbus_sys::IPLStaticMesh {
+        self.inner
+    }
+
+    /// Returns the binding selector.
+    /// Library callers must not expose selectors as public configuration choices.
+    #[cfg(feature = "dynamic")]
+    pub(crate) const fn binding(&self) -> F {
+        self.binding
+    }
+
+    /// Saves the static mesh without checking its binding capability.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] when the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] when native allocation fails.
+    /// - [`SteamAudioError::Initialization`] when a native dependency fails.
+    fn save_shared(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
+        let serialized_object = SerializedObject::try_new(context)?;
+        unsafe {
+            audionimbus_sys::iplStaticMeshSave(self.raw_ptr_shared(), serialized_object.raw_ptr());
+        }
+
+        Ok(serialized_object)
+    }
+}
+
+/// A triangle mesh that doesn’t move or deform in any way.
+///
+/// The unchanging portions of a scene should typically be collected into a single static mesh object.
+/// In addition to the geometry, a static mesh also contains acoustic material information for each triangle.
+///
+/// [`crate::geometry::StaticMesh`] is generic over the [`RayTracer`] implementation used to create the scene it
+/// belongs to.
+///
+/// `StaticMesh` is a reference-counted handle to an underlying Steam Audio object.
+/// Cloning it is cheap; it produces a new handle pointing to the same underlying object, while
+/// incrementing a reference count.
+/// The underlying object is destroyed when all handles are dropped.
+pub type StaticStaticMesh<T> = StaticMesh<Static<T>>;
+
+/// A static mesh with a runtime-selected ray tracer.
+///
+/// Serializes default-backend meshes with `try_save`.
+/// Clones retain the same native mesh.
+#[cfg(feature = "dynamic")]
+pub type DynamicStaticMesh = StaticMesh<Dynamic<RayTracerKind>>;
+
+impl<T: RayTracer> StaticStaticMesh<T> {
+    /// Creates a new static mesh and returns a handle to it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StaticMeshError`] if the settings are invalid or creation fails.
+    pub fn try_new(
+        scene: &crate::geometry::scene::StaticScene<T>,
+        settings: &StaticMeshSettings,
+    ) -> Result<Self, StaticMeshError> {
+        Self::try_new_shared(scene, settings)
+    }
+
+    /// Loads a static mesh from a serialized object.
+    ///
+    /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
+    pub fn load(
+        scene: &crate::geometry::scene::StaticScene<T>,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        Self::load_with_optional_progress_callback(scene, serialized_object, None)
+    }
+
+    /// Loads a static mesh from a serialized object, with a progress callback.
+    ///
+    /// Typically, the serialized object will be created from a byte array loaded from disk or over the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SteamAudioError`] if loading fails.
+    pub fn load_with_progress_callback(
+        scene: &crate::geometry::scene::StaticScene<T>,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        Self::load_with_optional_progress_callback(
+            scene,
+            serialized_object,
+            Some(progress_callback),
+        )
     }
 
     /// Returns the raw FFI pointer to the underlying static mesh.
@@ -185,7 +251,7 @@ impl<T: RayTracer> StaticMesh<T> {
     }
 }
 
-impl StaticMesh<DefaultRayTracer> {
+impl StaticStaticMesh<DefaultRayTracer> {
     /// Saves the static mesh and returns its serialized representation.
     ///
     /// Typically, the serialized object will then be saved to disk.
@@ -196,24 +262,85 @@ impl StaticMesh<DefaultRayTracer> {
     ///
     /// Returns [`SteamAudioError`] if the destination serialized object cannot be created.
     pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SteamAudioError> {
-        let serialized_object = SerializedObject::try_new(context)?;
-        unsafe {
-            audionimbus_sys::iplStaticMeshSave(self.raw_ptr(), serialized_object.raw_ptr());
-        }
-        Ok(serialized_object)
+        self.save_shared(context)
     }
 }
 
-impl<T> Drop for StaticMesh<T> {
+#[cfg(feature = "dynamic")]
+impl DynamicStaticMesh {
+    /// Creates a new static mesh and returns a handle to it.
+    ///
+    /// # Errors
+    ///
+    /// - [`StaticMeshError::MaterialIndexCountMismatch`] if triangle and material counts differ.
+    /// - [`StaticMeshError::VertexIndexOutOfBounds`] if a triangle refers to a missing vertex.
+    /// - [`StaticMeshError::MaterialIndexOutOfBounds`] if a triangle refers to a missing material.
+    /// - [`StaticMeshError::SteamAudio`] if native creation fails.
+    pub fn try_new(
+        scene: &crate::dynamic::Scene,
+        settings: &StaticMeshSettings,
+    ) -> Result<Self, StaticMeshError> {
+        Self::try_new_shared(scene, settings)
+    }
+
+    /// Loads a static mesh from a serialized object.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
+    pub fn load(
+        scene: &crate::dynamic::Scene,
+        serialized_object: &SerializedObject,
+    ) -> Result<Self, SteamAudioError> {
+        Self::load_with_optional_progress_callback(scene, serialized_object, None)
+    }
+
+    /// Loads a static mesh with a progress callback.
+    ///
+    /// # Errors
+    ///
+    /// - [`SteamAudioError::Unspecified`] if the native operation fails.
+    /// - [`SteamAudioError::OutOfMemory`] if native memory allocation fails.
+    /// - [`SteamAudioError::Initialization`] if an external dependency cannot initialize.
+    pub fn load_with_progress_callback(
+        scene: &crate::dynamic::Scene,
+        serialized_object: &SerializedObject,
+        progress_callback: ProgressCallback,
+    ) -> Result<Self, SteamAudioError> {
+        Self::load_with_optional_progress_callback(
+            scene,
+            serialized_object,
+            Some(progress_callback),
+        )
+    }
+
+    /// Saves the static mesh and returns its serialized representation.
+    ///
+    /// # Errors
+    ///
+    /// - [`SceneError::SerializationUnsupported`] when the mesh does not use the default ray tracer.
+    /// - [`SceneError::SteamAudio`] when the destination serialized object cannot be created.
+    pub fn try_save(&self, context: &Context) -> Result<SerializedObject, SceneError> {
+        if self.binding.0 != RayTracerKind::Default {
+            return Err(SceneError::SerializationUnsupported(self.binding.0));
+        }
+
+        self.save_shared(context).map_err(SceneError::from)
+    }
+}
+
+impl<F> Drop for StaticMesh<F> {
     fn drop(&mut self) {
         unsafe { audionimbus_sys::iplStaticMeshRelease(&raw mut self.inner) }
     }
 }
 
-unsafe impl<T: RayTracer> Send for StaticMesh<T> {}
-unsafe impl<T: RayTracer> Sync for StaticMesh<T> {}
+unsafe impl<F: GeometryBinding> Send for StaticMesh<F> {}
+unsafe impl<F: GeometryBinding> Sync for StaticMesh<F> {}
 
-impl<T: RayTracer> Clone for StaticMesh<T> {
+impl<F: GeometryBinding> Clone for StaticMesh<F> {
     /// Retains an additional reference to the static mesh.
     ///
     /// The returned [`StaticMesh`] shares the same underlying Steam Audio object.
@@ -221,14 +348,14 @@ impl<T: RayTracer> Clone for StaticMesh<T> {
         // SAFETY: The static mesh will not be destroyed until all references are released.
         Self {
             inner: unsafe { audionimbus_sys::iplStaticMeshRetain(self.inner) },
-            _marker: PhantomData,
+            binding: self.binding,
         }
     }
 }
 
-impl<T: RayTracer> Hash for StaticMesh<T> {
+impl<F: GeometryBinding> Hash for StaticMesh<F> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.raw_ptr(), state);
+        std::ptr::hash(self.inner, state);
     }
 }
 
@@ -288,7 +415,7 @@ fn validate_static_mesh_settings(settings: &StaticMeshSettings) -> Result<(), St
     Ok(())
 }
 
-/// Errors produced while creating a [`StaticMesh`].
+/// Errors produced while creating a [`crate::geometry::StaticMesh`].
 #[derive(Debug, PartialEq, Eq)]
 pub enum StaticMeshError {
     /// The number of material indices differs from the number of triangles.
@@ -363,6 +490,8 @@ impl From<SteamAudioError> for StaticMeshError {
 
 #[cfg(test)]
 mod tests {
+    use crate::geometry::scene::StaticScene as Scene;
+    use crate::geometry::static_mesh::StaticStaticMesh as StaticMesh;
     use crate::*;
 
     mod validate_static_mesh_settings {

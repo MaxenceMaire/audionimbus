@@ -180,11 +180,42 @@
 //! audionimbus = { version = "0.16.2", features = ["wwise"] }
 //! ```
 //!
+//! ## Static and runtime types
+//!
+//! The default features are `static` and `wiring`.
+//! `static` uses Rust types to choose ray tracers, reflection algorithms, and simulation modes.
+//! `dynamic` chooses them at runtime.
+//!
+//! Enable `dynamic` to use `audionimbus::dynamic`.
+//!
+//! `audionimbus::Scene`, `prelude::Scene`, and `geometry::Scene` follow the same feature rule.
+//!
+//! | Mode features | Ordinary imports | Fixed imports |
+//! | --- | --- | --- |
+//! | Neither | Static | None |
+//! | `static` | Static | `r#static` |
+//! | `dynamic` | Runtime | `dynamic` |
+//! | Both | Static | `r#static` and `dynamic` |
+//!
+//! To use runtime types through ordinary imports, disable default features.
+//!
+//! ```toml
+//! [dependencies]
+//! audionimbus = { version = "0.16.2", default-features = false, features = ["dynamic"] }
+//! ```
+//!
+//! Cargo combines the features that dependencies request for the same version of `audionimbus`.
+//! If another dependency enables `static`, ordinary imports use static types.
+//!
+//! For examples of both APIs, see the
+//! [static](https://github.com/MaxenceMaire/audionimbus/blob/master/audionimbus/examples/core/static.rs) and
+//! [dynamic](https://github.com/MaxenceMaire/audionimbus/blob/master/audionimbus/examples/core/dynamic.rs) versions of the core demo.
+//!
 //! ## Bevy Integration
 //!
-//! The [`bevy`] module provides ECS wrappers around AudioNimbus types.
+//! The `bevy` module provides ECS wrappers around AudioNimbus types.
 //!
-//! Internally, it builds on the [`wiring`] module, so simulations run on dedicated threads while
+//! Internally, it builds on the `wiring` module, so simulations run on dedicated threads while
 //! the Bevy world keeps scene and source state up to date.
 //!
 //! The integration stops at simulation output.
@@ -294,12 +325,20 @@ const NUM_BANDS: u32 = 3;
 pub mod prelude;
 pub use prelude::*;
 
+#[cfg(feature = "static")]
+#[cfg_attr(docsrs, doc(cfg(feature = "static")))]
+pub mod r#static;
+
 pub mod audio_buffer;
 pub mod audio_settings;
 pub mod baking;
+mod binding;
 pub mod callback;
 pub mod context;
 pub mod device;
+#[cfg(feature = "dynamic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dynamic")))]
+pub mod dynamic;
 pub mod effect;
 mod error;
 pub use error::SteamAudioError;
@@ -323,13 +362,33 @@ use sealed::Sealed;
 pub mod wiring;
 
 #[cfg(feature = "fmod")]
+#[path = "fmod.rs"]
+mod fmod_integration;
+#[cfg(all(feature = "fmod", dynamic_api))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
-pub mod fmod;
+pub use fmod_integration::dynamic_api as fmod;
+#[cfg(all(feature = "fmod", static_api))]
+#[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
+pub use fmod_integration::static_api as fmod;
 
 #[cfg(feature = "wwise")]
+#[path = "wwise.rs"]
+mod wwise_integration;
+#[cfg(all(feature = "wwise", dynamic_api))]
 #[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
-pub mod wwise;
+pub use wwise_integration::dynamic_api as wwise;
+#[cfg(all(feature = "wwise", static_api))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
+pub use wwise_integration::static_api as wwise;
 
 #[cfg(feature = "bevy")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bevy")))]
 pub mod bevy;
+
+#[cfg(all(doctest, not(feature = "static")))]
+/// The disabled static module.
+///
+/// ```compile_fail
+/// use audionimbus::r#static;
+/// ```
+struct StaticFeature;

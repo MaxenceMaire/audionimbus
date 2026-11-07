@@ -2,8 +2,17 @@
 name = "core-demo"
 version = "0.1.0"
 edition = "2024"
+default-run = "static"
 authors = ["Maxence Maire <maire.maxence@gmail.com>"]
 
 [dependencies]
-audionimbus = { path = "../.." }
+audionimbus = { path = "../..", features = ["dynamic"] }
 cpal = "0.17"
+
+[[bin]]
+name = "static"
+path = "static.rs"
+
+[[bin]]
+name = "dynamic"
+path = "dynamic.rs"

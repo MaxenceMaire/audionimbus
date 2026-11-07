@@ -1,11 +1,37 @@
-use super::super::runner::{ReflectionsReverbFrame, SimulationRunner};
-use super::super::step::{ReflectionsReverbOutput, ReflectionsReverbStep, SimulationStepError};
-use super::{SharedSimulationOutput, Simulation, SimulationControls, SourceWithInputs};
+use super::pipeline::Simulation as BoundSimulation;
+use super::{SharedSimulationOutput, SimulationControls};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
+use crate::binding::Static;
 use crate::effect::ReflectionEffectType;
+#[cfg(feature = "dynamic")]
+use crate::effect::reflections::binding::ReflectionAlgorithm;
+use crate::effect::reflections::binding::ReflectionBinding;
+use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
+use crate::simulation::simulator::Simulator as BoundSimulator;
 use crate::simulation::{
     DirectCompatible, PathingCompatible, ReflectionEffectCompatible, Reflections,
     SimulationFlagsProvider,
+};
+use crate::wiring::simulation::pipeline::{
+    StaticSimulation as Simulation, StaticSourceWithInputs as SourceWithInputs,
+};
+use crate::wiring::{
+    Allocate, ReflectionsReverbFrame, SimulationStep, SimulationStepError,
+    binding::{FrameBinding, InputBinding},
+    runner::{
+        reflections_reverb::{
+            ReflectionsReverbFrame as BoundReflectionsReverbFrame,
+            ResolvedReflectionsReverbFrame as BoundResolvedReflectionsReverbFrame,
+        },
+        worker::SimulationRunner as BoundSimulationRunner,
+    },
+    step::reflections::ReflectionsBinding,
+    step::reflections_reverb::{
+        ReflectionsReverbOutput as BoundReflectionsReverbOutput,
+        ReflectionsReverbStep as BoundReflectionsReverbStep,
+    },
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
@@ -32,21 +58,55 @@ where
     pub fn spawn_reflections_reverb<LD, LP>(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
+    ) -> StaticReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
     where
         LD: 'static + Send + Sync + DirectCompatible<LD> + SimulationFlagsProvider,
         LP: 'static + Send + Sync + PathingCompatible<LP> + SimulationFlagsProvider,
         (): DirectCompatible<LD> + PathingCompatible<LP>,
     {
-        let input = Arc::new(ArcSwap::new(Arc::new(ReflectionsReverbFrame {
+        let frame = ReflectionsReverbFrame {
             sources: self.sources.clone(),
             listener: None::<SourceWithInputs<LD, Reflections, LP, RE>>,
             shared_inputs: Default::default(),
-        })));
+        };
+
+        self.spawn_reflections_reverb_shared(frame, on_error)
+    }
+}
+
+impl<SourceId, B> BoundSimulation<SourceId, B>
+where
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
+    B: ReflectionsBinding + 'static,
+    B::Sources: FrameBinding + 'static,
+    BoundSimulator<B>: Send + Sync + Clone,
+    BoundScene<B::Geometry>: Send + Sync,
+    B::Error: Send + 'static,
+{
+    /// Starts this worker with the selected frame and simulation binding.
+    fn spawn_reflections_reverb_shared<L: InputBinding + 'static>(
+        &mut self,
+        frame: BoundReflectionsReverbFrame<SourceId, B::Sources, L>,
+        on_error: impl Fn(B::Error) + Send + 'static,
+    ) -> ReflectionsReverbSimulation<SourceId, B::Sources, B::Reflection, L>
+    where
+        BoundReflectionsReverbFrame<SourceId, B::Sources, L>: Send + Sync,
+        for<'a> BoundReflectionsReverbStep<SourceId, B>: SimulationStep<
+                BoundResolvedReflectionsReverbFrame<'a, SourceId, B::Sources, L>,
+                Output = BoundReflectionsReverbOutput<SourceId, B::Reflection>,
+                Error = B::Error,
+            >,
+        for<'a> BoundReflectionsReverbOutput<SourceId, B::Reflection>:
+            Allocate<BoundResolvedReflectionsReverbFrame<'a, SourceId, B::Sources, L>>,
+    {
+        let input = Arc::new(ArcSwap::new(Arc::new(frame)));
 
         let output = SharedSimulationOutput(Arc::new(ArcSwap::new(Arc::new(
-            Arc::new(Pool::new(1, ReflectionsReverbOutput::default))
-                .pull_owned(ReflectionsReverbOutput::default),
+            Arc::new(Pool::new(
+                1,
+                BoundReflectionsReverbOutput::<SourceId, B::Reflection>::default,
+            ))
+            .pull_owned(BoundReflectionsReverbOutput::<SourceId, B::Reflection>::default),
         ))));
 
         let paused = Arc::new((Mutex::new(false), Condvar::new()));
@@ -55,7 +115,7 @@ where
         self.paused.push(paused.clone());
 
         let simulator_for_commit = self.simulator.clone();
-        let handle = SimulationRunner::new(
+        let handle = BoundSimulationRunner::new(
             input.clone(),
             output.0.clone(),
             self.simulator_commit_needed.clone(),
@@ -65,7 +125,7 @@ where
             paused.clone(),
         )
         .spawn(
-            ReflectionsReverbStep::new::<SourceId>(self.simulator.clone()),
+            BoundReflectionsReverbStep::<SourceId, B>::from(self.simulator.clone()),
             on_error,
         );
 
@@ -80,34 +140,43 @@ where
 /// A running reflections and reverb simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub struct ReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P>
-where
+pub type StaticReflectionsReverbSimulation<SourceId, D, P, RE, LD = D, LP = P> =
+    ReflectionsReverbSimulation<
+        SourceId,
+        Static<(D, Reflections, P, RE)>,
+        Static<RE>,
+        Static<(LD, Reflections, LP, RE)>,
+    >;
+
+/// A running reflection and listener reverb worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicReflectionsReverbSimulation<SourceId> =
+    ReflectionsReverbSimulation<SourceId, Dynamic<()>, Dynamic<ReflectionAlgorithm>>;
+
+/// A running worker with binding-specific input and output storage.
+pub struct ReflectionsReverbSimulation<
+    SourceId,
+    B: FrameBinding,
+    E: ReflectionBinding + 'static,
+    L: InputBinding = B,
+> where
     SourceId: 'static + Send + Sync + Hash + Eq,
-    RE: 'static + ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
     /// Shared input frame, updated each game frame.
-    input: SharedReflectionsReverbInput<SourceId, D, P, RE, LD, LP>,
+    input: Arc<ArcSwap<BoundReflectionsReverbFrame<SourceId, B, L>>>,
     /// Shared output, read by the audio thread.
-    output: SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>>,
+    output: SharedSimulationOutput<BoundReflectionsReverbOutput<SourceId, E>>,
     /// Thread lifecycle controls.
     controls: SimulationControls,
 }
 
-impl<SourceId, D, P, RE, LD, LP> ReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
+impl<SourceId, B: FrameBinding, E: ReflectionBinding + 'static, L: InputBinding>
+    ReflectionsReverbSimulation<SourceId, B, E, L>
 where
     SourceId: 'static + Send + Sync + Hash + Eq,
-    RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
 {
-    /// Updates the input frame used on the next run.
-    pub fn set_input(
-        &self,
-        frame: ReflectionsReverbFrame<SourceId, D, Reflections, P, RE, LD, LP>,
-    ) {
-        self.input.store(Arc::new(frame));
-    }
-
     /// Returns the shared output produced by this simulation thread.
-    pub fn output(&self) -> SharedSimulationOutput<ReflectionsReverbOutput<SourceId, RE>> {
+    pub fn output(&self) -> SharedSimulationOutput<BoundReflectionsReverbOutput<SourceId, E>> {
         self.output.clone()
     }
 
@@ -132,85 +201,61 @@ where
     }
 }
 
-/// Shared, atomically-swappable input frame for a reflections and reverb simulation thread.
-type SharedReflectionsReverbInput<SourceId, D, P, RE, LD = D, LP = P> =
-    Arc<ArcSwap<ReflectionsReverbFrame<SourceId, D, Reflections, P, RE, LD, LP>>>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::*;
-
-    #[test]
-    fn test_spawn_and_shutdown() {
-        let context = Context::default();
-        let audio_settings = AudioSettings::default();
-        let simulation_settings =
-            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                max_num_rays: 128,
-                num_diffuse_samples: 8,
-                max_duration: 0.5,
-                max_num_sources: 4,
-                num_threads: 1,
-                max_order: 1,
-            });
-        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-        let scene = Scene::try_new(&context).unwrap();
-        simulator.set_scene(&scene);
-        simulator.commit();
-
-        let simulator_clone = simulator.clone();
-        let mut simulation = Simulation::new::<()>(simulator);
-
-        let listener_source =
-            Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
-        simulator_clone.add_source(&listener_source);
-        simulation.request_simulator_commit();
-
-        let mut reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
-            eprintln!("{error}");
-        });
-        simulation.shutdown();
-        reverb_simulation
-            .join()
-            .expect("simulation thread panicked");
+impl<SourceId, D, P, RE, LD, LP> StaticReflectionsReverbSimulation<SourceId, D, P, RE, LD, LP>
+where
+    SourceId: 'static + Send + Sync + Hash + Eq,
+    RE: ReflectionEffectCompatible<Reflections, RE> + ReflectionEffectType,
+{
+    /// Updates the input frame used on the next run.
+    pub fn set_input(
+        &self,
+        frame: ReflectionsReverbFrame<SourceId, D, Reflections, P, RE, LD, LP>,
+    ) {
+        self.input.store(Arc::new(frame));
     }
+}
 
-    #[test]
-    fn test_initial_listener_output_is_none() {
-        let context = Context::default();
-        let audio_settings = AudioSettings::default();
-        let simulation_settings =
-            SimulationSettings::new(&audio_settings).with_reflections(ConvolutionSettings {
-                max_num_rays: 128,
-                num_diffuse_samples: 8,
-                max_duration: 0.5,
-                max_num_sources: 4,
-                num_threads: 1,
-                max_order: 1,
-            });
-        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-        let scene = Scene::try_new(&context).unwrap();
-        simulator.set_scene(&scene);
-        simulator.commit();
+#[cfg(feature = "dynamic")]
+impl<SourceId: 'static + Send + Sync + Clone + Hash + Eq> crate::dynamic::Simulation<SourceId> {
+    /// Spawns a reflections reverb simulation thread.
+    /// Reports missing reflection inputs until
+    /// [`crate::dynamic::ReflectionsReverbSimulation::set_input`] supplies them.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::dynamic::SimulationError::DisabledModes`] if the mode is unavailable.
+    pub fn spawn_reflections_reverb(
+        &mut self,
+        on_error: impl Fn(crate::dynamic::SimulationError) + Send + 'static,
+    ) -> Result<
+        crate::dynamic::ReflectionsReverbSimulation<SourceId>,
+        crate::dynamic::SimulationError,
+    > {
+        let disabled = crate::SimulationFlags::REFLECTIONS & !self.simulator.flags();
+        if !disabled.is_empty() {
+            return Err(crate::dynamic::SimulationError::DisabledModes(disabled));
+        }
+        let frame = BoundReflectionsReverbFrame::<SourceId, Dynamic<()>> {
+            sources: self.sources.clone(),
+            listener: None,
+            shared_inputs: Default::default(),
+        };
 
-        let simulator_clone = simulator.clone();
-        let mut simulation = Simulation::new::<()>(simulator);
+        Ok(self.spawn_reflections_reverb_shared(frame, on_error))
+    }
+}
 
-        let listener_source =
-            Source::<(), Reflections, (), Convolution>::try_new(&simulator_clone).unwrap();
-        simulator_clone.add_source(&listener_source);
-        simulation.request_simulator_commit();
-
-        let mut reverb_simulation = simulation.spawn_reflections_reverb::<(), ()>(|error| {
-            eprintln!("{error}");
-        });
-
-        assert!(reverb_simulation.output().load().listener.is_none());
-
-        simulation.shutdown();
-        reverb_simulation
-            .join()
-            .expect("simulation thread panicked");
+#[cfg(feature = "dynamic")]
+impl<SourceId: 'static + Send + Sync + Hash + Eq>
+    crate::dynamic::ReflectionsReverbSimulation<SourceId>
+{
+    /// Updates shared inputs for the next worker iteration.
+    pub fn set_input(&self, shared_inputs: crate::dynamic::SimulationSharedInputs) {
+        let frame = BoundReflectionsReverbFrame::<SourceId, Dynamic<()>> {
+            sources: self.input.load().sources.clone(),
+            listener: None,
+            shared_inputs,
+        };
+        self.input.store(Arc::new(frame));
     }
 }

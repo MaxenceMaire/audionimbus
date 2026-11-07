@@ -1,4 +1,5 @@
 //! Convenient re-exports of commonly used types and traits.
+//! The prelude selects the same types as the crate root.
 
 use crate::{
     audio_buffer, audio_settings, baking, callback, context, device, effect, energy_field, error,
@@ -49,5 +50,17 @@ pub use probe::*;
 pub use ray_tracing::*;
 pub use reconstructor::*;
 pub use serialized_object::SerializedObject;
-pub use simulation::*;
+pub use simulation::{
+    ConvolutionParameters, ConvolutionSettings, Direct, DirectCompatible,
+    DirectSimulationParameters, DirectSimulationSettings, HybridParameters, HybridSettings,
+    Occlusion, OcclusionAlgorithm, ParameterValidationError, ParametricParameters,
+    ParametricSettings, Pathing, PathingCompatible, PathingSimulationParameters,
+    PathingSimulationSettings, ReflectionEffectCompatible, Reflections, ReflectionsAlgorithm,
+    ReflectionsCompatible, ReflectionsSharedInputs, ReflectionsSimulationParameters,
+    SimulationError, SimulationFlags, SimulationFlagsProvider, SimulationInputs, SimulationOutputs,
+    SimulationParameters, SimulationSettings, SimulationSharedInputs, SimulationType, Simulator,
+    Source, TransmissionParameters, TrueAudioNextParameters, TrueAudioNextSettings,
+};
+#[cfg(feature = "dynamic")]
+pub use simulation::{ReflectionsParameters, ReflectionsSettings};
 pub use version::*;

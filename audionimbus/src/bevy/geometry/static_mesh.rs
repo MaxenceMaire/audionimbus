@@ -1,4 +1,4 @@
-use super::super::configuration::SimulationConfiguration;
+use super::super::binding::ConfigurationBinding;
 use super::scene::{Scene, SceneStatus, find_scene_ancestor};
 use crate::geometry::{Material, Point, StaticMeshHandle, StaticMeshSettings, Triangle};
 use bevy::asset::AssetId;
@@ -26,7 +26,7 @@ pub struct StaticMesh;
 /// Stores the handle needed to remove the mesh from its scene when [`StaticMesh`] is removed or
 /// the entity is despawned.
 #[derive(Component, Debug)]
-pub(crate) struct SpawnedStaticMesh {
+pub(crate) struct SpawnedStaticMesh<C: ConfigurationBinding> {
     /// The scene entity this mesh was registered with.
     pub(crate) scene_entity: Entity,
     /// Mesh asset used to build the registered static mesh.
@@ -35,6 +35,8 @@ pub(crate) struct SpawnedStaticMesh {
     pub(crate) material: Material,
     /// Handle used to reference and remove the mesh from the scene.
     pub(crate) handle: StaticMeshHandle,
+    /// The configuration associated with this mesh registration.
+    _configuration: std::marker::PhantomData<fn() -> C>,
 }
 
 /// Synchronizes static mesh registrations with the current ECS state.
@@ -54,20 +56,20 @@ pub(crate) struct SpawnedStaticMesh {
 /// Geometry is sourced from the entity's [`Mesh3d`] asset.
 /// [`Material::default`] is used when no [`Material`] component is present.
 #[allow(clippy::type_complexity)]
-pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
+pub(crate) fn sync_static_meshes<C: ConfigurationBinding>(
     static_meshes: Query<
         (
             Entity,
             &Mesh3d,
             Ref<GlobalTransform>,
             Option<&Material>,
-            Option<&SpawnedStaticMesh>,
+            Option<&SpawnedStaticMesh<C>>,
         ),
         With<StaticMesh>,
     >,
     parents: Query<&ChildOf>,
     global_transforms: Query<&GlobalTransform>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
     mesh_assets: Res<Assets<Mesh>>,
     mut commands: Commands,
 ) {
@@ -114,7 +116,7 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
                 }
             }
             None => {
-                entity_commands.remove::<SpawnedStaticMesh>();
+                entity_commands.remove::<SpawnedStaticMesh<C>>();
             }
         }
     }
@@ -124,7 +126,7 @@ pub(crate) fn sync_static_meshes<C: SimulationConfiguration>(
 ///
 /// Returns `None` when the mesh asset is not yet loaded or the geometry cannot be extracted.
 #[allow(clippy::too_many_arguments)]
-fn try_register_static_mesh<C: SimulationConfiguration>(
+fn try_register_static_mesh<C: ConfigurationBinding>(
     entity: Entity,
     scene_entity: Entity,
     mesh_asset_id: AssetId<Mesh>,
@@ -133,8 +135,8 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
     global_transform: &GlobalTransform,
     global_transforms: &Query<&GlobalTransform>,
     mesh_assets: &Assets<Mesh>,
-    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
-) -> Option<SpawnedStaticMesh> {
+    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
+) -> Option<SpawnedStaticMesh<C>> {
     // The mesh asset is not ready yet. Retry once it becomes available.
     let mesh = mesh_assets.get(&mesh_3d.0)?;
 
@@ -166,7 +168,7 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
 
     let (mut scene, mut scene_status) = scenes.get_mut(scene_entity).ok()?;
 
-    let inner_mesh = crate::geometry::StaticMesh::try_new(
+    let inner_mesh = C::static_mesh(
         &scene.0,
         &StaticMeshSettings {
             vertices: &vertices,
@@ -180,10 +182,11 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
     })
     .ok()?;
 
-    let handle = scene.0.add_static_mesh(inner_mesh);
+    let handle = C::add_static_mesh(&mut scene.0, inner_mesh);
     scene_status.commit_needed = true;
 
     Some(SpawnedStaticMesh {
+        _configuration: Default::default(),
         scene_entity,
         mesh_asset_id,
         material,
@@ -192,10 +195,11 @@ fn try_register_static_mesh<C: SimulationConfiguration>(
 }
 
 /// Deregisters the static mesh when [`StaticMesh`] is removed or the entity is despawned.
-pub(crate) fn on_static_mesh_removed<C: SimulationConfiguration>(
+pub(crate) fn on_static_mesh_removed<C: ConfigurationBinding>(
     event: On<Remove, StaticMesh>,
-    handles: Query<&SpawnedStaticMesh>,
-    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus)>,
+    mut commands: Commands,
+    handles: Query<&SpawnedStaticMesh<C>>,
+    mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) {
     let entity = event.entity;
 
@@ -205,12 +209,13 @@ pub(crate) fn on_static_mesh_removed<C: SimulationConfiguration>(
     };
 
     deregister_static_mesh(static_mesh, &mut scenes);
+    commands.entity(entity).remove::<SpawnedStaticMesh<C>>();
 }
 
 /// Removes a static mesh from its parent scene and marks it as needing a commit.
-fn deregister_static_mesh<C: SimulationConfiguration>(
-    static_mesh: &SpawnedStaticMesh,
-    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus)>,
+fn deregister_static_mesh<C: ConfigurationBinding>(
+    static_mesh: &SpawnedStaticMesh<C>,
+    scenes: &mut Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
 ) {
     // Scene may have been despawned before the mesh entity.
     let Ok((mut scene, mut scene_status)) = scenes.get_mut(static_mesh.scene_entity) else {

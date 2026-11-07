@@ -24,13 +24,15 @@ smallvec = { version = "1.15", default-features = false }
 slotmap = "1.1.1"
 
 [features]
+static = []
+dynamic = []
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
 wiring = ["dep:arc-swap", "dep:object-pool"]
-default = ["wiring"]
+default = ["static", "wiring"]
 bevy = ["dep:bevy", "wiring"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
-features = ["bevy"]
+features = ["bevy", "dynamic"]

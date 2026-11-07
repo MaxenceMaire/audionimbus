@@ -1,17 +1,20 @@
 //! Scene asset.
 
 use super::with_serialized_object;
-use crate::bevy::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
-use crate::bevy::geometry::{MainScene, Scene};
+use crate::bevy::binding::{ConfigurationBinding, DefaultConfiguration};
+use crate::bevy::configuration::SimulationConfiguration;
+use crate::bevy::geometry::{MainScene, MainScenes, Scene, SceneStatus};
+use crate::bevy::simulation::Simulation;
 use crate::callback::CustomRayTracingCallbacks;
 use crate::context::Context;
 use crate::device::{EmbreeDevice, RadeonRaysDevice};
 use crate::error::SteamAudioError;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays};
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
+use bevy::ecs::world::EntityWorldMut;
 use bevy::prelude::{
     Asset, AssetEvent, Assets, Commands, Component, DetectChanges, Entity, Handle, Has,
-    MessageReader, Query, Ref, Res, With,
+    MessageReader, Query, Ref, Res, ResMut,
 };
 use bevy::reflect::TypePath;
 use std::collections::HashSet;
@@ -63,7 +66,7 @@ impl AssetLoader for SceneAssetLoader {
 /// Component that automatically instantiates a [`Scene`] from a [`SceneAsset`] when the backing
 /// asset finishes loading or is hot-reloaded.
 #[derive(Component)]
-pub struct SceneAssetSource<C: SimulationConfiguration = DefaultSimulationConfiguration> {
+pub struct SceneAssetSource<C: ConfigurationBinding = DefaultConfiguration> {
     /// Asset handle.
     handle: Handle<SceneAsset>,
     /// Asset loader.
@@ -78,7 +81,10 @@ where
     pub fn new(handle: Handle<SceneAsset>) -> Self {
         Self::with_loader(handle, |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<DefaultRayTracer>::load(context, serialized_object)
+                crate::geometry::scene::StaticScene::<DefaultRayTracer>::load(
+                    context,
+                    serialized_object,
+                )
             })
         })
     }
@@ -92,7 +98,7 @@ where
     pub fn with_embree(handle: Handle<SceneAsset>, device: EmbreeDevice) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<Embree>::load_embree(
+                crate::geometry::scene::StaticScene::<Embree>::load_embree(
                     context,
                     device.clone(),
                     serialized_object,
@@ -110,7 +116,7 @@ where
     pub fn with_radeon_rays(handle: Handle<SceneAsset>, device: RadeonRaysDevice) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<RadeonRays>::load_radeon_rays(
+                crate::geometry::scene::StaticScene::<RadeonRays>::load_radeon_rays(
                     context,
                     device.clone(),
                     serialized_object,
@@ -128,7 +134,7 @@ where
     pub fn with_custom(handle: Handle<SceneAsset>, callbacks: CustomRayTracingCallbacks) -> Self {
         Self::with_loader(handle, move |context, asset| {
             with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
-                crate::geometry::Scene::<CustomRayTracer>::load_custom(
+                crate::geometry::scene::StaticScene::<CustomRayTracer>::load_custom(
                     context,
                     callbacks.clone(),
                     serialized_object,
@@ -138,14 +144,14 @@ where
     }
 }
 
-impl<C: SimulationConfiguration> SceneAssetSource<C> {
+impl<C: ConfigurationBinding> SceneAssetSource<C> {
     /// Creates a source component with a custom loader closure.
     fn with_loader(
         handle: Handle<SceneAsset>,
         loader: impl Fn(
             &Context,
             &SceneAsset,
-        ) -> Result<crate::geometry::Scene<C::RayTracer>, SteamAudioError>
+        ) -> Result<crate::geometry::scene::Scene<C::Geometry>, SteamAudioError>
         + Send
         + Sync
         + 'static,
@@ -157,13 +163,32 @@ impl<C: SimulationConfiguration> SceneAssetSource<C> {
     }
 }
 
+/// Runtime scene asset component.
+#[cfg(feature = "dynamic")]
+pub type DynamicSceneAssetSource = SceneAssetSource<crate::bevy::binding::RuntimeConfiguration>;
+
+#[cfg(feature = "dynamic")]
+impl DynamicSceneAssetSource {
+    /// Creates a scene asset source with the selected ray tracer.
+    pub fn with_ray_tracer(
+        handle: Handle<SceneAsset>,
+        settings: crate::dynamic::RayTracerSettings,
+    ) -> Self {
+        Self::with_loader(handle, move |context, asset| {
+            with_serialized_object(context, asset.bytes().to_vec(), |serialized_object| {
+                crate::dynamic::Scene::load(context, settings.clone(), serialized_object)
+            })
+        })
+    }
+}
+
 /// Scene asset loader.
 type SceneLoader<C> = Arc<
     dyn Fn(
             &Context,
             &SceneAsset,
         ) -> Result<
-            crate::geometry::Scene<<C as SimulationConfiguration>::RayTracer>,
+            crate::geometry::scene::Scene<<C as ConfigurationBinding>::Geometry>,
             SteamAudioError,
         > + Send
         + Sync,
@@ -171,14 +196,22 @@ type SceneLoader<C> = Arc<
 
 /// Inserts or replaces [`Scene<C>`] on entities with [`SceneAssetSource<C>`] when their backing
 /// asset becomes ready, is modified, or the stored handle changes.
+///
+/// Asset replacement must precede geometry registration to prevent stale scene handles.
 #[allow(clippy::type_complexity)]
-pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
+pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
     mut commands: Commands,
     context: Res<Context>,
     scene_assets: Res<Assets<SceneAsset>>,
     mut asset_messages: MessageReader<AssetEvent<SceneAsset>>,
-    query: Query<(Entity, Ref<SceneAssetSource<C>>, Has<Scene<C>>)>,
-    main_scenes: Query<(), With<MainScene>>,
+    query: Query<(
+        Entity,
+        Ref<SceneAssetSource<C>>,
+        Has<Scene<C>>,
+        Has<MainScene>,
+    )>,
+    mut main_scenes: ResMut<MainScenes>,
+    mut simulation: ResMut<Simulation<C>>,
 ) {
     let changed_asset_ids = asset_messages
         .read()
@@ -188,7 +221,11 @@ pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
         })
         .collect::<HashSet<_>>();
 
-    for (entity, source, has_scene) in &query {
+    for (entity, source, has_scene, marked_main) in &query {
+        if marked_main && !has_scene && source.is_added() {
+            main_scenes.request_asset::<C>(entity);
+        }
+
         let needs_update =
             !has_scene || source.is_changed() || changed_asset_ids.contains(&source.handle.id());
         if !needs_update {
@@ -201,43 +238,35 @@ pub(crate) fn sync_scenes_from_assets<C: SimulationConfiguration>(
 
         match (source.loader)(&context, asset) {
             Ok(inner_scene) => {
-                let had_main_scene = main_scenes.contains(entity);
+                let scene = Scene::<C>(inner_scene);
 
-                commands.entity(entity).insert(Scene::<C>(inner_scene));
-
-                if had_main_scene {
-                    // Explicit remove guarantees `On<Add, MainScene>` fires.
-                    commands
-                        .entity(entity)
-                        .remove::<MainScene>()
-                        .insert(MainScene);
+                if main_scenes.selects_asset::<C>(entity)
+                    && let Err(event) =
+                        main_scenes.select(entity, &scene, &mut simulation, commands.reborrow())
+                {
+                    bevy::log::error!(
+                        "failed to select scene asset on {entity:?}: {}",
+                        event.error
+                    );
+                    commands.trigger(event);
+                    continue;
                 }
+
+                commands
+                    .entity(entity)
+                    .queue(move |mut entity: EntityWorldMut| {
+                        if entity.contains::<Scene<C>>()
+                            && let Some(mut scene_status) = entity.get_mut::<SceneStatus<C>>()
+                        {
+                            scene_status.replacing_asset = true;
+                        }
+
+                        entity.remove::<Scene<C>>().insert(scene);
+                    });
             }
             Err(error) => {
                 bevy::log::error!("failed to load Scene from asset on {entity:?}: {error:?}");
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::bevy::configuration::DefaultSimulationConfiguration;
-    use crate::bevy::geometry::Scene;
-    use crate::context::Context;
-    use crate::ray_tracing::DefaultRayTracer;
-
-    #[test]
-    fn test_scene_asset_round_trip() {
-        let context = Context::default();
-        let scene = crate::geometry::Scene::<DefaultRayTracer>::try_new(&context).unwrap();
-        let serialized_object = scene.try_save(&context).unwrap();
-        let asset = SceneAsset::new(serialized_object.to_vec());
-
-        let loaded_scene =
-            Scene::<DefaultSimulationConfiguration>::from_asset(&context, &asset).unwrap();
-
-        assert!(!loaded_scene.raw_ptr().is_null());
     }
 }

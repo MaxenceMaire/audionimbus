@@ -1,3 +1,5 @@
+//! Baking errors.
+
 /// Errors that can occur during baking operations.
 #[derive(Debug, PartialEq, Eq)]
 pub enum BakeError {

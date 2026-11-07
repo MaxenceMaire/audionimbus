@@ -159,7 +159,7 @@ callback! {
 }
 
 callback! {
-    /// Callback for visualizing valid path segments during the call to [`Simulator::run_pathing`].
+    /// Callback for visualizing valid path segments during the call to `Simulator::run_pathing`.
     ///
     /// You can use this to provide the user with visual feedback, like drawing each segment of a path.
     ///

@@ -4,7 +4,7 @@
 //! [`ProbeBatch`] stores committed probes and baked data.
 
 use super::asset::{ProbeBatchAsset, with_serialized_object_mut};
-use super::configuration::SimulationConfiguration;
+use super::binding::ConfigurationBinding;
 use super::simulation::Simulation;
 use crate::context::Context;
 use crate::error::SteamAudioError;
@@ -110,29 +110,29 @@ impl From<crate::probe::ProbeBatch> for ProbeBatch {
 }
 
 /// Adds a [`ProbeBatch`] to the simulator and requests a commit when it is spawned.
-pub(crate) fn on_probe_batch_added<C: SimulationConfiguration>(
+pub(crate) fn on_probe_batch_added<C: ConfigurationBinding>(
     event: On<Add, ProbeBatch>,
     query: Query<&ProbeBatch>,
     mut simulation: ResMut<Simulation<C>>,
 ) {
     let probe_batch = query.get(event.entity).unwrap();
-    simulation.0.simulator.add_probe_batch(&probe_batch.0);
-    simulation.0.request_simulator_commit();
+    simulation.simulator.add_probe_batch(&probe_batch.0);
+    simulation.request_simulator_commit();
 }
 
 /// Removes a [`ProbeBatch`] from the simulator and requests a commit when it is removed.
-pub(crate) fn on_probe_batch_removed<C: SimulationConfiguration>(
+pub(crate) fn on_probe_batch_removed<C: ConfigurationBinding>(
     event: On<Remove, ProbeBatch>,
     query: Query<&ProbeBatch>,
     mut simulation: ResMut<Simulation<C>>,
 ) {
     let probe_batch = query.get(event.entity).unwrap();
-    simulation.0.simulator.remove_probe_batch(&probe_batch.0);
-    simulation.0.request_simulator_commit();
+    simulation.simulator.remove_probe_batch(&probe_batch.0);
+    simulation.request_simulator_commit();
 }
 
 /// Commits mutated probe batches and requests a simulator commit.
-pub(crate) fn commit_probe_batches<C: SimulationConfiguration>(
+pub(crate) fn commit_probe_batches<C: ConfigurationBinding>(
     probe_batches: Query<&ProbeBatch, Changed<ProbeBatch>>,
     mut simulation: ResMut<Simulation<C>>,
 ) {
@@ -144,5 +144,5 @@ pub(crate) fn commit_probe_batches<C: SimulationConfiguration>(
         probe_batch.0.commit();
     }
 
-    simulation.0.request_simulator_commit();
+    simulation.request_simulator_commit();
 }

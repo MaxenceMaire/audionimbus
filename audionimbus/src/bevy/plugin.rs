@@ -1,13 +1,12 @@
 //! Bevy plugin and shared simulation inputs resource.
 
-use super::asset::{
-    ProbeBatchAsset, ProbeBatchAssetLoader, SceneAsset, SceneAssetLoader,
-    sync_probe_batches_from_assets, sync_scenes_from_assets,
-};
+use super::binding::{ConfigurationBinding, DefaultConfiguration};
 use super::configuration::{DefaultSimulationConfiguration, SimulationConfiguration};
+#[cfg(feature = "dynamic")]
+use super::error::report_integration_error;
 use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
-    commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_scene_removed,
+    MainScenes, commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_scene_removed,
     on_static_mesh_removed, sync_instanced_meshes, sync_static_meshes,
 };
 use super::probe::{commit_probe_batches, on_probe_batch_added, on_probe_batch_removed};
@@ -20,14 +19,12 @@ use super::source::{
 use super::system_set::SpatialAudioSet;
 use crate::audio_settings::AudioSettings;
 use crate::context::Context;
+use crate::simulation::settings::StaticSimulationSettings as SimulationSettings;
 use crate::simulation::{
     ConvolutionSettings, Direct, DirectCompatible, DirectSimulationSettings, PathingCompatible,
-    Reflections, ReflectionsCompatible, SimulationFlagsProvider, SimulationSettings, Simulator,
+    Reflections, ReflectionsCompatible, SimulationFlagsProvider,
 };
-use bevy::asset::{AssetApp, AssetServer};
-use bevy::prelude::{
-    App, Entity, IntoScheduleConfigs, Plugin, PostUpdate, TransformSystems, resource_exists,
-};
+use bevy::prelude::{App, IntoScheduleConfigs, IntoSystem, Plugin, PostUpdate, TransformSystems};
 use bevy::reflect::TypePath;
 
 #[cfg(debug_assertions)]
@@ -46,12 +43,14 @@ use super::runner::{RunnerReflections, RunnerReflectionsReverb};
 /// | `RR` | Reflections runner (`RunnerReflections`, `RunnerReflectionsReverb`, or `()`) |
 /// | `RP` | Pathing runner (`RunnerPathing` or `()`) |
 pub struct SpatialAudioPlugin<
-    C: SimulationConfiguration = DefaultSimulationConfiguration,
+    C: ConfigurationBinding = DefaultConfiguration,
     RD: Runner = (),
     RR: Runner = (),
     RP: Runner = (),
 > {
-    simulation_settings: BoundSimulationSettings<C>,
+    simulation_settings: C::Settings,
+    /// The worker selection settings.
+    runners: C::Runners,
     _phantom: std::marker::PhantomData<(RD, RR, RP)>,
 }
 
@@ -73,6 +72,7 @@ impl
     ) -> Self {
         Self {
             simulation_settings,
+            runners: (),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -116,6 +116,7 @@ impl SpatialAudioPlugin<DefaultSimulationConfiguration, (), (), ()> {
     {
         SpatialAudioPlugin {
             simulation_settings,
+            runners: (),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -135,7 +136,10 @@ where
     /// need listener-centric reverb.
     ///
     /// ```rust
+    /// # #[cfg(feature = "static")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # use audionimbus::*;
+    /// # use audionimbus::r#static::SimulationSettings;
     /// # use audionimbus::bevy::*;
     /// #
     /// # let audio_settings = AudioSettings::default();
@@ -164,6 +168,9 @@ where
     /// SpatialAudioPlugin::with_config::<MyConfig>(settings)
     ///     .with_runners::<RunnerDirect, RunnerReflections, ()>();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "static"))]
+    /// # fn main() {}
     /// ```
     pub fn with_runners<RD2, RR2, RP2>(self) -> SpatialAudioPlugin<C, RD2, RR2, RP2>
     where
@@ -173,6 +180,7 @@ where
     {
         SpatialAudioPlugin {
             simulation_settings: self.simulation_settings,
+            runners: (),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -180,7 +188,7 @@ where
 
 impl<C, RD, RR, RP> Plugin for SpatialAudioPlugin<C, RD, RR, RP>
 where
-    C: SimulationConfiguration + TypePath,
+    C: PluginSystems + TypePath,
     RD: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
     RR: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
     RP: 'static + Runner + Send + Sync + Spawn<C> + SyncFrame<C>,
@@ -210,7 +218,8 @@ where
         + PathingCompatible<RP::SimulationType>,
 {
     fn build(&self, app: &mut App) {
-        app.register_type::<SpatialAudioSet>()
+        app.init_resource::<MainScenes>()
+            .register_type::<SpatialAudioSet>()
             .register_type::<super::source::Source<C>>()
             .register_type::<super::source::SourceParameters<C>>()
             .register_type::<super::source::Listener>()
@@ -226,14 +235,12 @@ where
 
         let context = world.get_resource_or_insert_with(Context::default).clone();
 
-        let simulator = Simulator::try_new(&context, &self.simulation_settings)
-            .expect("failed to create simulator");
-        let simulation = crate::wiring::simulation::Simulation::new::<Entity>(simulator);
+        let simulation = C::simulation(&context, &self.simulation_settings);
 
         world.insert_resource(Simulation::<C>(simulation));
         world.insert_resource(SimulationSharedInputs::<C>::default());
 
-        let (sender, receiver) = error_channel();
+        let (sender, receiver) = error_channel::<C::Error>();
         world.insert_resource(sender);
         world.insert_non_send(receiver);
 
@@ -279,13 +286,6 @@ where
 
         app.add_systems(
             PostUpdate,
-            sync_sources::<C>
-                .after(TransformSystems::Propagate)
-                .in_set(SpatialAudioSet::SyncSources),
-        );
-
-        app.add_systems(
-            PostUpdate,
             sync_simulation_shared_inputs_listener::<C>
                 .after(TransformSystems::Propagate)
                 .in_set(SpatialAudioSet::SyncSimulationSharedInputs),
@@ -293,36 +293,40 @@ where
 
         app.add_systems(
             PostUpdate,
-            propagate_simulation_errors.in_set(SpatialAudioSet::PropagateErrors),
+            propagate_simulation_errors::<C::Error>.in_set(SpatialAudioSet::PropagateErrors),
         );
 
         RD::add_systems(app);
         RR::add_systems(app);
         RP::add_systems(app);
 
-        app.add_observer(on_source_added::<C>);
-        app.add_observer(on_source_removed::<C>);
         app.add_observer(on_listener_added);
         app.add_observer(on_probe_batch_added::<C>);
         app.add_observer(on_probe_batch_removed::<C>);
         app.add_observer(on_static_mesh_removed::<C>);
         app.add_observer(on_instanced_mesh_removed::<C>);
-        app.add_observer(on_main_scene_added::<C>);
         app.add_observer(on_scene_removed::<C>);
 
+        use super::asset::{
+            ProbeBatchAsset, ProbeBatchAssetLoader, SceneAsset, SceneAssetLoader,
+            sync_probe_batches_from_assets, sync_scenes_from_assets,
+        };
+        use bevy::asset::{AssetApp, AssetServer};
+        use bevy::prelude::resource_exists;
         if app.world().contains_resource::<AssetServer>() {
-            app.init_asset::<SceneAsset>()
-                .init_asset_loader::<SceneAssetLoader>();
             app.init_asset::<ProbeBatchAsset>()
-                .init_asset_loader::<ProbeBatchAssetLoader>();
-
+                .init_asset_loader::<ProbeBatchAssetLoader>()
+                .init_asset::<SceneAsset>()
+                .init_asset_loader::<SceneAssetLoader>();
             app.add_systems(
                 PostUpdate,
-                (sync_scenes_from_assets::<C>, sync_probe_batches_from_assets)
+                (sync_probe_batches_from_assets, sync_scenes_from_assets::<C>)
                     .run_if(resource_exists::<Context>)
                     .in_set(SpatialAudioSet::SyncAssets),
             );
         }
+
+        C::add_systems(app, &self.runners);
     }
 }
 
@@ -342,3 +346,127 @@ pub type InferredSpatialAudioPlugin<C> = SpatialAudioPlugin<
     <<C as SimulationConfiguration>::Reflections as ToRunner>::Runner,
     <<C as SimulationConfiguration>::Pathing as ToRunner>::Runner,
 >;
+
+/// Reflection workers selected for a runtime pipeline.
+#[cfg(feature = "dynamic")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReflectionsRunner {
+    /// No reflection worker.
+    Disabled,
+    /// Source reflections without listener reverb.
+    Sources,
+    /// Source reflections and listener reverb.
+    #[default]
+    SourcesAndReverb,
+}
+
+/// Worker choices for a runtime pipeline.
+#[cfg(feature = "dynamic")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RunnerSettings {
+    /// Whether to start a direct worker.
+    pub direct: bool,
+    /// The reflection worker selection.
+    pub reflections: ReflectionsRunner,
+    /// Whether to start a pathing worker.
+    pub pathing: bool,
+}
+
+/// Spatial audio plugin with runtime simulation choices.
+#[cfg(feature = "dynamic")]
+pub type DynamicSpatialAudioPlugin = SpatialAudioPlugin<super::binding::RuntimeConfiguration>;
+
+#[cfg(feature = "dynamic")]
+impl DynamicSpatialAudioPlugin {
+    /// Creates a plugin with workers inferred from the available simulation modes.
+    pub fn with_settings(simulation_settings: crate::dynamic::SimulationSettings) -> Self {
+        let flags = simulation_settings.flags();
+        let runners = RunnerSettings {
+            direct: flags.contains(crate::SimulationFlags::DIRECT),
+            reflections: if flags.contains(crate::SimulationFlags::REFLECTIONS) {
+                ReflectionsRunner::SourcesAndReverb
+            } else {
+                ReflectionsRunner::Disabled
+            },
+            pathing: flags.contains(crate::SimulationFlags::PATHING),
+        };
+
+        Self {
+            simulation_settings,
+            runners,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Overrides the inferred workers.
+    ///
+    /// Selected workers require their mode in the simulation settings.
+    pub fn with_runners(mut self, runners: RunnerSettings) -> Self {
+        self.runners = runners;
+        self
+    }
+}
+
+/// System registration selected by the integration binding.
+pub trait PluginSystems: ConfigurationBinding {
+    /// Registers publication, observers, workers, and mode-specific scene assets.
+    fn add_systems(app: &mut App, runners: &Self::Runners);
+}
+
+impl<C: SimulationConfiguration> PluginSystems for C {
+    fn add_systems(app: &mut App, _: &()) {
+        app.add_systems(
+            PostUpdate,
+            sync_sources::<C>
+                .map(|outcome| outcome.unwrap_or_else(|event| match event.error {}))
+                .after(TransformSystems::Propagate)
+                .in_set(SpatialAudioSet::SyncSources),
+        );
+        app.add_observer(on_source_added::<C>);
+        app.add_observer(on_source_removed::<C>);
+        app.add_observer(
+            on_main_scene_added::<C>
+                .map(|outcome| outcome.unwrap_or_else(|event| match event.error {})),
+        );
+    }
+}
+
+#[cfg(feature = "dynamic")]
+impl PluginSystems for super::binding::RuntimeConfiguration {
+    fn add_systems(app: &mut App, runners: &Self::Runners) {
+        use super::runner::{
+            RunnerDirect, RunnerPathing, RunnerReflections, RunnerReflectionsReverb,
+        };
+        if runners.direct {
+            <RunnerDirect as Spawn<Self>>::spawn(app.world_mut());
+            <RunnerDirect as SyncFrame<Self>>::add_systems(app);
+        }
+        match runners.reflections {
+            ReflectionsRunner::Disabled => {}
+            ReflectionsRunner::Sources => {
+                <RunnerReflections as Spawn<Self>>::spawn(app.world_mut());
+                <RunnerReflections as SyncFrame<Self>>::add_systems(app);
+            }
+            ReflectionsRunner::SourcesAndReverb => {
+                <RunnerReflectionsReverb as Spawn<Self>>::spawn(app.world_mut());
+                <RunnerReflectionsReverb as SyncFrame<Self>>::add_systems(app);
+            }
+        }
+        if runners.pathing {
+            <RunnerPathing as Spawn<Self>>::spawn(app.world_mut());
+            <RunnerPathing as SyncFrame<Self>>::add_systems(app);
+        }
+        app.add_systems(
+            PostUpdate,
+            sync_sources::<Self>
+                .pipe(report_integration_error)
+                .after(TransformSystems::Propagate)
+                .in_set(SpatialAudioSet::SyncSources),
+        );
+        app.add_observer(super::source::try_on_source_added::<Self>.pipe(report_integration_error));
+        app.add_observer(
+            super::source::try_on_source_removed::<Self>.pipe(report_integration_error),
+        );
+        app.add_observer(on_main_scene_added::<Self>.pipe(report_integration_error));
+    }
+}

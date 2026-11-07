@@ -1,16 +1,9 @@
-use audionimbus::{Material, Point, RayTracer, Scene, StaticMesh, StaticMeshSettings, Triangle};
+use audionimbus::{Point, Triangle};
 
-/// Constructs a closed rectangular room and returns it as a [`StaticMesh`].
+/// Constructs the vertices and triangles of a closed rectangular room.
 ///
 /// The floor lies at `y = 0` and the room is centered on the xz-plane.
-/// `material` is applied uniformly to all six faces.
-pub fn room<T: RayTracer>(
-    scene: &Scene<T>,
-    width: f32,
-    height: f32,
-    depth: f32,
-    material: Material,
-) -> StaticMesh<T> {
+pub fn room(width: f32, height: f32, depth: f32) -> ([Point; 8], [Triangle; 12]) {
     let half_width = width / 2.0;
     let half_depth = depth / 2.0;
 
@@ -28,7 +21,7 @@ pub fn room<T: RayTracer>(
         Point::new(-half_width, height,  half_depth),
     ];
 
-    let triangles = vec![
+    let triangles = [
         // Floor
         Triangle::new(0, 2, 1),
         Triangle::new(0, 3, 2),
@@ -49,14 +42,5 @@ pub fn room<T: RayTracer>(
         Triangle::new(1, 6, 5),
     ];
 
-    StaticMesh::try_new(
-        scene,
-        &StaticMeshSettings {
-            vertices: &vertices,
-            triangles: &triangles,
-            material_indices: &vec![0; triangles.len()],
-            materials: &[material],
-        },
-    )
-    .unwrap()
+    (vertices, triangles)
 }

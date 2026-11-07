@@ -1,11 +1,27 @@
-use super::super::runner::{PathingFrame, SimulationRunner};
-use super::super::step::{PathingStep, SimulationStepError};
-use super::{SharedSimulationOutput, Simulation, SimulationControls};
+use super::pipeline::Simulation as BoundSimulation;
+use super::{SharedSimulationOutput, SimulationControls};
+#[cfg(feature = "dynamic")]
+use crate::binding::Dynamic;
+use crate::binding::Static;
 use crate::effect::PathEffectParams;
+use crate::geometry::scene::Scene as BoundScene;
 use crate::ray_tracing::RayTracer;
+use crate::simulation::simulator::Simulator as BoundSimulator;
 use crate::simulation::{
     DirectCompatible, Pathing, ReflectionEffectCompatible, ReflectionsCompatible,
     SimulationFlagsProvider,
+};
+use crate::wiring::simulation::pipeline::StaticSimulation as Simulation;
+use crate::wiring::{
+    Allocate, PathingFrame, SimulationStep, SimulationStepError,
+    binding::FrameBinding,
+    runner::{
+        pathing::{
+            PathingFrame as BoundPathingFrame, ResolvedPathingFrame as BoundResolvedPathingFrame,
+        },
+        worker::SimulationRunner as BoundSimulationRunner,
+    },
+    step::pathing::{PathingBinding, PathingStep as BoundPathingStep},
 };
 use arc_swap::ArcSwap;
 use object_pool::Pool;
@@ -27,11 +43,42 @@ where
     pub fn spawn_pathing(
         &mut self,
         on_error: impl Fn(SimulationStepError) + Send + 'static,
-    ) -> PathingSimulation<SourceId, D, R, RE> {
-        let input = Arc::new(ArcSwap::new(Arc::new(PathingFrame {
+    ) -> StaticPathingSimulation<SourceId, D, R, RE> {
+        let frame = PathingFrame {
             sources: self.sources.clone(),
             shared_inputs: Default::default(),
-        })));
+        };
+
+        self.spawn_pathing_shared(frame, on_error)
+    }
+}
+
+impl<SourceId, B> BoundSimulation<SourceId, B>
+where
+    SourceId: 'static + Send + Sync + Clone + Hash + Eq,
+    B: PathingBinding + 'static,
+    B::Sources: FrameBinding + 'static,
+    BoundSimulator<B>: Send + Sync + Clone,
+    BoundScene<B::Geometry>: Send + Sync,
+    B::Error: Send + 'static,
+{
+    /// Starts this worker with the selected frame and simulation binding.
+    fn spawn_pathing_shared(
+        &mut self,
+        frame: BoundPathingFrame<SourceId, B::Sources>,
+        on_error: impl Fn(B::Error) + Send + 'static,
+    ) -> PathingSimulation<SourceId, B::Sources>
+    where
+        BoundPathingFrame<SourceId, B::Sources>: Send + Sync,
+        for<'a> BoundPathingStep<SourceId, B>: SimulationStep<
+                BoundResolvedPathingFrame<'a, SourceId, B::Sources>,
+                Output = HashMap<SourceId, crate::PathEffectParams>,
+                Error = B::Error,
+            >,
+        for<'a> HashMap<SourceId, crate::PathEffectParams>:
+            Allocate<BoundResolvedPathingFrame<'a, SourceId, B::Sources>>,
+    {
+        let input = Arc::new(ArcSwap::new(Arc::new(frame)));
 
         let output = SharedSimulationOutput(Arc::new(ArcSwap::new(Arc::new(
             Arc::new(Pool::new(1, HashMap::default)).pull_owned(HashMap::default),
@@ -43,7 +90,7 @@ where
         self.paused.push(paused.clone());
 
         let simulator_for_commit = self.simulator.clone();
-        let handle = SimulationRunner::new(
+        let handle = BoundSimulationRunner::new(
             input.clone(),
             output.0.clone(),
             self.simulator_commit_needed.clone(),
@@ -53,7 +100,7 @@ where
             paused.clone(),
         )
         .spawn(
-            PathingStep::new::<SourceId>(self.simulator.clone()),
+            BoundPathingStep::<SourceId, B>::from(self.simulator.clone()),
             on_error,
         );
 
@@ -68,29 +115,30 @@ where
 /// A running pathing simulation thread.
 ///
 /// Dropping this handle requests shutdown and joins the thread.
-pub struct PathingSimulation<SourceId, D, R, RE>
+pub type StaticPathingSimulation<SourceId, D, R, RE> =
+    PathingSimulation<SourceId, Static<(D, R, Pathing, RE)>>;
+
+/// A running pathing simulation worker.
+#[cfg(feature = "dynamic")]
+pub type DynamicPathingSimulation<SourceId> = PathingSimulation<SourceId, Dynamic<()>>;
+
+/// A running worker with binding-specific input and output storage.
+pub struct PathingSimulation<SourceId, B: FrameBinding>
 where
     SourceId: 'static + Send + Sync,
-    RE: ReflectionEffectCompatible<R, RE>,
 {
     /// Shared input frame, updated each game frame.
-    input: SharedPathingInput<SourceId, D, R, RE>,
+    input: Arc<ArcSwap<BoundPathingFrame<SourceId, B>>>,
     /// Shared output, read by the audio thread.
     output: SharedSimulationOutput<HashMap<SourceId, PathEffectParams>>,
     /// Thread lifecycle controls.
     controls: SimulationControls,
 }
 
-impl<SourceId, D, R, RE> PathingSimulation<SourceId, D, R, RE>
+impl<SourceId, B: FrameBinding> PathingSimulation<SourceId, B>
 where
     SourceId: 'static + Send + Sync,
-    RE: ReflectionEffectCompatible<R, RE>,
 {
-    /// Updates the input frame used on the simulation thread's next run.
-    pub fn set_input(&self, frame: PathingFrame<SourceId, D, R, Pathing, RE>) {
-        self.input.store(Arc::new(frame));
-    }
-
     /// Returns the shared output produced by this simulation thread.
     pub fn output(&self) -> SharedSimulationOutput<HashMap<SourceId, PathEffectParams>> {
         self.output.clone()
@@ -117,95 +165,49 @@ where
     }
 }
 
-/// Shared, atomically-swappable input frame for a pathing simulation thread.
-type SharedPathingInput<SourceId, D, R, RE> =
-    Arc<ArcSwap<PathingFrame<SourceId, D, R, Pathing, RE>>>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::*;
-
-    fn simulation() -> Simulation<(), DefaultRayTracer, (), (), Pathing, ()> {
-        let context = Context::default();
-        let audio_settings = AudioSettings::default();
-        let simulation_settings =
-            SimulationSettings::new(&audio_settings).with_pathing(PathingSimulationSettings {
-                num_visibility_samples: 4,
-            });
-        let mut simulator = Simulator::try_new(&context, &simulation_settings).unwrap();
-
-        let mut scene = Scene::try_new(&context).unwrap();
-        let vertices = vec![
-            Point::new(-10.0, 0.0, -10.0),
-            Point::new(10.0, 0.0, -10.0),
-            Point::new(10.0, 0.0, 10.0),
-            Point::new(-10.0, 0.0, 10.0),
-        ];
-        let triangles = vec![Triangle::new(0, 1, 2), Triangle::new(0, 2, 3)];
-        let materials = vec![Material::default()];
-        let material_indices = vec![0usize, 0];
-        let static_mesh = StaticMesh::try_new(
-            &scene,
-            &StaticMeshSettings {
-                vertices: &vertices,
-                triangles: &triangles,
-                material_indices: &material_indices,
-                materials: &materials,
-            },
-        )
-        .unwrap();
-        scene.add_static_mesh(static_mesh);
-        scene.commit();
-        simulator.set_scene(&scene);
-
-        let mut probe_array = ProbeArray::try_new(&context).unwrap();
-        probe_array.generate_probes(
-            &scene,
-            &ProbeGenerationParams::UniformFloor {
-                spacing: 5.0,
-                height: 1.5,
-                transform: Matrix4::new([
-                    [20.0, 0.0, 0.0, 0.0],
-                    [0.0, 20.0, 0.0, 0.0],
-                    [0.0, 0.0, 20.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]),
-            },
-        );
-        let mut probe_batch = ProbeBatch::try_new(&context).unwrap();
-        probe_batch.add_probe_array(&probe_array);
-        probe_batch.commit();
-        simulator.add_probe_batch(&probe_batch);
-        simulator.commit();
-
-        Simulation::new::<()>(simulator)
+impl<SourceId, D, R, RE> StaticPathingSimulation<SourceId, D, R, RE>
+where
+    SourceId: 'static + Send + Sync,
+    RE: ReflectionEffectCompatible<R, RE>,
+{
+    /// Updates the input frame used on the simulation thread's next run.
+    pub fn set_input(&self, frame: PathingFrame<SourceId, D, R, Pathing, RE>) {
+        self.input.store(Arc::new(frame));
     }
+}
 
-    #[test]
-    fn test_spawn_and_shutdown() {
-        let mut simulation = simulation();
-        let mut pathing_simulation = simulation.spawn_pathing(|error| {
-            eprintln!("{error}");
-        });
-        simulation.shutdown();
-        pathing_simulation
-            .join()
-            .expect("simulation thread panicked");
+#[cfg(feature = "dynamic")]
+impl<SourceId: 'static + Send + Sync + Clone + Hash + Eq> crate::dynamic::Simulation<SourceId> {
+    /// Spawns a pathing simulation thread.
+    ///
+    /// # Errors
+    ///
+    /// - [`crate::dynamic::SimulationError::DisabledModes`] if the mode is unavailable.
+    pub fn spawn_pathing(
+        &mut self,
+        on_error: impl Fn(crate::dynamic::SimulationError) + Send + 'static,
+    ) -> Result<crate::dynamic::PathingSimulation<SourceId>, crate::dynamic::SimulationError> {
+        let disabled = crate::SimulationFlags::PATHING & !self.simulator.flags();
+        if !disabled.is_empty() {
+            return Err(crate::dynamic::SimulationError::DisabledModes(disabled));
+        }
+        let frame = BoundPathingFrame::<SourceId, Dynamic<()>> {
+            sources: self.sources.clone(),
+            shared_inputs: Default::default(),
+        };
+
+        Ok(self.spawn_pathing_shared(frame, on_error))
     }
+}
 
-    #[test]
-    fn test_initial_output_is_empty() {
-        let mut simulation = simulation();
-        let mut pathing_simulation = simulation.spawn_pathing(|error| {
-            eprintln!("{error}");
-        });
-
-        assert!(pathing_simulation.output().load().is_empty());
-
-        simulation.shutdown();
-        pathing_simulation
-            .join()
-            .expect("simulation thread panicked");
+#[cfg(feature = "dynamic")]
+impl<SourceId: 'static + Send + Sync> DynamicPathingSimulation<SourceId> {
+    /// Updates shared inputs for the next worker iteration.
+    pub fn set_input(&self, shared_inputs: crate::dynamic::SimulationSharedInputs) {
+        let frame = BoundPathingFrame::<SourceId, Dynamic<()>> {
+            sources: self.input.load().sources.clone(),
+            shared_inputs,
+        };
+        self.input.store(Arc::new(frame));
     }
 }

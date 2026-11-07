@@ -1,11 +1,20 @@
 # Audionimbus Demo
 
 This crate demonstrates how to get started with the [`audionimbus`](../..) library.
+The [`static.rs`](./static.rs) and [`dynamic.rs`](./dynamic.rs) examples show the same audio flow.
 
-## Running the demo
+## Running the example
+
+From this repository, run the static entry point with:
 
 ```bash
-cargo run --release -p core-demo
+cargo run --release -p core-demo --bin static
+```
+
+For the dynamic entry point, run:
+
+```bash
+cargo run --release -p core-demo --bin dynamic
 ```
 
 ## What you should hear

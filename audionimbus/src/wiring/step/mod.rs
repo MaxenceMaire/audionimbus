@@ -3,18 +3,39 @@
 //! Each step type ([`DirectStep`], [`ReflectionsStep`], [`ReflectionsReverbStep`],
 //! [`PathingStep`]) implements [`SimulationStep`].
 
-use super::SourceWithInputs;
 use crate::error::SteamAudioError;
-use crate::simulation::{ParameterValidationError, SimulationError};
+use crate::simulation::ParameterValidationError;
+use crate::simulation::error::SimulationError;
+use crate::wiring::simulation::pipeline::StaticSourceWithInputs as SourceWithInputs;
 
-mod direct;
-pub use direct::*;
-mod pathing;
-pub use pathing::*;
-mod reflections;
-pub use reflections::*;
-mod reflections_reverb;
-pub use reflections_reverb::*;
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod direct;
+pub use direct::{AsDirectInput, DirectInput, DirectInputOwned, StaticDirectStep as DirectStep};
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod pathing;
+pub use pathing::{
+    AsPathingInput, PathingInput, PathingInputOwned, StaticPathingStep as PathingStep,
+};
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod reflections;
+#[cfg(dynamic_api)]
+pub use reflections::DynamicReflectionsOutput as ReflectionsOutput;
+#[cfg(static_api)]
+pub use reflections::StaticReflectionsOutput as ReflectionsOutput;
+pub use reflections::{
+    AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned,
+    StaticReflectionsStep as ReflectionsStep,
+};
+/// Bindings must stay inaccessible to prevent mixing static and runtime handles.
+pub(crate) mod reflections_reverb;
+#[cfg(dynamic_api)]
+pub use reflections_reverb::DynamicReflectionsReverbOutput as ReflectionsReverbOutput;
+#[cfg(static_api)]
+pub use reflections_reverb::StaticReflectionsReverbOutput as ReflectionsReverbOutput;
+pub use reflections_reverb::{
+    AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbInputOwned,
+    StaticReflectionsReverbStep as ReflectionsReverbStep,
+};
 
 /// Defines the simulation logic for a single step.
 pub trait SimulationStep<I>: Send + 'static {
