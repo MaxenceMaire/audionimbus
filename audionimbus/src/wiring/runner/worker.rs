@@ -2,7 +2,7 @@
 
 #[cfg(feature = "dynamic")]
 use crate::binding::Dynamic;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 use crate::binding::Static;
 #[cfg(feature = "dynamic")]
 use crate::geometry::scene::RayTracerKind;
@@ -19,7 +19,7 @@ use std::sync::{
 };
 
 /// Drives a [`SimulationStep`] on a dedicated thread.
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub type StaticSimulationRunner<I, O, T> = SimulationRunner<I, O, Static<T>>;
 
 /// A simulation runner accepting runtime scene commits.

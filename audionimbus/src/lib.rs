@@ -358,20 +358,20 @@ pub mod wiring;
 #[cfg(feature = "fmod")]
 #[path = "fmod.rs"]
 mod fmod_integration;
-#[cfg(all(feature = "fmod", feature = "dynamic", not(feature = "static")))]
+#[cfg(all(feature = "fmod", dynamic_api))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
 pub use fmod_integration::dynamic_api as fmod;
-#[cfg(all(feature = "fmod", any(feature = "static", not(feature = "dynamic"))))]
+#[cfg(all(feature = "fmod", static_api))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fmod")))]
 pub use fmod_integration::static_api as fmod;
 
 #[cfg(feature = "wwise")]
 #[path = "wwise.rs"]
 mod wwise_integration;
-#[cfg(all(feature = "wwise", feature = "dynamic", not(feature = "static")))]
+#[cfg(all(feature = "wwise", dynamic_api))]
 #[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
 pub use wwise_integration::dynamic_api as wwise;
-#[cfg(all(feature = "wwise", any(feature = "static", not(feature = "dynamic"))))]
+#[cfg(all(feature = "wwise", static_api))]
 #[cfg_attr(docsrs, doc(cfg(feature = "wwise")))]
 pub use wwise_integration::static_api as wwise;
 

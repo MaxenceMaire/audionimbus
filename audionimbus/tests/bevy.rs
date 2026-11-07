@@ -1,6 +1,6 @@
 #![cfg(feature = "bevy")]
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod r#static {
     #[cfg(not(feature = "static"))]
     use audionimbus as core;
@@ -1403,16 +1403,16 @@ fn exports_selected_bevy_paths() {
     let _: Option<audio::RunnerSettings> = None;
 
     let handle = bevy::prelude::Handle::<audio::SceneAsset>::default();
-    #[cfg(any(feature = "static", not(feature = "dynamic")))]
+    #[cfg(static_api)]
     let asset: audio::prelude::SceneAssetSource = audio::SceneAssetSource::new(handle);
-    #[cfg(any(feature = "static", not(feature = "dynamic")))]
+    #[cfg(static_api)]
     let debug: audio::prelude::SpatialAudioDebugPlugin = audio::SpatialAudioDebugPlugin::new();
-    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    #[cfg(dynamic_api)]
     let asset: audio::prelude::SceneAssetSource = audio::SceneAssetSource::with_ray_tracer(
         handle,
         audionimbus::dynamic::RayTracerSettings::Default,
     );
-    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    #[cfg(dynamic_api)]
     let debug: audio::prelude::SpatialAudioDebugPlugin =
         audio::SpatialAudioDebugPlugin::with_runtime();
     let asset: audio::asset::SceneAssetSource = asset;
@@ -1422,7 +1422,7 @@ fn exports_selected_bevy_paths() {
         audionimbus::r#static::bevy::SceneAssetSource,
         audionimbus::r#static::bevy::SpatialAudioDebugPlugin,
     ) = (asset, debug);
-    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    #[cfg(dynamic_api)]
     let _: (
         audionimbus::dynamic::bevy::SceneAssetSource,
         audionimbus::dynamic::bevy::SpatialAudioDebugPlugin,
@@ -1430,9 +1430,9 @@ fn exports_selected_bevy_paths() {
     #[cfg(not(any(feature = "static", feature = "dynamic")))]
     drop((asset, debug));
     let context = audionimbus::Context::default();
-    #[cfg(any(feature = "static", not(feature = "dynamic")))]
+    #[cfg(static_api)]
     let scene: audio::geometry::Scene = audio::geometry::Scene::try_new(&context).unwrap();
-    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    #[cfg(dynamic_api)]
     let scene = audio::geometry::Scene::try_with_ray_tracer(
         &context,
         audionimbus::dynamic::RayTracerSettings::Default,
@@ -1442,7 +1442,7 @@ fn exports_selected_bevy_paths() {
     let scene: audio::Scene = scene;
     #[cfg(feature = "static")]
     let _: audionimbus::r#static::bevy::Scene = scene.clone();
-    #[cfg(all(feature = "dynamic", not(feature = "static")))]
+    #[cfg(dynamic_api)]
     let _: audionimbus::dynamic::bevy::Scene = scene.clone();
     #[cfg(feature = "dynamic")]
     {
@@ -1472,7 +1472,7 @@ mod probe_asset {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod scene_asset {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;

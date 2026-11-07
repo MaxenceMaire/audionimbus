@@ -1,6 +1,7 @@
 //! Simulation error reporting.
 
 use super::simulation::SimulationThread;
+#[cfg(static_api)]
 use crate::wiring::step::SimulationStepError;
 use bevy::prelude::{Commands, Entity, Event, NonSend};
 use std::sync::mpsc;
@@ -48,11 +49,11 @@ pub(crate) fn propagate_simulation_errors<E: Send + Sync + 'static>(
 }
 
 /// The static simulation worker error.
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 type DefaultSimulationError = SimulationStepError;
 
 /// The runtime simulation worker error.
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 type DefaultSimulationError = crate::dynamic::SimulationError;
 
 /// Runtime simulation worker error event.
@@ -105,11 +106,11 @@ pub fn report_integration_error(
 }
 
 /// The error type for infallible static ECS operations.
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 type DefaultIntegrationError = std::convert::Infallible;
 
 /// The runtime ECS operation error.
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 type DefaultIntegrationError = crate::dynamic::SimulationError;
 
 /// Runtime ECS operation error event.

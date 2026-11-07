@@ -20,7 +20,7 @@ fn test_probe_batch_save_load() {
     assert_eq!(loaded_batch.unwrap().num_probes(), 1);
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod r#static {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;

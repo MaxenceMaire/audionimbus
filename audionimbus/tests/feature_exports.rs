@@ -2,7 +2,7 @@
 use audionimbus::dynamic;
 use audionimbus::{Context, Scene, geometry, prelude};
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 #[test]
 fn exports_static_scene_paths() {
     let scene: geometry::Scene = Scene::try_new(&Context::default()).unwrap();
@@ -11,7 +11,7 @@ fn exports_static_scene_paths() {
     let _scene: prelude::Scene = scene;
 }
 
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 #[test]
 fn exports_runtime_scene_paths() {
     let scene: dynamic::Scene =

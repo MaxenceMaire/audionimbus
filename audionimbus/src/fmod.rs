@@ -68,7 +68,7 @@ pub struct FmodStudioIntegrationVersion {
 }
 
 /// FMOD integration with compile-time configuration.
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub mod static_api {
     pub use super::{
         FmodStudioIntegrationVersion, SourceHandle, initialize, remove_source, set_hrtf,

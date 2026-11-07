@@ -10,10 +10,10 @@
 
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod worker;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use worker::DynamicSimulationRunner as SimulationRunner;
 use worker::SourcesGuard;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use worker::StaticSimulationRunner as SimulationRunner;
 pub use worker::{Allocate, Clear, Resolve, Shrink};
 

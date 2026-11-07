@@ -4,7 +4,7 @@ static BAKE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 pub mod common;
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod r#static {
     use super::common::sine_wave;
     #[cfg(not(feature = "static"))]

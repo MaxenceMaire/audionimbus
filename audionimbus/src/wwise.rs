@@ -86,7 +86,7 @@ pub struct WwiseIntegrationVersion {
 }
 
 /// Wwise integration with compile-time configuration.
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub mod static_api {
     pub use super::{
         WwiseGameObjectId, WwiseIntegrationVersion, WwiseSettings, initialize,

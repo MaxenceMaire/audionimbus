@@ -18,9 +18,9 @@ pub use pathing::{
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use reflections::DynamicReflectionsOutput as ReflectionsOutput;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use reflections::StaticReflectionsOutput as ReflectionsOutput;
 pub use reflections::{
     AsReflectionsInput, ReflectionsInput, ReflectionsInputOwned,
@@ -28,9 +28,9 @@ pub use reflections::{
 };
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections_reverb;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use reflections_reverb::DynamicReflectionsReverbOutput as ReflectionsReverbOutput;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use reflections_reverb::StaticReflectionsReverbOutput as ReflectionsReverbOutput;
 pub use reflections_reverb::{
     AsReflectionsReverbInput, ReflectionsReverbInput, ReflectionsReverbInputOwned,

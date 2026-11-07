@@ -11,35 +11,35 @@ use crate::wiring::runner::SimulationRunner;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod pipeline;
 use pipeline::SimulationControls;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use pipeline::{DynamicSimulation as Simulation, DynamicSourceWithInputs as SourceWithInputs};
 pub use pipeline::{
     SharedSimulationOutput, StaticSharedSources as SharedSources, StaticSourcesPool as SourcesPool,
 };
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use pipeline::{StaticSimulation as Simulation, StaticSourceWithInputs as SourceWithInputs};
 
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod direct;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use direct::DynamicDirectSimulation as DirectSimulation;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use direct::StaticDirectSimulation as DirectSimulation;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use reflections::DynamicReflectionsSimulation as ReflectionsSimulation;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use reflections::StaticReflectionsSimulation as ReflectionsSimulation;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod reflections_reverb;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use reflections_reverb::DynamicReflectionsReverbSimulation as ReflectionsReverbSimulation;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use reflections_reverb::StaticReflectionsReverbSimulation as ReflectionsReverbSimulation;
 /// Bindings must stay inaccessible to prevent mixing static and runtime handles.
 pub(crate) mod pathing;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use pathing::DynamicPathingSimulation as PathingSimulation;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use pathing::StaticPathingSimulation as PathingSimulation;

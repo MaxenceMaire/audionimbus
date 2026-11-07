@@ -1,6 +1,6 @@
 #![cfg(feature = "wwise")]
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 #[test]
 fn preserves_static_generic_calls() {
     use audionimbus::{DefaultRayTracer, RayTracer, SimulationSettings, Source, wwise};

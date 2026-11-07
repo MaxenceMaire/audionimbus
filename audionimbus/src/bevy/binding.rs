@@ -510,9 +510,9 @@ impl ConfigurationBinding for RuntimeConfiguration {
 }
 
 /// The default static simulation configuration.
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub type DefaultConfiguration = super::configuration::DefaultSimulationConfiguration;
 
 /// The default runtime simulation configuration.
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub type DefaultConfiguration = RuntimeConfiguration;

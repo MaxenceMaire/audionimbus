@@ -107,9 +107,9 @@ pub use ray::Ray;
 
 /// Geometry implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod scene;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use scene::DynamicScene as Scene;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use scene::StaticScene as Scene;
 pub use scene::{
     InstancedMeshHandle, SaveableAsObj, SaveableAsSerialized, StaticMeshHandle, relative_direction,
@@ -117,19 +117,19 @@ pub use scene::{
 
 /// Mesh implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod static_mesh;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use static_mesh::DynamicStaticMesh as StaticMesh;
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use static_mesh::StaticStaticMesh as StaticMesh;
 pub use static_mesh::{StaticMeshError, StaticMeshSettings};
 
 /// Instance implementations whose bindings must stay inaccessible to downstream callers.
 pub(crate) mod instanced_mesh;
-#[cfg(all(feature = "dynamic", not(feature = "static")))]
+#[cfg(dynamic_api)]
 pub use instanced_mesh::{
     DynamicInstancedMesh as InstancedMesh, DynamicInstancedMeshSettings as InstancedMeshSettings,
 };
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 pub use instanced_mesh::{
     StaticInstancedMesh as InstancedMesh, StaticInstancedMeshSettings as InstancedMeshSettings,
 };

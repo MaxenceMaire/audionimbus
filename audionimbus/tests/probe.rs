@@ -1,4 +1,4 @@
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod r#static {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -116,7 +116,7 @@ mod dynamic {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod generation {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;

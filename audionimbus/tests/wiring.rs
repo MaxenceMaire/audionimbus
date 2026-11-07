@@ -3,7 +3,7 @@
 #[cfg(feature = "dynamic")]
 pub mod common;
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod r#static {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -905,7 +905,7 @@ mod dynamic {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod direct {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -970,7 +970,7 @@ mod direct {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod pathing {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -1062,7 +1062,7 @@ mod pathing {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod pipeline {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -1166,7 +1166,7 @@ mod pipeline {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod reflections {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -1233,7 +1233,7 @@ mod reflections {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod reflections_reverb {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;

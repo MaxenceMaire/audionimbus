@@ -3,7 +3,7 @@ use audionimbus::*;
 pub mod common;
 use common::sine_wave;
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 /// Creates convolution parameters from a reflection simulation.
 ///
 /// # Panics
@@ -236,7 +236,7 @@ fn test_direct_effect() {
     assert!(output_buffer.interleave(&context, &mut interleaved).is_ok());
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod pathing {
     #[cfg(not(feature = "static"))]
     use audionimbus as static_api;
@@ -390,7 +390,7 @@ mod pathing {
 
 mod reflections {
 
-    #[cfg(any(feature = "static", not(feature = "dynamic")))]
+    #[cfg(static_api)]
     mod r#static {
         #[cfg(not(feature = "static"))]
         use audionimbus as static_api;
@@ -669,7 +669,7 @@ mod reflections {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod reflection_effect {
     use super::convolution_parameters;
     #[cfg(not(feature = "static"))]
@@ -946,7 +946,7 @@ mod reflection_effect {
     }
 }
 
-#[cfg(any(feature = "static", not(feature = "dynamic")))]
+#[cfg(static_api)]
 mod reflection_mixer {
     use super::convolution_parameters;
     #[cfg(not(feature = "static"))]
