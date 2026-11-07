@@ -112,16 +112,6 @@ impl ReflectionEffectType for Parametric {
         audionimbus_sys::IPLReflectionEffectType::IPL_REFLECTIONEFFECTTYPE_PARAMETRIC
     }
 
-    fn ffi_settings(
-        settings: &ReflectionEffectSettings,
-    ) -> audionimbus_sys::IPLReflectionEffectSettings {
-        audionimbus_sys::IPLReflectionEffectSettings {
-            type_: Self::to_ffi_type(),
-            irSize: settings.impulse_response_size as i32,
-            numChannels: settings.num_channels as i32,
-        }
-    }
-
     fn num_output_channels(_settings: &ReflectionEffectSettings) -> ChannelRequirement {
         ChannelRequirement::AtLeast(1)
     }
