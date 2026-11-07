@@ -185,7 +185,6 @@ pub type StaticStaticMesh<T> = StaticMesh<Static<T>>;
 
 /// A static mesh with a runtime-selected ray tracer.
 ///
-/// Creates meshes with `try_new`, or loads them with `load` and `load_with_progress_callback`.
 /// Serializes default-backend meshes with `try_save`.
 /// Clones retain the same native mesh.
 #[cfg(feature = "dynamic")]

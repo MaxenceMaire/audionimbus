@@ -1,9 +1,7 @@
 # Audionimbus Demo
 
 This crate demonstrates how to get started with the [`audionimbus`](../..) library.
-The parallel [`static.rs`](./static.rs) and [`dynamic.rs`](./dynamic.rs) entry points show the same complete audio flow.
-Both use the same room, orbiting source, tone bursts, gains, worker threads, and CPAL playback.
-Each entry point contains only the calls for its binding.
+The [`static.rs`](./static.rs) and [`dynamic.rs`](./dynamic.rs) examples show the same audio flow.
 
 ## Running the example
 

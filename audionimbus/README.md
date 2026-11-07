@@ -184,8 +184,10 @@ audionimbus = { version = "0.16.2", features = ["wwise"] }
 ## Static and runtime types
 
 The default features are `static` and `wiring`.
-Runtime types require the `dynamic` feature.
-Enable it to use `audionimbus::dynamic`.
+`static` uses Rust types to choose ray tracers, reflection algorithms, and simulation modes.
+`dynamic` chooses them at runtime.
+
+Enable `dynamic` to use `audionimbus::dynamic`.
 
 `audionimbus::Scene`, `prelude::Scene`, and `geometry::Scene` follow the same feature rule.
 
@@ -205,6 +207,9 @@ audionimbus = { version = "0.16.2", default-features = false, features = ["dynam
 
 Cargo combines the features that dependencies request for the same version of `audionimbus`.
 If another dependency enables `static`, ordinary imports use static types.
+
+For examples of both APIs, see the [static](./examples/core/static.rs)
+and [dynamic](./examples/core/dynamic.rs) versions of the core demo.
 
 ## Bevy Integration
 

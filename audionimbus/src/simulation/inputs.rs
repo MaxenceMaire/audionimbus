@@ -77,7 +77,7 @@ pub type StaticSimulationInputs<D = (), R = (), P = ()> = SimulationInputs<Stati
 #[cfg(feature = "dynamic")]
 pub type DynamicSimulationInputs = SimulationInputs<Dynamic<()>>;
 
-/// Storage shared by static and runtime source inputs.
+/// Source coordinates and simulation parameters.
 #[derive(Clone, Default, Debug)]
 pub struct SimulationInputs<B: InputBinding> {
     /// The position and orientation of this source.

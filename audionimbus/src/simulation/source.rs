@@ -1001,7 +1001,6 @@ impl DynamicSource {
     ///
     /// # Errors
     ///
-    /// - [`dynamic::SimulationError::UnknownFlags`] for unknown mode bits.
     /// - [`dynamic::SimulationError::DisabledModes`] for unavailable modes.
     /// - [`dynamic::SimulationError::AlgorithmMismatch`] for incompatible reflection parameters.
     /// - [`dynamic::SimulationError::PathingOrderExceedsMax`] if pathing inputs exceed
@@ -1075,8 +1074,6 @@ impl DynamicSource {
     ///
     /// # Errors
     ///
-    /// - [`dynamic::SimulationError::UnknownFlags`] for unknown mode bits.
-    /// - [`dynamic::SimulationError::DisabledModes`] for unavailable modes.
     /// - [`dynamic::SimulationError::SteamAudio`] if output allocation fails.
     pub fn get_outputs(&self) -> Result<dynamic::SimulationOutputs, dynamic::SimulationError> {
         self.get_outputs_subset(self.flags())

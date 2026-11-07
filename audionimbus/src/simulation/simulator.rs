@@ -918,7 +918,6 @@ impl<B: SimulatorBinding> Simulator<B> {
         let mut simulator = Self {
             inner: std::ptr::null_mut(),
             binding: binding.clone(),
-            // Safety: thread safety is upheld by the `unsafe impl Send + Sync` on `StaticSimulator`.
             #[allow(clippy::arc_with_non_send_sync)]
             shared: Arc::new(Mutex::new(SimulatorShared::default())),
             audio_settings: settings.audio_settings(),
