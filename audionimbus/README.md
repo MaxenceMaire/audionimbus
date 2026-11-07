@@ -6,9 +6,9 @@ A Rust wrapper around [Steam Audio](https://valvesoftware.github.io/steam-audio/
 
 `audionimbus` simplifies the integration of Steam Audio into Rust projects by offering a safe, idiomiatic API.
 
-It builds upon [`audionimbus-sys`](../audionimbus-sys), which provides raw bindings to the Steam Audio C API.
+It builds upon [`audionimbus-sys`][audionimbus-sys], which provides raw bindings to the Steam Audio C API.
 
-For a demonstration of AudioNimbus' capabilities, watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is), run the [demo](./examples/core), or explore the [Bevy demo](./examples/bevy).
+For a demonstration of AudioNimbus' capabilities, watch the [walkthrough video](https://www.youtube.com/watch?v=zlhW1maG0Is), run the [demo][core-demo], or explore the [Bevy demo][bevy-demo].
 
 `audionimbus` can also integrate with FMOD, Wwise, and Bevy.
 
@@ -208,12 +208,12 @@ audionimbus = { version = "0.16.2", default-features = false, features = ["dynam
 Cargo combines the features that dependencies request for the same version of `audionimbus`.
 If another dependency enables `static`, ordinary imports use static types.
 
-For examples of both APIs, see the [static](./examples/core/static.rs)
-and [dynamic](./examples/core/dynamic.rs) versions of the core demo.
+For examples of both APIs, see the [static][static-demo]
+and [dynamic][dynamic-demo] versions of the core demo.
 
 ## Bevy Integration
 
-The [`bevy`](https://docs.rs/audionimbus/latest/audionimbus/bevy/index.html) module provides ECS wrappers around AudioNimbus types.
+The [`bevy`][bevy-module] module provides ECS wrappers around AudioNimbus types.
 
 Internally, it builds on the `wiring` module, so simulations run on dedicated threads while the Bevy world keeps scene and source state up to date.
 
@@ -221,7 +221,7 @@ The integration stops at simulation output.
 Applying those outputs to audio buffers is left to the implementer, allowing flexibility in the choice of playback backend.
 This boundary may be extended in the future to provide direct audio backend integration if there is sufficient interest.
 
-The [Bevy demo](./examples/bevy) shows one complete setup.
+The [Bevy demo][bevy-demo] shows one complete setup.
 
 Version compatibility:
 
@@ -288,13 +288,15 @@ let _effect_state =
 
 // Note: most audio engines expect interleaved audio (alternating samples for each channel). If
 // required, use the `AudioBuffer::interleave` method to convert the format.
+
+Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-To implement real-time audio processing and playback in your game, check out the [demo crate](./examples/core) for a basic example.
+To implement real-time audio processing and playback in your game, check out the [demo crate][core-demo] for a basic example.
 
-For a Bevy-based setup, see the [Bevy demo](./examples/bevy).
+For a Bevy-based setup, see the [Bevy demo][bevy-demo].
 
-For additional examples, you can explore the [tests](./tests).
+For additional examples, you can explore the [tests][tests].
 
 ## Documentation
 
@@ -307,5 +309,15 @@ However, it can be generated locally using `cargo doc --open --features wwise`.
 
 ## License
 
-`audionimbus` is dual-licensed under the [MIT License](LICENSE-MIT) and the [Apache-2.0 License](LICENSE-APACHE).
+`audionimbus` is dual-licensed under the [MIT License][mit-license] and the [Apache-2.0 License][apache-license].
 You may choose either license when using the software.
+
+[audionimbus-sys]: ../audionimbus-sys
+[core-demo]: ./examples/core
+[bevy-demo]: ./examples/bevy
+[static-demo]: ./examples/core/static.rs
+[dynamic-demo]: ./examples/core/dynamic.rs
+[tests]: ./tests
+[mit-license]: LICENSE-MIT
+[apache-license]: LICENSE-APACHE
+[bevy-module]: https://docs.rs/audionimbus/latest/audionimbus/bevy/index.html
