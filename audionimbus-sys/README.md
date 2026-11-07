@@ -1,18 +1,18 @@
 # audionimbus-sys
 
 Rust bindings to the [Steam Audio](https://valvesoftware.github.io/steam-audio/) library.
-This crate is not meant to be used directly; most users should use [`audionimbus`](../audionimbus), a safe wrapper built on top of `audionimbus-sys`.
+This crate is not meant to be used directly; most users should use [`audionimbus`][audionimbus], a safe wrapper built on top of `audionimbus-sys`.
 
 ## Overview
 
-`audionimbus-sys` exposes raw bindings to the [Steam Audio C library](steam-audio).
-It is inherently unsafe, as it interfaces with external C code; for a safe API, refer to [`audionimbus`](../audionimbus).
+`audionimbus-sys` exposes raw bindings to the [Steam Audio C library][steam-audio].
+It is inherently unsafe, as it interfaces with external C code; for a safe API, refer to [`audionimbus`][audionimbus].
 
 `audionimbus-sys` can also integrate with FMOD and Wwise.
 
 ## Version compatibility
 
-`audionimbus-sys` mirrors the version of [Steam Audio](steam-audio).
+`audionimbus-sys` mirrors the version of [Steam Audio][steam-audio].
 
 ## Installation
 
@@ -180,5 +180,10 @@ However, it can be generated locally using `cargo doc --open --features fmod` (r
 
 ## License
 
-`audionimbus-sys` is dual-licensed under the [MIT License](LICENSE-MIT) and the [Apache-2.0 License](LICENSE-APACHE).
+`audionimbus-sys` is dual-licensed under the [MIT License][mit-license] and the [Apache-2.0 License][apache-license].
 You may choose either license when using the software.
+
+[audionimbus]: ../audionimbus
+[steam-audio]: steam-audio
+[mit-license]: LICENSE-MIT
+[apache-license]: LICENSE-APACHE
