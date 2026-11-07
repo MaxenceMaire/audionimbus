@@ -5,22 +5,22 @@
 ### Added
 
 - Runtime geometry, simulation, reflection effects, and baking behind the `dynamic` feature.
+- Runtime checks reject mismatched ray tracers, devices, and reflection algorithms. A runtime source can only be added to the simulator that created it.
 - Runtime configuration support for existing simulation workers and Bevy, FMOD, and Wwise integrations.
 - Runtime configuration support for the existing Bevy scene loaders and debug plugin.
 - Bevy `IntegrationErrorEvent` for rejected runtime source, listener, and scene updates.
 - The `static` feature, enabled by default, and explicit compile-time imports through `audionimbus::r#static`.
-- Runtime pathing creation limits through `SimulationSettings::with_pathing(pathing_settings, max_order)`.
+- `SimulationSettings::with_pathing(pathing_settings, max_order)` takes a maximum Ambisonic order for runtime pathing. The dynamic API rejects pathing inputs above the simulator's capacity with `dynamic::SimulationError::PathingOrderExceedsMax`. Output reads stay within the allocated coefficient buffer.
 - Probe generation for static and runtime scenes with any supported ray tracer.
-- Parallel static and dynamic entry points in the `core` example.
 
 ### Changed
 
 - Root, prelude, subsystem, and integration imports select runtime types only with `dynamic` enabled and `static` disabled.
-- Bevy configurations can keep independent main scenes and geometry registrations.
+- Bevy configurations can use separate main scene entities and keep separate geometry registrations.
+- The core demo now has `static` and `dynamic` binaries, with `static` as the default.
 
 ### Fixed
 
-- Reject runtime pathing orders above native capacity with `SimulationError::PathingOrderExceedsMax`, and bound both output reads.
 - Preserve pathing probes and deviation callbacks during unrelated source subset updates.
 - Keep deviation model storage alive through native input conversion.
 - Register Bevy static and instanced meshes again after their marker components are removed and reinserted.
