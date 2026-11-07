@@ -6,7 +6,7 @@ use super::configuration::{DefaultSimulationConfiguration, SimulationConfigurati
 use super::error::report_integration_error;
 use super::error::{error_channel, propagate_simulation_errors};
 use super::geometry::{
-    commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_scene_removed,
+    MainScenes, commit_scenes, on_instanced_mesh_removed, on_main_scene_added, on_scene_removed,
     on_static_mesh_removed, sync_instanced_meshes, sync_static_meshes,
 };
 use super::probe::{commit_probe_batches, on_probe_batch_added, on_probe_batch_removed};
@@ -218,7 +218,8 @@ where
         + PathingCompatible<RP::SimulationType>,
 {
     fn build(&self, app: &mut App) {
-        app.register_type::<SpatialAudioSet>()
+        app.init_resource::<MainScenes>()
+            .register_type::<SpatialAudioSet>()
             .register_type::<super::source::Source<C>>()
             .register_type::<super::source::SourceParameters<C>>()
             .register_type::<super::source::Listener>()

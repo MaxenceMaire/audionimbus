@@ -225,6 +225,189 @@ mod r#static {
         app.update();
         assert_eq!(PARAMETER_CALLS.load(Ordering::Relaxed), 2);
     }
+
+    #[cfg(feature = "dynamic")]
+    #[test]
+    fn preserves_main_scene_per_configuration() {
+        use audionimbus::dynamic::{self as runtime, bevy as runtime_audio};
+        use audionimbus::r#static::bevy as audio;
+        use bevy::asset::AssetPlugin;
+
+        let audio_settings = core::AudioSettings::default();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin))
+            .init_resource::<Assets<Mesh>>()
+            .add_plugins(audio::SpatialAudioPlugin::new(
+                core::SimulationSettings::new(&audio_settings)
+                    .with_direct(core::DirectSimulationSettings::default())
+                    .with_reflections(core::ConvolutionSettings::default()),
+            ))
+            .add_plugins(
+                runtime_audio::SpatialAudioPlugin::with_settings(
+                    runtime::SimulationSettings::new(&audio_settings)
+                        .with_direct(core::DirectSimulationSettings::default()),
+                )
+                .with_runners(runtime_audio::RunnerSettings {
+                    direct: false,
+                    reflections: runtime_audio::ReflectionsRunner::Disabled,
+                    pathing: false,
+                }),
+            );
+
+        let context = app.world().resource::<core::Context>();
+        let static_scene = audio::Scene::try_new(context).unwrap();
+        let runtime_scene =
+            runtime_audio::Scene::try_with_ray_tracer(context, runtime::RayTracerSettings::Default)
+                .unwrap();
+        let replacement_scene =
+            runtime_audio::Scene::try_with_ray_tracer(context, runtime::RayTracerSettings::Default)
+                .unwrap();
+        let mut asset_scene = core::Scene::try_new(context).unwrap();
+        let mesh = core::StaticMesh::try_new(
+            &asset_scene,
+            &core::StaticMeshSettings {
+                vertices: &[
+                    core::Point::new(-1.0, -1.0, 1.0),
+                    core::Point::new(1.0, -1.0, 1.0),
+                    core::Point::new(0.0, 1.0, 1.0),
+                ],
+                triangles: &[core::Triangle::new(0, 1, 2)],
+                material_indices: &[0],
+                materials: &[core::Material::CONCRETE],
+            },
+        )
+        .unwrap();
+        asset_scene.add_static_mesh(mesh);
+        asset_scene.commit();
+        let bytes = asset_scene.try_save(context).unwrap().to_vec();
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<audio::SceneAsset>>()
+            .add(audio::SceneAsset::new(bytes));
+
+        let shared_entity = app
+            .world_mut()
+            .spawn((static_scene, runtime_scene, audio::MainScene))
+            .id();
+        let runtime_entity = app
+            .world_mut()
+            .spawn((replacement_scene, audio::MainScene))
+            .id();
+        assert!(app.world().get::<audio::MainScene>(shared_entity).is_some());
+
+        let simulation = app.world().resource::<audio::Simulation>();
+        let static_source =
+            core::Source::<core::Direct>::try_new_subset(simulation.simulator()).unwrap();
+        simulation.simulator().add_source(&static_source);
+        static_source
+            .set_inputs(&core::SimulationInputs {
+                source: core::CoordinateSystem {
+                    origin: core::Point::new(0.0, 0.0, 2.0),
+                    ..Default::default()
+                },
+                parameters: core::SimulationParameters::new().with_direct(
+                    core::DirectSimulationParameters::new()
+                        .with_occlusion(core::Occlusion::new(core::OcclusionAlgorithm::Raycast)),
+                ),
+            })
+            .unwrap();
+        let simulation = app.world().resource::<runtime_audio::Simulation>();
+        let runtime_source =
+            runtime::Source::try_new(simulation.simulator(), core::SimulationFlags::DIRECT)
+                .unwrap();
+        simulation
+            .simulator()
+            .try_add_source(&runtime_source)
+            .unwrap();
+        runtime_source
+            .set_inputs(&runtime::SimulationInputs {
+                source: core::CoordinateSystem {
+                    origin: core::Point::new(0.0, 0.0, 2.0),
+                    ..Default::default()
+                },
+                parameters: runtime::SimulationParameters {
+                    direct: Some(
+                        core::DirectSimulationParameters::new().with_occlusion(
+                            core::Occlusion::new(core::OcclusionAlgorithm::Raycast),
+                        ),
+                    ),
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+
+        app.world_mut().entity_mut(shared_entity).insert((
+            audio::SceneAssetSource::new(handle.clone()),
+            runtime_audio::SceneAssetSource::with_ray_tracer(
+                handle,
+                runtime::RayTracerSettings::Default,
+            ),
+        ));
+        app.update();
+        let simulation = app.world().resource::<audio::Simulation>();
+        simulation.simulator().commit();
+        simulation
+            .simulator()
+            .set_shared_direct_inputs(
+                &core::SimulationSharedInputs::new(core::CoordinateSystem::default()).with_direct(),
+            )
+            .unwrap();
+        simulation.simulator().run_direct();
+        assert_eq!(
+            static_source.get_direct_outputs().unwrap().occlusion,
+            Some(0.0)
+        );
+
+        let simulation = app.world().resource::<runtime_audio::Simulation>();
+        simulation.simulator().commit();
+        simulation
+            .simulator()
+            .set_shared_inputs(
+                core::SimulationFlags::DIRECT,
+                &runtime::SimulationSharedInputs::new(core::CoordinateSystem::default()),
+            )
+            .unwrap();
+        simulation.simulator().run_direct().unwrap();
+        assert_eq!(
+            runtime_source.get_direct_outputs().unwrap().occlusion,
+            Some(1.0)
+        );
+        assert!(
+            app.world()
+                .get::<audio::MainScene>(runtime_entity)
+                .is_some()
+        );
+        assert!(app.world().get::<audio::MainScene>(shared_entity).is_some());
+
+        app.world_mut()
+            .entity_mut(shared_entity)
+            .remove::<runtime_audio::Scene>();
+        assert!(app.world().get::<audio::MainScene>(shared_entity).is_some());
+        app.update();
+        assert!(
+            app.world()
+                .get::<runtime_audio::Scene>(shared_entity)
+                .is_some()
+        );
+        assert!(
+            app.world()
+                .get::<audio::MainScene>(runtime_entity)
+                .is_some()
+        );
+        app.world_mut()
+            .entity_mut(shared_entity)
+            .remove::<audio::Scene>();
+        assert!(app.world().get::<audio::MainScene>(shared_entity).is_none());
+        assert!(
+            app.world()
+                .get::<audio::MainScene>(runtime_entity)
+                .is_some()
+        );
+        app.world().resource::<audio::Simulation>().shutdown();
+        app.world()
+            .resource::<runtime_audio::Simulation>()
+            .shutdown();
+    }
 }
 
 #[cfg(feature = "dynamic")]

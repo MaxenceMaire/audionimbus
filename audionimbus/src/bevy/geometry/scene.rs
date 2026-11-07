@@ -1,4 +1,4 @@
-use super::super::asset::{SceneAsset, with_serialized_object};
+use super::super::asset::{SceneAsset, SceneAssetSource, with_serialized_object};
 use super::super::binding::{ConfigurationBinding, DefaultConfiguration};
 use super::super::configuration::SimulationConfiguration;
 use super::super::error::{IntegrationErrorEvent, IntegrationOperation};
@@ -11,10 +11,13 @@ use crate::device::{EmbreeDevice, RadeonRaysDevice};
 use crate::error::SteamAudioError;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays};
 use crate::serialized_object::SerializedObject;
+use bevy::ecs::{lifecycle::HookContext, world::DeferredWorld};
 use bevy::prelude::{
     Add, ChildOf, Commands, Component, Entity, Local, On, Query, Reflect, ReflectComponent, Remove,
-    ResMut, With, Without,
+    Res, ResMut, Resource, With, Without, World,
 };
+use std::any::TypeId;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
 /// Component wrapping an [AudioNimbus scene](`crate::geometry::Scene`).
@@ -343,6 +346,8 @@ impl<C: SimulationConfiguration> From<crate::geometry::scene::StaticScene<C::Ray
 pub(crate) struct SceneStatus<C: ConfigurationBinding> {
     /// Whether [`commit`](`crate::geometry::Scene::commit`) needs to be called.
     pub commit_needed: bool,
+    /// Whether an asset reload will replace this scene after removal.
+    pub replacing_asset: bool,
     /// The configuration associated with these commit flags.
     _configuration: std::marker::PhantomData<fn() -> C>,
 }
@@ -351,6 +356,7 @@ impl<C: ConfigurationBinding> Default for SceneStatus<C> {
     fn default() -> Self {
         Self {
             commit_needed: false,
+            replacing_asset: false,
             _configuration: Default::default(),
         }
     }
@@ -358,13 +364,110 @@ impl<C: ConfigurationBinding> Default for SceneStatus<C> {
 
 /// Marks the [`Scene`] that the simulator should use for ray tracing.
 ///
-/// At most one scene per configuration should carry this component.
-/// Adding it to a new scene removes it from previous scenes with the same configuration.
-/// The last scene to receive `MainScene` becomes active for its configuration.
+/// Adding this component selects the scene for each configuration on the entity.
+/// The marker stays on the previous entity while another configuration still selects it.
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component)]
-#[component(storage = "SparseSet")]
+#[component(storage = "SparseSet", on_remove = Self::clear_selections)]
 pub struct MainScene;
+
+impl MainScene {
+    /// Clears the entity's selections when its marker is removed.
+    fn clear_selections(mut world: DeferredWorld, hook_context: HookContext) {
+        if let Some(mut main_scenes) = world.get_resource_mut::<MainScenes>() {
+            main_scenes
+                .selections
+                .retain(|_, entity| *entity != hook_context.entity);
+            main_scenes
+                .pending_assets
+                .retain(|&(_, entity)| entity != hook_context.entity);
+        }
+    }
+}
+
+/// Main scene entities keyed by configuration.
+///
+/// Each selection must match the scene accepted by its simulator.
+#[derive(Resource, Default)]
+pub(crate) struct MainScenes {
+    /// The active scene entity for each configuration.
+    selections: HashMap<TypeId, Entity>,
+    /// The configurations awaiting a marked entity's scene asset.
+    pending_assets: HashSet<(TypeId, Entity)>,
+}
+
+impl MainScenes {
+    /// Records a selection request for a scene asset that has not loaded.
+    pub fn request_asset<C: ConfigurationBinding>(&mut self, entity: Entity) {
+        self.pending_assets.insert((TypeId::of::<C>(), entity));
+    }
+
+    /// Returns whether loading this asset should select it for the configuration.
+    pub fn selects_asset<C: ConfigurationBinding>(&self, entity: Entity) -> bool {
+        self.selections.get(&TypeId::of::<C>()) == Some(&entity)
+            || self.pending_assets.contains(&(TypeId::of::<C>(), entity))
+    }
+
+    /// Selects a scene for one configuration and requests a simulator commit.
+    #[cfg_attr(feature = "dynamic", doc = "\n# Errors\n")]
+    #[cfg_attr(
+        feature = "dynamic",
+        doc = "- [`crate::dynamic::SimulationError::RayTracerMismatch`] for a different ray tracer."
+    )]
+    #[cfg_attr(
+        feature = "dynamic",
+        doc = "- [`crate::dynamic::SimulationError::DeviceMismatch`] for incompatible devices."
+    )]
+    pub fn select<C: ConfigurationBinding>(
+        &mut self,
+        entity: Entity,
+        scene: &Scene<C>,
+        simulation: &mut Simulation<C>,
+        commands: Commands,
+    ) -> Result<(), IntegrationErrorEvent<C::IntegrationError>> {
+        let configuration_id = TypeId::of::<C>();
+        self.pending_assets.remove(&(configuration_id, entity));
+
+        if let Err(error) = C::set_scene(&mut simulation.0, &scene.0) {
+            Self::remove_unused_marker(entity, commands);
+
+            return Err(IntegrationErrorEvent {
+                entity: Some(entity),
+                operation: IntegrationOperation::SetScene,
+                error,
+            });
+        }
+
+        if let Some(previous_entity) = self.selections.insert(configuration_id, entity)
+            && previous_entity != entity
+        {
+            Self::remove_unused_marker(previous_entity, commands);
+        }
+
+        simulation.request_simulator_commit();
+
+        Ok(())
+    }
+
+    /// Removes a marker with no active or pending selections.
+    fn remove_unused_marker(entity: Entity, mut commands: Commands) {
+        commands.queue(move |world: &mut World| {
+            let main_scenes = world.resource::<Self>();
+            if !main_scenes
+                .selections
+                .values()
+                .any(|&selected_entity| selected_entity == entity)
+                && !main_scenes
+                    .pending_assets
+                    .iter()
+                    .any(|&(_, requested_entity)| requested_entity == entity)
+                && let Ok(mut entity) = world.get_entity_mut(entity)
+            {
+                entity.remove::<MainScene>();
+            }
+        });
+    }
+}
 
 /// Commits modified scenes.
 pub(crate) fn commit_scenes<C: ConfigurationBinding>(
@@ -387,10 +490,10 @@ pub(crate) fn commit_scenes<C: ConfigurationBinding>(
 #[cfg(debug_assertions)]
 pub(crate) fn warn_missing_main_scene<C: ConfigurationBinding>(
     scenes: Query<Entity, (With<Scene<C>>, Without<SubSceneOf>)>,
-    main_scenes: Query<Entity, (With<MainScene>, With<Scene<C>>)>,
+    main_scenes: Res<MainScenes>,
     mut warned: Local<bool>,
 ) {
-    if *warned || scenes.is_empty() || !main_scenes.is_empty() {
+    if *warned || scenes.is_empty() || main_scenes.selections.contains_key(&TypeId::of::<C>()) {
         return;
     }
 
@@ -400,42 +503,24 @@ pub(crate) fn warn_missing_main_scene<C: ConfigurationBinding>(
     );
 }
 
-/// Enforces the [`MainScene`] exclusivity invariant and notifies the simulator.
-///
-/// When `MainScene` is added to an entity, this observer removes it from any other entity
-/// currently holding it, ensuring the simulator always has exactly one active scene.
-/// The newly marked scene is then set on the simulator and a commit is requested.
-/// A rejected runtime scene leaves the previous main scene active.
+/// Selects the marked scene for this configuration.
 pub(crate) fn on_main_scene_added<C: ConfigurationBinding>(
     event: On<Add, MainScene>,
-    main_scenes: Query<Entity, (With<MainScene>, With<Scene<C>>)>,
-    mut commands: Commands,
+    mut main_scenes: ResMut<MainScenes>,
+    commands: Commands,
     mut simulation: ResMut<Simulation<C>>,
     scenes: Query<&Scene<C>>,
+    asset_sources: Query<(), With<SceneAssetSource<C>>>,
 ) -> Result<(), IntegrationErrorEvent<C::IntegrationError>> {
     let Ok(scene) = scenes.get(event.entity) else {
+        if asset_sources.contains(event.entity) {
+            main_scenes.request_asset::<C>(event.entity);
+        }
+
         return Ok(());
     };
 
-    if let Err(error) = C::set_scene(&mut simulation.0, &scene.0) {
-        commands.entity(event.entity).remove::<MainScene>();
-
-        return Err(IntegrationErrorEvent {
-            entity: Some(event.entity),
-            operation: IntegrationOperation::SetScene,
-            error,
-        });
-    }
-
-    for entity in &main_scenes {
-        if entity != event.entity {
-            commands.entity(entity).remove::<MainScene>();
-        }
-    }
-
-    simulation.request_simulator_commit();
-
-    Ok(())
+    main_scenes.select(event.entity, scene, &mut simulation, commands)
 }
 
 /// Clears any object referencing a removed [`Scene`].
@@ -444,15 +529,21 @@ pub(crate) fn on_scene_removed<C: ConfigurationBinding>(
     static_meshes: Query<(Entity, &SpawnedStaticMesh<C>)>,
     instanced_meshes: Query<(Entity, &InstancedMesh, Option<&SpawnedInstancedMesh<C>>)>,
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,
-    main_scenes: Query<(), With<MainScene>>,
+    mut main_scenes: ResMut<MainScenes>,
     mut commands: Commands,
 ) {
     let removed_scene_entity = event.entity;
+    let replacing_asset = if let Ok((_, mut scene_status)) = scenes.get_mut(removed_scene_entity) {
+        std::mem::take(&mut scene_status.replacing_asset)
+    } else {
+        false
+    };
 
-    if main_scenes.contains(removed_scene_entity)
-        && let Ok(mut removed_scene_commands) = commands.get_entity(removed_scene_entity)
+    if !replacing_asset
+        && main_scenes.selections.get(&TypeId::of::<C>()) == Some(&removed_scene_entity)
     {
-        removed_scene_commands.remove::<MainScene>();
+        main_scenes.selections.remove(&TypeId::of::<C>());
+        MainScenes::remove_unused_marker(removed_scene_entity, commands.reborrow());
     }
 
     for (entity, spawned_static_mesh) in &static_meshes {

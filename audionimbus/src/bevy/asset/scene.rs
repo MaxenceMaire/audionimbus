@@ -3,16 +3,18 @@
 use super::with_serialized_object;
 use crate::bevy::binding::{ConfigurationBinding, DefaultConfiguration};
 use crate::bevy::configuration::SimulationConfiguration;
-use crate::bevy::geometry::{MainScene, Scene};
+use crate::bevy::geometry::{MainScene, MainScenes, Scene, SceneStatus};
+use crate::bevy::simulation::Simulation;
 use crate::callback::CustomRayTracingCallbacks;
 use crate::context::Context;
 use crate::device::{EmbreeDevice, RadeonRaysDevice};
 use crate::error::SteamAudioError;
 use crate::ray_tracing::{CustomRayTracer, DefaultRayTracer, Embree, RadeonRays};
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
+use bevy::ecs::world::EntityWorldMut;
 use bevy::prelude::{
     Asset, AssetEvent, Assets, Commands, Component, DetectChanges, Entity, Handle, Has,
-    MessageReader, Query, Ref, Res, With,
+    MessageReader, Query, Ref, Res, ResMut,
 };
 use bevy::reflect::TypePath;
 use std::collections::HashSet;
@@ -202,8 +204,14 @@ pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
     context: Res<Context>,
     scene_assets: Res<Assets<SceneAsset>>,
     mut asset_messages: MessageReader<AssetEvent<SceneAsset>>,
-    query: Query<(Entity, Ref<SceneAssetSource<C>>, Has<Scene<C>>)>,
-    main_scenes: Query<(), With<MainScene>>,
+    query: Query<(
+        Entity,
+        Ref<SceneAssetSource<C>>,
+        Has<Scene<C>>,
+        Has<MainScene>,
+    )>,
+    mut main_scenes: ResMut<MainScenes>,
+    mut simulation: ResMut<Simulation<C>>,
 ) {
     let changed_asset_ids = asset_messages
         .read()
@@ -213,7 +221,11 @@ pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
         })
         .collect::<HashSet<_>>();
 
-    for (entity, source, has_scene) in &query {
+    for (entity, source, has_scene, marked_main) in &query {
+        if marked_main && !has_scene && source.is_added() {
+            main_scenes.request_asset::<C>(entity);
+        }
+
         let needs_update =
             !has_scene || source.is_changed() || changed_asset_ids.contains(&source.handle.id());
         if !needs_update {
@@ -226,20 +238,31 @@ pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
 
         match (source.loader)(&context, asset) {
             Ok(inner_scene) => {
-                let had_main_scene = main_scenes.contains(entity);
+                let scene = Scene::<C>(inner_scene);
+
+                if main_scenes.selects_asset::<C>(entity)
+                    && let Err(event) =
+                        main_scenes.select(entity, &scene, &mut simulation, commands.reborrow())
+                {
+                    bevy::log::error!(
+                        "failed to select scene asset on {entity:?}: {}",
+                        event.error
+                    );
+                    commands.trigger(event);
+                    continue;
+                }
 
                 commands
                     .entity(entity)
-                    .remove::<Scene<C>>()
-                    .insert(Scene::<C>(inner_scene));
+                    .queue(move |mut entity: EntityWorldMut| {
+                        if entity.contains::<Scene<C>>()
+                            && let Some(mut scene_status) = entity.get_mut::<SceneStatus<C>>()
+                        {
+                            scene_status.replacing_asset = true;
+                        }
 
-                if had_main_scene {
-                    // Explicit remove guarantees `On<Add, MainScene>` fires.
-                    commands
-                        .entity(entity)
-                        .remove::<MainScene>()
-                        .insert(MainScene);
-                }
+                        entity.remove::<Scene<C>>().insert(scene);
+                    });
             }
             Err(error) => {
                 bevy::log::error!("failed to load Scene from asset on {entity:?}: {error:?}");
