@@ -462,7 +462,7 @@ mod reflections {
             let _: &mut audionimbus_sys::IPLReflectionMixer = reflection_mixer.raw_ptr_mut();
             let _: fn(
                 &mut ReflectionMixer<Convolution>,
-                &mut ReflectionEffectParams<Convolution>,
+                &ReflectionEffectParams<Convolution>,
                 &mut AudioBufferMut<'_>,
             )
                 -> Result<audionimbus::AudioEffectState, audionimbus::EffectError> =
@@ -965,7 +965,7 @@ mod reflection_mixer {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let mut reflection_effect_params = convolution_parameters(&context, &audio_settings);
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -990,7 +990,7 @@ mod reflection_mixer {
 
             assert!(
                 mixer
-                    .apply(&mut reflection_effect_params, &mut output_buffer)
+                    .apply(&reflection_effect_params, &mut output_buffer)
                     .is_ok()
             );
         }
@@ -1002,7 +1002,7 @@ mod reflection_mixer {
             let audio_settings = AudioSettings::default();
             let impulse_response_size = 2 * audio_settings.sampling_rate;
 
-            let mut reflection_effect_params = convolution_parameters(&context, &audio_settings);
+            let reflection_effect_params = convolution_parameters(&context, &audio_settings);
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -1022,7 +1022,7 @@ mod reflection_mixer {
                 AudioBufferMut::try_new(output_container.as_mut_slice(), 2 as usize).unwrap();
 
             assert_eq!(
-                mixer.apply(&mut reflection_effect_params, &mut output_buffer),
+                mixer.apply(&reflection_effect_params, &mut output_buffer),
                 Err(EffectError::InvalidOutputChannels {
                     expected: ChannelRequirement::Exactly(4),
                     actual: 2
@@ -1069,7 +1069,7 @@ mod reflection_mixer {
             simulator.commit();
 
             assert!(simulator.run_reflections().is_ok());
-            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -1094,7 +1094,7 @@ mod reflection_mixer {
 
             assert!(
                 mixer
-                    .apply(&mut reflection_effect_params, &mut output_buffer)
+                    .apply(&reflection_effect_params, &mut output_buffer)
                     .is_ok()
             );
         }
@@ -1138,7 +1138,7 @@ mod reflection_mixer {
             simulator.commit();
 
             assert!(simulator.run_reflections().is_ok());
-            let mut reflection_effect_params = source.get_reflections_outputs().unwrap();
+            let reflection_effect_params = source.get_reflections_outputs().unwrap();
 
             let num_output_channels = num_ambisonics_channels(1);
             let reflection_effect_settings = ReflectionEffectSettings {
@@ -1160,7 +1160,7 @@ mod reflection_mixer {
 
             assert!(
                 mixer
-                    .apply(&mut reflection_effect_params, &mut output_buffer)
+                    .apply(&reflection_effect_params, &mut output_buffer)
                     .is_ok()
             );
         }

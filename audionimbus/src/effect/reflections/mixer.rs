@@ -208,7 +208,7 @@ impl<T: ReflectionEffectType> StaticReflectionMixer<T> {
     /// TrueAudioNext) or at least one channel (for parametric).
     pub fn apply(
         &mut self,
-        reflection_effect_params: &mut StaticReflectionEffectParams<T>,
+        reflection_effect_params: &StaticReflectionEffectParams<T>,
         output_buffer: &mut AudioBufferMut<'_>,
     ) -> Result<AudioEffectState, EffectError> {
         self.apply_shared(reflection_effect_params, output_buffer)

@@ -18,6 +18,7 @@
 - Root, prelude, subsystem, and integration imports select runtime types only with `dynamic` enabled and `static` disabled.
 - Bevy configurations can use separate main scene entities and keep separate geometry registrations.
 - The core demo now has `static` and `dynamic` binaries, with `static` as the default.
+- Static `ReflectionMixer::apply` now takes `&ReflectionEffectParams<T>` instead of `&mut ReflectionEffectParams<T>`.
 
 ### Fixed
 
