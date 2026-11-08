@@ -20,8 +20,12 @@ fn main() {
     let static_libraries: Option<(&str, &[&str])> = if cfg!(feature = "linking-static") {
         match target.as_str() {
             "aarch64-apple-darwin" | "x86_64-apple-darwin" => Some(("z", &["c++"])),
-            "x86_64-unknown-linux-gnu" => Some(("z", &["stdc++", "m", "dl", "pthread"])),
-            "x86_64-pc-windows-msvc" => Some(("zlibstatic", &["delayimp"])),
+            "i686-unknown-linux-gnu" | "x86_64-unknown-linux-gnu" => {
+                Some(("z", &["stdc++", "m", "dl", "pthread"]))
+            }
+            "i686-pc-windows-msvc" | "x86_64-pc-windows-msvc" => {
+                Some(("zlibstatic", &["delayimp"]))
+            }
             _ => panic!("linking-static is unsupported for {target}"),
         }
     } else {
@@ -111,6 +115,7 @@ fn generate_bindings_phonon(
         .clang_args(system_flags)
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
+        .blocklist_type("max_align_t")
         .generate()
         .unwrap();
 

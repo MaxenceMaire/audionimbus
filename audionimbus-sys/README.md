@@ -177,8 +177,8 @@ For prebuilt static libraries, use `features = ["linking-static"]` and set `STEA
 | Target | Core files | With `fmod` | With `wwise` |
 | --- | --- | --- | --- |
 | macOS | `libphonon.a`, `libpffft.a`, `libmysofa.a`, `libz.a` | `libphonon_fmod.a` | `libSteamAudioWwiseFX.a` |
-| Linux x64 GNU | `libphonon.a`, `libpffft.a`, `libmysofa.a`, `libz.a` | `libphonon_fmod.a` | `libSteamAudioWwiseFX.a` |
-| Windows x64 MSVC | `phonon.lib`, `pffft.lib`, `mysofa.lib`, `zlibstatic.lib` | `phonon_fmod.lib` | `SteamAudioWwiseFX.lib` |
+| Linux x86/x64 GNU | `libphonon.a`, `libpffft.a`, `libmysofa.a`, `libz.a` | `libphonon_fmod.a` | `libSteamAudioWwiseFX.a` |
+| Windows x86/x64 MSVC | `phonon.lib`, `pffft.lib`, `mysofa.lib`, `zlibstatic.lib` | `phonon_fmod.lib` | `SteamAudioWwiseFX.lib` |
 
 When building static FMOD or Wwise plugins, pass `-DSTEAMAUDIO_SKIP_API_FUNCTIONS` to the C++ compiler.
 You'll also need to follow the plugin registration steps in the [FMOD setup guide](https://valvesoftware.github.io/steam-audio/doc/fmod/getting-started.html) or [Wwise setup guide](https://valvesoftware.github.io/steam-audio/doc/wwise/getting-started.html).
