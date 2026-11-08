@@ -17,6 +17,24 @@ fn main() {
     let out_dir_path = std::env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_path);
     let target = std::env::var("TARGET").unwrap();
+    let static_libraries: Option<(&str, &[&str])> = if cfg!(feature = "linking-static") {
+        match target.as_str() {
+            "aarch64-apple-darwin" | "x86_64-apple-darwin" => Some(("z", &["c++"])),
+            "x86_64-unknown-linux-gnu" => Some(("z", &["stdc++", "m", "dl", "pthread"])),
+            "x86_64-pc-windows-msvc" => Some(("zlibstatic", &["delayimp"])),
+            target if target.contains("-windows-") || target.contains("-linux-gnu") => {
+                panic!("linking-static is unsupported for {target}");
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    if static_libraries.is_some() && cfg!(feature = "auto-install") {
+        panic!("disable auto-install to use linking-static with supplied archives");
+    }
+
     let system_flags = system_flags(&target).unwrap_or_else(|error| panic!("{error}"));
     let version = version();
 
@@ -31,7 +49,11 @@ fn main() {
     }
 
     emit_manual_link_search_path();
-    generate_bindings_phonon(&out_dir.join("phonon.rs"), &version, out_dir, &system_flags);
+    let archive_modifiers = if target.ends_with("-msvc") {
+        "-bundle"
+    } else {
+        "+bundle"
+    };
 
     #[cfg(feature = "fmod")]
     fmod::generate_bindings(
@@ -39,6 +61,7 @@ fn main() {
         &version,
         out_dir,
         &system_flags,
+        static_libraries.map(|_| archive_modifiers),
     );
 
     #[cfg(feature = "wwise")]
@@ -47,13 +70,31 @@ fn main() {
         &version,
         out_dir,
         &system_flags,
+        static_libraries.map(|_| archive_modifiers),
     );
+
+    if let Some((zlib, system_libraries)) = static_libraries {
+        for library in ["phonon", "pffft", "mysofa", zlib] {
+            println!("cargo::rustc-link-lib=static:{archive_modifiers}={library}");
+        }
+
+        for library in system_libraries {
+            println!("cargo::rustc-link-lib={library}");
+        }
+    } else {
+        println!("cargo::rustc-link-lib=phonon");
+    }
+
+    generate_bindings_phonon(&out_dir.join("phonon.rs"), &version, out_dir, &system_flags);
 }
 
 /// Emits the configured manual library search path.
 fn emit_manual_link_search_path() {
     if let Ok(lib_dir) = std::env::var("STEAMAUDIO_LIB_DIR") {
-        println!("cargo:rustc-link-search=native={lib_dir}");
+        println!("cargo::rustc-link-search=native={lib_dir}");
+        if Path::new(&lib_dir).is_absolute() {
+            println!("cargo::rerun-if-changed={lib_dir}");
+        }
     }
 }
 
@@ -64,8 +105,6 @@ fn generate_bindings_phonon(
     tmp_dir: &Path,
     system_flags: &[String],
 ) {
-    println!("cargo:rustc-link-lib=phonon");
-
     let _phonon_header_guard =
         temporary_version_header(&tmp_dir.join("phonon_version.h"), version, "STEAMAUDIO");
 

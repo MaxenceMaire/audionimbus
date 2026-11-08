@@ -5,13 +5,18 @@ use super::{PHONON_HEADER_PATH, Version, temporary_version_header};
 const PHONON_FMOD_HEADER_PATH: &str = "steam-audio/fmod/src/steamaudio_fmod.h";
 
 /// Generates the FMOD integration bindings.
-pub(super) fn generate_bindings(
+pub fn generate_bindings(
     output_path: &Path,
     version: &Version,
     tmp_dir: &Path,
     system_flags: &[String],
+    static_modifiers: Option<&str>,
 ) {
-    println!("cargo:rustc-link-lib=phonon_fmod");
+    if let Some(archive_modifiers) = static_modifiers {
+        println!("cargo::rustc-link-lib=static:{archive_modifiers}=phonon_fmod");
+    } else {
+        println!("cargo:rustc-link-lib=phonon_fmod");
+    }
 
     let _phonon_header_guard =
         temporary_version_header(&tmp_dir.join("phonon_version.h"), version, "STEAMAUDIO");
@@ -42,7 +47,11 @@ pub(super) fn generate_bindings(
         .rustified_enum(".*")
         .bitfield_enum(".*Flags")
         .blocklist_type("_?IPL.*")
-        .allowlist_function("iplFMOD.*")
+        .allowlist_function(if static_modifiers.is_some() {
+            "iplFMOD.*|FMOD_SteamAudio_.*_GetDSPDescription"
+        } else {
+            "iplFMOD.*"
+        })
         .generate()
         .unwrap();
 

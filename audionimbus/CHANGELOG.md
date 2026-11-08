@@ -12,6 +12,8 @@
 - The `static` feature, enabled by default, and explicit compile-time imports through `audionimbus::r#static`.
 - `SimulationSettings::with_pathing(pathing_settings, max_order)` takes a maximum Ambisonic order for runtime pathing. The dynamic API rejects pathing inputs above the simulator's capacity with `dynamic::SimulationError::PathingOrderExceedsMax`. Output reads stay within the allocated coefficient buffer.
 - Probe generation for static and runtime scenes with any supported ray tracer.
+- Static linking with prebuilt Steam Audio libraries on macOS, Linux x64 GNU, and Windows x64 MSVC.
+- Static linking for the FMOD and Wwise integrations.
 
 ### Changed
 

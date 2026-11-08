@@ -55,3 +55,11 @@ fn rejects_non_reflection_reverb() {
             if flags.bits() == SimulationFlags::REFLECTIONS.bits()
     ));
 }
+
+#[cfg(feature = "linking-static")]
+#[test]
+fn initializes_static_integration() {
+    let context = audionimbus::Context::default();
+    audionimbus::wwise::initialize(&context);
+    audionimbus::wwise::terminate();
+}

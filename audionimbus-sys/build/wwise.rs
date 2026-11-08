@@ -5,16 +5,23 @@ use super::{PHONON_HEADER_PATH, Version, temporary_version_header};
 const PHONON_WWISE_HEADER_PATH: &str = "steam-audio/wwise/src/SoundEnginePlugin/SteamAudioCommon.h";
 
 /// Generates the Wwise integration bindings.
-pub(super) fn generate_bindings(
+pub fn generate_bindings(
     output_path: &Path,
     version: &Version,
     tmp_dir: &Path,
     system_flags: &[String],
+    static_modifiers: Option<&str>,
 ) {
     let wwise_sdk = std::env::var("WWISESDK").expect("env var WWISESDK not set");
     let wwise_includes = Path::new(&wwise_sdk).join("include");
 
-    println!("cargo:rustc-link-lib=SteamAudioWwise");
+    if let Some(archive_modifiers) = static_modifiers {
+        println!(
+            "cargo::rustc-link-lib=static:{archive_modifiers},+whole-archive=SteamAudioWwiseFX"
+        );
+    } else {
+        println!("cargo:rustc-link-lib=SteamAudioWwise");
+    }
 
     let _phonon_header_guard =
         temporary_version_header(&tmp_dir.join("phonon_version.h"), version, "STEAMAUDIO");

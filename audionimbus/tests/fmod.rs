@@ -55,3 +55,26 @@ fn rejects_non_reflection_reverb() {
             if flags.bits() == SimulationFlags::REFLECTIONS.bits()
     ));
 }
+
+#[cfg(all(
+    feature = "linking-static",
+    any(target_os = "macos", target_os = "linux", target_os = "windows")
+))]
+#[test]
+fn exposes_static_dsp_descriptions() {
+    let context = audionimbus::Context::default();
+    audionimbus::fmod::initialize(&context);
+
+    let descriptions = unsafe {
+        [
+            audionimbus_sys::fmod::FMOD_SteamAudio_Spatialize_GetDSPDescription(),
+            audionimbus_sys::fmod::FMOD_SteamAudio_MixerReturn_GetDSPDescription(),
+            audionimbus_sys::fmod::FMOD_SteamAudio_Reverb_GetDSPDescription(),
+        ]
+    };
+    for description in descriptions {
+        assert!(!description.is_null());
+    }
+
+    audionimbus::fmod::terminate();
+}

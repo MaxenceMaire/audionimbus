@@ -30,7 +30,7 @@ audionimbus = { version = "0.16.2", features = ["auto-install"] }
 The `auto-install` feature automatically downloads and installs Steam Audio for you.
 It requires Rust 1.88 or later.
 
-For more information, refer to the detailed [installation guide](audionimbus/README.md#installation).
+For other installation options, including manual installation and static linking, see the [`audionimbus`](audionimbus/README.md#installation) and [`audionimbus-sys`](audionimbus-sys/README.md#installation) installation guides.
 
 To get started integrating `audionimbus` into your project, check out [the example](audionimbus/README.md#example) or run the [`demos`](audionimbus/examples).
 

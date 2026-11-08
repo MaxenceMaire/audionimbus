@@ -12,7 +12,7 @@ readme = "README.md"
 
 [dependencies]
 arc-swap = { version = "1.8.2", optional = true }
-audionimbus-sys = { version = "4.8.2-rc.4", path = "../audionimbus-sys" }
+audionimbus-sys = { version = "4.8.2-rc.4", path = "../audionimbus-sys", default-features = false }
 bevy = { version = "0.19", default-features = false, optional = true, features = [
   "bevy_gizmos",
   "bevy_log",
@@ -24,13 +24,15 @@ smallvec = { version = "1.15", default-features = false }
 slotmap = "1.1.1"
 
 [features]
+linking-dynamic = ["audionimbus-sys/linking-dynamic"]
+linking-static = ["audionimbus-sys/linking-static"]
 static = []
 dynamic = []
 fmod = ["audionimbus-sys/fmod"]
 wwise = ["audionimbus-sys/wwise"]
 auto-install = ["audionimbus-sys/auto-install"]
 wiring = ["dep:arc-swap", "dep:object-pool"]
-default = ["static", "wiring"]
+default = ["static", "wiring", "linking-dynamic"]
 bevy = ["dep:bevy", "wiring"]
 
 [package.metadata.docs.rs]
