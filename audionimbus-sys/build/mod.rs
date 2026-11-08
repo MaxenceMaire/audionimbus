@@ -22,10 +22,7 @@ fn main() {
             "aarch64-apple-darwin" | "x86_64-apple-darwin" => Some(("z", &["c++"])),
             "x86_64-unknown-linux-gnu" => Some(("z", &["stdc++", "m", "dl", "pthread"])),
             "x86_64-pc-windows-msvc" => Some(("zlibstatic", &["delayimp"])),
-            target if target.contains("-windows-") || target.contains("-linux-gnu") => {
-                panic!("linking-static is unsupported for {target}");
-            }
-            _ => None,
+            _ => panic!("linking-static is unsupported for {target}"),
         }
     } else {
         None
