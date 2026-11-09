@@ -406,10 +406,10 @@ dependencies = [
 
 [[package]]
 name = "audionimbus"
-version = "0.16.2"
+version = "0.17.0"
 dependencies = [
  "arc-swap",
- "audionimbus-sys 4.8.2-rc.4",
+ "audionimbus-sys 4.8.2-rc.5",
  "bevy",
  "bitflags 2.11.1",
  "object-pool",
@@ -428,7 +428,7 @@ dependencies = [
 
 [[package]]
 name = "audionimbus-sys"
-version = "4.8.2-rc.4"
+version = "4.8.2-rc.5"
 dependencies = [
  "bindgen",
  "zip",
@@ -2283,7 +2283,7 @@ dependencies = [
 name = "core-demo"
 version = "0.1.0"
 dependencies = [
- "audionimbus 0.16.2",
+ "audionimbus 0.17.0",
  "cpal 0.17.3",
 ]
 

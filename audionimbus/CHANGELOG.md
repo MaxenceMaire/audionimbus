@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-09
+
 ### Added
 
 - Runtime geometry, simulation, reflection effects, and baking behind the `dynamic` feature.
