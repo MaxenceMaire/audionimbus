@@ -20,7 +20,7 @@ exclude = [
 ]
 
 [build-dependencies]
-bindgen = "0.71.1"
+bindgen = "0.72"
 zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"], optional = true }
 
 [features]
