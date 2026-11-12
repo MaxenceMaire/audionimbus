@@ -391,46 +391,22 @@ dependencies = [
 
 [[package]]
 name = "audionimbus"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3e2d8ec85beb519a4844b857d4f44c059b10687c05a05394946eeaf2318a472"
-dependencies = [
- "arc-swap",
- "audionimbus-sys 4.8.2-rc.3",
- "bevy",
- "bitflags 2.11.1",
- "object-pool",
- "slotmap",
- "smallvec",
-]
-
-[[package]]
-name = "audionimbus"
 version = "0.17.0"
 dependencies = [
  "arc-swap",
- "audionimbus-sys 4.8.2-rc.6",
+ "audionimbus-sys",
  "bevy",
  "bitflags 2.11.1",
  "object-pool",
  "slotmap",
  "smallvec",
-]
-
-[[package]]
-name = "audionimbus-sys"
-version = "4.8.2-rc.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d36059d75808c40e1270e374f2054eace00d8cc35626e3d9a38a13626644e8a5"
-dependencies = [
- "bindgen 0.71.1",
 ]
 
 [[package]]
 name = "audionimbus-sys"
 version = "4.8.2-rc.6"
 dependencies = [
- "bindgen 0.72.1",
+ "bindgen",
  "zip",
 ]
 
@@ -459,7 +435,7 @@ dependencies = [
 name = "bevy-demo"
 version = "0.1.0"
 dependencies = [
- "audionimbus 0.16.0",
+ "audionimbus",
  "bevy",
  "bevy_seedling",
  "rtrb",
@@ -1959,26 +1935,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.71.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
-dependencies = [
- "bitflags 2.11.1",
- "cexpr",
- "clang-sys",
- "itertools 0.13.0",
- "log",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 2.1.1",
- "shlex",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "bindgen"
 version = "0.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
@@ -2303,7 +2259,7 @@ dependencies = [
 name = "core-demo"
 version = "0.1.0"
 dependencies = [
- "audionimbus 0.17.0",
+ "audionimbus",
  "cpal 0.17.3",
 ]
 

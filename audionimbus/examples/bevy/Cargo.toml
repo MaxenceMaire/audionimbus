@@ -9,7 +9,7 @@ name = "bevy"
 path = "src/main.rs"
 
 [dependencies]
-audionimbus = { version = "0.16", features = ["bevy"] }
+audionimbus = { path = "../..", features = ["bevy"] }
 bevy = { version = "0.19", default-features = false, features = [
   "2d",
   "ui",
