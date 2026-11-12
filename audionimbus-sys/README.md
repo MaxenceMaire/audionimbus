@@ -169,7 +169,9 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 audionimbus-sys = { version = "4.8.2-rc.5", features = ["wwise"] }
 ```
 
-### Native linking
+<a name="native-linking"></a>
+
+### Static linking
 
 Dynamic linking is enabled by default.
 For prebuilt static libraries, use `features = ["linking-static"]` and set `STEAMAUDIO_LIB_DIR` to the directory with the files for your target.
