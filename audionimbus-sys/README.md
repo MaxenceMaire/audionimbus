@@ -32,14 +32,14 @@ Add `audionimbus-sys` to your `Cargo.toml` with the `auto-install` feature:
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.8.2-rc.5", features = ["auto-install"] }
+audionimbus-sys = { version = "4.8.2-rc.6", features = ["auto-install"] }
 ```
 
 #### With FMOD Studio Integration
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.8.2-rc.5", features = ["auto-install", "fmod"] }
+audionimbus-sys = { version = "4.8.2-rc.6", features = ["auto-install", "fmod"] }
 ```
 
 You also need to set the `FMODSDK` environment variable to the path of the FMOD SDK installed on your system (e.g. `export FMODSDK="/path/to/FMOD"`).
@@ -48,7 +48,7 @@ You also need to set the `FMODSDK` environment variable to the path of the FMOD 
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.8.2-rc.5", features = ["auto-install", "wwise"] }
+audionimbus-sys = { version = "4.8.2-rc.6", features = ["auto-install", "wwise"] }
 ```
 
 You also need to set the `WWISESDK` environment variable to the path of the Wwise SDK installed on your system (e.g. `export WWISESDK="/path/to/Audiokinetic/Wwise2024.1.3.8749/SDK"`).
@@ -113,7 +113,7 @@ Finally, add `audionimbus-sys` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-audionimbus-sys = "4.8.2-rc.5"
+audionimbus-sys = "4.8.2-rc.6"
 ```
 
 #### Manual FMOD Studio Integration
@@ -147,7 +147,7 @@ It requires linking against both the Steam Audio library and the FMOD integratio
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.8.2-rc.5", features = ["fmod"] }
+audionimbus-sys = { version = "4.8.2-rc.6", features = ["fmod"] }
 ```
 
 #### Manual Wwise Integration
@@ -166,7 +166,7 @@ It requires linking against both the Steam Audio library and the Wwise integrati
 
 ```toml
 [dependencies]
-audionimbus-sys = { version = "4.8.2-rc.5", features = ["wwise"] }
+audionimbus-sys = { version = "4.8.2-rc.6", features = ["wwise"] }
 ```
 
 <a name="native-linking"></a>

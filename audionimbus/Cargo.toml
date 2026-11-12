@@ -12,7 +12,7 @@ readme = "README.md"
 
 [dependencies]
 arc-swap = { version = "1.8.2", optional = true }
-audionimbus-sys = { version = "4.8.2-rc.5", path = "../audionimbus-sys", default-features = false }
+audionimbus-sys = { version = "4.8.2-rc.6", path = "../audionimbus-sys", default-features = false }
 bevy = { version = "0.19", default-features = false, optional = true, features = [
   "bevy_gizmos",
   "bevy_log",
