@@ -199,8 +199,10 @@ impl Drop for TemporaryFileGuard {
 /// Returns native preprocessor flags for a target.
 fn system_flags(target: &str) -> Result<Vec<String>, String> {
     let (os, cpu) = match target {
-        "i686-pc-windows-msvc" => ("IPL_OS_WINDOWS", Some("IPL_CPU_X86")),
-        "x86_64-pc-windows-msvc" => ("IPL_OS_WINDOWS", Some("IPL_CPU_X64")),
+        "i686-pc-windows-msvc" | "i686-pc-windows-gnu" => ("IPL_OS_WINDOWS", Some("IPL_CPU_X86")),
+        "x86_64-pc-windows-msvc" | "x86_64-pc-windows-gnu" => {
+            ("IPL_OS_WINDOWS", Some("IPL_CPU_X64"))
+        }
         "i686-unknown-linux-gnu" => ("IPL_OS_LINUX", Some("IPL_CPU_X86")),
         "x86_64-unknown-linux-gnu" => ("IPL_OS_LINUX", Some("IPL_CPU_X64")),
         "aarch64-apple-darwin" | "x86_64-apple-darwin" => ("IPL_OS_MACOSX", None),
