@@ -1801,7 +1801,7 @@ impl DynamicSimulator {
 
 /// Errors from runtime simulation construction, inputs, and output retrieval.
 #[cfg(feature = "dynamic")]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum DynamicSimulationError {
     /// A native operation failed.
     SteamAudio(crate::SteamAudioError),

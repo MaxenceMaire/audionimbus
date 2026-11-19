@@ -63,7 +63,7 @@ pub type DynamicSimulationErrorEvent = SimulationErrorEvent<crate::dynamic::Simu
 /// Reports a rejected operation from the Bevy integration.
 ///
 /// Rejected source and listener updates retain their previous snapshots.
-#[derive(Event, Clone, Debug)]
+#[derive(Event, Debug)]
 pub struct IntegrationErrorEvent<E = DefaultIntegrationError> {
     /// The affected entity, or no entity for a complete source snapshot.
     pub entity: Option<Entity>,

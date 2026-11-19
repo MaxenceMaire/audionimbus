@@ -131,17 +131,12 @@ mod r#static {
             .world()
             .component_id::<simulation::Simulation<CustomConfiguration>>()
             .unwrap();
-        let systems: Vec<_> = schedule
-            .graph()
-            .systems
-            .iter()
-            .map(|(key, _, _)| key)
-            .collect();
+
         let mut publishers = 0;
-        for key in systems {
-            let system = schedule.graph_mut().systems.get_mut(key).unwrap();
-            let access = bevy::ecs::system::System::initialize(system, app.world_mut());
-            if !bevy::ecs::system::System::is_exclusive(system)
+        for (key, _, _) in schedule.graph().systems.iter() {
+            let system = schedule.graph().systems.get(key).unwrap();
+
+            if let bevy::ecs::system::SystemAccess::Shared(access) = system.access()
                 && access.combined_access().has_read(source_id)
             {
                 assert!(!access.combined_access().has_write(simulation_id));
@@ -728,11 +723,10 @@ mod runtime {
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {
             let snapshot = output.load();
-            if snapshot.listener.is_some() && snapshot.sources.contains_key(&source_entity) {
-                assert_eq!(
-                    snapshot.listener.as_ref().unwrap().algorithm(),
-                    core::ReflectionAlgorithm::Parametric
-                );
+            if let Some(listener) = snapshot.listener.as_ref()
+                && snapshot.sources.contains_key(&source_entity)
+            {
+                assert_eq!(listener.algorithm(), core::ReflectionAlgorithm::Parametric);
                 assert!(!snapshot.sources.contains_key(&listener_entity));
                 break;
             }
