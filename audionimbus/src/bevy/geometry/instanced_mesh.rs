@@ -151,7 +151,7 @@ fn try_register_instanced_mesh<C: ConfigurationBinding>(
 
 /// Deregisters the instanced mesh when [`InstancedMesh`] is removed or the entity is despawned.
 pub(crate) fn on_instanced_mesh_removed<C: ConfigurationBinding>(
-    event: On<Remove, InstancedMesh>,
+    event: On<Remove<InstancedMesh>>,
     mut commands: Commands,
     handles: Query<&SpawnedInstancedMesh<C>>,
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,

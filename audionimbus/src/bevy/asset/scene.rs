@@ -248,7 +248,7 @@ pub(crate) fn sync_scenes_from_assets<C: ConfigurationBinding>(
                         "failed to select scene asset on {entity:?}: {}",
                         event.error
                     );
-                    commands.trigger(event);
+                    commands.trigger(event.clone());
                     continue;
                 }
 

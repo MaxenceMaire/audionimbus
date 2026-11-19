@@ -52,7 +52,7 @@ pub trait ConfigurationBinding: Send + Sync + 'static {
     /// The error returned by a simulation worker.
     type Error: std::error::Error + Send + Sync + 'static;
     /// The validation error returned by ECS operations.
-    type IntegrationError: std::error::Error + Send + Sync + 'static;
+    type IntegrationError: std::error::Error + Send + Sync + Clone + 'static;
     /// The direct simulation worker.
     type DirectSimulation: Send + Sync + 'static;
     /// The source reflections worker.
