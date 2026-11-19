@@ -2,9 +2,12 @@
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-19
+
 ### Changed
 
 - Update the Bevy integration to Bevy 0.20.
+- Update `audionimbus-sys` to `4.8.2-rc.6`.
 
 ## [0.17.0] - 2026-11-09
 
