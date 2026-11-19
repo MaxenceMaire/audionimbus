@@ -111,7 +111,7 @@ impl From<crate::probe::ProbeBatch> for ProbeBatch {
 
 /// Adds a [`ProbeBatch`] to the simulator and requests a commit when it is spawned.
 pub(crate) fn on_probe_batch_added<C: ConfigurationBinding>(
-    event: On<Add, ProbeBatch>,
+    event: On<Add<ProbeBatch>>,
     query: Query<&ProbeBatch>,
     mut simulation: ResMut<Simulation<C>>,
 ) {
@@ -122,7 +122,7 @@ pub(crate) fn on_probe_batch_added<C: ConfigurationBinding>(
 
 /// Removes a [`ProbeBatch`] from the simulator and requests a commit when it is removed.
 pub(crate) fn on_probe_batch_removed<C: ConfigurationBinding>(
-    event: On<Remove, ProbeBatch>,
+    event: On<Remove<ProbeBatch>>,
     query: Query<&ProbeBatch>,
     mut simulation: ResMut<Simulation<C>>,
 ) {

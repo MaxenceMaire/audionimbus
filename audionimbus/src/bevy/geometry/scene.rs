@@ -505,7 +505,7 @@ pub(crate) fn warn_missing_main_scene<C: ConfigurationBinding>(
 
 /// Selects the marked scene for this configuration.
 pub(crate) fn on_main_scene_added<C: ConfigurationBinding>(
-    event: On<Add, MainScene>,
+    event: On<Add<MainScene>>,
     mut main_scenes: ResMut<MainScenes>,
     commands: Commands,
     mut simulation: ResMut<Simulation<C>>,
@@ -525,7 +525,7 @@ pub(crate) fn on_main_scene_added<C: ConfigurationBinding>(
 
 /// Clears any object referencing a removed [`Scene`].
 pub(crate) fn on_scene_removed<C: ConfigurationBinding>(
-    event: On<Remove, Scene<C>>,
+    event: On<Remove<Scene<C>>>,
     static_meshes: Query<(Entity, &SpawnedStaticMesh<C>)>,
     instanced_meshes: Query<(Entity, &InstancedMesh, Option<&SpawnedInstancedMesh<C>>)>,
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,

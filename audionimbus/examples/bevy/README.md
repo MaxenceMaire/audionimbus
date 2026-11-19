@@ -2,6 +2,8 @@
 
 This crate demonstrates how to integrate [`audionimbus`](../..) into a Bevy application.
 
+The demo uses published AudioNimbus 0.17.0, Bevy 0.19, and bevy_seedling 0.8.0 until bevy_seedling releases Bevy 0.20 support.
+
 ## Running the demo
 
 The demo requires a C compiler for its Zstd backend.

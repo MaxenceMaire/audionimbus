@@ -196,7 +196,7 @@ fn try_register_static_mesh<C: ConfigurationBinding>(
 
 /// Deregisters the static mesh when [`StaticMesh`] is removed or the entity is despawned.
 pub(crate) fn on_static_mesh_removed<C: ConfigurationBinding>(
-    event: On<Remove, StaticMesh>,
+    event: On<Remove<StaticMesh>>,
     mut commands: Commands,
     handles: Query<&SpawnedStaticMesh<C>>,
     mut scenes: Query<(&mut Scene<C>, &mut SceneStatus<C>)>,

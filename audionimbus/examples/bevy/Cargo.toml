@@ -9,7 +9,7 @@ name = "bevy"
 path = "src/main.rs"
 
 [dependencies]
-audionimbus = { path = "../..", features = ["bevy"] }
+audionimbus = { version = "=0.17.0", features = ["bevy"] }
 bevy = { version = "0.19", default-features = false, features = [
   "2d",
   "ui",
@@ -28,5 +28,5 @@ bevy = { version = "0.19", default-features = false, features = [
   "tonemapping_luts",
   "zstd_c",
 ] }
-bevy_seedling = "0.8"
+bevy_seedling = "=0.8.0"
 rtrb = "0.3.5"

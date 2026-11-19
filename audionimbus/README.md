@@ -243,6 +243,8 @@ Version compatibility:
 
 | AudioNimbus | Bevy |
 |-------------|------|
+| Unreleased  | 0.20 |
+| 0.17        | 0.19 |
 | 0.16        | 0.19 |
 | 0.15        | 0.19 |
 | 0.14        | 0.18 |

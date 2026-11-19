@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Update the Bevy integration to Bevy 0.20.
+
 ## [0.17.0] - 2026-11-09
 
 ### Added
